@@ -33,7 +33,11 @@ export async function getRegistrations(
   const { data, count, error } = await query;
 
   if (error) {
-    throw new Error(error.message);
+    console.error("등록 목록 조회 실패:", error.message);
+    return {
+      data: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
   }
 
   const total = count ?? 0;
@@ -140,6 +144,8 @@ export async function generateRegistration(
     const response = await callGeminiAPI(prompt);
     reportData = extractJSON(response);
   } catch (e) {
+    // TODO: Sentry 등 외부 로깅 서비스로 교체 가능
+    console.error("[Gemini API] 등록 안내문 생성 실패:", { analysisId, error: e instanceof Error ? e.message : e });
     const msg = e instanceof Error ? e.message : "등록 안내문 생성 실패";
     return { success: false, error: msg };
   }
@@ -172,6 +178,7 @@ export async function generateRegistration(
     .single();
 
   if (insertError) {
+    console.error("[DB] 등록 안내 저장 실패:", { analysisId, error: insertError.message });
     return { success: false, error: insertError.message };
   }
 

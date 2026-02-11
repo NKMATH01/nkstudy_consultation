@@ -1,3 +1,6 @@
+// NOTE: Next.js 16에서 middleware는 여전히 지원됩니다.
+// 향후 Next.js가 middleware를 완전 deprecate하면 instrumentation.ts + proxy 방식으로 전환 필요.
+// 참고: https://nextjs.org/docs/app/building-your-application/routing/middleware
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 

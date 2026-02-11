@@ -10,8 +10,14 @@ const publicSurveySchema = z.object({
   name: z.string().min(1, "이름을 입력해주세요"),
   school: z.string().optional(),
   grade: z.string().optional(),
-  student_phone: z.string().optional(),
-  parent_phone: z.string().optional(),
+  student_phone: z.string()
+    .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)")
+    .optional()
+    .or(z.literal("")),
+  parent_phone: z.string()
+    .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)")
+    .optional()
+    .or(z.literal("")),
   q1: scoreField, q2: scoreField, q3: scoreField, q4: scoreField, q5: scoreField,
   q6: scoreField, q7: scoreField, q8: scoreField, q9: scoreField, q10: scoreField,
   q11: scoreField, q12: scoreField, q13: scoreField, q14: scoreField, q15: scoreField,
@@ -31,10 +37,11 @@ function calculateFactors(data: Record<string, number | undefined | null>) {
     const values = qNums
       .map((q) => data[`q${q}`])
       .filter((v): v is number => v != null && !isNaN(v));
-    factors[`factor_${key}`] =
-      values.length > 0
-        ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10
-        : null;
+    // 최소 응답 수: 해당 Factor 문항의 60% 이상 응답 시에만 평균 계산
+    const minRequired = Math.ceil(qNums.length * 0.6);
+    factors[`factor_${key}`] = values.length >= minRequired
+      ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10
+      : null;
   }
   return factors;
 }
@@ -45,7 +52,11 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
     return { success: false, error: parsed.error.issues[0].message };
   }
 
-  const factors = calculateFactors(parsed.data as unknown as Record<string, number | undefined | null>);
+  const qValues: Record<string, number | undefined | null> = {};
+  for (let i = 1; i <= 30; i++) {
+    qValues[`q${i}`] = parsed.data[`q${i}` as keyof typeof parsed.data] as number | undefined | null;
+  }
+  const factors = calculateFactors(qValues);
 
   const insertData: Record<string, unknown> = {
     name: parsed.data.name,
@@ -70,6 +81,8 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
   const { error } = await supabase.from("surveys").insert(insertData);
 
   if (error) {
+    // TODO: Sentry 등 외부 로깅 서비스로 교체 가능
+    console.error("[DB] 공개 설문 저장 실패:", error.message);
     return { success: false, error: "설문 저장에 실패했습니다. 다시 시도해주세요." };
   }
 

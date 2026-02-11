@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Sparkles,
   FileText,
-  Search,
   ChevronRight,
   Plus,
 } from "lucide-react";

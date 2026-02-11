@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
@@ -42,6 +42,34 @@ interface Props {
 }
 
 const SCORE_OPTIONS = [1, 2, 3, 4, 5];
+
+function ScoreButtons({
+  control,
+  fieldName,
+  setValue,
+}: {
+  control: ReturnType<typeof useForm<SurveyFormValues>>["control"];
+  fieldName: keyof SurveyFormValues;
+  setValue: ReturnType<typeof useForm<SurveyFormValues>>["setValue"];
+}) {
+  const value = useWatch({ control, name: fieldName });
+  return (
+    <div className="flex gap-1 shrink-0">
+      {SCORE_OPTIONS.map((score) => (
+        <Button
+          key={score}
+          type="button"
+          variant={value === score ? "default" : "outline"}
+          size="sm"
+          className="h-7 w-7 p-0 text-xs"
+          onClick={() => setValue(fieldName, score as never)}
+        >
+          {score}
+        </Button>
+      ))}
+    </div>
+  );
+}
 
 export function SurveyFormDialog({ open, onOpenChange }: Props) {
   const router = useRouter();
@@ -229,22 +257,11 @@ export function SurveyFormDialog({ open, onOpenChange }: Props) {
                         {qNum}.
                       </span>
                       <span className="text-sm flex-1 min-w-0">{question}</span>
-                      <div className="flex gap-1 shrink-0">
-                        {SCORE_OPTIONS.map((score) => (
-                          <Button
-                            key={score}
-                            type="button"
-                            variant={
-                              form.watch(fieldName) === score ? "default" : "outline"
-                            }
-                            size="sm"
-                            className="h-7 w-7 p-0 text-xs"
-                            onClick={() => form.setValue(fieldName, score as never)}
-                          >
-                            {score}
-                          </Button>
-                        ))}
-                      </div>
+                      <ScoreButtons
+                        control={form.control}
+                        fieldName={fieldName}
+                        setValue={form.setValue}
+                      />
                     </div>
                   );
                 })}

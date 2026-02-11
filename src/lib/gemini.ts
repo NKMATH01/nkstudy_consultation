@@ -1,12 +1,17 @@
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
 import type { Survey, Analysis } from "@/types";
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
+// 보안: API 키를 URL 쿼리 파라미터 대신 헤더로 전달하여 로그 노출 방지
 function getGeminiUrl() {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+}
+
+function getApiKey() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY 환경변수가 설정되지 않았습니다");
-  return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  return apiKey;
 }
 
 // ========== Gemini API 호출 ==========
@@ -24,7 +29,10 @@ export async function callGeminiAPI(prompt: string, retryCount = 0): Promise<str
 
   const res = await fetch(getGeminiUrl(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": getApiKey(), // 보안: URL 쿼리 대신 헤더로 API 키 전달
+    },
     body: JSON.stringify(payload),
   });
 
@@ -35,6 +43,8 @@ export async function callGeminiAPI(prompt: string, retryCount = 0): Promise<str
 
   if (!res.ok) {
     const text = await res.text();
+    // TODO: Sentry 등 외부 로깅 서비스로 교체 가능
+    console.error("[Gemini API] 호출 실패:", { status: res.status, body: text.substring(0, 200) });
     throw new Error(`Gemini API 오류: ${res.status} - ${text.substring(0, 200)}`);
   }
 
@@ -256,8 +266,8 @@ export function buildRegistrationPrompt(
 
 [NK EDUCATION 학원 정보]
 - 수업료: 초4~5: 30만원 / 초6~중1: 32만원 / 중2~3: 35만원 / 고1: 38만원 / 고2: 40만원 (교재비 별도)
-- 차량비: 월 2만원
-- 계좌: 신한은행 110-383-883419 (예금주: 노윤희)
+- 차량비: 월 ${process.env.NK_ACADEMY_VEHICLE_FEE || "2만원"}
+- 계좌: ${process.env.NK_ACADEMY_BANK_INFO || "신한은행 110-383-883419"} (예금주: ${process.env.NK_ACADEMY_BANK_OWNER || "노윤희"})
 - 환불: 교육청 교습비 반환 기준 준수 / 2주 이상 미납 시 수업 제한
 
 [수업 장소]

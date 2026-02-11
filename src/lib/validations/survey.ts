@@ -6,8 +6,14 @@ export const surveyFormSchema = z.object({
   name: z.string().min(1, "이름을 입력해주세요"),
   school: z.string().optional(),
   grade: z.string().optional(),
-  student_phone: z.string().optional(),
-  parent_phone: z.string().optional(),
+  student_phone: z.string()
+    .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)")
+    .optional()
+    .or(z.literal("")),
+  parent_phone: z.string()
+    .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)")
+    .optional()
+    .or(z.literal("")),
   referral: z.string().optional(),
   prev_academy: z.string().optional(),
   prev_complaint: z.string().optional(),

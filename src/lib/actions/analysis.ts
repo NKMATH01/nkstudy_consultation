@@ -53,7 +53,11 @@ export async function getAnalyses(
   const { data, count, error } = await query;
 
   if (error) {
-    throw new Error(error.message);
+    console.error("분석 목록 조회 실패:", error.message);
+    return {
+      data: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
   }
 
   const total = count ?? 0;
@@ -113,6 +117,8 @@ export async function analyzeSurvey(surveyId: string) {
     const response = await callGeminiAPI(prompt);
     analysisResult = extractJSON<GeminiAnalysisResult>(response);
   } catch (e) {
+    // TODO: Sentry 등 외부 로깅 서비스로 교체 가능
+    console.error("[Gemini API] 설문 분석 실패:", { surveyId, error: e instanceof Error ? e.message : e });
     const msg = e instanceof Error ? e.message : "AI 분석 실패";
     return { success: false, error: msg };
   }
@@ -151,14 +157,20 @@ export async function analyzeSurvey(surveyId: string) {
     .single();
 
   if (insertError) {
+    console.error("[DB] 분석 결과 저장 실패:", { surveyId, error: insertError.message });
     return { success: false, error: insertError.message };
   }
 
   // 5. 설문에 analysis_id 연결
-  await supabase
+  const { error: linkError } = await supabase
     .from("surveys")
     .update({ analysis_id: analysis.id })
     .eq("id", surveyId);
+
+  if (linkError) {
+    // 분석은 성공했지만 설문 연결 실패 - 로깅 후 경고 반환
+    console.error("설문-분석 연결 실패:", linkError.message);
+  }
 
   revalidatePath("/analyses");
   revalidatePath("/surveys");

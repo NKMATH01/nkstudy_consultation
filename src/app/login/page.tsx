@@ -37,8 +37,12 @@ export default function LoginPage() {
     await doLogin(email, password);
   };
 
+  // 보안: 테스트 계정 정보를 환경변수에서 가져와 프로덕션 노출 방지
   const handleQuickLogin = () => {
-    doLogin("admin@nk.com", "nk123456");
+    doLogin(
+      process.env.NEXT_PUBLIC_TEST_EMAIL || "",
+      process.env.NEXT_PUBLIC_TEST_PASSWORD || ""
+    );
   };
 
   return (
@@ -156,21 +160,24 @@ export default function LoginPage() {
             {loading ? "로그인 중..." : "로그인"}
           </button>
 
-          <div className="text-center mt-4">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleQuickLogin}
-              className="py-2.5 px-5 rounded-[10px] text-[12.5px] font-medium transition-all disabled:opacity-50"
-              style={{
-                background: "none",
-                border: "1.5px solid #E2E8F0",
-                color: "#475569",
-              }}
-            >
-              테스트 계정으로 로그인
-            </button>
-          </div>
+          {/* 보안: 개발 환경에서만 테스트 로그인 버튼 노출 */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleQuickLogin}
+                className="py-2.5 px-5 rounded-[10px] text-[12.5px] font-medium transition-all disabled:opacity-50"
+                style={{
+                  background: "none",
+                  border: "1.5px solid #E2E8F0",
+                  color: "#475569",
+                }}
+              >
+                테스트 계정으로 로그인
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

@@ -33,7 +33,9 @@ import {
   type RegistrationAdminFormData,
 } from "@/lib/validations/registration";
 import type { Class, Teacher } from "@/types";
-import { GRADES, LOCATIONS, SUBJECTS, PREFERRED_DAYS, getTuitionWithDiscount } from "@/types";
+import { GRADES, LOCATIONS, SUBJECTS, getTuitionWithDiscount } from "@/types";
+
+const WEEKDAYS: string[] = ["월", "화", "수", "목", "금", "토"];
 
 // 30분 단위 시간 옵션
 const TIME_OPTIONS = [
@@ -93,6 +95,53 @@ function TimeRangeSelect({
   );
 }
 
+function DayCheckboxes({
+  value,
+  onChange,
+  label,
+  color = "blue",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  color?: "blue" | "purple";
+}) {
+  const selected = WEEKDAYS.filter((d) => (value || "").includes(d));
+
+  const toggle = (day: string) => {
+    const next = selected.includes(day)
+      ? selected.filter((d) => d !== day)
+      : [...selected, day];
+    const sorted = WEEKDAYS.filter((d) => next.includes(d));
+    onChange(sorted.join(""));
+  };
+
+  const bg = color === "purple" ? "bg-purple-500 border-purple-500" : "bg-blue-500 border-blue-500";
+  const hover = color === "purple" ? "hover:border-purple-300" : "hover:border-blue-300";
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label} *</label>
+      <div className="flex gap-1.5">
+        {WEEKDAYS.map((day) => (
+          <button
+            key={day}
+            type="button"
+            onClick={() => toggle(day)}
+            className={`w-9 h-9 rounded-md text-sm font-semibold border transition-colors ${
+              selected.includes(day)
+                ? `${bg} text-white`
+                : `bg-white text-slate-500 border-slate-200 ${hover}`
+            }`}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function RegistrationForm({
   open,
   onOpenChange,
@@ -117,10 +166,12 @@ export function RegistrationForm({
       preferred_days: "",
       assigned_class: "",
       teacher: "",
+      math_class_days: "",
       math_class_time: "",
       math_clinic_time: "",
       assigned_class_2: "",
       teacher_2: "",
+      eng_class_days: "",
       eng_class_time: "",
       eng_clinic_time: "",
       use_vehicle: "미사용",
@@ -157,6 +208,14 @@ export function RegistrationForm({
     form.setValue("assigned_class_2", "");
     form.setValue("teacher_2", "");
     autoCalcFee(value, selectedSubject || "");
+  };
+
+  const updatePreferredDays = (mathDays?: string, engDays?: string) => {
+    const allDays = new Set<string>();
+    for (const d of (mathDays || "")) allDays.add(d);
+    for (const d of (engDays || "")) allDays.add(d);
+    const sorted = WEEKDAYS.filter((d) => allDays.has(d));
+    form.setValue("preferred_days", sorted.join(""));
   };
 
   const handleSubjectChange = (value: string) => {
@@ -311,27 +370,10 @@ export function RegistrationForm({
               />
             </div>
 
-            {/* 희망요일 */}
-            <FormField
-              control={form.control}
-              name="preferred_days"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>희망요일 *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger><SelectValue placeholder="희망요일 선택" /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {PREFERRED_DAYS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* preferred_days (자동 계산, hidden) */}
+            <input type="hidden" {...form.register("preferred_days")} />
 
-            {/* 수학 배정반 + 담임 */}
+            {/* 수학 배정반 + 담임 + 요일 */}
             {hasMath && (
               <>
                 <div className="border-t border-slate-100 pt-3">
@@ -375,6 +417,24 @@ export function RegistrationForm({
                     )}
                   />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="math_class_days"
+                  render={({ field }) => (
+                    <FormItem>
+                      <DayCheckboxes
+                        label="수학 수업 요일"
+                        color="blue"
+                        value={field.value || ""}
+                        onChange={(v) => {
+                          field.onChange(v);
+                          updatePreferredDays(v, form.getValues("eng_class_days") || "");
+                        }}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -402,7 +462,7 @@ export function RegistrationForm({
               </>
             )}
 
-            {/* 영어 배정반 + 담임 */}
+            {/* 영어 배정반 + 담임 + 요일 */}
             {hasEnglish && (
               <>
                 <div className="border-t border-slate-100 pt-3">
@@ -478,6 +538,24 @@ export function RegistrationForm({
                     )}
                   />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="eng_class_days"
+                  render={({ field }) => (
+                    <FormItem>
+                      <DayCheckboxes
+                        label="영어 수업 요일"
+                        color="purple"
+                        value={field.value || ""}
+                        onChange={(v) => {
+                          field.onChange(v);
+                          updatePreferredDays(form.getValues("math_class_days") || "", v);
+                        }}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}

@@ -320,33 +320,34 @@ function scheduleRow(label: string, value: string): string {
 }
 
 function buildScheduleSection(data: ReportTemplateData): string {
-  const days = data.preferredDays || "";
+  const mathDays = data.classDays || data.preferredDays || "";
+  const engDays = data.classDays2 || data.preferredDays || "";
 
   if (data.subject === "영어수학") {
     const rows: string[] = [];
     rows.push(scheduleRow("수학 담임", `${data.teacher} 선생님`));
-    rows.push(scheduleRow("수학 수업", data.classTime ? `[${days}] ${data.classTime}` : "시간표 확인 필요"));
-    if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${days}] ${data.clinicTime}`));
+    rows.push(scheduleRow("수학 수업", data.classTime ? `[${mathDays}] ${data.classTime}` : "시간표 확인 필요"));
+    if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${mathDays}] ${data.clinicTime}`));
     rows.push(scheduleRow("영어 담임", `${data.teacher2 || ""} 선생님`));
-    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${days}] ${data.classTime2}` : "시간표 확인 필요"));
-    if (data.clinicTime2) rows.push(scheduleRow("영어 클리닉", `[${days}] ${data.clinicTime2}`));
+    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${engDays}] ${data.classTime2}` : "시간표 확인 필요"));
+    if (data.clinicTime2) rows.push(scheduleRow("영어 클리닉", `[${engDays}] ${data.clinicTime2}`));
     return rows.join("");
   }
 
   if (data.subject === "영어") {
     const rows: string[] = [];
     rows.push(scheduleRow("담임 선생님", `${data.teacher2 || data.teacher} 선생님`));
-    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${days}] ${data.classTime2}` : data.classTime ? `[${days}] ${data.classTime}` : "시간표 확인 필요"));
+    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${engDays}] ${data.classTime2}` : data.classTime ? `[${engDays}] ${data.classTime}` : "시간표 확인 필요"));
     const clinic = data.clinicTime2 || data.clinicTime;
-    if (clinic) rows.push(scheduleRow("영어 클리닉", `[${days}] ${clinic}`));
+    if (clinic) rows.push(scheduleRow("영어 클리닉", `[${engDays}] ${clinic}`));
     return rows.join("");
   }
 
   // 수학 (기본)
   const rows: string[] = [];
   rows.push(scheduleRow("담임 선생님", `${data.teacher} 선생님`));
-  rows.push(scheduleRow("수학 수업", data.classTime ? `[${days}] ${data.classTime}` : "시간표 확인 필요"));
-  if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${days}] ${data.clinicTime}`));
+  rows.push(scheduleRow("수학 수업", data.classTime ? `[${mathDays}] ${data.classTime}` : "시간표 확인 필요"));
+  if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${mathDays}] ${data.clinicTime}`));
   return rows.join("");
 }
 

@@ -148,6 +148,9 @@ export default function BookingPage() {
 
     setIsSubmitting(false);
     if (result.success) {
+      if (result.warning) {
+        console.warn("[Booking]", result.warning);
+      }
       setSubmitted(true);
     } else {
       setError(result.error || "예약에 실패했습니다");

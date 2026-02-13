@@ -32,8 +32,8 @@ function mapDbToClass(row: Record<string, unknown>): Class {
     teacher: teacherName,
     target_grade: null, // DB에 없음 - 프론트에서 이름에서 추출
     class_days: row.description != null ? String(row.description) : null,
-    class_time: null,
-    clinic_time: null,
+    class_time: row.class_time != null ? String(row.class_time) : null,
+    clinic_time: row.clinic_time != null ? String(row.clinic_time) : null,
     active: row.is_active !== false,
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
@@ -89,6 +89,8 @@ export async function createClass(formData: FormData) {
     const { error } = await supabase.from("classes").insert({
       name: parsed.data.name,
       description: parsed.data.class_days || null,
+      class_time: parsed.data.class_time || null,
+      clinic_time: parsed.data.clinic_time || null,
       ...(teacherId ? { teacher_id: teacherId } : {}),
     });
 
@@ -139,6 +141,8 @@ export async function updateClass(id: string, formData: FormData) {
       .update({
         name: parsed.data.name,
         description: parsed.data.class_days || null,
+        class_time: parsed.data.class_time || null,
+        clinic_time: parsed.data.clinic_time || null,
         teacher_id: teacherId,
       })
       .eq("id", id);

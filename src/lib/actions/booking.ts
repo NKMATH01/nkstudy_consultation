@@ -140,6 +140,7 @@ export async function submitBooking(data: Record<string, unknown>) {
     });
     if (consultError) {
       console.error("[Booking] 상담 연동 실패:", consultError.message);
+      return { success: true, warning: "예약은 완료되었으나 상담 자동 등록에 실패했습니다. 관리자에게 문의하세요." };
     }
 
     return { success: true };

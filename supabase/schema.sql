@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS classes (
   name TEXT NOT NULL,
   teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL, -- 담임 (join으로 이름 조회)
   description TEXT,                        -- 앱에서는 class_days로 매핑
+  class_time TEXT,                         -- 수업 시간 (예: "19:00~20:30|13:00~14:30")
+  clinic_time TEXT,                        -- 클리닉 시간 (예: "20:30~22:00|11:30~13:00")
   is_active BOOLEAN NOT NULL DEFAULT TRUE, -- 앱에서는 active로 매핑
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

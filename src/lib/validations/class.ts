@@ -16,6 +16,22 @@ export const teacherFormSchema = z.object({
   subject: z.string().optional(),
   target_grade: z.string().optional(),
   phone: z.string().optional(),
+  role: z.enum(["teacher", "clinic"]).optional(),
+  password: z.string().optional(),
 });
 
 export type TeacherFormValues = z.infer<typeof teacherFormSchema>;
+
+export const studentFormSchema = z.object({
+  name: z.string().min(1, "학생 이름을 입력해주세요"),
+  school: z.string().optional(),
+  grade: z.string().optional(),
+  student_phone: z.string().optional(),
+  parent_phone: z.string().optional(),
+  assigned_class: z.string().optional(),
+  teacher: z.string().optional(),
+  memo: z.string().optional(),
+  registration_date: z.string().optional(),
+});
+
+export type StudentFormValues = z.infer<typeof studentFormSchema>;

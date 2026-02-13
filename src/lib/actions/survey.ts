@@ -2,28 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { surveyFormSchema } from "@/lib/validations/survey";
+import { calculateFactors } from "@/lib/factors";
 import type { Survey, PaginatedResponse } from "@/types";
-import { FACTOR_MAPPING } from "@/types";
 import { revalidatePath } from "next/cache";
-
-// ========== 6-Factor 계산 ==========
-function calculateFactors(data: Record<string, number | undefined | null>) {
-  const factors: Record<string, number | null> = {};
-
-  for (const [key, qNums] of Object.entries(FACTOR_MAPPING)) {
-    const values = qNums
-      .map((q) => data[`q${q}`])
-      .filter((v): v is number => v != null && !isNaN(v));
-
-    // 최소 응답 수: 해당 Factor 문항의 60% 이상 응답 시에만 평균 계산
-    const minRequired = Math.ceil(qNums.length * 0.6);
-    factors[`factor_${key}`] = values.length >= minRequired
-      ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10
-      : null;
-  }
-
-  return factors;
-}
 
 // ========== 설문 목록 조회 ==========
 export async function getSurveys(

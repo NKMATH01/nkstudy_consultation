@@ -7,10 +7,13 @@ import {
   Bell,
   Home,
   Users,
+  CalendarCheck,
   ClipboardList,
   Sparkles,
   FileText,
-  Settings,
+  GraduationCap,
+  BookOpen,
+  UserCog,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,10 +29,13 @@ import { usePathname } from "next/navigation";
 const pageTitles: Record<string, { label: string; icon: LucideIcon }> = {
   "/": { label: "대시보드", icon: Home },
   "/consultations": { label: "상담 관리", icon: Users },
+  "/bookings": { label: "예약 현황판", icon: CalendarCheck },
   "/surveys": { label: "설문 현황", icon: ClipboardList },
-  "/analyses": { label: "AI 분석", icon: Sparkles },
+  "/analyses": { label: "성향분석 결과", icon: Sparkles },
   "/registrations": { label: "등록 안내", icon: FileText },
-  "/settings": { label: "설정", icon: Settings },
+  "/settings/students": { label: "학생 관리", icon: GraduationCap },
+  "/settings/classes": { label: "반 관리", icon: BookOpen },
+  "/settings/teachers": { label: "선생님 관리", icon: UserCog },
 };
 
 export function Header() {

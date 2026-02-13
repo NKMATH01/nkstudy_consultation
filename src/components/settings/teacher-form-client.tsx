@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,12 +42,36 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: Props) {
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherFormSchema) as never,
     defaultValues: {
-      name: teacher?.name ?? "",
-      subject: teacher?.subject ?? "",
-      target_grade: teacher?.target_grade ?? "",
-      phone: teacher?.phone ?? "",
+      name: "",
+      subject: "",
+      target_grade: "",
+      phone: "",
+      role: "teacher" as const,
+      password: "",
     },
   });
+
+  useEffect(() => {
+    if (open && teacher) {
+      form.reset({
+        name: teacher.name ?? "",
+        subject: teacher.subject ?? "",
+        target_grade: teacher.target_grade ?? "",
+        phone: teacher.phone ?? "",
+        role: (teacher.role as "teacher" | "clinic") ?? "teacher",
+        password: "",
+      });
+    } else if (open) {
+      form.reset({
+        name: "",
+        subject: "",
+        target_grade: "",
+        phone: "",
+        role: "teacher" as const,
+        password: "1234",
+      });
+    }
+  }, [open, teacher, form]);
 
   const onSubmit = (values: TeacherFormValues) => {
     startTransition(async () => {
@@ -107,20 +131,16 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: Props) {
                 <FormItem>
                   <FormLabel>담당 과목</FormLabel>
                   <FormControl>
-                    <Input placeholder="예: 수학" {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="target_grade"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>담당 학년</FormLabel>
-                  <FormControl>
-                    <Input placeholder="예: 중1~중3" {...field} />
+                    <select
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">선택</option>
+                      {["수학", "영어", "국어", "과학", "사회", "논술", "기타"].map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
                   </FormControl>
                 </FormItem>
               )}
@@ -133,8 +153,62 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: Props) {
                 <FormItem>
                   <FormLabel>연락처</FormLabel>
                   <FormControl>
-                    <Input placeholder="010-0000-0000" {...field} />
+                    <Input
+                      placeholder="01000000000"
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "");
+                        let formatted = digits;
+                        if (digits.length > 3 && digits.length <= 7) formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+                        else if (digits.length > 7) formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+                        field.onChange(formatted);
+                      }}
+                    />
                   </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>역할</FormLabel>
+                  <FormControl>
+                    <select
+                      value={field.value ?? "teacher"}
+                      onChange={field.onChange}
+                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="teacher">담임 선생님</option>
+                      <option value="clinic">클리닉 선생님</option>
+                    </select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>비밀번호 {!isEdit && "(기본: 1234)"}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      placeholder="4자리 숫자"
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        field.onChange(digits);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />

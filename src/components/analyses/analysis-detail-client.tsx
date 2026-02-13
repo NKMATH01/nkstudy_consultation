@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, FileText, ClipboardList } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, ClipboardList, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { deleteAnalysis } from "@/lib/actions/analysis";
+import { deleteAnalysis, regenerateAnalysisReport } from "@/lib/actions/analysis";
 import { generateRegistration } from "@/lib/actions/registration";
-import { RegistrationForm } from "@/components/registrations/registration-form";
+import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import type { Analysis, Class, Teacher } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
 import { FACTOR_LABELS } from "@/types";
@@ -27,37 +27,26 @@ interface Props {
   teachers: Teacher[];
 }
 
-function ScoreBar({ value, label, comment }: { value: number | null; label: string; comment: string | null }) {
-  const v = value ?? 0;
-  const pct = (v / 5) * 100;
-  const barColor =
-    v >= 4 ? "from-emerald-400 to-emerald-500" : v >= 3 ? "from-amber-400 to-amber-500" : "from-red-400 to-red-500";
-  const textColor =
-    v >= 4 ? "text-emerald-600" : v >= 3 ? "text-amber-600" : "text-red-600";
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-semibold text-slate-700">{label}</span>
-        <span className={`text-sm font-bold ${textColor}`}>{v.toFixed(1)}</span>
-      </div>
-      <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-1">
-        <div
-          className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all duration-500`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      {comment && (
-        <p className="text-xs text-slate-500 leading-relaxed">{comment}</p>
-      )}
-    </div>
-  );
+function ratingClass(score: number) {
+  if (score >= 4) return { bg: "bg-teal-100 text-teal-700", label: "우수" };
+  if (score >= 3) return { bg: "bg-sky-100 text-sky-700", label: "양호" };
+  if (score >= 2) return { bg: "bg-amber-100 text-amber-700", label: "보통" };
+  return { bg: "bg-rose-100 text-rose-700", label: "주의" };
 }
+
+function barColor(score: number) {
+  if (score >= 4) return "from-emerald-400 to-emerald-500";
+  if (score >= 3) return "from-sky-400 to-sky-500";
+  if (score >= 2) return "from-amber-400 to-amber-500";
+  return "from-rose-400 to-rose-500";
+}
+
+const STEP_COLORS = ["bg-blue-500", "bg-violet-500", "bg-amber-500", "bg-emerald-500"];
 
 export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
-  const [showReport, setShowReport] = useState(false);
   const [showRegForm, setShowRegForm] = useState(false);
 
   const handleDelete = () => {
@@ -84,148 +73,241 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
   };
 
   const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+  const schoolInfo = [analysis.school, analysis.grade].filter(Boolean).join(" ");
+  const createdDate = analysis.created_at
+    ? new Date(analysis.created_at).toLocaleDateString("ko-KR")
+    : "";
 
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100">
+      {/* Header - 보고서 스타일 */}
+      <div className="flex items-start justify-between border-b-[3px] border-blue-900 pb-4">
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100 mt-0.5">
             <Link href="/analyses">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">{analysis.name}</h1>
-            <p className="text-sm text-slate-500">
-              {[analysis.school, analysis.grade].filter(Boolean).join(" ")}
-              {analysis.created_at && ` | ${new Date(analysis.created_at).toLocaleDateString("ko-KR")}`}
-            </p>
+            <p className="text-xs font-bold text-blue-600 tracking-widest uppercase">NK EDUCATION</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NK 심층 학습 성향 분석서</h1>
+            <p className="text-xs text-slate-400 mt-0.5">Deep Learning Tendency Analysis Report</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="text-right">
+          <p className="text-lg font-extrabold text-blue-900">{analysis.name}</p>
+          <p className="text-sm text-slate-500">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2 justify-end">
+        <Button
+          size="sm"
+          onClick={() => setShowRegForm(true)}
+          className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 shadow-lg shadow-teal-500/20"
+        >
+          <ClipboardList className="h-4 w-4 mr-1.5" />
+          등록 안내 생성
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            startTransition(async () => {
+              const result = await regenerateAnalysisReport(analysis.id);
+              if (result.success) {
+                toast.success("보고서가 재생성되었습니다.");
+                router.refresh();
+              } else {
+                toast.error(result.error || "재생성 실패");
+              }
+            });
+          }}
+          disabled={isPending}
+          className="rounded-xl"
+        >
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${isPending ? "animate-spin" : ""}`} />
+          보고서 재생성
+        </Button>
+        {analysis.report_html && (
           <Button
+            variant="outline"
             size="sm"
-            onClick={() => setShowRegForm(true)}
-            className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 shadow-lg shadow-teal-500/20"
+            onClick={() => {
+              const win = window.open("", "_blank");
+              if (win) {
+                win.document.write(analysis.report_html!);
+                win.document.close();
+              }
+            }}
+            className="rounded-xl"
           >
-            <ClipboardList className="h-4 w-4 mr-1.5" />
-            등록 안내 생성
+            <FileText className="h-4 w-4 mr-1.5" />
+            보고서
           </Button>
-          {analysis.report_html && (
-            <Button variant="outline" size="sm" onClick={() => setShowReport(true)} className="rounded-xl">
-              <FileText className="h-4 w-4 mr-1.5" />
-              보고서
-            </Button>
+        )}
+        <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)} className="rounded-xl">
+          <Trash2 className="h-4 w-4 mr-1.5" />
+          삭제
+        </Button>
+      </div>
+
+      {/* Executive Summary */}
+      <div className="bg-gradient-to-br from-blue-50 to-slate-50 border border-blue-200 rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <h3 className="text-base font-extrabold text-blue-900">Executive Summary</h3>
+          {analysis.student_type && (
+            <span className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-teal-100 text-teal-700">
+              {analysis.student_type}
+            </span>
           )}
-          <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)} className="rounded-xl">
-            <Trash2 className="h-4 w-4 mr-1.5" />
-            삭제
-          </Button>
         </div>
-      </div>
-
-      {/* 학생 유형 */}
-      {analysis.student_type && (
-        <div className="text-center">
-          <span className="inline-block text-base font-bold px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg">
-            {analysis.student_type}
-          </span>
-        </div>
-      )}
-
-      {/* 6-Factor 점수 */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <div className="w-1 h-5 bg-indigo-500 rounded-full" />
-          6-Factor 학습 성향 점수
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {factorKeys.map((key) => (
-            <ScoreBar
-              key={key}
-              label={FACTOR_LABELS[key]}
-              value={analysis[`score_${key}` as keyof Analysis] as number | null}
-              comment={analysis[`comment_${key}` as keyof Analysis] as string | null}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* 종합 요약 */}
-      {analysis.summary && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <div className="w-1 h-5 bg-blue-500 rounded-full" />
-            종합 분석
-          </h3>
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl">
-            <p className="text-sm leading-relaxed text-slate-700">{analysis.summary}</p>
-          </div>
-        </div>
-      )}
-
-      {/* 강점 / 약점 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {analysis.strengths && analysis.strengths.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-base font-bold text-emerald-600 mb-3 flex items-center gap-2">
-              <div className="w-1 h-5 bg-emerald-500 rounded-full" />
-              강점
-            </h3>
-            <div className="space-y-3">
-              {analysis.strengths.map((item, idx) => (
-                <div key={idx} className="bg-emerald-50 p-3.5 rounded-xl">
-                  <p className="font-semibold text-sm text-slate-800">{item.title}</p>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {analysis.weaknesses && analysis.weaknesses.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-base font-bold text-red-600 mb-3 flex items-center gap-2">
-              <div className="w-1 h-5 bg-red-500 rounded-full" />
-              개선 필요 영역
-            </h3>
-            <div className="space-y-3">
-              {analysis.weaknesses.map((item, idx) => (
-                <div key={idx} className="bg-red-50 p-3.5 rounded-xl">
-                  <p className="font-semibold text-sm text-slate-800">{item.title}</p>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+        {analysis.summary && (
+          <p className="text-sm leading-relaxed text-slate-700">{analysis.summary}</p>
         )}
       </div>
 
-      {/* 심리적 갭 (Paradox) */}
+      {/* 6-Factor 학습 성향 분석 */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
+          <h3 className="text-base font-extrabold text-blue-900">6-Factor 학습 성향 분석</h3>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b-2 border-slate-200 bg-slate-50">
+                <th className="text-left px-4 py-3 font-bold text-slate-600 w-28">항목</th>
+                <th className="text-center px-2 py-3 font-bold text-slate-600 w-14">점수</th>
+                <th className="px-4 py-3 font-bold text-slate-600">그래프</th>
+                <th className="text-center px-2 py-3 font-bold text-slate-600 w-16">등급</th>
+                <th className="text-left px-4 py-3 font-bold text-slate-600">전문가 코멘트</th>
+              </tr>
+            </thead>
+            <tbody>
+              {factorKeys.map((key) => {
+                const score = (analysis[`score_${key}` as keyof Analysis] as number | null) ?? 0;
+                const comment = (analysis[`comment_${key}` as keyof Analysis] as string | null) || "";
+                const pct = (score / 5) * 100;
+                const rating = ratingClass(score);
+                return (
+                  <tr key={key} className="border-b border-slate-100 last:border-b-0">
+                    <td className="px-4 py-3 font-bold text-slate-800">{FACTOR_LABELS[key]}</td>
+                    <td className="text-center px-2 py-3 font-extrabold text-blue-800">{score.toFixed(1)}</td>
+                    <td className="px-4 py-3">
+                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full bg-gradient-to-r ${barColor(score)} rounded-full transition-all duration-500`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </td>
+                    <td className="text-center px-2 py-3">
+                      <span className={`inline-block text-xs font-bold px-2.5 py-0.5 rounded-full ${rating.bg}`}>
+                        {rating.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500 leading-relaxed">{comment}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Core Competency Matrix */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
+          <h3 className="text-base font-extrabold text-blue-900">Core Competency Matrix</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Strengths */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h4 className="text-sm font-bold text-blue-700 mb-4 flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-emerald-500" />
+              Strengths (강점)
+            </h4>
+            <div className="space-y-3">
+              {(analysis.strengths || []).map((item, idx) => (
+                <div key={idx} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle className="h-3 w-3 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-blue-900">{item.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+              {(!analysis.strengths || analysis.strengths.length === 0) && (
+                <p className="text-xs text-slate-400">데이터 없음</p>
+              )}
+            </div>
+          </div>
+
+          {/* Weaknesses */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h4 className="text-sm font-bold text-red-600 mb-4 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              Weaknesses (개선영역)
+            </h4>
+            <div className="space-y-3">
+              {(analysis.weaknesses || []).map((item, idx) => (
+                <div key={idx} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertTriangle className="h-3 w-3 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-red-900">{item.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+              {(!analysis.weaknesses || analysis.weaknesses.length === 0) && (
+                <p className="text-xs text-slate-400">데이터 없음</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Psychological Gap Analysis */}
       {analysis.paradox && analysis.paradox.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-base font-bold text-amber-600 mb-3 flex items-center gap-2">
-            <div className="w-1 h-5 bg-amber-500 rounded-full" />
-            심리적 갭 분석
-          </h3>
-          <div className="space-y-3">
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1.5 h-5 bg-amber-500 rounded-sm" />
+            <h3 className="text-base font-extrabold text-blue-900">Psychological Gap Analysis</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {analysis.paradox.map((item, idx) => (
-              <div key={idx} className="bg-amber-50 p-3.5 rounded-xl">
-                <p className="font-semibold text-sm text-slate-800">{String(item.title || "")}</p>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              <div key={idx} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <p className="font-extrabold text-sm text-slate-800 mb-2">
+                  GAP {idx + 1}: {String(item.title || "")}
+                </p>
+                <p className="text-xs text-slate-500 leading-relaxed mb-3">
                   {String(item.description || "")}
                 </p>
                 {"label1" in item && "label2" in item && (
-                  <div className="flex gap-4 mt-2 text-xs">
-                    <span className="text-emerald-600 font-medium">{String(item.label1)}: {String(item.value1)}</span>
-                    <span className="text-red-600 font-medium">{String(item.label2)}: {String(item.value2)}</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+                      {String(item.label1)}: {String(item.value1)}
+                    </span>
+                    <span className="font-semibold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
+                      {String(item.label2)}: {String(item.value2)}
+                    </span>
                   </div>
                 )}
                 {"studentView" in item && "nkView" in item && (
-                  <div className="flex gap-4 mt-2 text-xs">
-                    <span className="text-blue-600 font-medium">학생 시각: {String(item.studentView)}</span>
-                    <span className="text-purple-600 font-medium">NK 진단: {String(item.nkView)}</span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+                      학생 인식: {String(item.studentView)}
+                    </span>
+                    <span className="font-semibold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg">
+                      NK 평가: {String(item.nkView)}
+                    </span>
                   </div>
                 )}
               </div>
@@ -234,25 +316,27 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
         </div>
       )}
 
-      {/* 맞춤 솔루션 */}
+      {/* 12-Week Customized Solution */}
       {analysis.solutions && analysis.solutions.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-base font-bold text-emerald-600 mb-4 flex items-center gap-2">
-            <div className="w-1 h-5 bg-emerald-500 rounded-full" />
-            맞춤 솔루션
-          </h3>
-          <div className="bg-emerald-50 p-5 rounded-xl space-y-5">
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
+            <h3 className="text-base font-extrabold text-blue-900">12-Week Customized Solution</h3>
+          </div>
+          <div className="space-y-3">
             {analysis.solutions.map((sol, idx) => (
-              <div key={idx} className="flex gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-lg shadow-emerald-500/20">
-                  {sol.step}
-                </div>
-                <div>
-                  <p className="font-semibold text-sm text-slate-800">
-                    {sol.weeks} - {sol.goal}
-                  </p>
+              <div key={idx} className="flex bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className={`w-1.5 shrink-0 ${STEP_COLORS[idx % STEP_COLORS.length]}`} />
+                <div className="p-4 flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-xs font-extrabold text-white px-2.5 py-0.5 rounded ${STEP_COLORS[idx % STEP_COLORS.length]}`}>
+                      STEP {sol.step}
+                    </span>
+                    <span className="text-xs text-slate-400 font-semibold">{sol.weeks}</span>
+                  </div>
+                  <p className="font-bold text-sm text-slate-800 mb-2">{sol.goal}</p>
                   {sol.actions && (
-                    <ul className="list-disc list-inside text-xs text-slate-500 mt-1.5 space-y-0.5 leading-relaxed">
+                    <ul className="list-disc list-inside text-xs text-slate-500 space-y-0.5 leading-relaxed">
                       {sol.actions.map((action, aIdx) => (
                         <li key={aIdx}>{action}</li>
                       ))}
@@ -265,11 +349,14 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
         </div>
       )}
 
-      {/* 최종 의견 */}
+      {/* Final Assessment */}
       {analysis.final_assessment && (
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
-          <h3 className="text-base font-bold mb-3">NK EDUCATION 종합 의견</h3>
-          <p className="text-sm leading-relaxed opacity-90">{analysis.final_assessment}</p>
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle className="h-5 w-5 text-indigo-400" />
+            <h3 className="text-base font-extrabold text-indigo-200">Final Assessment</h3>
+          </div>
+          <p className="text-sm leading-relaxed opacity-95">{analysis.final_assessment}</p>
         </div>
       )}
 
@@ -282,18 +369,6 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
         classes={classes}
         teachers={teachers}
       />
-
-      {/* 보고서 모달 */}
-      <Dialog open={showReport} onOpenChange={setShowReport}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>분석 보고서</DialogTitle>
-          </DialogHeader>
-          {analysis.report_html && (
-            <div dangerouslySetInnerHTML={{ __html: analysis.report_html }} />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* 삭제 확인 */}
       <Dialog open={showDelete} onOpenChange={setShowDelete}>

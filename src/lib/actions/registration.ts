@@ -2,13 +2,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 import {
-  callGeminiAPI,
-  extractJSON,
+  callClaudeAPI,
   surveyToText,
   buildRegistrationPrompt,
-} from "@/lib/gemini";
-import type { AdminData } from "@/lib/gemini";
-import type { Registration, Analysis, Survey, PaginatedResponse } from "@/types";
+  buildReportHTML,
+  type RegistrationAdminData,
+  type ReportTemplateData,
+} from "@/lib/claude";
+import { extractJSON } from "@/lib/gemini";
+import type { Registration, Analysis, Survey, PaginatedResponse, Class } from "@/types";
 import { TUITION_TABLE } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -70,13 +72,18 @@ export async function getRegistration(id: string): Promise<Registration | null> 
   return data as Registration;
 }
 
-// ========== 등록 안내문 생성 (분석 결과 → Gemini) ==========
+// ========== 등록 안내문 생성 (분석 결과 → Claude Haiku) ==========
 export async function generateRegistration(
   analysisId: string,
   adminFormData: {
     registration_date: string;
+    grade: string;
+    subject: string;
+    preferred_days: string;
     assigned_class: string;
     teacher: string;
+    assigned_class_2?: string;
+    teacher_2?: string;
     use_vehicle?: string;
     test_score?: string;
     test_note?: string;
@@ -119,15 +126,41 @@ export async function generateRegistration(
   // 3. 수업료 계산
   const tuitionFee =
     adminFormData.tuition_fee ||
-    TUITION_TABLE[analysisData.grade || ""] ||
+    TUITION_TABLE[adminFormData.grade || analysisData.grade || ""] ||
     0;
 
-  // 4. Gemini 프롬프트 생성 + 호출
+  // 4. 반 시간표 정보 조회
+  let classInfo: Class | null = null;
+  let classInfo2: Class | null = null;
+
+  if (adminFormData.assigned_class) {
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("*")
+      .eq("name", adminFormData.assigned_class)
+      .single();
+    classInfo = cls as Class | null;
+  }
+
+  if (adminFormData.subject === "영어수학" && adminFormData.assigned_class_2) {
+    const { data: cls2 } = await supabase
+      .from("classes")
+      .select("*")
+      .eq("name", adminFormData.assigned_class_2)
+      .single();
+    classInfo2 = cls2 as Class | null;
+  }
+
+  // 5. Claude 프롬프트 생성 + 호출
   const surveyText = surveyToText(surveyData);
-  const adminData: AdminData = {
+  const adminData: RegistrationAdminData = {
     registrationDate: adminFormData.registration_date,
     assignedClass: adminFormData.assigned_class,
     teacher: adminFormData.teacher,
+    assignedClass2: adminFormData.assigned_class_2 || undefined,
+    teacher2: adminFormData.teacher_2 || undefined,
+    subject: adminFormData.subject,
+    preferredDays: adminFormData.preferred_days,
     useVehicle: adminFormData.use_vehicle || "미사용",
     testScore: adminFormData.test_score || "",
     testNote: adminFormData.test_note || "",
@@ -141,26 +174,84 @@ export async function generateRegistration(
 
   let reportData: Record<string, unknown>;
   try {
-    const response = await callGeminiAPI(prompt);
+    const response = await callClaudeAPI(prompt);
     reportData = extractJSON(response);
   } catch (e) {
-    // TODO: Sentry 등 외부 로깅 서비스로 교체 가능
-    console.error("[Gemini API] 등록 안내문 생성 실패:", { analysisId, error: e instanceof Error ? e.message : e });
+    console.error("[Claude API] 등록 안내문 생성 실패:", { analysisId, error: e instanceof Error ? e.message : e });
     const msg = e instanceof Error ? e.message : "등록 안내문 생성 실패";
     return { success: false, error: msg };
   }
 
-  // 5. DB 저장
+  // 6. HTML 보고서 생성
+  const page1Data = (reportData.page1 || {}) as ReportTemplateData["page1"];
+  const page2Data = (reportData.page2 || {}) as ReportTemplateData["page2"];
+
+  const templateData: ReportTemplateData = {
+    name: analysisData.name,
+    school: analysisData.school || "",
+    grade: adminFormData.grade || analysisData.grade || "",
+    studentPhone: surveyData.student_phone || "",
+    parentPhone: surveyData.parent_phone || "",
+    registrationDate: adminFormData.registration_date,
+    assignedClass: adminFormData.assigned_class,
+    teacher: adminFormData.teacher,
+    assignedClass2: adminFormData.assigned_class_2 || undefined,
+    teacher2: adminFormData.teacher_2 || undefined,
+    subject: adminFormData.subject,
+    preferredDays: adminFormData.preferred_days,
+    useVehicle: adminFormData.use_vehicle || "미사용",
+    location: adminFormData.location || "",
+    tuitionFee,
+    page1: {
+      docNo: page1Data.docNo || "",
+      deptLabel: page1Data.deptLabel || "",
+      profileSummary: page1Data.profileSummary || "",
+      studentBackground: page1Data.studentBackground || undefined,
+      sixFactorScores: page1Data.sixFactorScores || undefined,
+      tendencyAnalysis: page1Data.tendencyAnalysis || [],
+      managementGuide: page1Data.managementGuide || [],
+      firstMonthPlan: page1Data.firstMonthPlan || undefined,
+      actionChecklist: page1Data.actionChecklist || [],
+    },
+    page2: {
+      welcomeTitle: page2Data.welcomeTitle || "",
+      welcomeSubtitle: page2Data.welcomeSubtitle || "",
+      expertDiagnosis: page2Data.expertDiagnosis || "",
+      focusPoints: page2Data.focusPoints || [],
+      parentMessage: page2Data.parentMessage || undefined,
+      academyRules: page2Data.academyRules || undefined,
+    },
+    classDays: classInfo?.class_days || undefined,
+    classTime: classInfo?.class_time || undefined,
+    clinicTime: classInfo?.clinic_time || undefined,
+    classDays2: classInfo2?.class_days || undefined,
+    classTime2: classInfo2?.class_time || undefined,
+    clinicTime2: classInfo2?.clinic_time || undefined,
+  };
+
+  let reportHTML: string;
+  try {
+    reportHTML = buildReportHTML(templateData);
+  } catch (e) {
+    console.error("[Template] HTML 생성 실패:", e instanceof Error ? e.message : e);
+    reportHTML = "";
+  }
+
+  // 7. DB 저장
   const insertData = {
     analysis_id: analysisId,
     name: analysisData.name,
     school: analysisData.school,
-    grade: analysisData.grade,
+    grade: adminFormData.grade || analysisData.grade,
     student_phone: surveyData.student_phone,
     parent_phone: surveyData.parent_phone,
     registration_date: adminFormData.registration_date,
     assigned_class: adminFormData.assigned_class,
     teacher: adminFormData.teacher,
+    assigned_class_2: adminFormData.assigned_class_2 || null,
+    teacher_2: adminFormData.teacher_2 || null,
+    subject: adminFormData.subject,
+    preferred_days: adminFormData.preferred_days,
     use_vehicle: adminFormData.use_vehicle || null,
     test_score: adminFormData.test_score || null,
     test_note: adminFormData.test_note || null,
@@ -169,6 +260,7 @@ export async function generateRegistration(
     additional_note: adminFormData.additional_note || null,
     tuition_fee: tuitionFee,
     report_data: reportData,
+    report_html: reportHTML,
   };
 
   const { data: registration, error: insertError } = await supabase
@@ -182,9 +274,309 @@ export async function generateRegistration(
     return { success: false, error: insertError.message };
   }
 
+  // 8. 학생 관리에 자동 등록/업데이트
+  try {
+    // Check if student already exists by name + grade
+    const { data: existingStudent } = await supabase
+      .from("students")
+      .select("id")
+      .eq("name", analysisData.name)
+      .limit(1)
+      .single();
+
+    const studentData: Record<string, unknown> = {
+      name: analysisData.name,
+      school: analysisData.school || null,
+      grade: adminFormData.grade || analysisData.grade || null,
+      phone: surveyData.student_phone || null,
+      parent_phone: surveyData.parent_phone || null,
+      class_name: adminFormData.assigned_class || null,
+      teacher_name: adminFormData.teacher || null,
+      is_active: true,
+    };
+
+    if (existingStudent) {
+      // Update existing student
+      await supabase
+        .from("students")
+        .update(studentData)
+        .eq("id", existingStudent.id);
+    } else {
+      // Create new student
+      await supabase.from("students").insert(studentData);
+    }
+  } catch (e) {
+    // Non-critical: log but don't fail the registration
+    console.error("[Student] 학생 자동 등록/업데이트 실패:", e instanceof Error ? e.message : e);
+  }
+
   revalidatePath("/registrations");
   revalidatePath("/analyses");
+  revalidatePath("/settings/students");
+  revalidatePath("/onboarding");
   return { success: true, data: registration };
+}
+
+// ========== 등록 안내 보고서 재생성 ==========
+export async function regenerateRegistration(id: string) {
+  const supabase = await createClient();
+
+  // 1. 기존 등록 데이터 조회
+  const { data: reg, error: regError } = await supabase
+    .from("registrations")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (regError || !reg) {
+    return { success: false, error: "등록 안내를 찾을 수 없습니다" };
+  }
+
+  const registration = reg as Registration;
+
+  if (!registration.analysis_id) {
+    return { success: false, error: "연결된 분석 결과가 없습니다" };
+  }
+
+  // 2. 분석 결과 조회
+  const { data: analysis, error: analysisError } = await supabase
+    .from("analyses")
+    .select("*")
+    .eq("id", registration.analysis_id)
+    .single();
+
+  if (analysisError || !analysis) {
+    return { success: false, error: "분석 결과를 찾을 수 없습니다" };
+  }
+
+  const analysisData = analysis as Analysis;
+
+  // 3. 설문 데이터 조회
+  let surveyData: Survey | null = null;
+  if (analysisData.survey_id) {
+    const { data: survey } = await supabase
+      .from("surveys")
+      .select("*")
+      .eq("id", analysisData.survey_id)
+      .single();
+    surveyData = survey as Survey | null;
+  }
+
+  if (!surveyData) {
+    return { success: false, error: "설문 데이터를 찾을 수 없습니다" };
+  }
+
+  // 4. 반 시간표 정보 조회
+  let classInfo: Class | null = null;
+  let classInfo2: Class | null = null;
+
+  if (registration.assigned_class) {
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("*")
+      .eq("name", registration.assigned_class)
+      .single();
+    classInfo = cls as Class | null;
+  }
+
+  if (registration.subject === "영어수학" && registration.assigned_class_2) {
+    const { data: cls2 } = await supabase
+      .from("classes")
+      .select("*")
+      .eq("name", registration.assigned_class_2)
+      .single();
+    classInfo2 = cls2 as Class | null;
+  }
+
+  // 5. Claude 프롬프트 생성 + 호출
+  const surveyText = surveyToText(surveyData);
+  const adminData: RegistrationAdminData = {
+    registrationDate: registration.registration_date || "",
+    assignedClass: registration.assigned_class || "",
+    teacher: registration.teacher || "",
+    assignedClass2: registration.assigned_class_2 || undefined,
+    teacher2: registration.teacher_2 || undefined,
+    subject: registration.subject || "",
+    preferredDays: registration.preferred_days || "",
+    useVehicle: registration.use_vehicle || "미사용",
+    testScore: registration.test_score || "",
+    testNote: registration.test_note || "",
+    location: registration.location || "",
+    consultDate: registration.consult_date || "",
+    additionalNote: registration.additional_note || "",
+    tuitionFee: registration.tuition_fee || 0,
+  };
+
+  const prompt = buildRegistrationPrompt(surveyText, analysisData, adminData);
+
+  let reportData: Record<string, unknown>;
+  try {
+    const response = await callClaudeAPI(prompt);
+    reportData = extractJSON(response);
+  } catch (e) {
+    console.error("[Claude API] 등록 보고서 재생성 실패:", { id, error: e instanceof Error ? e.message : e });
+    const msg = e instanceof Error ? e.message : "보고서 재생성 실패";
+    return { success: false, error: msg };
+  }
+
+  // 6. HTML 보고서 생성
+  const page1Data = (reportData.page1 || {}) as ReportTemplateData["page1"];
+  const page2Data = (reportData.page2 || {}) as ReportTemplateData["page2"];
+
+  const templateData: ReportTemplateData = {
+    name: registration.name,
+    school: registration.school || "",
+    grade: registration.grade || "",
+    studentPhone: registration.student_phone || "",
+    parentPhone: registration.parent_phone || "",
+    registrationDate: registration.registration_date || "",
+    assignedClass: registration.assigned_class || "",
+    teacher: registration.teacher || "",
+    assignedClass2: registration.assigned_class_2 || undefined,
+    teacher2: registration.teacher_2 || undefined,
+    subject: registration.subject || "",
+    preferredDays: registration.preferred_days || "",
+    useVehicle: registration.use_vehicle || "미사용",
+    location: registration.location || "",
+    tuitionFee: registration.tuition_fee || 0,
+    page1: {
+      docNo: page1Data.docNo || "",
+      deptLabel: page1Data.deptLabel || "",
+      profileSummary: page1Data.profileSummary || "",
+      studentBackground: page1Data.studentBackground || undefined,
+      sixFactorScores: page1Data.sixFactorScores || undefined,
+      tendencyAnalysis: page1Data.tendencyAnalysis || [],
+      managementGuide: page1Data.managementGuide || [],
+      firstMonthPlan: page1Data.firstMonthPlan || undefined,
+      actionChecklist: page1Data.actionChecklist || [],
+    },
+    page2: {
+      welcomeTitle: page2Data.welcomeTitle || "",
+      welcomeSubtitle: page2Data.welcomeSubtitle || "",
+      expertDiagnosis: page2Data.expertDiagnosis || "",
+      focusPoints: page2Data.focusPoints || [],
+      parentMessage: page2Data.parentMessage || undefined,
+      academyRules: page2Data.academyRules || undefined,
+    },
+    classDays: classInfo?.class_days || undefined,
+    classTime: classInfo?.class_time || undefined,
+    clinicTime: classInfo?.clinic_time || undefined,
+    classDays2: classInfo2?.class_days || undefined,
+    classTime2: classInfo2?.class_time || undefined,
+    clinicTime2: classInfo2?.clinic_time || undefined,
+  };
+
+  let reportHTML: string;
+  try {
+    reportHTML = buildReportHTML(templateData);
+  } catch (e) {
+    console.error("[Template] HTML 재생성 실패:", e instanceof Error ? e.message : e);
+    reportHTML = "";
+  }
+
+  // 7. DB 업데이트
+  const { error: updateError } = await supabase
+    .from("registrations")
+    .update({
+      report_data: reportData,
+      report_html: reportHTML,
+    })
+    .eq("id", id);
+
+  if (updateError) {
+    console.error("[DB] 등록 보고서 업데이트 실패:", { id, error: updateError.message });
+    return { success: false, error: updateError.message };
+  }
+
+  revalidatePath(`/registrations/${id}`);
+  revalidatePath("/registrations");
+  return { success: true };
+}
+
+// ========== 등록 안내 HTML 직접 수정 ==========
+export async function updateRegistrationHtml(id: string, html: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("registrations")
+    .update({ report_html: html })
+    .eq("id", id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath(`/registrations/${id}`);
+  revalidatePath("/registrations");
+  return { success: true };
+}
+
+// ========== AI 초안 수정 ==========
+export async function aiEditRegistrationHtml(id: string, instruction: string) {
+  const supabase = await createClient();
+
+  // 현재 HTML 조회
+  const { data: reg, error: fetchErr } = await supabase
+    .from("registrations")
+    .select("report_html")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr || !reg?.report_html) {
+    return { success: false, error: "보고서를 찾을 수 없습니다" };
+  }
+
+  const currentHtml = reg.report_html as string;
+
+  // Claude에게 수정 요청
+  const prompt = `당신은 학원 등록 안내문 HTML을 수정하는 어시스턴트입니다.
+
+아래는 현재 등록 안내문의 HTML입니다:
+
+<current_html>
+${currentHtml}
+</current_html>
+
+사용자의 수정 요청:
+${instruction}
+
+위 요청에 따라 HTML을 수정해주세요.
+
+중요 규칙:
+- 전체 HTML 구조(DOCTYPE, head, body, 스타일)를 유지하세요
+- 요청된 부분만 정확히 수정하세요
+- 수정된 전체 HTML만 반환하세요 (설명 없이)
+- 반드시 <!DOCTYPE html>로 시작하세요`;
+
+  try {
+    const response = await callClaudeAPI(prompt);
+
+    // HTML 추출 (```html ... ``` 블록이 있으면 추출)
+    let editedHtml = response;
+    const codeBlockMatch = response.match(/```html?\s*\n?([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      editedHtml = codeBlockMatch[1].trim();
+    } else if (response.includes("<!DOCTYPE")) {
+      editedHtml = response.substring(response.indexOf("<!DOCTYPE")).trim();
+    }
+
+    // DB 업데이트
+    const { error: updateErr } = await supabase
+      .from("registrations")
+      .update({ report_html: editedHtml })
+      .eq("id", id);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    revalidatePath(`/registrations/${id}`);
+    revalidatePath("/registrations");
+    return { success: true, html: editedHtml };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "AI 수정 실패";
+    return { success: false, error: msg };
+  }
 }
 
 // ========== 등록 안내 삭제 ==========

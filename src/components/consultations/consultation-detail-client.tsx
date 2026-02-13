@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft, Edit, Trash2, CheckCircle2, Circle } from "lucide-react";
@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusBadge, ResultBadge } from "@/components/common/status-badge";
-import { ConsultationFormDialog } from "@/components/consultations/consultation-form";
+import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import {
   deleteConsultation,
   updateConsultationStatus,
@@ -52,6 +52,48 @@ export function ConsultationDetailClient({ consultation }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+
+  // 상담 내용 state
+  const [studentNote, setStudentNote] = useState(consultation.student_consult_note ?? "");
+  const [parentNote, setParentNote] = useState(consultation.parent_consult_note ?? "");
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const studentNoteRef = useRef<HTMLTextAreaElement>(null);
+  const parentNoteRef = useRef<HTMLTextAreaElement>(null);
+
+  const notesChanged =
+    studentNote !== (consultation.student_consult_note ?? "") ||
+    parentNote !== (consultation.parent_consult_note ?? "");
+
+  const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(80, el.scrollHeight)}px`;
+  }, []);
+
+  useEffect(() => {
+    autoResize(studentNoteRef.current);
+    autoResize(parentNoteRef.current);
+  }, [studentNote, parentNote, autoResize]);
+
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true);
+    try {
+      const results = await Promise.all([
+        updateConsultationField(consultation.id, "student_consult_note", studentNote),
+        updateConsultationField(consultation.id, "parent_consult_note", parentNote),
+      ]);
+      if (results.every((r) => r.success)) {
+        toast.success("상담 내용이 저장되었습니다");
+        router.refresh();
+      } else {
+        toast.error("상담 내용 저장에 실패했습니다");
+      }
+    } catch {
+      toast.error("상담 내용 저장 중 오류가 발생했습니다");
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
   const handleStatusChange = (value: string) => {
     startTransition(async () => {
@@ -287,6 +329,61 @@ export function ConsultationDetailClient({ consultation }: Props) {
         <InfoRow label="상담방식" value={consultation.consult_type} />
         <InfoRow label="과목" value={consultation.subject} />
         <InfoRow label="장소" value={consultation.location} />
+      </div>
+
+      {/* 상담 내용 (Consultation Content) */}
+      {/* SQL: ALTER TABLE consultations ADD COLUMN IF NOT EXISTS student_consult_note TEXT; */}
+      {/* SQL: ALTER TABLE consultations ADD COLUMN IF NOT EXISTS parent_consult_note TEXT; */}
+      <div
+        className="bg-white rounded-2xl p-6"
+        style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+      >
+        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "#1E293B" }}>
+          <div className="w-1 h-5 bg-purple-500 rounded-full" />
+          상담 내용
+        </h3>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[12.5px] font-medium" style={{ color: "#94A3B8" }}>학생 상담 내용</label>
+            <textarea
+              ref={studentNoteRef}
+              value={studentNote}
+              onChange={(e) => setStudentNote(e.target.value)}
+              onInput={(e) => autoResize(e.currentTarget)}
+              placeholder="학생 상담 내용을 입력하세요..."
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all resize-none"
+              style={{ minHeight: "80px", color: "#1E293B" }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[12.5px] font-medium" style={{ color: "#94A3B8" }}>학부모 상담 내용</label>
+            <textarea
+              ref={parentNoteRef}
+              value={parentNote}
+              onChange={(e) => setParentNote(e.target.value)}
+              onInput={(e) => autoResize(e.currentTarget)}
+              placeholder="학부모 상담 내용을 입력하세요..."
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all resize-none"
+              style={{ minHeight: "80px", color: "#1E293B" }}
+            />
+          </div>
+          {notesChanged && (
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={handleSaveNotes}
+                disabled={isSavingNotes}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12.5px] font-semibold transition-all disabled:opacity-50"
+                style={{
+                  background: "#8B5CF6",
+                  color: "#FFFFFF",
+                  boxShadow: "0 1px 3px rgba(139,92,246,0.3)",
+                }}
+              >
+                {isSavingNotes ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Details */}

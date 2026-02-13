@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { FACTOR_MAPPING } from "@/types";
+import { calculateFactors } from "@/lib/factors";
 import { z } from "zod";
 
 const scoreField = z.coerce.number().min(1).max(5);
@@ -18,6 +18,10 @@ const publicSurveySchema = z.object({
     .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)")
     .optional()
     .or(z.literal("")),
+  referral: z.string().optional(),
+  referral_friend: z.string().optional(),
+  prev_academy: z.string().optional(),
+  prev_complaint: z.string().min(1, "기존 학원에서 아쉬웠던 점을 입력해주세요").optional().or(z.literal("")),
   q1: scoreField, q2: scoreField, q3: scoreField, q4: scoreField, q5: scoreField,
   q6: scoreField, q7: scoreField, q8: scoreField, q9: scoreField, q10: scoreField,
   q11: scoreField, q12: scoreField, q13: scoreField, q14: scoreField, q15: scoreField,
@@ -30,21 +34,6 @@ const publicSurveySchema = z.object({
   prefer_days: z.string().optional(),
   requests: z.string().optional(),
 });
-
-function calculateFactors(data: Record<string, number | undefined | null>) {
-  const factors: Record<string, number | null> = {};
-  for (const [key, qNums] of Object.entries(FACTOR_MAPPING)) {
-    const values = qNums
-      .map((q) => data[`q${q}`])
-      .filter((v): v is number => v != null && !isNaN(v));
-    // 최소 응답 수: 해당 Factor 문항의 60% 이상 응답 시에만 평균 계산
-    const minRequired = Math.ceil(qNums.length * 0.6);
-    factors[`factor_${key}`] = values.length >= minRequired
-      ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10
-      : null;
-  }
-  return factors;
-}
 
 export async function submitPublicSurvey(data: Record<string, unknown>) {
   const parsed = publicSurveySchema.safeParse(data);
@@ -64,6 +53,11 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
     grade: parsed.data.grade || null,
     student_phone: parsed.data.student_phone || null,
     parent_phone: parsed.data.parent_phone || null,
+    referral: parsed.data.referral_friend
+      ? `${parsed.data.referral} (${parsed.data.referral_friend})`
+      : parsed.data.referral || null,
+    prev_academy: parsed.data.prev_academy || null,
+    prev_complaint: parsed.data.prev_complaint || null,
     study_core: parsed.data.study_core || null,
     problem_self: parsed.data.problem_self || null,
     dream: parsed.data.dream || null,

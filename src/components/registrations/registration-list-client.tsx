@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, FileText, ChevronLeft, ChevronRight, Sparkles, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,18 @@ interface Props {
     total: number;
     totalPages: number;
   };
+}
+
+/** HTML 태그 제거 후 텍스트 추출 */
+function stripHtml(html: string | null): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** 텍스트 truncate */
+function truncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen) + "...";
 }
 
 export function RegistrationListClient({ initialData, initialPagination }: Props) {
@@ -98,9 +110,11 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">생성일</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
                 <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학교/학년</TableHead>
+                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">과목</TableHead>
                 <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">배정반</TableHead>
-                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">담임</TableHead>
+                <TableHead className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-slate-500">담임</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">수업료</TableHead>
+                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">안내문 / 분석</TableHead>
                 <TableHead className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-slate-500">등록일</TableHead>
               </TableRow>
             </TableHeader>
@@ -127,10 +141,15 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-slate-600">
                     <Link href={`/registrations/${item.id}`} className="block py-1">
-                      {item.assigned_class || "-"}
+                      {item.subject || "-"}
                     </Link>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-slate-600">
+                    <Link href={`/registrations/${item.id}`} className="block py-1">
+                      {item.assigned_class || "-"}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-sm text-slate-600">
                     <Link href={`/registrations/${item.id}`} className="block py-1">
                       {item.teacher || "-"}
                     </Link>
@@ -139,6 +158,40 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
                     <Link href={`/registrations/${item.id}`} className="block py-1">
                       {formatFee(item.tuition_fee)}
                     </Link>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex items-center gap-1.5">
+                      {item.report_html ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const win = window.open("", "_blank");
+                            if (win) {
+                              win.document.write(item.report_html!);
+                              win.document.close();
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:text-emerald-800 font-bold px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                          title="안내문 보기"
+                        >
+                          <ClipboardList className="h-3 w-3 shrink-0" />
+                          안내문
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-300">-</span>
+                      )}
+                      {item.analysis_id && (
+                        <Link
+                          href={`/analyses/${item.analysis_id}`}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                          title="분석 보기"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          분석
+                        </Link>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-xs text-slate-500">
                     <Link href={`/registrations/${item.id}`} className="block py-1">

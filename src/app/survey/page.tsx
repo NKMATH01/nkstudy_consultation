@@ -26,6 +26,10 @@ export default function PublicSurveyPage() {
     grade: "",
     student_phone: "",
     parent_phone: "",
+    referral: "",
+    referral_friend: "",
+    prev_academy: "",
+    prev_complaint: "",
   });
   const [scores, setScores] = useState<Record<string, number>>({});
   const [openEnded, setOpenEnded] = useState({
@@ -39,7 +43,13 @@ export default function PublicSurveyPage() {
   const progressPercent = Math.round((step / (TOTAL_STEPS - 1)) * 100);
 
   const canGoNext = () => {
-    if (step === 0) return info.name.trim().length > 0;
+    if (step === 0) {
+      if (!info.name.trim()) return false;
+      if (!info.referral) return false;
+      if (info.referral === "친구소개" && !info.referral_friend.trim()) return false;
+      if (!info.prev_complaint.trim()) return false;
+      return true;
+    }
     if (step >= 1 && step <= TOTAL_SURVEY_PAGES) {
       const pageIdx = step - 1;
       const start = pageIdx * QUESTIONS_PER_PAGE;
@@ -184,11 +194,21 @@ export default function PublicSurveyPage() {
 
 // ===== Step Components =====
 
+const REFERRAL_OPTIONS = [
+  "친구소개",
+  "지인소개",
+  "인터넷 검색",
+  "블로그/카페",
+  "전단지",
+  "학원 앞 방문",
+  "기타",
+];
+
 function StepInfo({
   info,
   onChange,
 }: {
-  info: { name: string; school: string; grade: string; student_phone: string; parent_phone: string };
+  info: { name: string; school: string; grade: string; student_phone: string; parent_phone: string; referral: string; referral_friend: string; prev_academy: string; prev_complaint: string };
   onChange: (v: typeof info) => void;
 }) {
   const update = (key: string, value: string) => onChange({ ...info, [key]: value });
@@ -236,25 +256,81 @@ function StepInfo({
             </select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            학생 연락처 <span className="text-red-500">*</span>
+          </label>
+          <Input
+            value={info.student_phone}
+            onChange={(e) => update("student_phone", e.target.value)}
+            placeholder="010-0000-0000"
+            className="rounded-lg"
+          />
+          <p className="text-xs text-slate-400 mt-1">010-oooo-oooo 형식으로 적어주시기 바랍니다.</p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            학부모 연락처 <span className="text-red-500">*</span>
+          </label>
+          <Input
+            value={info.parent_phone}
+            onChange={(e) => update("parent_phone", e.target.value)}
+            placeholder="010-0000-0000"
+            className="rounded-lg"
+          />
+          <p className="text-xs text-slate-400 mt-1">010-oooo-oooo 형식으로 적어주시기 바랍니다.</p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            NK 학원을 알게 된 경로 <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={info.referral}
+            onChange={(e) => update("referral", e.target.value)}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          >
+            <option value="">선택해주세요</option>
+            {REFERRAL_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </div>
+        {info.referral === "친구소개" && (
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">학생 연락처</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              소개해준 친구 이름 <span className="text-red-500">*</span>
+            </label>
             <Input
-              value={info.student_phone}
-              onChange={(e) => update("student_phone", e.target.value)}
-              placeholder="010-0000-0000"
+              value={info.referral_friend}
+              onChange={(e) => update("referral_friend", e.target.value)}
+              placeholder="친구 이름 (추후 같은 반 배정 참고)"
               className="rounded-lg"
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">학부모 연락처</label>
-            <Input
-              value={info.parent_phone}
-              onChange={(e) => update("parent_phone", e.target.value)}
-              placeholder="010-0000-0000"
-              className="rounded-lg"
-            />
-          </div>
+        )}
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            기존에 다녔던 학원
+          </label>
+          <Input
+            value={info.prev_academy}
+            onChange={(e) => update("prev_academy", e.target.value)}
+            placeholder="예: OO학원, 1년"
+            className="rounded-lg"
+          />
+          <p className="text-xs text-slate-400 mt-1">학원이름과 다닌 기간을 알려주세요.</p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            기존 학원에서 아쉬웠던 점 <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={info.prev_complaint}
+            onChange={(e) => update("prev_complaint", e.target.value)}
+            placeholder="예: 개인별 관리가 부족했다, 숙제 체크가 안 되었다 등"
+            rows={3}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+          />
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { callGeminiAPI, extractJSON, surveyToText, buildAnalysisPrompt } from "@/lib/gemini";
+import { buildAnalysisReportHTML } from "@/lib/claude";
 import type { Analysis, Survey, PaginatedResponse } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -148,7 +149,23 @@ export async function analyzeSurvey(surveyId: string) {
     paradox: analysisResult.paradox,
     solutions: analysisResult.solutions,
     final_assessment: analysisResult.finalAssessment,
+    report_html: null as string | null,
   };
+
+  // 4-b. 보고서 HTML 생성
+  const tempAnalysis = {
+    ...insertData,
+    id: "",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    report_html: null,
+  } as Analysis;
+
+  try {
+    insertData.report_html = buildAnalysisReportHTML(tempAnalysis);
+  } catch (e) {
+    console.error("[Report] HTML 생성 실패:", e instanceof Error ? e.message : e);
+  }
 
   const { data: analysis, error: insertError } = await supabase
     .from("analyses")
@@ -175,6 +192,39 @@ export async function analyzeSurvey(surveyId: string) {
   revalidatePath("/analyses");
   revalidatePath("/surveys");
   return { success: true, data: analysis };
+}
+
+// ========== 보고서 HTML 재생성 ==========
+export async function regenerateAnalysisReport(id: string) {
+  const supabase = await createClient();
+
+  const { data: analysis, error: fetchErr } = await supabase
+    .from("analyses")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr || !analysis) {
+    return { success: false, error: "분석 데이터를 찾을 수 없습니다" };
+  }
+
+  try {
+    const reportHtml = buildAnalysisReportHTML(analysis as Analysis);
+    const { error: updateErr } = await supabase
+      .from("analyses")
+      .update({ report_html: reportHtml })
+      .eq("id", id);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    revalidatePath(`/analyses/${id}`);
+    return { success: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "보고서 재생성 실패";
+    return { success: false, error: msg };
+  }
 }
 
 // ========== 분석 삭제 ==========

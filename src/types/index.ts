@@ -52,6 +52,8 @@ export interface Consultation {
   has_friend: string | null;
   advance_level: string | null;
   study_goal: string | null;
+  student_consult_note: string | null;
+  parent_consult_note: string | null;
   analysis_id: string | null;
   registration_id: string | null;
   created_at: string;
@@ -78,6 +80,26 @@ export interface Teacher {
   subject: string | null;
   target_grade: string | null;
   phone: string | null;
+  role: "teacher" | "clinic" | "admin" | null;
+  password: string | null;
+  password_changed: boolean;
+  auth_user_id: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Student {
+  id: string;
+  name: string;
+  school: string | null;
+  grade: string | null;
+  student_phone: string | null;
+  parent_phone: string | null;
+  assigned_class: string | null;
+  teacher: string | null;
+  memo: string | null;
+  registration_date: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -208,6 +230,10 @@ export interface Registration {
   registration_date: string | null;
   assigned_class: string | null;
   teacher: string | null;
+  assigned_class_2: string | null;
+  teacher_2: string | null;
+  subject: string | null;
+  preferred_days: string | null;
   use_vehicle: string | null;
   test_score: string | null;
   test_note: string | null;
@@ -215,6 +241,7 @@ export interface Registration {
   consult_date: string | null;
   additional_note: string | null;
   tuition_fee: number | null;
+  onboarding_status: string | null;
   report_data: Record<string, unknown> | null;
   report_html: string | null;
   created_at: string;
@@ -222,6 +249,7 @@ export interface Registration {
 }
 
 export const TUITION_TABLE: Record<string, number> = {
+  "초3": 280000,
   "초4": 300000,
   "초5": 300000,
   "초6": 320000,
@@ -232,6 +260,17 @@ export const TUITION_TABLE: Record<string, number> = {
   "고2": 400000,
   "고3": 400000,
 };
+
+// 2과목(영어수학) 할인: 중등부 5만원, 고등부 3만원
+export function getTuitionWithDiscount(grade: string, subject: string): number {
+  const base = TUITION_TABLE[grade] || 0;
+  if (subject !== "영어수학") return base;
+  // 고등부
+  if (grade.startsWith("고")) return base - 30000;
+  // 중등부 (초6~중3)
+  if (["초6", "중1", "중2", "중3"].includes(grade)) return base - 50000;
+  return base;
+}
 
 export const SCORE_FACTOR_KEYS = [
   "attitude",
@@ -278,9 +317,63 @@ export interface ConsultationFormData {
   memo?: string;
 }
 
+// ==================== Withdrawal Types ====================
+
+export type WithdrawalAttitude = "상" | "중상" | "중" | "중하" | "하";
+export type GradeChange = "상승" | "유지" | "하락";
+export type ComebackPossibility = "상" | "중상" | "중" | "중하" | "하" | "최하";
+
+export const WITHDRAWAL_REASONS = [
+  "성적 부진",
+  "학습 의지 및 태도",
+  "학습량 부담",
+  "학습 관리 및 시스템",
+  "수업 내용 및 방식",
+  "강사 역량 및 소통",
+  "타 학원/과외로 이동",
+  "친구 문제",
+  "스케줄 변동",
+  "개인 사유",
+  "기타",
+] as const;
+
+export interface Withdrawal {
+  id: string;
+  name: string;
+  school: string | null;
+  subject: string | null;
+  class_name: string | null;
+  teacher: string | null;
+  grade: string | null;
+  enrollment_start: string | null;
+  enrollment_end: string | null;
+  duration_months: number | null;
+  withdrawal_date: string | null;
+  class_attitude: string | null;
+  homework_submission: string | null;
+  attendance: string | null;
+  grade_change: string | null;
+  recent_grade: string | null;
+  reason_category: string | null;
+  student_opinion: string | null;
+  parent_opinion: string | null;
+  teacher_opinion: string | null;
+  final_consult_date: string | null;
+  final_counselor: string | null;
+  final_consult_summary: string | null;
+  parent_thanks: boolean;
+  comeback_possibility: string | null;
+  expected_comeback_date: string | null;
+  special_notes: string | null;
+  raw_text: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ==================== Constants ====================
 
 export const GRADES = [
+  "초3",
   "초4",
   "초5",
   "초6",
@@ -291,6 +384,9 @@ export const GRADES = [
   "고2",
   "고3",
 ] as const;
+
+export const SUBJECTS = ["수학", "영어", "영어수학"] as const;
+export const PREFERRED_DAYS = ["월수금", "화목토"] as const;
 
 export const CONSULT_TYPES = ["유선 상담", "대면 상담"] as const;
 
@@ -313,3 +409,48 @@ export const RESULT_STATUS_LABELS: Record<ResultStatus, string> = {
   hold: "보류",
   other: "기타",
 };
+
+// ==================== Booking Types ====================
+
+export interface Booking {
+  id: string;
+  branch: string;
+  consult_type: string;
+  booking_date: string;
+  booking_hour: number;
+  student_name: string;
+  parent_name: string;
+  phone: string;
+  school: string | null;
+  grade: string | null;
+  subject: string | null;
+  progress: string | null;
+  paid: boolean;
+  pay_method: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BlockedSlot {
+  id: string;
+  slot_date: string;
+  slot_hour: number;
+  branch: string;
+  created_at: string;
+}
+
+export const BRANCHES = [
+  { id: "gojan-math", label: "고잔점(수학)", icon: "∑", color: "#0ea5e9" },
+  { id: "gojan-eng", label: "고잔점(영어)", icon: "Aa", color: "#8b5cf6" },
+  { id: "zai-both", label: "자이점(영수)", icon: "∞", color: "#f59e0b" },
+] as const;
+
+export const BOOKING_SUBJECTS = [
+  { id: "math", label: "수학", icon: "∑" },
+  { id: "eng", label: "영어", icon: "Aa" },
+  { id: "both", label: "영수", icon: "∑+Aa" },
+] as const;
+
+export const BOOKING_GRADES = [
+  "초3", "초4", "초5", "초6", "중1", "중2", "중3", "고1", "고2", "고3",
+] as const;

@@ -1,33 +1,23 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { format } from "date-fns";
-import { Plus, FileText, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useTransition, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { StatusBadge, ResultBadge } from "@/components/common/status-badge";
-import { DateFilter, getDateRange, type DatePreset } from "@/components/common/date-filter";
-import { SearchInput } from "@/components/common/search-input";
-import { EmptyState } from "@/components/common/empty-state";
-import { ConsultationFormDialog } from "@/components/consultations/consultation-form";
+  RefreshCw,
+  Plus,
+  FileText,
+  ClipboardCopy,
+  Pencil,
+  Check,
+  Circle,
+  LayoutGrid,
+  Calendar,
+} from "lucide-react";
+import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import { TextParseModal } from "@/components/consultations/text-parse-modal";
-import type { Consultation } from "@/types";
-import Link from "next/link";
+import { updateConsultationField } from "@/lib/actions/consultation";
+import type { Consultation, ResultStatus } from "@/types";
 
 interface Props {
   initialData: Consultation[];
@@ -39,242 +29,450 @@ interface Props {
   };
 }
 
+const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+function getTodayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function formatGroupDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} (${DAY_NAMES[d.getDay()]})`;
+}
+
+function formatHeaderDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${DAY_NAMES[d.getDay()]}요일`;
+}
+
+function shortLocation(loc: string | null): { text: string; cls: string } {
+  if (!loc) return { text: "-", cls: "" };
+  if (loc.includes("B동 4층")) return { text: "B4층", cls: "bg-indigo-100 text-indigo-700" };
+  if (loc.includes("A동 7층")) return { text: "A7층", cls: "bg-sky-100 text-sky-700" };
+  if (loc.includes("자이")) return { text: "자이", cls: "bg-orange-100 text-orange-700" };
+  return { text: loc.slice(0, 4), cls: "bg-gray-100 text-gray-600" };
+}
+
+function subjectBadge(subj: string | null): { text: string; cls: string } {
+  if (!subj) return { text: "-", cls: "" };
+  const s = subj.toLowerCase();
+  if (s.includes("영어") && s.includes("수학"))
+    return { text: "영어, 수학", cls: "bg-purple-100 text-purple-700" };
+  if (s.includes("영수"))
+    return { text: "영어, 수학", cls: "bg-purple-100 text-purple-700" };
+  if (s.includes("수학")) return { text: "수학", cls: "bg-emerald-100 text-emerald-700" };
+  if (s.includes("영어")) return { text: "영어", cls: "bg-blue-100 text-blue-700" };
+  return { text: subj, cls: "bg-gray-100 text-gray-600" };
+}
+
+function formatMethod(type: string): { text: string; isInPerson: boolean } {
+  if (type.includes("유선")) return { text: "유선", isInPerson: false };
+  if (type.includes("대면")) {
+    const timeMatch = type.match(/(\d{1,2}:\d{2})/);
+    const time = timeMatch ? ` ${timeMatch[1]}` : "";
+    return { text: `대면${time}`, isInPerson: true };
+  }
+  return { text: type, isInPerson: false };
+}
+
+function formatPlanDate(d: string | null): string {
+  if (!d) return "";
+  const date = new Date(d + "T00:00:00");
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+// 결과에 따른 행 스타일
+function rowStyleByResult(status: string): string {
+  if (status === "registered") return "bg-red-50";
+  if (status === "hold") return "bg-amber-50";
+  if (status === "other") return "bg-neutral-900 text-neutral-400";
+  return "";
+}
+
+// 고정 컬럼 너비 (colgroup)
+const COL_WIDTHS = [60, 72, 90, 80, 56, 90, 120, 150, 240, 56];
+
 export function ConsultationListClient({ initialData, initialPagination }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [searchValue, setSearchValue] = useState(searchParams.get("search") || "");
-  const [statusFilter, setStatusFilter] = useState<string>(
-    searchParams.get("status") || "all"
-  );
   const [showForm, setShowForm] = useState(false);
+  const [editingConsultation, setEditingConsultation] = useState<Consultation | undefined>();
   const [showTextParse, setShowTextParse] = useState(false);
+  const [localData, setLocalData] = useState(initialData);
 
-  const updateFilters = useCallback(
-    (updates: Record<string, string | undefined>) => {
-      startTransition(() => {
-        const params = new URLSearchParams(searchParams.toString());
+  useEffect(() => {
+    setLocalData(initialData);
+  }, [initialData]);
 
-        Object.entries(updates).forEach(([key, value]) => {
-          if (value) {
-            params.set(key, value);
-          } else {
-            params.delete(key);
-          }
-        });
+  const grouped = localData.reduce<Record<string, Consultation[]>>((acc, item) => {
+    const date = item.consult_date || "unknown";
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(item);
+    return acc;
+  }, {});
+  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  const today = getTodayStr();
 
-        params.delete("page");
-        router.push(`/consultations?${params.toString()}`);
+  const handleToggleField = useCallback(
+    (id: string, field: string, current: boolean) => {
+      setLocalData((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, [field]: !current } : c))
+      );
+      startTransition(async () => {
+        const result = await updateConsultationField(id, field, !current);
+        if (!result.success) {
+          setLocalData((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, [field]: current } : c))
+          );
+          toast.error("업데이트 실패");
+        }
       });
     },
-    [router, searchParams, startTransition]
+    [startTransition]
   );
 
-  const handleDateChange = (preset: DatePreset) => {
-    setDatePreset(preset);
-    const range = getDateRange(preset);
-    updateFilters({ startDate: range.startDate, endDate: range.endDate });
-  };
+  const handleResultChange = useCallback(
+    (id: string, value: string) => {
+      const prev = localData.find((c) => c.id === id);
+      if (!prev) return;
+      const newValue = prev.result_status === value ? "none" : value;
+      setLocalData((data) =>
+        data.map((c) =>
+          c.id === id ? { ...c, result_status: newValue as ResultStatus } : c
+        )
+      );
+      startTransition(async () => {
+        const result = await updateConsultationField(id, "result_status", newValue);
+        if (!result.success) {
+          setLocalData((data) =>
+            data.map((c) =>
+              c.id === id ? { ...c, result_status: prev.result_status } : c
+            )
+          );
+          toast.error("업데이트 실패");
+        }
+      });
+    },
+    [localData, startTransition]
+  );
 
-  const handleSearch = (value: string) => {
-    setSearchValue(value);
-  };
+  const handleCopy = useCallback((c: Consultation) => {
+    const lines = [
+      "[NK test 안내]",
+      `이름 : ${c.name}`,
+      c.school ? `학교 : ${c.school}${c.grade ? `(${c.grade})` : ""}` : null,
+      c.parent_phone ? `연락처 : ${c.parent_phone}` : null,
+      c.consult_date
+        ? `일시 : ${c.consult_date} ${c.consult_time?.slice(0, 5) || ""}`
+        : null,
+      c.subject ? `테스트 과목 : ${c.subject}` : null,
+      c.location ? `위치 : ${c.location}` : null,
+      `학부모님 상담 : ${c.consult_type}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    navigator.clipboard.writeText(lines);
+    toast.success("클립보드에 복사되었습니다");
+  }, []);
 
-  const handleSearchSubmit = () => {
-    updateFilters({ search: searchValue || undefined });
-  };
+  const handleEdit = useCallback((c: Consultation) => {
+    setEditingConsultation(c);
+    setShowForm(true);
+  }, []);
 
-  const handleStatusChange = (value: string) => {
-    setStatusFilter(value);
-    updateFilters({ status: value === "all" ? undefined : value });
-  };
+  const colGroup = (
+    <colgroup>
+      {COL_WIDTHS.map((w, i) => (
+        <col key={i} style={{ width: `${w}px` }} />
+      ))}
+    </colgroup>
+  );
 
-  const handlePageChange = (page: number) => {
-    startTransition(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("page", String(page));
-      router.push(`/consultations?${params.toString()}`);
-    });
-  };
+  const tableHead = (
+    <thead>
+      <tr className="border-t border-b border-slate-200">
+        {["시간", "이름", "학교", "과목", "장소", "방식", "연락처", "진행", "결과", ""].map(
+          (label, i) => (
+            <th
+              key={i}
+              className={`text-left py-2.5 px-2 text-xs font-semibold text-slate-400 whitespace-nowrap ${i < 9 ? "border-r border-slate-100" : ""}`}
+            >
+              {label}
+            </th>
+          )
+        )}
+      </tr>
+    </thead>
+  );
 
   return (
-    <div className="space-y-5">
-      {/* Section Header */}
-      <div className="flex justify-between items-end mb-1">
-        <div>
-          <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
-            상담 관리
-          </h1>
-          <p className="text-[12.5px]" style={{ color: "#64748B" }}>
-            총 {initialPagination.total}건의 상담 기록
-          </p>
+    <div className="space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="h-5 w-5 text-slate-700" />
+            <span className="text-xl font-bold text-slate-800">상담 현황</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm text-slate-500">
+            <Calendar className="h-4 w-4" />
+            {formatHeaderDate()}
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowTextParse(true)}
-            className="rounded-[7px] border-slate-200 text-slate-600 bg-white hover:bg-slate-50"
-          >
-            <FileText className="h-4 w-4 mr-1.5" />
-            텍스트 등록
-          </Button>
           <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[7px] text-white text-[12.5px] font-semibold transition-all"
+            onClick={() => startTransition(() => router.refresh())}
+            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={() => setShowTextParse(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-semibold bg-slate-800 hover:bg-slate-700 transition-colors"
+          >
+            <FileText className="h-4 w-4" />
+            텍스트 등록
+          </button>
+          <button
+            onClick={() => {
+              setEditingConsultation(undefined);
+              setShowForm(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
             style={{
               background: "linear-gradient(135deg, #D4A853, #C49B3D)",
-              boxShadow: "0 2px 8px rgba(212,168,83,0.3)",
+              boxShadow: "0 2px 8px rgba(212,168,83,0.25)",
             }}
           >
-            <Plus className="h-3.5 w-3.5" />
-            새 상담
+            <Plus className="h-4 w-4" />
+            일정 추가
           </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <DateFilter value={datePreset} onChange={handleDateChange} />
+      {/* Date Groups */}
+      {sortedDates.map((date) => {
+        const items = grouped[date];
+        const isDateToday = date === today;
 
-        <Select value={statusFilter} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[120px] h-9 rounded-lg">
-            <SelectValue placeholder="상태" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체 상태</SelectItem>
-            <SelectItem value="active">진행중</SelectItem>
-            <SelectItem value="completed">완료</SelectItem>
-            <SelectItem value="pending">대기</SelectItem>
-            <SelectItem value="cancelled">취소</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="flex gap-1.5">
-          <SearchInput
-            value={searchValue}
-            onChange={handleSearch}
-          />
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-9 rounded-lg"
-            onClick={handleSearchSubmit}
-          >
-            검색
-          </Button>
-        </div>
-      </div>
-
-      {/* Data Table */}
-      {initialData.length === 0 ? (
-        <EmptyState
-          icon={MessageSquare}
-          title="등록된 상담이 없습니다"
-          description="새로운 상담을 등록해보세요"
-          action={
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[7px] text-white text-[12.5px] font-semibold"
-              style={{ background: "linear-gradient(135deg, #D4A853, #C49B3D)", boxShadow: "0 2px 8px rgba(212,168,83,0.3)" }}
-            >
-              <Plus className="h-4 w-4" />
-              새 상담
-            </button>
-          }
-        />
-      ) : (
-        <>
-          <div className="bg-white rounded-2xl border border-[#f1f5f9] overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-[#f8fafc] hover:bg-[#f8fafc]">
-                  <TableHead className="w-[90px] px-4 py-3 text-xs font-semibold text-slate-500">날짜</TableHead>
-                  <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
-                  <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학교/학년</TableHead>
-                  <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">상담방식</TableHead>
-                  <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">상태</TableHead>
-                  <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">결과</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {initialData.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    className={`cursor-pointer hover:bg-[#F8FAFC] transition-colors ${isPending ? "opacity-50" : ""}`}
-                  >
-                    <TableCell className="text-xs text-slate-500">
-                      <Link href={`/consultations/${item.id}`} className="block py-1">
-                        {item.consult_date
-                          ? format(new Date(item.consult_date), "MM-dd")
-                          : "-"}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/consultations/${item.id}`} className="font-semibold text-sm text-slate-800 block py-1">
-                        {item.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-slate-500">
-                      <Link href={`/consultations/${item.id}`} className="block py-1">
-                        {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-slate-600">
-                      <Link href={`/consultations/${item.id}`} className="block py-1">
-                        {item.consult_type}
-                        {item.consult_time ? ` ${item.consult_time.slice(0, 5)}` : ""}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/consultations/${item.id}`} className="block py-1">
-                        <StatusBadge status={item.status} />
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/consultations/${item.id}`} className="block py-1">
-                        <ResultBadge status={item.result_status} />
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          {initialPagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-lg"
-                disabled={initialPagination.page <= 1}
-                onClick={() => handlePageChange(initialPagination.page - 1)}
-              >
-                이전
-              </Button>
-              <span className="text-sm font-medium text-slate-500">
-                {initialPagination.page} / {initialPagination.totalPages}
+        return (
+          <div key={date}>
+            <div className="flex items-center gap-2 py-3">
+              {isDateToday && (
+                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-700 tracking-wide">
+                  TODAY
+                </span>
+              )}
+              <span className="text-sm font-bold text-slate-700">
+                {formatGroupDate(date)}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-lg"
-                disabled={initialPagination.page >= initialPagination.totalPages}
-                onClick={() => handlePageChange(initialPagination.page + 1)}
-              >
-                다음
-              </Button>
+              <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
+                {items.length}건
+              </span>
             </div>
-          )}
-        </>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-fixed" style={{ minWidth: "1014px" }}>
+                {colGroup}
+                {tableHead}
+                <tbody>
+                  {items
+                    .sort((a, b) =>
+                      (a.consult_time || "").localeCompare(b.consult_time || "")
+                    )
+                    .map((item) => {
+                      const loc = shortLocation(item.location);
+                      const subj = subjectBadge(item.subject);
+                      const method = formatMethod(item.consult_type);
+                      const isUnregistered = item.result_status === "other";
+                      const cellStrike = isUnregistered ? "line-through" : "";
+                      const vBorder = "border-r border-slate-100";
+                      const vBorderDark = "border-r border-neutral-700";
+                      const vb = isUnregistered ? vBorderDark : vBorder;
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`border-t border-slate-100 transition-colors ${rowStyleByResult(item.result_status)} ${!isUnregistered ? "hover:bg-slate-50/80" : ""}`}
+                        >
+                          <td className={`py-3 px-2 font-semibold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-700"}`}>
+                            {item.consult_time?.slice(0, 5) || "-"}
+                          </td>
+                          <td className={`py-3 px-2 font-bold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-400" : "text-slate-800"}`}>
+                            {item.name}
+                          </td>
+                          <td className={`py-3 px-2 text-xs whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
+                            {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
+                          </td>
+                          <td className={`py-3 px-2 whitespace-nowrap ${cellStrike} ${vb}`}>
+                            {isUnregistered ? (
+                              <span className="text-neutral-500 text-xs">{subj.text}</span>
+                            ) : subj.cls ? (
+                              <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${subj.cls}`}>
+                                {subj.text}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">-</span>
+                            )}
+                          </td>
+                          <td className={`py-3 px-2 whitespace-nowrap ${cellStrike} ${vb}`}>
+                            {isUnregistered ? (
+                              <span className="text-neutral-500 text-xs">{loc.text}</span>
+                            ) : loc.cls ? (
+                              <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${loc.cls}`}>
+                                {loc.text}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">-</span>
+                            )}
+                          </td>
+                          <td className={`py-3 px-2 whitespace-nowrap ${cellStrike} ${vb}`}>
+                            {isUnregistered ? (
+                              <span className="text-neutral-500 text-xs">{method.text}</span>
+                            ) : method.isInPerson ? (
+                              <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold border border-orange-300 bg-orange-50 text-orange-600">
+                                {method.text}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-indigo-600">
+                                {method.text}
+                              </span>
+                            )}
+                          </td>
+                          <td className={`py-3 px-2 text-xs font-mono whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
+                            {item.parent_phone || "-"}
+                          </td>
+                          <td className={`py-3 px-2 whitespace-nowrap ${vb}`}>
+                            <div className="flex items-center gap-2">
+                              {[
+                                { field: "doc_sent", label: "자료", value: item.doc_sent },
+                                { field: "call_done", label: "통화", value: item.call_done },
+                                { field: "consult_done", label: "완료", value: item.consult_done },
+                              ].map(({ field, label, value }) => (
+                                <button
+                                  key={field}
+                                  onClick={() => handleToggleField(item.id, field, value)}
+                                  className={`inline-flex items-center gap-0.5 text-xs transition-colors ${
+                                    isUnregistered
+                                      ? "text-neutral-600"
+                                      : value
+                                        ? "text-emerald-600 font-semibold"
+                                        : "text-slate-400 hover:text-slate-600"
+                                  }`}
+                                >
+                                  {value ? (
+                                    <Check className={`h-3.5 w-3.5 ${isUnregistered ? "text-neutral-600" : "text-emerald-500"}`} />
+                                  ) : (
+                                    <Circle className="h-3.5 w-3.5" />
+                                  )}
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                          <td className={`py-3 px-2 whitespace-nowrap ${vb}`}>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleResultChange(item.id, "registered")}
+                                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                  item.result_status === "registered"
+                                    ? "bg-red-500 text-white"
+                                    : isUnregistered
+                                      ? "text-neutral-600 hover:bg-neutral-800"
+                                      : "text-slate-400 hover:bg-slate-100"
+                                }`}
+                              >
+                                등록
+                              </button>
+                              <button
+                                onClick={() => handleResultChange(item.id, "hold")}
+                                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                  item.result_status === "hold"
+                                    ? "bg-amber-400 text-white"
+                                    : isUnregistered
+                                      ? "text-neutral-600 hover:bg-neutral-800"
+                                      : "text-slate-400 hover:bg-slate-100"
+                                }`}
+                              >
+                                고민
+                              </button>
+                              <button
+                                onClick={() => handleResultChange(item.id, "other")}
+                                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                  item.result_status === "other"
+                                    ? "bg-neutral-600 text-white line-through"
+                                    : "text-slate-400 hover:bg-slate-100"
+                                }`}
+                              >
+                                미등록
+                              </button>
+                              {item.plan_date && (
+                                <button
+                                  onClick={() =>
+                                    handleToggleField(item.id, "notify_sent", item.notify_sent)
+                                  }
+                                  className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                    isUnregistered
+                                      ? item.notify_sent ? "bg-neutral-700 text-neutral-400" : "bg-neutral-800 text-neutral-500 border border-neutral-700"
+                                      : item.notify_sent
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                  }`}
+                                >
+                                  {item.notify_sent ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : (
+                                    <Circle className="h-3 w-3" />
+                                  )}
+                                  안내 {formatPlanDate(item.plan_date)}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 whitespace-nowrap">
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={() => handleCopy(item)}
+                                className={`p-1.5 rounded transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+                                title="클립보드 복사"
+                              >
+                                <ClipboardCopy className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleEdit(item)}
+                                className={`p-1.5 rounded transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+                                title="수정"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+
+      {sortedDates.length === 0 && (
+        <div className="text-center py-20 text-slate-400">
+          <LayoutGrid className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p className="text-lg font-semibold mb-1">등록된 상담이 없습니다</p>
+          <p className="text-sm">텍스트 등록 또는 일정 추가로 상담을 등록해보세요</p>
+        </div>
       )}
 
-      {/* Dialogs */}
-      <ConsultationFormDialog open={showForm} onOpenChange={setShowForm} />
+      <ConsultationFormDialog
+        open={showForm}
+        onOpenChange={(open) => {
+          setShowForm(open);
+          if (!open) setEditingConsultation(undefined);
+        }}
+        consultation={editingConsultation}
+      />
       <TextParseModal open={showTextParse} onOpenChange={setShowTextParse} />
     </div>
   );

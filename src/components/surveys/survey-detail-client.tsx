@@ -76,7 +76,7 @@ export function SurveyDetailClient({ survey }: Props) {
     try {
       const result = await analyzeSurvey(survey.id);
       if (result.success && result.data) {
-        toast.success("AI 분석이 완료되었습니다");
+        toast.success("성향분석이 완료되었습니다");
         router.push(`/analyses/${result.data.id}`);
       } else {
         toast.error(result.error || "분석에 실패했습니다");
@@ -136,7 +136,7 @@ export function SurveyDetailClient({ survey }: Props) {
               ) : (
                 <>
                   <Brain className="h-3.5 w-3.5" />
-                  AI 분석
+                  성향분석
                 </>
               )}
             </button>

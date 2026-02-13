@@ -75,7 +75,7 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
       <div className="flex justify-between items-end mb-1">
         <div>
           <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
-            AI 분석 결과
+            성향분석 결과
           </h1>
           <p className="text-[12.5px]" style={{ color: "#64748B" }}>
             {pagination.total}건
@@ -100,7 +100,7 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
         <EmptyState
           icon={Brain}
           title="분석 결과가 없습니다"
-          description="설문 상세 페이지에서 AI 분석을 실행해주세요"
+          description="설문 상세 페이지에서 성향분석을 실행해주세요"
         />
       ) : (
         <div className="bg-white rounded-2xl border border-[#f1f5f9] overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>

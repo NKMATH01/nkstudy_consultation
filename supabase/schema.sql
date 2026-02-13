@@ -14,27 +14,27 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 -- ========== teachers (선생님 정보) ==========
+-- 실제 DB 컬럼 기준 (building은 앱에서 subject로 매핑)
 CREATE TABLE IF NOT EXISTS teachers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  subject TEXT,
-  target_grade TEXT,
   phone TEXT,
-  active BOOLEAN NOT NULL DEFAULT TRUE,
+  building TEXT,                          -- 앱에서는 subject로 매핑
+  password TEXT,
+  role TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE, -- 앱에서는 active로 매핑
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ========== classes (반 정보) ==========
+-- 실제 DB 컬럼 기준 (teacher_id FK, description은 앱에서 class_days로 매핑)
 CREATE TABLE IF NOT EXISTS classes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  teacher TEXT,
-  target_grade TEXT,
-  class_days TEXT,
-  class_time TEXT,
-  clinic_time TEXT,
-  active BOOLEAN NOT NULL DEFAULT TRUE,
+  teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL, -- 담임 (join으로 이름 조회)
+  description TEXT,                        -- 앱에서는 class_days로 매핑
+  is_active BOOLEAN NOT NULL DEFAULT TRUE, -- 앱에서는 active로 매핑
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS consultations (
   has_friend TEXT,
   advance_level TEXT,
   study_goal TEXT,
+  student_consult_note TEXT,
+  parent_consult_note TEXT,
   analysis_id UUID,
   registration_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -89,8 +91,8 @@ CREATE INDEX idx_consultations_consult_date ON consultations(consult_date DESC);
 CREATE INDEX idx_consultations_status ON consultations(status);
 CREATE INDEX idx_consultations_name ON consultations(name);
 CREATE INDEX idx_consultations_created_at ON consultations(created_at DESC);
-CREATE INDEX idx_classes_active ON classes(active);
-CREATE INDEX idx_teachers_active ON teachers(active);
+CREATE INDEX idx_classes_is_active ON classes(is_active);
+CREATE INDEX idx_teachers_is_active ON teachers(is_active);
 
 -- ========== RLS 정책 ==========
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;

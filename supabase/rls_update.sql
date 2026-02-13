@@ -89,75 +89,75 @@ CREATE POLICY "surveys_delete"
 -- ========================
 -- 3. analyses 테이블
 -- ========================
+-- 참고: analyses 테이블에 created_by 컬럼이 없으므로
+--       인증된 사용자 전체 접근 정책 사용
 
 -- 기존 정책 제거
 DROP POLICY IF EXISTS "analyses_select" ON analyses;
 DROP POLICY IF EXISTS "analyses_insert" ON analyses;
 DROP POLICY IF EXISTS "analyses_update" ON analyses;
 DROP POLICY IF EXISTS "analyses_delete" ON analyses;
+DROP POLICY IF EXISTS "analyses_all_access" ON analyses;
 
 -- RLS 활성화
 ALTER TABLE analyses ENABLE ROW LEVEL SECURITY;
 
--- 보안: 본인이 생성한 분석만 조회 가능
+-- 인증된 사용자 전체 접근 (단일 학원 운영 환경)
 CREATE POLICY "analyses_select"
   ON analyses FOR SELECT
   TO authenticated
-  USING (created_by = auth.uid());
+  USING (true);
 
--- 보안: 삽입 시 created_by를 본인 UID로 강제
 CREATE POLICY "analyses_insert"
   ON analyses FOR INSERT
   TO authenticated
-  WITH CHECK (created_by = auth.uid());
+  WITH CHECK (true);
 
--- 보안: 본인이 생성한 분석만 수정 가능
 CREATE POLICY "analyses_update"
   ON analyses FOR UPDATE
   TO authenticated
-  USING (created_by = auth.uid())
-  WITH CHECK (created_by = auth.uid());
+  USING (true)
+  WITH CHECK (true);
 
--- 보안: 본인이 생성한 분석만 삭제 가능
 CREATE POLICY "analyses_delete"
   ON analyses FOR DELETE
   TO authenticated
-  USING (created_by = auth.uid());
+  USING (true);
 
 -- ========================
 -- 4. registrations 테이블
 -- ========================
+-- 참고: registrations 테이블에 created_by 컬럼이 없으므로
+--       인증된 사용자 전체 접근 정책 사용
 
 -- 기존 정책 제거
 DROP POLICY IF EXISTS "registrations_select" ON registrations;
 DROP POLICY IF EXISTS "registrations_insert" ON registrations;
 DROP POLICY IF EXISTS "registrations_update" ON registrations;
 DROP POLICY IF EXISTS "registrations_delete" ON registrations;
+DROP POLICY IF EXISTS "registrations_all_access" ON registrations;
 
 -- RLS 활성화
 ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
 
--- 보안: 본인이 생성한 등록 데이터만 조회 가능
+-- 인증된 사용자 전체 접근 (단일 학원 운영 환경)
 CREATE POLICY "registrations_select"
   ON registrations FOR SELECT
   TO authenticated
-  USING (created_by = auth.uid());
+  USING (true);
 
--- 보안: 삽입 시 created_by를 본인 UID로 강제
 CREATE POLICY "registrations_insert"
   ON registrations FOR INSERT
   TO authenticated
-  WITH CHECK (created_by = auth.uid());
+  WITH CHECK (true);
 
--- 보안: 본인이 생성한 등록만 수정 가능
 CREATE POLICY "registrations_update"
   ON registrations FOR UPDATE
   TO authenticated
-  USING (created_by = auth.uid())
-  WITH CHECK (created_by = auth.uid());
+  USING (true)
+  WITH CHECK (true);
 
--- 보안: 본인이 생성한 등록만 삭제 가능
 CREATE POLICY "registrations_delete"
   ON registrations FOR DELETE
   TO authenticated
-  USING (created_by = auth.uid());
+  USING (true);

@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS registrations (
   registration_date DATE,
   assigned_class TEXT,
   teacher TEXT,
+  assigned_class_2 TEXT,
+  teacher_2 TEXT,
+  subject TEXT,
+  preferred_days TEXT,
   use_vehicle TEXT,
   test_score TEXT,
   test_note TEXT,
@@ -22,6 +26,12 @@ CREATE TABLE IF NOT EXISTS registrations (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 기존 테이블에 컬럼 추가 (마이그레이션용)
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS subject TEXT;
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS preferred_days TEXT;
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS assigned_class_2 TEXT;
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS teacher_2 TEXT;
 
 -- 인덱스
 CREATE INDEX IF NOT EXISTS idx_registrations_analysis_id ON registrations(analysis_id);

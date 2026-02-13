@@ -236,7 +236,8 @@ const ALLOWED_UPDATE_FIELDS = [
   "memo", "attitude", "willingness", "parent_level", "student_level",
   "prev_academy", "school_score", "test_score", "plan_date", "plan_class",
   "prefer_days", "requests", "payment_type", "prev_complaint", "referral",
-  "has_friend", "advance_level", "study_goal"
+  "has_friend", "advance_level", "study_goal",
+  "student_consult_note", "parent_consult_note"
 ] as const;
 
 export async function updateConsultationField(
@@ -290,10 +291,17 @@ export async function parseAndCreateConsultations(text: string) {
       if (!nameMatch) continue;
       const name = nameMatch[1].trim();
 
-      // 연락처
+      // 연락처 - "학부모"/"연락처" 필드 우선 확인 (계좌번호 오매칭 방지)
       let parentPhone = "";
-      const phoneMatch = block.match(/(\d{3}[-\s]?\d{4}[-\s]?\d{4})/);
-      if (phoneMatch) parentPhone = phoneMatch[1].replace(/\s/g, "");
+      const phoneFieldMatch = block.match(
+        /(?:학부모|연락처|전화|핸드폰)\s*[:：]\s*(\d{3}[-\s]?\d{3,4}[-\s]?\d{4})/
+      );
+      if (phoneFieldMatch) {
+        parentPhone = phoneFieldMatch[1].replace(/[-\s]/g, "");
+      } else {
+        const phoneMatch = block.match(/(\d{3}[-\s]?\d{4}[-\s]?\d{4})/);
+        if (phoneMatch) parentPhone = phoneMatch[1].replace(/[-\s]/g, "");
+      }
 
       // 학교/학년
       let school = "";
@@ -372,23 +380,29 @@ export async function parseAndCreateConsultations(text: string) {
         }
       }
 
-      // 상담 방식
+      // 상담 방식 - "유선/전화" 키워드 또는 시간 패턴으로 판별
       let consultType = "유선 상담";
       const consultMatch = block.match(
         /학부모님\s*상담\s*[:：]\s*([^\n]+)/i
       );
       if (consultMatch) {
-        const consultRaw = consultMatch[1].toLowerCase();
-        if (consultRaw.includes("유선") || consultRaw.includes("전화")) {
+        const consultRaw = consultMatch[1];
+        const consultLower = consultRaw.toLowerCase();
+        if (consultLower.includes("유선") || consultLower.includes("전화")) {
           consultType = "유선 상담";
-        } else if (consultRaw.includes("대면")) {
-          const faceTimeMatch = consultRaw.match(/(\d+)(?:시|:)/);
-          if (faceTimeMatch) {
-            let fHour = parseInt(faceTimeMatch[1]);
-            if (fHour < 12 && !consultRaw.includes("오전")) fHour += 12;
-            consultType = `대면 (${String(fHour).padStart(2, "0")}:00)`;
-          } else {
-            consultType = "대면 상담";
+        } else {
+          // "대면" 키워드 또는 시간 패턴(예: "3시에 진행")이 있으면 대면상담
+          const faceTimeMatch = consultRaw.match(/(오전|오후)?\s*(\d+)\s*(?:시|:)\s*(\d*)/);
+          if (consultLower.includes("대면") || faceTimeMatch) {
+            if (faceTimeMatch) {
+              let fHour = parseInt(faceTimeMatch[2]);
+              const fMin = faceTimeMatch[3] ? parseInt(faceTimeMatch[3]) : 0;
+              if (faceTimeMatch[1] === "오후" && fHour < 12) fHour += 12;
+              else if (!faceTimeMatch[1] && fHour >= 1 && fHour <= 8) fHour += 12;
+              consultType = `대면 (${String(fHour).padStart(2, "0")}:${String(fMin).padStart(2, "0")})`;
+            } else {
+              consultType = "대면 상담";
+            }
           }
         }
       }

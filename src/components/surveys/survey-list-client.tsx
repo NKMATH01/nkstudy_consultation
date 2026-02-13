@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/common/empty-state";
-import { SurveyFormDialog } from "@/components/surveys/survey-form";
+import { SurveyFormDialog } from "@/components/surveys/survey-form-client";
 import type { Survey } from "@/types";
 import { FACTOR_LABELS } from "@/types";
 import Link from "next/link";

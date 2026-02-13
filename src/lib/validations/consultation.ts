@@ -14,6 +14,18 @@ export const consultationFormSchema = z.object({
   location: z.string().optional(),
   consult_type: z.string().optional(),
   memo: z.string().optional(),
+  // 상담기록지
+  prev_academy: z.string().optional(),
+  prev_complaint: z.string().optional(),
+  school_score: z.string().optional(),
+  test_score: z.string().optional(),
+  advance_level: z.string().optional(),
+  study_goal: z.string().optional(),
+  prefer_days: z.string().optional(),
+  plan_date: z.string().optional(),
+  plan_class: z.string().optional(),
+  requests: z.string().optional(),
+  student_consult_note: z.string().optional(),
 });
 
 export type ConsultationFormValues = z.infer<typeof consultationFormSchema>;

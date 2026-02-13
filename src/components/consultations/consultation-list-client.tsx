@@ -28,6 +28,7 @@ interface Props {
     total: number;
     totalPages: number;
   };
+  classes?: { id: string; name: string }[];
 }
 
 const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
@@ -93,7 +94,7 @@ function rowStyleByResult(status: string): string {
 // 고정 컬럼 너비 (colgroup) — 한 화면에 맞추기
 const COL_WIDTHS = [48, 56, 72, 60, 44, 68, 100, 110, 76, 190, 76];
 
-export function ConsultationListClient({ initialData, initialPagination }: Props) {
+export function ConsultationListClient({ initialData, initialPagination, classes = [] }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
@@ -595,6 +596,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
           if (!open) setEditingConsultation(undefined);
         }}
         consultation={editingConsultation}
+        classes={classes}
       />
       <TextParseModal open={showTextParse} onOpenChange={setShowTextParse} />
     </div>

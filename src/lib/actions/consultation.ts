@@ -92,6 +92,17 @@ export async function createConsultation(formData: FormData) {
       location: formData.get("location") || undefined,
       consult_type: formData.get("consult_type") || "유선 상담",
       memo: formData.get("memo") || undefined,
+      prev_academy: formData.get("prev_academy") || undefined,
+      prev_complaint: formData.get("prev_complaint") || undefined,
+      school_score: formData.get("school_score") || undefined,
+      test_score: formData.get("test_score") || undefined,
+      advance_level: formData.get("advance_level") || undefined,
+      study_goal: formData.get("study_goal") || undefined,
+      prefer_days: formData.get("prefer_days") || undefined,
+      plan_date: formData.get("plan_date") || undefined,
+      plan_class: formData.get("plan_class") || undefined,
+      requests: formData.get("requests") || undefined,
+      student_consult_note: formData.get("student_consult_note") || undefined,
     };
 
     const parsed = consultationFormSchema.safeParse(raw);
@@ -112,6 +123,17 @@ export async function createConsultation(formData: FormData) {
         location: parsed.data.location || null,
         consult_type: parsed.data.consult_type,
         memo: parsed.data.memo || null,
+        prev_academy: parsed.data.prev_academy || null,
+        prev_complaint: parsed.data.prev_complaint || null,
+        school_score: parsed.data.school_score || null,
+        test_score: parsed.data.test_score || null,
+        advance_level: parsed.data.advance_level || null,
+        study_goal: parsed.data.study_goal || null,
+        prefer_days: parsed.data.prefer_days || null,
+        plan_date: parsed.data.plan_date || null,
+        plan_class: parsed.data.plan_class || null,
+        requests: parsed.data.requests || null,
+        student_consult_note: parsed.data.student_consult_note || null,
       })
       .select()
       .single();
@@ -146,6 +168,17 @@ export async function updateConsultation(id: string, formData: FormData) {
       location: formData.get("location") || undefined,
       consult_type: formData.get("consult_type") || "유선 상담",
       memo: formData.get("memo") || undefined,
+      prev_academy: formData.get("prev_academy") || undefined,
+      prev_complaint: formData.get("prev_complaint") || undefined,
+      school_score: formData.get("school_score") || undefined,
+      test_score: formData.get("test_score") || undefined,
+      advance_level: formData.get("advance_level") || undefined,
+      study_goal: formData.get("study_goal") || undefined,
+      prefer_days: formData.get("prefer_days") || undefined,
+      plan_date: formData.get("plan_date") || undefined,
+      plan_class: formData.get("plan_class") || undefined,
+      requests: formData.get("requests") || undefined,
+      student_consult_note: formData.get("student_consult_note") || undefined,
     };
 
     const parsed = consultationFormSchema.safeParse(raw);
@@ -166,6 +199,17 @@ export async function updateConsultation(id: string, formData: FormData) {
         location: parsed.data.location || null,
         consult_type: parsed.data.consult_type,
         memo: parsed.data.memo || null,
+        prev_academy: parsed.data.prev_academy || null,
+        prev_complaint: parsed.data.prev_complaint || null,
+        school_score: parsed.data.school_score || null,
+        test_score: parsed.data.test_score || null,
+        advance_level: parsed.data.advance_level || null,
+        study_goal: parsed.data.study_goal || null,
+        prefer_days: parsed.data.prefer_days || null,
+        plan_date: parsed.data.plan_date || null,
+        plan_class: parsed.data.plan_class || null,
+        requests: parsed.data.requests || null,
+        student_consult_note: parsed.data.student_consult_note || null,
       })
       .eq("id", id)
       .select()

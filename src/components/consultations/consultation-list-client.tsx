@@ -336,9 +336,10 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                 {tableHead}
                 <tbody>
                   {items
-                    .sort((a, b) =>
-                      (a.consult_time || "").localeCompare(b.consult_time || "")
-                    )
+                    .sort((a, b) => {
+                      const t = (a.consult_time || "").localeCompare(b.consult_time || "");
+                      return t !== 0 ? t : a.id.localeCompare(b.id);
+                    })
                     .map((item) => {
                       const loc = shortLocation(item.location);
                       const subj = subjectBadge(item.subject);

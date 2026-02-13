@@ -21,6 +21,7 @@ export async function getConsultations(
     .select("*", { count: "exact" })
     .order("consult_date", { ascending: false, nullsFirst: false })
     .order("consult_time", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (startDate) {

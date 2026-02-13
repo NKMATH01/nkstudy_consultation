@@ -237,7 +237,8 @@ const ALLOWED_UPDATE_FIELDS = [
   "prev_academy", "school_score", "test_score", "plan_date", "plan_class",
   "prefer_days", "requests", "payment_type", "prev_complaint", "referral",
   "has_friend", "advance_level", "study_goal",
-  "student_consult_note", "parent_consult_note"
+  "student_consult_note", "parent_consult_note",
+  "test_fee_paid", "test_fee_method"
 ] as const;
 
 export async function updateConsultationField(

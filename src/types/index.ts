@@ -54,6 +54,8 @@ export interface Consultation {
   study_goal: string | null;
   student_consult_note: string | null;
   parent_consult_note: string | null;
+  test_fee_paid: boolean;
+  test_fee_method: string | null;
   analysis_id: string | null;
   registration_id: string | null;
   created_at: string;
@@ -80,14 +82,38 @@ export interface Teacher {
   subject: string | null;
   target_grade: string | null;
   phone: string | null;
-  role: "teacher" | "clinic" | "admin" | null;
+  role: "teacher" | "clinic" | "admin" | "director" | "principal" | "manager" | "staff" | null;
   password: string | null;
   password_changed: boolean;
   auth_user_id: string | null;
   active: boolean;
+  allowed_menus: string[] | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface CurrentTeacherInfo {
+  name: string;
+  role: string | null;
+  phone: string | null;
+  allowed_menus: string[] | null;
+}
+
+export const ALL_MENU_ITEMS = [
+  { href: "/", label: "상담 및 등록 현황" },
+  { href: "/consultations", label: "상담 관리" },
+  { href: "/bookings", label: "예약 현황판" },
+  { href: "/surveys", label: "설문 현황" },
+  { href: "/analyses", label: "성향분석 결과" },
+  { href: "/registrations", label: "등록 안내" },
+  { href: "/onboarding", label: "신입생 등록" },
+  { href: "/withdrawals", label: "퇴원생 현황" },
+  { href: "/withdrawals/dashboard", label: "퇴원생 분석" },
+  { href: "/settings/students", label: "학생 관리" },
+  { href: "/settings/classes", label: "반 관리" },
+  { href: "/settings/teachers", label: "선생님 관리" },
+  { href: "/settings/permissions", label: "선생님 권한" },
+] as const;
 
 export interface Student {
   id: string;

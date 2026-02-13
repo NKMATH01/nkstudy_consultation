@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { OnboardingList } from "@/components/onboarding/onboarding-list-client";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function OnboardingPage() {
+  await checkPagePermission("/onboarding");
   const supabase = await createClient();
 
   // Fetch all registrations (newest first) - with fallback if onboarding_status column doesn't exist

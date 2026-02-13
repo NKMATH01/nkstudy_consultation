@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { phoneToEmail, toAuthPassword } from "@/lib/auth";
 import { classFormSchema, teacherFormSchema, studentFormSchema } from "@/lib/validations/class";
-import type { Class, Teacher, Student } from "@/types";
+import type { Class, Teacher, Student, CurrentTeacherInfo } from "@/types";
 import { revalidatePath } from "next/cache";
 import { env } from "@/lib/env";
 
@@ -196,6 +196,7 @@ function mapDbToTeacher(row: Record<string, unknown>): Teacher {
     password_changed: passwordMarker !== "1234",
     auth_user_id: row.auth_user_id != null ? String(row.auth_user_id) : null,
     active: row.is_active !== false,
+    allowed_menus: Array.isArray(row.allowed_menus) ? (row.allowed_menus as string[]) : null,
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
   };
@@ -219,7 +220,7 @@ export async function getTeachers(): Promise<Teacher[]> {
 
 export async function createTeacher(formData: FormData) {
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
     const raw = {
       name: formData.get("name"),
@@ -241,7 +242,6 @@ export async function createTeacher(formData: FormData) {
     // Supabase Auth 사용자 생성 (전화번호가 있고, 클리닉 선생님이 아닌 경우)
     if (parsed.data.phone && env.SUPABASE_SERVICE_ROLE_KEY && parsed.data.role !== "clinic") {
       try {
-        const admin = createAdminClient();
         const email = phoneToEmail(parsed.data.phone);
         const { data: authData, error: authError } = await admin.auth.admin.createUser({
           email,
@@ -258,15 +258,16 @@ export async function createTeacher(formData: FormData) {
       }
     }
 
-    const insertData = {
+    const insertData: Record<string, unknown> = {
       name: parsed.data.name,
       phone: parsed.data.phone || null,
       building: parsed.data.subject || null,
       role: parsed.data.role || "teacher",
       password,
     };
+    if (authUserId) insertData.auth_user_id = authUserId;
 
-    const { error } = await supabase.from("teachers").insert(insertData);
+    const { error } = await admin.from("teachers").insert(insertData);
 
     if (error) {
       return { success: false, error: error.message };
@@ -282,7 +283,7 @@ export async function createTeacher(formData: FormData) {
 
 export async function updateTeacher(id: string, formData: FormData) {
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
     const raw = {
       name: formData.get("name"),
@@ -306,7 +307,7 @@ export async function updateTeacher(id: string, formData: FormData) {
     if (parsed.data.role) updateData.role = parsed.data.role;
     if (parsed.data.password) updateData.password = "changed";
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("teachers")
       .update(updateData)
       .eq("id", id);
@@ -325,21 +326,20 @@ export async function updateTeacher(id: string, formData: FormData) {
 
 export async function resetTeacherPassword(id: string) {
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
     // 선생님 phone 조회해서 Auth 사용자도 리셋
-    const { data: teacher } = await supabase
+    const { data: teacher } = await admin
       .from("teachers")
       .select("phone")
       .eq("id", id)
       .single();
 
-    if (teacher?.phone && env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (teacher?.phone) {
       try {
-        const admin = createAdminClient();
         const authEmail = phoneToEmail(teacher.phone);
         const { data: { users } } = await admin.auth.admin.listUsers();
-        const authUser = users.find((u) => u.email === authEmail);
+        const authUser = users.find((u: { email?: string }) => u.email === authEmail);
         if (authUser) {
           await admin.auth.admin.updateUserById(authUser.id, { password: toAuthPassword("1234") });
         }
@@ -348,7 +348,7 @@ export async function resetTeacherPassword(id: string) {
       }
     }
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("teachers")
       .update({ password: "1234" })
       .eq("id", id);
@@ -440,15 +440,16 @@ export async function getTeacherByPhone(phone: string): Promise<{ password_chang
 
 export async function deleteTeacher(id: string) {
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
-    const { error } = await supabase.from("teachers").delete().eq("id", id);
+    const { error } = await admin.from("teachers").delete().eq("id", id);
 
     if (error) {
       return { success: false, error: error.message };
     }
 
     revalidatePath("/settings/teachers");
+    revalidatePath("/settings/permissions");
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "선생님 삭제 실패";
@@ -628,6 +629,95 @@ export async function deleteStudent(id: string) {
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "학생 삭제 실패";
+    return { success: false, error: msg };
+  }
+}
+
+// =============================================
+// ========== 현재 사용자 / 권한 관리 ==========
+// =============================================
+
+/** 현재 로그인한 사용자의 선생님 정보 조회 (사이드바/권한 체크용) */
+export async function getCurrentTeacher(): Promise<CurrentTeacherInfo | null> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return null;
+
+    // nk.local 이메일 = 선생님 계정 (전화번호 기반)
+    if (user.email.endsWith("@nk.local")) {
+      const digits = user.email.replace("@nk.local", "").replace(/\D/g, "");
+      let formatted = digits;
+      if (digits.length === 11) {
+        formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+      }
+
+      const { data } = await supabase
+        .from("teachers")
+        .select("name, role, phone, allowed_menus")
+        .or(`phone.eq.${digits},phone.eq.${formatted}`)
+        .limit(1)
+        .single();
+
+      if (data) {
+        return {
+          name: data.name,
+          role: data.role ?? null,
+          phone: data.phone ?? null,
+          allowed_menus: Array.isArray(data.allowed_menus) ? (data.allowed_menus as string[]) : null,
+        };
+      }
+    }
+
+    // 이메일 로그인 (admin@nk.com 등) → profiles 테이블 확인
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name, role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) {
+      return {
+        name: profile.name,
+        role: profile.role === "admin" ? "admin" : null,
+        phone: null,
+        allowed_menus: null,
+      };
+    }
+
+    return { name: user.email, role: null, phone: null, allowed_menus: null };
+  } catch {
+    return null;
+  }
+}
+
+/** 선생님 메뉴 권한 업데이트 (admin 전용) */
+export async function updateTeacherPermissions(
+  teacherId: string,
+  allowedMenus: string[]
+) {
+  try {
+    // admin 확인
+    const currentTeacher = await getCurrentTeacher();
+    if (!currentTeacher || currentTeacher.role !== "admin") {
+      return { success: false, error: "관리자 권한이 필요합니다" };
+    }
+
+    const admin = createAdminClient();
+
+    const { error } = await admin
+      .from("teachers")
+      .update({ allowed_menus: allowedMenus })
+      .eq("id", teacherId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/settings/permissions");
+    return { success: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "권한 수정 실패";
     return { success: false, error: msg };
   }
 }

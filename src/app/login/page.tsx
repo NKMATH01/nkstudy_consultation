@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { phoneToEmail, toAuthPassword } from "@/lib/auth";
 import { getTeacherByPhone, changeTeacherPassword } from "@/lib/actions/settings";
@@ -21,8 +20,6 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [teacherName, setTeacherName] = useState("");
-
-  const router = useRouter();
 
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, "");
@@ -80,8 +77,7 @@ export default function LoginPage() {
         setTeacherName(teacher.name);
         setShowPasswordChange(true);
       } else {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
       }
     }
   };
@@ -90,8 +86,7 @@ export default function LoginPage() {
     e.preventDefault();
     const success = await doLogin(email, password);
     if (success) {
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     }
   };
 
@@ -122,8 +117,7 @@ export default function LoginPage() {
       await supabase.auth.updateUser({ password: toAuthPassword(newPassword) });
 
       setShowPasswordChange(false);
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } else {
       setError(result.error || "비밀번호 변경에 실패했습니다.");
     }
@@ -137,8 +131,7 @@ export default function LoginPage() {
       process.env.NEXT_PUBLIC_TEST_PASSWORD || ""
     ).then((success) => {
       if (success) {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
       }
     });
   };

@@ -1,8 +1,10 @@
 import { getWithdrawals } from "@/lib/actions/withdrawal";
 import { WithdrawalList } from "@/components/withdrawals/withdrawal-list-client";
 import { UserMinus } from "lucide-react";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function WithdrawalsPage() {
+  await checkPagePermission("/withdrawals");
   const withdrawals = await getWithdrawals();
 
   const mathCount = withdrawals.filter((w) => w.subject?.includes("수학")).length;

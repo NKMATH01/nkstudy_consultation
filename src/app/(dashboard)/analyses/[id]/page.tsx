@@ -2,12 +2,14 @@ import { getAnalysis } from "@/lib/actions/analysis";
 import { getClasses, getTeachers } from "@/lib/actions/settings";
 import { AnalysisDetailClient } from "@/components/analyses/analysis-detail-client";
 import { notFound } from "next/navigation";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function AnalysisDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await checkPagePermission("/analyses");
   const { id } = await params;
   const [analysis, classes, teachers] = await Promise.all([
     getAnalysis(id),

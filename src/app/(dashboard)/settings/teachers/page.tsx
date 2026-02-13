@@ -1,7 +1,9 @@
 import { getTeachers } from "@/lib/actions/settings";
 import { TeacherList } from "@/components/settings/teacher-list-client";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function TeachersPage() {
+  await checkPagePermission("/settings/teachers");
   const teachers = await getTeachers();
 
   const teacherCount = teachers.filter((t) => t.role !== "clinic").length;

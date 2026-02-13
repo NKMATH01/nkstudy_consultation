@@ -58,7 +58,7 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: Props) {
         subject: teacher.subject ?? "",
         target_grade: teacher.target_grade ?? "",
         phone: teacher.phone ?? "",
-        role: (teacher.role as "teacher" | "clinic") ?? "teacher",
+        role: teacher.role ?? "teacher",
         password: "",
       });
     } else if (open) {
@@ -137,7 +137,7 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: Props) {
                       className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="">선택</option>
-                      {["수학", "영어", "국어", "과학", "사회", "논술", "기타"].map((s) => (
+                      {["수학", "영어"].map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
@@ -181,8 +181,13 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: Props) {
                       onChange={field.onChange}
                       className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
-                      <option value="teacher">담임 선생님</option>
-                      <option value="clinic">클리닉 선생님</option>
+                      <option value="teacher">담임</option>
+                      <option value="clinic">클리닉</option>
+                      <option value="admin">총괄관리자</option>
+                      <option value="director">대표</option>
+                      <option value="principal">원장</option>
+                      <option value="manager">부장</option>
+                      <option value="staff">행정팀</option>
                     </select>
                   </FormControl>
                 </FormItem>

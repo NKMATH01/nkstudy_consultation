@@ -1,8 +1,10 @@
 import { getWithdrawals, getStudentCountsByTeacher } from "@/lib/actions/withdrawal";
 import { WithdrawalDashboard } from "@/components/withdrawals/withdrawal-dashboard-client";
 import { BarChart3 } from "lucide-react";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function WithdrawalDashboardPage() {
+  await checkPagePermission("/withdrawals/dashboard");
   const [withdrawals, studentCounts] = await Promise.all([
     getWithdrawals(),
     getStudentCountsByTeacher(),

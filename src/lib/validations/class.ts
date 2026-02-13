@@ -16,7 +16,7 @@ export const teacherFormSchema = z.object({
   subject: z.string().optional(),
   target_grade: z.string().optional(),
   phone: z.string().optional(),
-  role: z.enum(["teacher", "clinic"]).optional(),
+  role: z.enum(["teacher", "clinic", "admin", "director", "principal", "manager", "staff"]).optional(),
   password: z.string().optional(),
 });
 

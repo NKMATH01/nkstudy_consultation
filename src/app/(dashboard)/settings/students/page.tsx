@@ -1,7 +1,9 @@
 import { getStudents, getTeachers, getClasses } from "@/lib/actions/settings";
 import { StudentList } from "@/components/settings/student-list-client";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function StudentsPage() {
+  await checkPagePermission("/settings/students");
   const [students, teachers, classes] = await Promise.all([getStudents(), getTeachers(), getClasses()]);
 
   return (

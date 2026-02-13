@@ -13,10 +13,11 @@ import {
   Circle,
   LayoutGrid,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import { TextParseModal } from "@/components/consultations/text-parse-modal";
-import { updateConsultationField } from "@/lib/actions/consultation";
+import { updateConsultationField, deleteConsultation } from "@/lib/actions/consultation";
 import type { Consultation, ResultStatus } from "@/types";
 
 interface Props {
@@ -90,7 +91,7 @@ function rowStyleByResult(status: string): string {
 }
 
 // 고정 컬럼 너비 (colgroup)
-const COL_WIDTHS = [60, 72, 90, 80, 56, 90, 120, 150, 240, 56];
+const COL_WIDTHS = [60, 72, 90, 80, 56, 90, 120, 150, 100, 240, 56];
 
 export function ConsultationListClient({ initialData, initialPagination }: Props) {
   const router = useRouter();
@@ -180,6 +181,23 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
     setShowForm(true);
   }, []);
 
+  const handleDelete = useCallback(
+    (id: string, name: string) => {
+      if (!confirm(`"${name}" 상담을 삭제하시겠습니까?`)) return;
+      setLocalData((prev) => prev.filter((c) => c.id !== id));
+      startTransition(async () => {
+        const result = await deleteConsultation(id);
+        if (!result.success) {
+          toast.error("삭제 실패");
+          router.refresh();
+        } else {
+          toast.success("삭제되었습니다");
+        }
+      });
+    },
+    [startTransition, router]
+  );
+
   const colGroup = (
     <colgroup>
       {COL_WIDTHS.map((w, i) => (
@@ -191,11 +209,11 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
   const tableHead = (
     <thead>
       <tr className="border-t border-b border-slate-200">
-        {["시간", "이름", "학교", "과목", "장소", "방식", "연락처", "진행", "결과", ""].map(
+        {["시간", "이름", "학교", "과목", "장소", "방식", "연락처", "진행", "테스트비", "결과", ""].map(
           (label, i) => (
             <th
               key={i}
-              className={`text-left py-2.5 px-2 text-xs font-semibold text-slate-400 whitespace-nowrap ${i < 9 ? "border-r border-slate-100" : ""}`}
+              className={`text-left py-2.5 px-2 text-xs font-semibold text-slate-400 whitespace-nowrap ${i < 10 ? "border-r border-slate-100" : ""}`}
             >
               {label}
             </th>
@@ -272,7 +290,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm table-fixed" style={{ minWidth: "1014px" }}>
+              <table className="w-full text-sm table-fixed" style={{ minWidth: "1114px" }}>
                 {colGroup}
                 {tableHead}
                 <tbody>
@@ -371,6 +389,64 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                             </div>
                           </td>
                           <td className={`py-3 px-2 whitespace-nowrap ${vb}`}>
+                            {isUnregistered ? (
+                              <span className="text-neutral-500 text-xs">-</span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => {
+                                    if (item.test_fee_paid) {
+                                      // 납부 → 미납으로 토글
+                                      handleToggleField(item.id, "test_fee_paid", true);
+                                      startTransition(async () => {
+                                        await updateConsultationField(item.id, "test_fee_method", null as unknown as string);
+                                      });
+                                      setLocalData((prev) =>
+                                        prev.map((c) => c.id === item.id ? { ...c, test_fee_paid: false, test_fee_method: null } : c)
+                                      );
+                                    } else {
+                                      // 미납 → 입금으로
+                                      handleToggleField(item.id, "test_fee_paid", false);
+                                      startTransition(async () => {
+                                        await updateConsultationField(item.id, "test_fee_method", "transfer");
+                                      });
+                                      setLocalData((prev) =>
+                                        prev.map((c) => c.id === item.id ? { ...c, test_fee_paid: true, test_fee_method: "transfer" } : c)
+                                      );
+                                    }
+                                  }}
+                                  className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                    item.test_fee_paid
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "text-slate-400 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {item.test_fee_paid ? "납부" : "미납"}
+                                </button>
+                                {item.test_fee_paid && (
+                                  <button
+                                    onClick={() => {
+                                      const next = item.test_fee_method === "transfer" ? "card" : "transfer";
+                                      setLocalData((prev) =>
+                                        prev.map((c) => c.id === item.id ? { ...c, test_fee_method: next } : c)
+                                      );
+                                      startTransition(async () => {
+                                        await updateConsultationField(item.id, "test_fee_method", next);
+                                      });
+                                    }}
+                                    className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                      item.test_fee_method === "card"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-amber-100 text-amber-700"
+                                    }`}
+                                  >
+                                    {item.test_fee_method === "card" ? "카드" : "입금"}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className={`py-3 px-2 whitespace-nowrap ${vb}`}>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => handleResultChange(item.id, "registered")}
@@ -445,6 +521,15 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
+                              {isUnregistered && (
+                                <button
+                                  onClick={() => handleDelete(item.id, item.name)}
+                                  className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-100 hover:text-red-600"
+                                  title="삭제"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

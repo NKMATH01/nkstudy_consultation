@@ -14,6 +14,7 @@ import {
   GraduationCap,
   BookOpen,
   UserCog,
+  Shield,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
 import { usePathname } from "next/navigation";
+import type { CurrentTeacherInfo } from "@/types";
 
 const pageTitles: Record<string, { label: string; icon: LucideIcon }> = {
   "/": { label: "대시보드", icon: Home },
@@ -36,9 +38,14 @@ const pageTitles: Record<string, { label: string; icon: LucideIcon }> = {
   "/settings/students": { label: "학생 관리", icon: GraduationCap },
   "/settings/classes": { label: "반 관리", icon: BookOpen },
   "/settings/teachers": { label: "선생님 관리", icon: UserCog },
+  "/settings/permissions": { label: "선생님 권한", icon: Shield },
 };
 
-export function Header() {
+interface HeaderProps {
+  currentTeacher?: CurrentTeacherInfo | null;
+}
+
+export function Header({ currentTeacher }: HeaderProps) {
   const pathname = usePathname();
   const [searchValue, setSearchValue] = useState("");
 
@@ -64,7 +71,7 @@ export function Header() {
           </SheetTrigger>
           <SheetContent side="left" className="w-[224px] p-0">
             <SheetTitle className="sr-only">네비게이션 메뉴</SheetTitle>
-            <Sidebar />
+            <Sidebar currentTeacher={currentTeacher} />
           </SheetContent>
         </Sheet>
         <h2

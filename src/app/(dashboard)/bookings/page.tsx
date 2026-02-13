@@ -1,7 +1,9 @@
 import { getBookings, getBlockedSlots } from "@/lib/actions/booking";
 import { BookingDashboardClient } from "@/components/bookings/booking-dashboard-client";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function BookingsPage() {
+  await checkPagePermission("/bookings");
   // 이번주 월~토 기간
   const today = new Date();
   const monday = new Date(today);

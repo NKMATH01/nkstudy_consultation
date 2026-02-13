@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   Users,
@@ -17,7 +17,10 @@ import {
   BarChart3,
   ExternalLink,
   LogOut,
+  Shield,
 } from "lucide-react";
+import { createBrowserClient } from "@supabase/ssr";
+import type { CurrentTeacherInfo } from "@/types";
 
 const consultItems = [
   { href: "/", label: "상담 및 등록 현황", icon: Home },
@@ -43,8 +46,84 @@ const studentMgmtItems = [
   { href: "/settings/teachers", label: "선생님 관리", icon: UserCog },
 ];
 
-export function Sidebar() {
+const adminOnlyItems = [
+  { href: "/settings/permissions", label: "선생님 권한", icon: Shield },
+];
+
+type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+
+function filterMenuItems(
+  items: MenuItem[],
+  currentTeacher: CurrentTeacherInfo | null | undefined,
+): MenuItem[] {
+  if (!currentTeacher) return items; // 정보 없으면 전체 표시 (레거시)
+  if (currentTeacher.role === "admin") return items;
+  if (!currentTeacher.allowed_menus) return [];
+  return items.filter((item) => currentTeacher.allowed_menus!.includes(item.href));
+}
+
+interface SidebarProps {
+  currentTeacher?: CurrentTeacherInfo | null;
+}
+
+export function Sidebar({ currentTeacher }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const isAdmin = currentTeacher?.role === "admin";
+
+  const visibleConsult = filterMenuItems(consultItems, currentTeacher);
+  const visibleAnalysis = filterMenuItems(analysisItems, currentTeacher);
+  const visibleWithdrawal = filterMenuItems(withdrawalItems, currentTeacher);
+  const visibleStudentMgmt = filterMenuItems(studentMgmtItems, currentTeacher);
+
+  const handleLogout = async () => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  const renderItems = (items: MenuItem[]) =>
+    items.map((item) => {
+      const isActive =
+        pathname === item.href ||
+        (item.href !== "/" && pathname.startsWith(item.href));
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          className="flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-[7px] mb-0.5 transition-all duration-150"
+          style={{
+            fontSize: "13px",
+            fontWeight: isActive ? 600 : 500,
+            background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
+            color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
+            borderLeft: isActive ? "2px solid #D4A853" : "2px solid transparent",
+          }}
+        >
+          <item.icon className="h-[17px] w-[17px]" />
+          {item.label}
+        </Link>
+      );
+    });
+
+  const divider = (
+    <div className="my-3 mx-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
+  );
+
+  const sectionLabel = (label: string) => (
+    <div className="px-3.5 mb-2" style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.05em" }}>
+      {label}
+    </div>
+  );
+
+  // 사용자 표시 정보
+  const displayName = currentTeacher?.name || "NK 원장";
+  const displayRole = currentTeacher?.role === "admin" ? "총괄관리자" : currentTeacher?.role === "clinic" ? "클리닉" : "선생님";
+  const avatarInitial = displayName[0] || "N";
 
   return (
     <>
@@ -75,104 +154,36 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 px-2.5">
-          {/* ── 상담 관리 ── */}
-          {consultItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-[7px] mb-0.5 transition-all duration-150"
-                style={{
-                  fontSize: "13px",
-                  fontWeight: isActive ? 600 : 500,
-                  background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
-                  color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
-                  borderLeft: isActive ? "2px solid #D4A853" : "2px solid transparent",
-                }}
-              >
-                <item.icon className="h-[17px] w-[17px]" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {/* 상담 관리 */}
+          {visibleConsult.length > 0 && renderItems(visibleConsult)}
 
-          <div className="my-3 mx-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
-          <div className="px-3.5 mb-2" style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.05em" }}>
-            학생 분석
-          </div>
-          {analysisItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-[7px] mb-0.5 transition-all duration-150"
-                style={{
-                  fontSize: "13px",
-                  fontWeight: isActive ? 600 : 500,
-                  background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
-                  color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
-                  borderLeft: isActive ? "2px solid #D4A853" : "2px solid transparent",
-                }}
-              >
-                <item.icon className="h-[17px] w-[17px]" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {/* 학생 분석 */}
+          {visibleAnalysis.length > 0 && (
+            <>
+              {divider}
+              {sectionLabel("학생 분석")}
+              {renderItems(visibleAnalysis)}
+            </>
+          )}
 
-          <div className="my-3 mx-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
-          <div className="px-3.5 mb-2" style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.05em" }}>
-            퇴원생 관리
-          </div>
-          {withdrawalItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-[7px] mb-0.5 transition-all duration-150"
-                style={{
-                  fontSize: "13px",
-                  fontWeight: isActive ? 600 : 500,
-                  background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
-                  color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
-                  borderLeft: isActive ? "2px solid #D4A853" : "2px solid transparent",
-                }}
-              >
-                <item.icon className="h-[17px] w-[17px]" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {/* 퇴원생 관리 */}
+          {visibleWithdrawal.length > 0 && (
+            <>
+              {divider}
+              {sectionLabel("퇴원생 관리")}
+              {renderItems(visibleWithdrawal)}
+            </>
+          )}
 
-          <div className="my-3 mx-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
-          <div className="px-3.5 mb-2" style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.05em" }}>
-            학생 관리
-          </div>
-          {studentMgmtItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-[7px] mb-0.5 transition-all duration-150"
-                style={{
-                  fontSize: "13px",
-                  fontWeight: isActive ? 600 : 500,
-                  background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
-                  color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
-                  borderLeft: isActive ? "2px solid #D4A853" : "2px solid transparent",
-                }}
-              >
-                <item.icon className="h-[17px] w-[17px]" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {/* 학생 관리 */}
+          {(visibleStudentMgmt.length > 0 || isAdmin) && (
+            <>
+              {divider}
+              {sectionLabel("학생 관리")}
+              {renderItems(visibleStudentMgmt)}
+              {isAdmin && renderItems(adminOnlyItems)}
+            </>
+          )}
         </nav>
 
         {/* Footer - 공개 링크 */}
@@ -206,6 +217,8 @@ export function Sidebar() {
             공개 예약 링크
           </Link>
         </div>
+
+        {/* User Info */}
         <div
           className="px-4 py-3.5 flex items-center gap-2.5"
           style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
@@ -217,27 +230,26 @@ export function Sidebar() {
               color: "#D4A853",
             }}
           >
-            N
+            {avatarInitial}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.7)" }}>
-              NK 원장
+              {displayName}
             </div>
             <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-              admin@nk.com
+              {displayRole}
             </div>
           </div>
-          <Link
-            href="/login"
-            className="p-1 flex"
+          <button
+            onClick={handleLogout}
+            className="p-1 flex cursor-pointer"
             style={{ color: "rgba(255,255,255,0.25)" }}
             title="로그아웃"
           >
             <LogOut className="h-4 w-4" />
-          </Link>
+          </button>
         </div>
       </aside>
-
     </>
   );
 }

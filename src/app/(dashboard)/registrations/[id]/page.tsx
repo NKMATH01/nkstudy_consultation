@@ -2,12 +2,14 @@ import { getRegistration } from "@/lib/actions/registration";
 import { getAnalysis } from "@/lib/actions/analysis";
 import { RegistrationDetailClient } from "@/components/registrations/registration-detail-client";
 import { notFound } from "next/navigation";
+import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function RegistrationDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await checkPagePermission("/registrations");
   const { id } = await params;
   const registration = await getRegistration(id);
 

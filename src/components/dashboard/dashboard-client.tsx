@@ -58,11 +58,18 @@ const NK_PRIMARY = "#0F2B5B";
 const NK_GOLD = "#D4A853";
 
 // ── Helper ──
-function getMonthFromDate(dateStr: string | null): number | null {
+/** "YYYY-MM" 형식 반환 (년+월 기반 정렬용) */
+function getYearMonthFromDate(dateStr: string | null): string | null {
   if (!dateStr) return null;
-  const m = dateStr.match(/\d{4}[.\-/](\d{1,2})/);
-  if (m) return parseInt(m[1]);
+  const m = dateStr.match(/(\d{4})[.\-/](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
   return null;
+}
+
+/** "YYYY-MM" → "25년 12월" 형식 표시 */
+function formatYearMonth(ym: string): string {
+  const [year, month] = ym.split("-");
+  return `${year.slice(2)}년 ${parseInt(month)}월`;
 }
 
 const AVATAR_BGS = ["#C7D2FE", "#FBCFE8", "#A7F3D0", "#FDE68A", "#DDD6FE", "#FED7AA", "#BAE6FD", "#E9D5FF", "#FECACA", "#D1FAE5"];
@@ -130,25 +137,26 @@ const resultColorMap: Record<string, string> = {
 };
 
 export function DashboardClient({ stats, consultations, recentSurveys }: Props) {
-  // Current month as default
-  const currentMonth = new Date().getMonth() + 1;
-  const [activeMonth, setActiveMonth] = useState<number | null>(currentMonth);
+  // 현재 년-월을 기본값으로
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [activeMonth, setActiveMonth] = useState<string | null>(currentYM);
   const [cardPopup, setCardPopup] = useState<string | null>(null);
 
-  // Available months from data
+  // 데이터에서 사용 가능한 년-월 추출 (최신순 정렬)
   const availableMonths = useMemo(() => {
-    const months = new Set<number>();
+    const months = new Set<string>();
     consultations.forEach((c) => {
-      const m = getMonthFromDate(c.consult_date);
-      if (m) months.add(m);
+      const ym = getYearMonthFromDate(c.consult_date);
+      if (ym) months.add(ym);
     });
-    return Array.from(months).sort((a, b) => a - b);
+    return Array.from(months).sort((a, b) => a.localeCompare(b)); // 시간순 (오래된 월 → 최신 월)
   }, [consultations]);
 
-  // Filtered consultations by month
+  // 년-월 기반 필터링
   const filtered = useMemo(() => {
     if (activeMonth === null) return consultations;
-    return consultations.filter((c) => getMonthFromDate(c.consult_date) === activeMonth);
+    return consultations.filter((c) => getYearMonthFromDate(c.consult_date) === activeMonth);
   }, [consultations, activeMonth]);
 
   // Stats for filtered
@@ -160,26 +168,23 @@ export function DashboardClient({ stats, consultations, recentSurveys }: Props) 
     return { total: filtered.length, registered, hold, other, none };
   }, [filtered]);
 
-  // Monthly chart data (always shows ALL months, not filtered)
+  // 년-월 기반 차트 데이터 (시간순 정렬)
   const monthlyData = useMemo(() => {
-    const months = Array.from({ length: 12 }, (_, i) => ({
-      m: `${i + 1}월`,
-      상담: 0,
-      등록: 0,
-    }));
+    const ymMap = new Map<string, { key: string; m: string; 상담: number; 등록: number }>();
     for (const c of consultations) {
       if (!c.consult_date) continue;
-      const monthIdx = (getMonthFromDate(c.consult_date) ?? 0) - 1;
-      if (monthIdx >= 0 && monthIdx < 12) {
-        months[monthIdx].상담 += 1;
-        if (c.result_status === "registered") {
-          months[monthIdx].등록 += 1;
-        }
+      const ym = getYearMonthFromDate(c.consult_date);
+      if (!ym) continue;
+      if (!ymMap.has(ym)) {
+        ymMap.set(ym, { key: ym, m: formatYearMonth(ym), 상담: 0, 등록: 0 });
       }
+      const entry = ymMap.get(ym)!;
+      entry.상담 += 1;
+      if (c.result_status === "registered") entry.등록 += 1;
     }
-    const withData = months.filter(m => m.상담 > 0 || m.등록 > 0);
-    return withData.length > 0 ? withData : months;
-  }, [consultations]);
+    const sorted = Array.from(ymMap.values()).sort((a, b) => a.key.localeCompare(b.key));
+    return sorted.length > 0 ? sorted : [{ key: currentYM, m: formatYearMonth(currentYM), 상담: 0, 등록: 0 }];
+  }, [consultations, currentYM]);
 
   // Recent consultations (top 7 from filtered, by date descending)
   const recentConsultations = useMemo(() => filtered.slice(0, 7), [filtered]);
@@ -217,7 +222,7 @@ export function DashboardClient({ stats, consultations, recentSurveys }: Props) 
     }
   };
 
-  const monthLabel = activeMonth ? `${activeMonth}월` : "전체";
+  const monthLabel = activeMonth ? formatYearMonth(activeMonth) : "전체";
 
   return (
     <div className="fade-in">
@@ -238,19 +243,19 @@ export function DashboardClient({ stats, consultations, recentSurveys }: Props) 
             </span>
           )}
         </button>
-        {availableMonths.map((month) => {
-          const count = consultations.filter(c => getMonthFromDate(c.consult_date) === month).length;
-          const isActive = activeMonth === month;
+        {availableMonths.map((ym) => {
+          const count = consultations.filter(c => getYearMonthFromDate(c.consult_date) === ym).length;
+          const isActive = activeMonth === ym;
           return (
             <button
-              key={month}
-              onClick={() => setActiveMonth(isActive ? null : month)}
+              key={ym}
+              onClick={() => setActiveMonth(isActive ? null : ym)}
               className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full font-semibold transition-all ${
                 isActive ? "text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"
               }`}
               style={isActive ? { background: NK_PRIMARY } : undefined}
             >
-              {month}월
+              {formatYearMonth(ym)}
               {isActive && (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: NK_GOLD, color: NK_PRIMARY }}>
                   {count}
@@ -332,7 +337,7 @@ export function DashboardClient({ stats, consultations, recentSurveys }: Props) 
           <div className="bg-white rounded-[14px]" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
             <div className="flex justify-between items-center px-6 pt-5 pb-3.5">
               <span className="text-[14.5px] font-bold" style={{ color: "#1E293B" }}>
-                {activeMonth ? `${activeMonth}월 상담 내역` : "최근 상담"}
+                {activeMonth ? `${formatYearMonth(activeMonth)} 상담 내역` : "최근 상담"}
               </span>
               <Link href="/consultations" className="flex items-center gap-1 text-xs font-semibold" style={{ color: NK_GOLD }}>
                 전체 보기
@@ -391,7 +396,7 @@ export function DashboardClient({ stats, consultations, recentSurveys }: Props) 
                   {recentConsultations.length === 0 && (
                     <tr>
                       <td colSpan={5} className="text-center py-8 text-sm" style={{ color: "#94A3B8" }}>
-                        {activeMonth ? `${activeMonth}월 상담 기록이 없습니다` : "상담 기록이 없습니다"}
+                        {activeMonth ? `${formatYearMonth(activeMonth)} 상담 기록이 없습니다` : "상담 기록이 없습니다"}
                       </td>
                     </tr>
                   )}

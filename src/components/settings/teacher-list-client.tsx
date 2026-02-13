@@ -27,7 +27,17 @@ import { deleteTeacher, updateTeacher, resetTeacherPassword } from "@/lib/action
 import type { Teacher } from "@/types";
 import { KeyRound } from "lucide-react";
 
-const SUBJECTS = ["수학", "영어", "국어", "과학", "사회", "논술", "기타"] as const;
+const SUBJECTS = ["수학", "영어"] as const;
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "총괄관리자",
+  teacher: "담임",
+  clinic: "클리닉",
+  director: "대표",
+  principal: "원장",
+  manager: "부장",
+  staff: "행정팀",
+};
 
 // 전화번호 자동 하이픈
 function formatPhoneDisplay(phone: string | null): string {
@@ -225,9 +235,11 @@ export function TeacherList({ teachers }: Props) {
                     <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${
                       teacher.role === "clinic"
                         ? "bg-violet-100 text-violet-700"
-                        : "bg-blue-100 text-blue-700"
+                        : teacher.role === "admin"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-blue-100 text-blue-700"
                     }`}>
-                      {teacher.role === "clinic" ? "클리닉" : "담임"}
+                      {ROLE_LABELS[teacher.role || "teacher"] || teacher.role || "담임"}
                     </span>
                   </TableCell>
                   <TableCell className="px-4 py-2">

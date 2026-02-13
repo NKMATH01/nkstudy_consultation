@@ -10,6 +10,9 @@ function getClaudeApiKey() {
 export async function callClaudeAPI(prompt: string, retryCount = 0): Promise<string> {
   const maxRetries = 3;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000); // 60초 타임아웃
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -27,7 +30,9 @@ export async function callClaudeAPI(prompt: string, retryCount = 0): Promise<str
         },
       ],
     }),
+    signal: controller.signal,
   });
+  clearTimeout(timeoutId);
 
   if ((res.status === 429 || res.status >= 500) && retryCount < maxRetries) {
     await new Promise((r) => setTimeout(r, 2000 * (retryCount + 1)));

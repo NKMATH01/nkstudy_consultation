@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { calculateFactors } from "@/lib/factors";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const scoreField = z.coerce.number().min(1).max(5);
@@ -36,6 +37,13 @@ const publicSurveySchema = z.object({
 });
 
 export async function submitPublicSurvey(data: Record<string, unknown>) {
+  // Rate limit: 이름 기반 분당 3회 제한
+  const name = typeof data.name === "string" ? data.name : "unknown";
+  const { allowed } = checkRateLimit(`survey:${name}`, 3, 60 * 1000);
+  if (!allowed) {
+    return { success: false, error: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." };
+  }
+
   const parsed = publicSurveySchema.safeParse(data);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0].message };

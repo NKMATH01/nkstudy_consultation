@@ -183,7 +183,7 @@ export async function deleteClass(id: string) {
 // 실제 DB 컬럼: id, name, phone, is_active, created_at, updated_at, password, role, building
 
 function mapDbToTeacher(row: Record<string, unknown>): Teacher {
-  const password = row.password != null ? String(row.password) : null;
+  const passwordMarker = row.password != null ? String(row.password) : null;
   return {
     id: String(row.id ?? ""),
     name: String(row.name ?? ""),
@@ -191,8 +191,8 @@ function mapDbToTeacher(row: Record<string, unknown>): Teacher {
     target_grade: null,
     phone: row.phone != null ? String(row.phone) : null,
     role: row.role != null ? (String(row.role) as Teacher["role"]) : null,
-    password,
-    password_changed: password !== "1234", // DB 컬럼 없이 password 값으로 판단
+    password: null, // 보안: 비밀번호를 프론트에 전달하지 않음
+    password_changed: passwordMarker !== "1234",
     auth_user_id: row.auth_user_id != null ? String(row.auth_user_id) : null,
     active: row.is_active !== false,
     created_at: String(row.created_at ?? ""),
@@ -303,7 +303,7 @@ export async function updateTeacher(id: string, formData: FormData) {
       building: parsed.data.subject || null,
     };
     if (parsed.data.role) updateData.role = parsed.data.role;
-    if (parsed.data.password) updateData.password = parsed.data.password;
+    if (parsed.data.password) updateData.password = "changed";
 
     const { error } = await supabase
       .from("teachers")
@@ -390,10 +390,10 @@ export async function changeTeacherPassword(phone: string, newPassword: string) 
 
     const teacherId = teacher.id;
 
-    // teachers 테이블의 password 업데이트 (Auth 비밀번호는 클라이언트에서 변경)
+    // teachers 테이블에는 변경 마커만 저장 (실제 비밀번호는 Supabase Auth에만 보관)
     const { error } = await supabase
       .from("teachers")
-      .update({ password: newPassword })
+      .update({ password: "changed" })
       .eq("id", teacherId);
 
     if (error) {

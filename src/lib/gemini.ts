@@ -24,6 +24,9 @@ export async function callGeminiAPI(prompt: string, retryCount = 0): Promise<str
     },
   };
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000); // 60초 타임아웃
+
   const res = await fetch(getGeminiUrl(), {
     method: "POST",
     headers: {
@@ -31,7 +34,9 @@ export async function callGeminiAPI(prompt: string, retryCount = 0): Promise<str
       "x-goog-api-key": getApiKey(), // 보안: URL 쿼리 대신 헤더로 API 키 전달
     },
     body: JSON.stringify(payload),
+    signal: controller.signal,
   });
+  clearTimeout(timeoutId);
 
   if ((res.status === 429 || res.status >= 500) && retryCount < maxRetries) {
     await new Promise((r) => setTimeout(r, 2000 * (retryCount + 1)));

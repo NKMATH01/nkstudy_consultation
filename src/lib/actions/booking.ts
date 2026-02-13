@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { bookingFormSchema } from "@/lib/validations/booking";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { Booking, BlockedSlot } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -45,6 +46,13 @@ export async function getBookingSlots(startDate: string, endDate: string) {
 
 export async function submitBooking(data: Record<string, unknown>) {
   try {
+    // Rate limit: 전화번호 기반 분당 3회 제한
+    const phone = typeof data.phone === "string" ? data.phone : "unknown";
+    const { allowed } = checkRateLimit(`booking:${phone}`, 3, 60 * 1000);
+    if (!allowed) {
+      return { success: false, error: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." };
+    }
+
     const parsed = bookingFormSchema.safeParse(data);
     if (!parsed.success) {
       return { success: false, error: parsed.error.issues[0].message };

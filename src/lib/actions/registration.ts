@@ -82,8 +82,12 @@ export async function generateRegistration(
     preferred_days: string;
     assigned_class: string;
     teacher: string;
+    math_class_time: string;
+    math_clinic_time: string;
     assigned_class_2?: string;
     teacher_2?: string;
+    eng_class_time?: string;
+    eng_clinic_time?: string;
     use_vehicle?: string;
     test_score?: string;
     test_note?: string;
@@ -221,12 +225,12 @@ export async function generateRegistration(
       parentMessage: page2Data.parentMessage || undefined,
       academyRules: page2Data.academyRules || undefined,
     },
-    classDays: classInfo?.class_days || undefined,
-    classTime: classInfo?.class_time || undefined,
-    clinicTime: classInfo?.clinic_time || undefined,
-    classDays2: classInfo2?.class_days || undefined,
-    classTime2: classInfo2?.class_time || undefined,
-    clinicTime2: classInfo2?.clinic_time || undefined,
+    classDays: classInfo?.class_days || adminFormData.preferred_days || undefined,
+    classTime: adminFormData.math_class_time && adminFormData.math_class_time !== "N/A" ? adminFormData.math_class_time : classInfo?.class_time || undefined,
+    clinicTime: adminFormData.math_clinic_time && adminFormData.math_clinic_time !== "N/A" ? adminFormData.math_clinic_time : classInfo?.clinic_time || undefined,
+    classDays2: classInfo2?.class_days || adminFormData.preferred_days || undefined,
+    classTime2: adminFormData.eng_class_time || classInfo2?.class_time || undefined,
+    clinicTime2: adminFormData.eng_clinic_time || classInfo2?.clinic_time || undefined,
   };
 
   let reportHTML: string;

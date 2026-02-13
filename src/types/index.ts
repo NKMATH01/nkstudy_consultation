@@ -412,7 +412,7 @@ export const GRADES = [
 ] as const;
 
 export const SUBJECTS = ["수학", "영어", "영어수학"] as const;
-export const PREFERRED_DAYS = ["월수금", "화목토"] as const;
+export const PREFERRED_DAYS = ["월수금", "화목금", "화목토"] as const;
 
 export const CONSULT_TYPES = ["유선 상담", "대면 상담"] as const;
 

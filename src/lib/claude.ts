@@ -312,46 +312,42 @@ function feeWithVehicle(fee: number, useVehicle: string): string {
   return `${formatFee(total)}원<span style="font-size:10px;font-weight:normal;color:#94a3b8;margin-left:4px">${suffix}</span>`;
 }
 
+function scheduleRow(label: string, value: string): string {
+  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
+    <span style="color:#cbd5e1;font-size:12px">${label}</span>
+    <span style="font-weight:700;color:white;font-size:12px;text-align:right">${value}</span>
+  </div>`;
+}
+
 function buildScheduleSection(data: ReportTemplateData): string {
+  const days = data.preferredDays || "";
+
   if (data.subject === "영어수학") {
-    return `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
-        <span style="color:#cbd5e1;font-size:12px">수학 담임</span>
-        <span style="font-weight:700;color:white;font-size:12px">${data.teacher} 선생님</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
-        <span style="color:#cbd5e1;font-size:12px">수학 수업</span>
-        <span style="font-weight:700;color:white;font-size:12px;text-align:right">${data.classDays ? `[${data.classDays}] ${data.classTime || ""}` : "시간표 확인 필요"}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
-        <span style="color:#cbd5e1;font-size:12px">영어 담임</span>
-        <span style="font-weight:700;color:white;font-size:12px">${data.teacher2 || ""} 선생님</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
-        <span style="color:#cbd5e1;font-size:12px">영어 수업</span>
-        <span style="font-weight:700;color:white;font-size:12px;text-align:right">${data.classDays2 ? `[${data.classDays2}] ${data.classTime2 || ""}` : "시간표 확인 필요"}</span>
-      </div>
-      ${data.clinicTime ? `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)">
-        <span style="color:#cbd5e1;font-size:12px">클리닉</span>
-        <span style="font-weight:700;color:white;font-size:12px;text-align:right">${data.clinicTime}</span>
-      </div>` : ""}`;
+    const rows: string[] = [];
+    rows.push(scheduleRow("수학 담임", `${data.teacher} 선생님`));
+    rows.push(scheduleRow("수학 수업", data.classTime ? `[${days}] ${data.classTime}` : "시간표 확인 필요"));
+    if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${days}] ${data.clinicTime}`));
+    rows.push(scheduleRow("영어 담임", `${data.teacher2 || ""} 선생님`));
+    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${days}] ${data.classTime2}` : "시간표 확인 필요"));
+    if (data.clinicTime2) rows.push(scheduleRow("영어 클리닉", `[${days}] ${data.clinicTime2}`));
+    return rows.join("");
   }
 
-  return `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
-      <span style="color:#cbd5e1;font-size:12px">담임 선생님</span>
-      <span style="font-weight:700;color:white;font-size:12px">${data.teacher} 선생님</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
-      <span style="color:#cbd5e1;font-size:12px">정규 수업</span>
-      <span style="font-weight:700;color:white;font-size:12px;text-align:right">${data.classDays ? `[${data.classDays}] ${data.classTime || ""}` : "시간표 확인 필요"}</span>
-    </div>
-    ${data.clinicTime ? `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)">
-      <span style="color:#cbd5e1;font-size:12px">클리닉</span>
-      <span style="font-weight:700;color:white;font-size:12px;text-align:right">${data.clinicTime}</span>
-    </div>` : ""}`;
+  if (data.subject === "영어") {
+    const rows: string[] = [];
+    rows.push(scheduleRow("담임 선생님", `${data.teacher2 || data.teacher} 선생님`));
+    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${days}] ${data.classTime2}` : data.classTime ? `[${days}] ${data.classTime}` : "시간표 확인 필요"));
+    const clinic = data.clinicTime2 || data.clinicTime;
+    if (clinic) rows.push(scheduleRow("영어 클리닉", `[${days}] ${clinic}`));
+    return rows.join("");
+  }
+
+  // 수학 (기본)
+  const rows: string[] = [];
+  rows.push(scheduleRow("담임 선생님", `${data.teacher} 선생님`));
+  rows.push(scheduleRow("수학 수업", data.classTime ? `[${days}] ${data.classTime}` : "시간표 확인 필요"));
+  if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${days}] ${data.clinicTime}`));
+  return rows.join("");
 }
 
 export function buildReportHTML(data: ReportTemplateData): string {
@@ -818,47 +814,67 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
   ).join("");
 
   // Paradox cards with CSS bar charts
+  function parseParadoxValue(raw: unknown): { num: number; str: string } {
+    if (raw == null) return { num: 0, str: "-" };
+    const s = String(raw).trim();
+    // Try direct number parse
+    const n = Number(s);
+    if (!isNaN(n) && s !== "") return { num: n, str: s };
+    // Extract number from string like "4.2점", "3점"
+    const numMatch = s.match(/(\d+\.?\d*)/);
+    if (numMatch) return { num: Number(numMatch[1]), str: s };
+    // Map Korean text labels to numeric scale
+    const textMap: Record<string, number> = {
+      "매우 높음": 5, "매우높음": 5,
+      "높음": 4, "높은": 4, "강함": 4, "많음": 4, "적극적": 4,
+      "보통": 3, "중간": 3, "평균": 3,
+      "낮음": 2, "낮은": 2, "약함": 2, "적음": 2, "소극적": 2,
+      "매우 낮음": 1, "매우낮음": 1, "부족": 1,
+    };
+    for (const [key, val] of Object.entries(textMap)) {
+      if (s.includes(key)) return { num: val, str: s };
+    }
+    return { num: 0, str: s };
+  }
+
   const paradoxCards = (analysis.paradox || []).map((item, idx) => {
     const title = String(item.title || "");
     const desc = String(item.description || "");
-    let val1 = 0, val2 = 0, lbl1 = "", lbl2 = "";
-    let str1 = "", str2 = "";
-    let isNumeric = true;
+    let lbl1 = "", lbl2 = "";
+    let p1 = { num: 0, str: "-" }, p2 = { num: 0, str: "-" };
+
     if ("label1" in item && "label2" in item) {
       lbl1 = String(item.label1); lbl2 = String(item.label2);
-      val1 = Number(item.value1); val2 = Number(item.value2);
-      if (isNaN(val1) || isNaN(val2)) {
-        isNumeric = false;
-        str1 = String(item.value1 || ""); str2 = String(item.value2 || "");
-        val1 = 0; val2 = 0;
-      }
+      p1 = parseParadoxValue(item.value1);
+      p2 = parseParadoxValue(item.value2);
     } else if ("studentView" in item && "nkView" in item) {
       lbl1 = "학생 인식"; lbl2 = "NK 평가";
-      val1 = Number(item.studentView); val2 = Number(item.nkView);
-      if (isNaN(val1) || isNaN(val2)) {
-        isNumeric = false;
-        str1 = String(item.studentView || ""); str2 = String(item.nkView || "");
-        val1 = 0; val2 = 0;
-      }
+      p1 = parseParadoxValue(item.studentView);
+      p2 = parseParadoxValue(item.nkView);
     }
-    const barsHTML = isNumeric && (val1 > 0 || val2 > 0)
+
+    const hasNumeric = p1.num > 0 || p2.num > 0;
+    const barLabel1 = p1.num > 0 ? p1.num.toFixed(1) : p1.str;
+    const barLabel2 = p2.num > 0 ? p2.num.toFixed(1) : p2.str;
+
+    const barsHTML = hasNumeric
       ? `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:8pt;font-weight:700;color:#64748b;width:55px;flex-shrink:0">${lbl1}</span>
           <div style="flex:1;background:#f3f4f6;height:16px;border-radius:4px;overflow:hidden">
-            <div style="width:${(val1 / 5) * 100}%;height:100%;background:#2563eb;border-radius:4px;font-size:7pt;color:white;text-align:center;line-height:16px">${val1 > 0 ? val1.toFixed(1) : ""}</div>
+            <div style="width:${Math.min((p1.num / 5) * 100, 100)}%;height:100%;background:#2563eb;border-radius:4px;font-size:7pt;color:white;text-align:center;line-height:16px;min-width:${p1.num > 0 ? "30px" : "0"}">${barLabel1}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:8pt;font-weight:700;color:#ef4444;width:55px;flex-shrink:0">${lbl2}</span>
           <div style="flex:1;background:#f3f4f6;height:16px;border-radius:4px;overflow:hidden">
-            <div style="width:${(val2 / 5) * 100}%;height:100%;background:#ef4444;border-radius:4px;font-size:7pt;color:white;text-align:center;line-height:16px">${val2 > 0 ? val2.toFixed(1) : ""}</div>
+            <div style="width:${Math.min((p2.num / 5) * 100, 100)}%;height:100%;background:#ef4444;border-radius:4px;font-size:7pt;color:white;text-align:center;line-height:16px;min-width:${p2.num > 0 ? "30px" : "0"}">${barLabel2}</div>
           </div>
         </div>
       </div>`
       : `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="display:inline-block;font-size:8pt;font-weight:700;color:#1e40af;background:#dbeafe;padding:4px 10px;border-radius:6px">${lbl1}: ${str1 || "-"}</span>
-        <span style="display:inline-block;font-size:8pt;font-weight:700;color:#991b1b;background:#fee2e2;padding:4px 10px;border-radius:6px">${lbl2}: ${str2 || "-"}</span>
+        <span style="display:inline-block;font-size:8pt;font-weight:700;color:#1e40af;background:#dbeafe;padding:4px 10px;border-radius:6px">${lbl1}: ${p1.str}</span>
+        <span style="display:inline-block;font-size:8pt;font-weight:700;color:#991b1b;background:#fee2e2;padding:4px 10px;border-radius:6px">${lbl2}: ${p2.str}</span>
       </div>`;
     return `<div class="card-box" style="flex:1">
       <h4 style="font-size:9pt;font-weight:700;color:#4b5563;margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid #e5e7eb">Paradox ${idx + 1}: ${title}</h4>

@@ -54,7 +54,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
       const result = await deleteRegistration(registration.id);
       if (result.success) {
         toast.success("등록 안내가 삭제되었습니다");
-        router.push("/registrations");
+        router.push("/onboarding");
       } else {
         toast.error(result.error || "삭제에 실패했습니다");
       }
@@ -97,7 +97,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
       <div className="flex items-start justify-between border-b-[3px] border-emerald-800 pb-4">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100 mt-0.5">
-            <Link href="/registrations">
+            <Link href="/onboarding">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -164,11 +164,72 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
             </Button>
           )
         )}
+        {registration.report_html && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setIsEditing(false);
+              setAiInstruction("");
+              setIsAiEditing(!isAiEditing);
+            }}
+            className="rounded-xl"
+          >
+            <Wand2 className="h-4 w-4 mr-1.5" />
+            AI 수정
+          </Button>
+        )}
         <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)} className="rounded-xl">
           <Trash2 className="h-4 w-4 mr-1.5" />
           삭제
         </Button>
       </div>
+
+      {/* AI 수정 입력 */}
+      {isAiEditing && (
+        <div className="bg-gradient-to-r from-violet-50 to-blue-50 border border-violet-200 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Wand2 className="h-4 w-4 text-violet-600" />
+            <span className="text-sm font-bold text-violet-900">AI로 안내문 수정</span>
+          </div>
+          <textarea
+            value={aiInstruction}
+            onChange={(e) => setAiInstruction(e.target.value)}
+            placeholder="수정할 내용을 입력하세요. 예: '수업료를 40만원으로 변경', '학부모 메시지 추가'"
+            className="w-full h-20 px-3 py-2 rounded-xl border border-violet-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAiEditing(false)} className="rounded-xl">
+              <X className="h-3.5 w-3.5 mr-1" />
+              취소
+            </Button>
+            <Button
+              size="sm"
+              disabled={!aiInstruction.trim() || isSaving}
+              onClick={async () => {
+                setIsSaving(true);
+                try {
+                  const result = await aiEditRegistrationHtml(registration.id, aiInstruction);
+                  if (result.success) {
+                    toast.success("안내문이 수정되었습니다");
+                    setIsAiEditing(false);
+                    setAiInstruction("");
+                    router.refresh();
+                  } else {
+                    toast.error(result.error || "수정에 실패했습니다");
+                  }
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+              className="rounded-xl bg-violet-600 hover:bg-violet-700"
+            >
+              <Wand2 className={`h-3.5 w-3.5 mr-1 ${isSaving ? "animate-spin" : ""}`} />
+              {isSaving ? "수정 중..." : "AI 수정 실행"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* 수업 정보 */}
       <div>

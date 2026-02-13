@@ -9,7 +9,6 @@ import {
   ClipboardList,
   Sparkles,
   FileText,
-  UserPlus,
   GraduationCap,
   BookOpen,
   UserCog,
@@ -31,8 +30,7 @@ const consultItems = [
 const analysisItems = [
   { href: "/surveys", label: "설문 현황", icon: ClipboardList },
   { href: "/analyses", label: "성향분석 결과", icon: Sparkles },
-  { href: "/registrations", label: "등록 안내", icon: FileText },
-  { href: "/onboarding", label: "신입생 등록", icon: UserPlus },
+  { href: "/onboarding", label: "등록 관리", icon: FileText },
 ];
 
 const withdrawalItems = [

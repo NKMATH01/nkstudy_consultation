@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   UserPlus,
   FileText,
@@ -9,10 +10,12 @@ import {
   Check,
   Circle,
   ExternalLink,
-  CalendarDays,
   Search,
+  PenLine,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { deleteRegistration } from "@/lib/actions/registration";
 
 const NK_PRIMARY = "#0F2B5B";
 const NK_GOLD = "#D4A853";
@@ -67,6 +70,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [reportPopup, setReportPopup] = useState<string | null>(null);
   const [analysisPopup, setAnalysisPopup] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Use local state for onboarding status (will save to DB)
   const [statusMap, setStatusMap] = useState<Record<string, Record<string, boolean>>>(() => {
@@ -127,6 +132,24 @@ export function OnboardingList({ registrations, analyses }: Props) {
     return analyses.find((a) => a.name === reg.name);
   };
 
+  // Delete registration
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const result = await deleteRegistration(deleteTarget);
+      if (result.success) {
+        toast.success("삭제되었습니다");
+        setDeleteTarget(null);
+        router.refresh();
+      } else {
+        toast.error(result.error || "삭제에 실패했습니다");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Get report for popup
   const getReportHtml = (regId: string) => {
     const reg = registrations.find((r) => r.id === regId);
@@ -149,7 +172,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
               <UserPlus className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-sm">신입생 등록 관리</h3>
+              <h3 className="font-bold text-white text-sm">등록 관리</h3>
               <p className="text-[11px] text-white/60">
                 등록 완료 학생의 온보딩 진행 현황 · {registrations.length}명
               </p>
@@ -201,12 +224,12 @@ export function OnboardingList({ registrations, analyses }: Props) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[80px] flex-shrink-0 px-2">등록일</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">이름</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">학교</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[52px] flex-shrink-0 px-2">과목</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[68px] flex-shrink-0 px-2">과목</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[72px] flex-shrink-0 px-2">반명</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[90px] flex-shrink-0 px-2">학생연락처</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[90px] flex-shrink-0 px-2">학부모연락처</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-1 px-2 text-center">진행 현황</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[120px] flex-shrink-0 px-2 text-center">문서</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-2">학생연락처</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-1">학부모연락처</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-1 px-1 text-center">진행 현황</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[160px] flex-shrink-0 px-2 text-center">문서</span>
             </div>
 
             {/* Rows */}
@@ -226,10 +249,14 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     {reg.registration_date || "-"}
                   </span>
 
-                  {/* 이름 */}
-                  <span className="text-sm font-bold w-[70px] flex-shrink-0 px-2 truncate" style={{ color: NK_PRIMARY }}>
+                  {/* 이름 - 클릭하면 상세 페이지 */}
+                  <Link
+                    href={`/registrations/${reg.id}`}
+                    className="text-sm font-bold w-[70px] flex-shrink-0 px-2 truncate hover:underline cursor-pointer"
+                    style={{ color: NK_PRIMARY }}
+                  >
                     {reg.name}
-                  </span>
+                  </Link>
 
                   {/* 학교 */}
                   <span className="text-xs text-slate-500 w-[70px] flex-shrink-0 px-2 truncate">
@@ -237,7 +264,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   </span>
 
                   {/* 과목 */}
-                  <span className="w-[52px] flex-shrink-0 px-2">
+                  <span className="w-[68px] flex-shrink-0 px-2">
                     {reg.subject ? (
                       <span
                         className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md ring-1 ring-inset"
@@ -260,17 +287,17 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   </span>
 
                   {/* 학생 연락처 */}
-                  <span className="text-xs text-slate-400 w-[90px] flex-shrink-0 px-2 tabular-nums">
+                  <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-2 tabular-nums whitespace-nowrap">
                     {reg.student_phone || "-"}
                   </span>
 
                   {/* 학부모 연락처 */}
-                  <span className="text-xs text-slate-400 w-[90px] flex-shrink-0 px-2 tabular-nums">
+                  <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-1 tabular-nums whitespace-nowrap">
                     {reg.parent_phone || "-"}
                   </span>
 
                   {/* 진행 현황 - Checkboxes */}
-                  <div className="flex-1 px-2 flex items-center gap-1 justify-center">
+                  <div className="flex-1 px-1 flex items-center gap-1 justify-center">
                     {ONBOARDING_STEPS.map((step) => {
                       const done = status[step.key] || false;
                       return (
@@ -316,8 +343,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     </div>
                   </div>
 
-                  {/* 문서 링크 - 한줄 배치 */}
-                  <div className="w-[120px] flex-shrink-0 px-2 flex items-center gap-1 justify-center">
+                  {/* 문서 + 수정/삭제 */}
+                  <div className="w-[160px] flex-shrink-0 px-2 flex items-center gap-1 justify-center">
                     {reg.report_html && (
                       <button
                         onClick={() => setReportPopup(reg.id)}
@@ -346,6 +373,20 @@ export function OnboardingList({ registrations, analyses }: Props) {
                         분석
                       </button>
                     )}
+                    <Link
+                      href={`/registrations/${reg.id}`}
+                      className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      title="수정"
+                    >
+                      <PenLine className="h-3.5 w-3.5" />
+                    </Link>
+                    <button
+                      onClick={() => setDeleteTarget(reg.id)}
+                      className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      title="삭제"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               );
@@ -433,6 +474,33 @@ export function OnboardingList({ registrations, analyses }: Props) {
           </div>
         );
       })()}
+
+      {/* 삭제 확인 다이얼로그 */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-slate-900 mb-2">등록 안내 삭제</h3>
+            <p className="text-sm text-slate-500 mb-5">
+              &quot;{registrations.find((r) => r.id === deleteTarget)?.name}&quot; 등록 안내를 삭제하시겠습니까?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="h-9 px-4 rounded-lg text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="h-9 px-4 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

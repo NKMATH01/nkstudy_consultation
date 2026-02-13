@@ -185,8 +185,9 @@ export async function analyzeSurvey(surveyId: string) {
     .eq("id", surveyId);
 
   if (linkError) {
-    // 분석은 성공했지만 설문 연결 실패 - 로깅 후 경고 반환
     console.error("설문-분석 연결 실패:", linkError.message);
+    revalidatePath("/analyses");
+    return { success: true, data: analysis, warning: "분석은 생성되었으나 설문 연결에 실패했습니다." };
   }
 
   revalidatePath("/analyses");

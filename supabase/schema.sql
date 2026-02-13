@@ -79,8 +79,8 @@ CREATE TABLE IF NOT EXISTS consultations (
   study_goal TEXT,
   student_consult_note TEXT,
   parent_consult_note TEXT,
-  analysis_id UUID,
-  registration_id UUID,
+  analysis_id UUID REFERENCES analyses(id) ON DELETE SET NULL,
+  registration_id UUID REFERENCES registrations(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES profiles(id)

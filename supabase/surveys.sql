@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   factor_social NUMERIC(3,1),
   factor_management NUMERIC(3,1),
   -- 분석 연결
-  analysis_id UUID,
+  analysis_id UUID REFERENCES analyses(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

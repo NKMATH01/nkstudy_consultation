@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 인덱스
+CREATE INDEX IF NOT EXISTS idx_withdrawals_name ON withdrawals(name);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_created_at ON withdrawals(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_withdrawal_date ON withdrawals(withdrawal_date);
+
 -- RLS
 ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for authenticated" ON withdrawals FOR ALL USING (true);

@@ -6,40 +6,26 @@
 -- ========================
 -- 1. consultations 테이블
 -- ========================
+-- 단일 학원 운영 환경: 모든 인증된 상담사가 전체 상담 데이터 접근 가능
+-- 참고: booking 자동 생성 상담은 created_by가 NULL이므로
+--       created_by 기반 제한 정책 사용 시 접근 불가 문제 발생 (C-01)
 
 -- 기존 정책 제거
 DROP POLICY IF EXISTS "consultations_select" ON consultations;
 DROP POLICY IF EXISTS "consultations_insert" ON consultations;
 DROP POLICY IF EXISTS "consultations_update" ON consultations;
 DROP POLICY IF EXISTS "consultations_delete" ON consultations;
+DROP POLICY IF EXISTS "Enable all for authenticated users" ON consultations;
+DROP POLICY IF EXISTS "consultations_all_authenticated" ON consultations;
 
 -- RLS 활성화
 ALTER TABLE consultations ENABLE ROW LEVEL SECURITY;
 
--- 보안: 본인이 생성한 상담 데이터만 조회 가능
-CREATE POLICY "consultations_select"
-  ON consultations FOR SELECT
-  TO authenticated
-  USING (created_by = auth.uid());
-
--- 보안: 삽입 시 created_by를 본인 UID로 강제
-CREATE POLICY "consultations_insert"
-  ON consultations FOR INSERT
-  TO authenticated
-  WITH CHECK (created_by = auth.uid());
-
--- 보안: 본인이 생성한 상담만 수정 가능
-CREATE POLICY "consultations_update"
-  ON consultations FOR UPDATE
-  TO authenticated
-  USING (created_by = auth.uid())
-  WITH CHECK (created_by = auth.uid());
-
--- 보안: 본인이 생성한 상담만 삭제 가능
-CREATE POLICY "consultations_delete"
-  ON consultations FOR DELETE
-  TO authenticated
-  USING (created_by = auth.uid());
+-- 인증된 사용자 전체 접근 (단일 학원 운영 환경)
+CREATE POLICY "consultations_all_authenticated"
+  ON consultations
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
 
 -- ========================
 -- 2. surveys 테이블

@@ -1,7 +1,6 @@
 -- 학생 테이블
--- 실제 DB 컬럼: id, name, class_name, school, grade, phone, parent_phone,
---              teacher_id, clinic_teacher_id, is_active, teacher_name,
---              created_at, updated_at
+-- 컬럼 매핑: phone → student_phone, class_name → assigned_class,
+--           teacher_name → teacher, is_active → active (앱 인터페이스)
 CREATE TABLE IF NOT EXISTS students (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,

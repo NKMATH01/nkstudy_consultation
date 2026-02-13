@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 -- ========== teachers (선생님 정보) ==========
--- 실제 DB 컬럼 기준 (building은 앱에서 subject로 매핑)
+-- 컬럼 매핑: building → subject, is_active → active (앱 인터페이스)
 CREATE TABLE IF NOT EXISTS teachers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS teachers (
 );
 
 -- ========== classes (반 정보) ==========
--- 실제 DB 컬럼 기준 (teacher_id FK, description은 앱에서 class_days로 매핑)
+-- 컬럼 매핑: description → class_days, is_active → active (앱 인터페이스)
 CREATE TABLE IF NOT EXISTS classes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,

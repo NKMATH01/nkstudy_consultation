@@ -19,8 +19,9 @@ function isColumnNotFoundError(error: { code?: string; message?: string }): bool
 // =============================================
 // ========== 반 관리 (classes) ==========
 // =============================================
-// 실제 DB 컬럼: id, name, teacher_id, description, is_active, created_at, updated_at
+// 컬럼 매핑: description → class_days, is_active → active
 
+/** DB 컬럼 → Class 인터페이스 매핑 */
 function mapDbToClass(row: Record<string, unknown>): Class {
   // teachers join 결과에서 이름 추출
   const teacherObj = row.teachers as Record<string, unknown> | null;
@@ -180,7 +181,7 @@ export async function deleteClass(id: string) {
 // =============================================
 // ========== 선생님 관리 (teachers) ==========
 // =============================================
-// 실제 DB 컬럼: id, name, phone, is_active, created_at, updated_at, password, role, building
+// 컬럼 매핑: building → subject, is_active → active
 
 function mapDbToTeacher(row: Record<string, unknown>): Teacher {
   const passwordMarker = row.password != null ? String(row.password) : null;
@@ -458,11 +459,8 @@ export async function deleteTeacher(id: string) {
 // =============================================
 // ========== 학생 관리 (students) ==========
 // =============================================
-// 실제 DB 컬럼: id, name, class_name, school, grade, phone, parent_phone,
-//              teacher_id, clinic_teacher_id, is_active, teacher_name,
-//              created_at, updated_at
-// ❌ 없는 컬럼: memo, registration_date
-
+// 컬럼 매핑: phone → student_phone, class_name → assigned_class,
+//           teacher_name → teacher, is_active → active
 /** DB 컬럼 → Student 인터페이스 매핑 */
 function mapDbToStudent(row: Record<string, unknown>): Student {
   return {
@@ -482,7 +480,8 @@ function mapDbToStudent(row: Record<string, unknown>): Student {
   };
 }
 
-/** Student 인터페이스 → DB 실제 컬럼 매핑 */
+/** Student 인터페이스 → DB 실제 컬럼 매핑
+ * 컬럼명 매핑: student_phone→phone, assigned_class→class_name, teacher→teacher_name */
 function mapStudentToDb(parsed: Record<string, unknown>): Record<string, unknown> {
   return {
     name: parsed.name || null,
@@ -492,6 +491,8 @@ function mapStudentToDb(parsed: Record<string, unknown>): Record<string, unknown
     parent_phone: parsed.parent_phone || null,
     class_name: parsed.assigned_class || null,
     teacher_name: parsed.teacher || null,
+    memo: parsed.memo || null,
+    registration_date: parsed.registration_date || null,
   };
 }
 
@@ -534,21 +535,9 @@ export async function createStudent(formData: FormData) {
 
     const dbData = mapStudentToDb(parsed.data as Record<string, unknown>);
 
-    // registration_date, memo 컬럼 포함 시도 → 없으면 제외하고 재시도
-    const fullData = {
-      ...dbData,
-      registration_date: parsed.data.registration_date || null,
-      memo: parsed.data.memo || null,
-    };
+    const { error } = await supabase.from("students").insert(dbData);
 
-    const { error } = await supabase.from("students").insert(fullData);
-
-    if (error && isColumnNotFoundError(error)) {
-      const { error: retryErr } = await supabase.from("students").insert(dbData);
-      if (retryErr) {
-        return { success: false, error: retryErr.message };
-      }
-    } else if (error) {
+    if (error) {
       return { success: false, error: error.message };
     }
 
@@ -583,20 +572,9 @@ export async function updateStudent(id: string, formData: FormData) {
 
     const dbData = mapStudentToDb(parsed.data as Record<string, unknown>);
 
-    const fullData = {
-      ...dbData,
-      registration_date: parsed.data.registration_date || null,
-      memo: parsed.data.memo || null,
-    };
+    const { error } = await supabase.from("students").update(dbData).eq("id", id);
 
-    const { error } = await supabase.from("students").update(fullData).eq("id", id);
-
-    if (error && isColumnNotFoundError(error)) {
-      const { error: retryErr } = await supabase.from("students").update(dbData).eq("id", id);
-      if (retryErr) {
-        return { success: false, error: retryErr.message };
-      }
-    } else if (error) {
+    if (error) {
       return { success: false, error: error.message };
     }
 

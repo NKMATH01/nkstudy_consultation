@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,29 +60,81 @@ export function ConsultationFormDialog({
   const form = useForm<ConsultationFormValues>({
     resolver: zodResolver(consultationFormSchema) as never,
     defaultValues: {
-      name: consultation?.name ?? "",
-      school: consultation?.school ?? "",
-      grade: consultation?.grade ?? "",
-      parent_phone: consultation?.parent_phone ?? "",
-      consult_date: consultation?.consult_date ?? "",
-      consult_time: consultation?.consult_time?.slice(0, 5) ?? "",
-      subject: consultation?.subject ?? "",
-      location: consultation?.location ?? "",
-      consult_type: consultation?.consult_type ?? "유선 상담",
-      memo: consultation?.memo ?? "",
-      prev_academy: consultation?.prev_academy ?? "",
-      prev_complaint: consultation?.prev_complaint ?? "",
-      school_score: consultation?.school_score ?? "",
-      test_score: consultation?.test_score ?? "",
-      advance_level: consultation?.advance_level ?? "",
-      study_goal: consultation?.study_goal ?? "",
-      prefer_days: consultation?.prefer_days ?? "",
-      plan_date: consultation?.plan_date ?? "",
-      plan_class: consultation?.plan_class ?? "",
-      requests: consultation?.requests ?? "",
-      student_consult_note: consultation?.student_consult_note ?? "",
+      name: "",
+      school: "",
+      grade: "",
+      parent_phone: "",
+      consult_date: "",
+      consult_time: "",
+      subject: "",
+      location: "",
+      consult_type: "유선 상담",
+      memo: "",
+      prev_academy: "",
+      prev_complaint: "",
+      school_score: "",
+      test_score: "",
+      advance_level: "",
+      study_goal: "",
+      prefer_days: "",
+      plan_date: "",
+      plan_class: "",
+      requests: "",
+      student_consult_note: "",
     },
   });
+
+  useEffect(() => {
+    if (open && consultation) {
+      form.reset({
+        name: consultation.name ?? "",
+        school: consultation.school ?? "",
+        grade: consultation.grade ?? "",
+        parent_phone: consultation.parent_phone ?? "",
+        consult_date: consultation.consult_date ?? "",
+        consult_time: consultation.consult_time?.slice(0, 5) ?? "",
+        subject: consultation.subject ?? "",
+        location: consultation.location ?? "",
+        consult_type: consultation.consult_type ?? "유선 상담",
+        memo: consultation.memo ?? "",
+        prev_academy: consultation.prev_academy ?? "",
+        prev_complaint: consultation.prev_complaint ?? "",
+        school_score: consultation.school_score ?? "",
+        test_score: consultation.test_score ?? "",
+        advance_level: consultation.advance_level ?? "",
+        study_goal: consultation.study_goal ?? "",
+        prefer_days: consultation.prefer_days ?? "",
+        plan_date: consultation.plan_date ?? "",
+        plan_class: consultation.plan_class ?? "",
+        requests: consultation.requests ?? "",
+        student_consult_note: consultation.student_consult_note ?? "",
+      });
+    } else if (open) {
+      form.reset({
+        name: "",
+        school: "",
+        grade: "",
+        parent_phone: "",
+        consult_date: "",
+        consult_time: "",
+        subject: "",
+        location: "",
+        consult_type: "유선 상담",
+        memo: "",
+        prev_academy: "",
+        prev_complaint: "",
+        school_score: "",
+        test_score: "",
+        advance_level: "",
+        study_goal: "",
+        prefer_days: "",
+        plan_date: "",
+        plan_class: "",
+        requests: "",
+        student_consult_note: "",
+      });
+    }
+  }, [open, consultation, form]);
 
   const onSubmit = (values: ConsultationFormValues) => {
     startTransition(async () => {
@@ -156,7 +208,7 @@ export function ConsultationFormDialog({
                       <FormLabel>학년</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value || ""}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -226,7 +278,7 @@ export function ConsultationFormDialog({
                       <FormLabel>상담방식</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value || ""}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -276,7 +328,7 @@ export function ConsultationFormDialog({
                       <FormLabel>장소</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value || ""}
                       >
                         <FormControl>
                           <SelectTrigger>

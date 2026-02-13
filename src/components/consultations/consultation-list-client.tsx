@@ -90,8 +90,8 @@ function rowStyleByResult(status: string): string {
   return "";
 }
 
-// 고정 컬럼 너비 (colgroup)
-const COL_WIDTHS = [60, 72, 90, 80, 56, 90, 120, 150, 100, 240, 56];
+// 고정 컬럼 너비 (colgroup) — 한 화면에 맞추기
+const COL_WIDTHS = [48, 56, 72, 60, 44, 68, 100, 110, 76, 190, 76];
 
 export function ConsultationListClient({ initialData, initialPagination }: Props) {
   const router = useRouter();
@@ -158,20 +158,60 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
   );
 
   const handleCopy = useCallback((c: Consultation) => {
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+
+    const fmtDate = (ds: string | null): string => {
+      if (!ds) return "";
+      const d = new Date(ds + "T00:00:00");
+      return `${d.getMonth() + 1}/${d.getDate()}(${dayNames[d.getDay()]})`;
+    };
+
+    const fmtTime = (ts: string | null): string => {
+      if (!ts) return "";
+      const [h, m] = ts.split(":").map(Number);
+      const period = h < 12 ? "오전" : "오후";
+      const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return m > 0 ? `${period} ${dh}시 ${m}분` : `${period} ${dh}시`;
+    };
+
+    const fmtPhone = (p: string | null): string => {
+      if (!p) return "";
+      const digits = p.replace(/\D/g, "");
+      if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+      if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+      return p;
+    };
+
+    const consultLine = (): string => {
+      const ds = fmtDate(c.consult_date);
+      if (c.consult_type?.includes("대면")) {
+        const m = c.consult_type.match(/(\d{1,2}):(\d{2})/);
+        if (m) {
+          const h = parseInt(m[1]);
+          const min = parseInt(m[2]);
+          const dh = h > 12 ? h - 12 : h;
+          const ts = min > 0 ? `${dh}시 ${min}분` : `${dh}시`;
+          return `${ds} ${ts}에 진행됩니다.`;
+        }
+      }
+      if (c.consult_type?.includes("유선")) return "유선으로 진행됩니다.";
+      return `${ds}에 진행됩니다.`;
+    };
+
     const lines = [
       "[NK test 안내]",
-      `이름 : ${c.name}`,
-      c.school ? `학교 : ${c.school}${c.grade ? `(${c.grade})` : ""}` : null,
-      c.parent_phone ? `연락처 : ${c.parent_phone}` : null,
-      c.consult_date
-        ? `일시 : ${c.consult_date} ${c.consult_time?.slice(0, 5) || ""}`
-        : null,
-      c.subject ? `테스트 과목 : ${c.subject}` : null,
-      c.location ? `위치 : ${c.location}` : null,
-      `학부모님 상담 : ${c.consult_type}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+      `▶이름 : ${c.name}`,
+      c.parent_phone ? `▶학부모 : ${fmtPhone(c.parent_phone)}` : null,
+      c.school ? `▶학교 : ${c.school}${c.grade || ""}` : null,
+      c.consult_date ? `▶일시 : ${fmtDate(c.consult_date)} ${fmtTime(c.consult_time)}` : null,
+      c.subject ? `▶테스트 과목 : ${c.subject}` : null,
+      "▶상담비용 : 과목당 1만원",
+      "▶계좌 : 신한은행 110-383-883419  노윤희(학생명으로 입금 부탁드립니다.)",
+      "▶준비물 : 필기도구",
+      c.location ? `▶위치 : ${c.location}` : null,
+      `▶학부모님 상담 : ${consultLine()}`,
+    ].filter(Boolean).join("\n");
+
     navigator.clipboard.writeText(lines);
     toast.success("클립보드에 복사되었습니다");
   }, []);
@@ -213,7 +253,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
           (label, i) => (
             <th
               key={i}
-              className={`text-left py-2.5 px-2 text-xs font-semibold text-slate-400 whitespace-nowrap ${i < 10 ? "border-r border-slate-100" : ""}`}
+              className={`text-left py-2 px-1.5 text-[11px] font-semibold text-slate-400 whitespace-nowrap ${i < 10 ? "border-r border-slate-100" : ""}`}
             >
               {label}
             </th>
@@ -290,7 +330,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm table-fixed" style={{ minWidth: "1114px" }}>
+              <table className="w-full text-sm table-fixed" style={{ minWidth: "900px" }}>
                 {colGroup}
                 {tableHead}
                 <tbody>
@@ -313,16 +353,16 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                           key={item.id}
                           className={`border-t border-slate-100 transition-colors ${rowStyleByResult(item.result_status)} ${!isUnregistered ? "hover:bg-slate-50/80" : ""}`}
                         >
-                          <td className={`py-3 px-2 font-semibold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-700"}`}>
+                          <td className={`py-2 px-1.5 font-semibold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-700"}`}>
                             {item.consult_time?.slice(0, 5) || "-"}
                           </td>
-                          <td className={`py-3 px-2 font-bold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-400" : "text-slate-800"}`}>
+                          <td className={`py-2 px-1.5 font-bold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-400" : "text-slate-800"}`}>
                             {item.name}
                           </td>
-                          <td className={`py-3 px-2 text-xs whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
+                          <td className={`py-2 px-1.5 text-xs whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
                             {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
                           </td>
-                          <td className={`py-3 px-2 whitespace-nowrap ${cellStrike} ${vb}`}>
+                          <td className={`py-2 px-1.5 whitespace-nowrap ${cellStrike} ${vb}`}>
                             {isUnregistered ? (
                               <span className="text-neutral-500 text-xs">{subj.text}</span>
                             ) : subj.cls ? (
@@ -333,7 +373,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               <span className="text-slate-400 text-xs">-</span>
                             )}
                           </td>
-                          <td className={`py-3 px-2 whitespace-nowrap ${cellStrike} ${vb}`}>
+                          <td className={`py-2 px-1.5 whitespace-nowrap ${cellStrike} ${vb}`}>
                             {isUnregistered ? (
                               <span className="text-neutral-500 text-xs">{loc.text}</span>
                             ) : loc.cls ? (
@@ -344,7 +384,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               <span className="text-slate-400 text-xs">-</span>
                             )}
                           </td>
-                          <td className={`py-3 px-2 whitespace-nowrap ${cellStrike} ${vb}`}>
+                          <td className={`py-2 px-1.5 whitespace-nowrap ${cellStrike} ${vb}`}>
                             {isUnregistered ? (
                               <span className="text-neutral-500 text-xs">{method.text}</span>
                             ) : method.isInPerson ? (
@@ -357,11 +397,11 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               </span>
                             )}
                           </td>
-                          <td className={`py-3 px-2 text-xs font-mono whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
+                          <td className={`py-2 px-1.5 text-xs font-mono whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
                             {item.parent_phone || "-"}
                           </td>
-                          <td className={`py-3 px-2 whitespace-nowrap ${vb}`}>
-                            <div className="flex items-center gap-2">
+                          <td className={`py-2 px-1.5 whitespace-nowrap ${vb}`}>
+                            <div className="flex items-center gap-1">
                               {[
                                 { field: "doc_sent", label: "자료", value: item.doc_sent },
                                 { field: "call_done", label: "통화", value: item.call_done },
@@ -370,7 +410,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                                 <button
                                   key={field}
                                   onClick={() => handleToggleField(item.id, field, value)}
-                                  className={`inline-flex items-center gap-0.5 text-xs transition-colors ${
+                                  className={`inline-flex items-center gap-0 text-[11px] transition-colors ${
                                     isUnregistered
                                       ? "text-neutral-600"
                                       : value
@@ -379,16 +419,16 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                                   }`}
                                 >
                                   {value ? (
-                                    <Check className={`h-3.5 w-3.5 ${isUnregistered ? "text-neutral-600" : "text-emerald-500"}`} />
+                                    <Check className={`h-3 w-3 ${isUnregistered ? "text-neutral-600" : "text-emerald-500"}`} />
                                   ) : (
-                                    <Circle className="h-3.5 w-3.5" />
+                                    <Circle className="h-3 w-3" />
                                   )}
                                   {label}
                                 </button>
                               ))}
                             </div>
                           </td>
-                          <td className={`py-3 px-2 whitespace-nowrap ${vb}`}>
+                          <td className={`py-2 px-1.5 whitespace-nowrap ${vb}`}>
                             {isUnregistered ? (
                               <span className="text-neutral-500 text-xs">-</span>
                             ) : (
@@ -415,7 +455,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                                       );
                                     }
                                   }}
-                                  className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                  className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                     item.test_fee_paid
                                       ? "bg-emerald-100 text-emerald-700"
                                       : "text-slate-400 hover:bg-slate-100"
@@ -434,7 +474,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                                         await updateConsultationField(item.id, "test_fee_method", next);
                                       });
                                     }}
-                                    className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                    className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                       item.test_fee_method === "card"
                                         ? "bg-blue-100 text-blue-700"
                                         : "bg-amber-100 text-amber-700"
@@ -446,11 +486,11 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               </div>
                             )}
                           </td>
-                          <td className={`py-3 px-2 whitespace-nowrap ${vb}`}>
-                            <div className="flex items-center gap-1">
+                          <td className={`py-2 px-1 whitespace-nowrap ${vb}`}>
+                            <div className="flex items-center gap-0.5">
                               <button
                                 onClick={() => handleResultChange(item.id, "registered")}
-                                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                   item.result_status === "registered"
                                     ? "bg-red-500 text-white"
                                     : isUnregistered
@@ -462,7 +502,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               </button>
                               <button
                                 onClick={() => handleResultChange(item.id, "hold")}
-                                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                   item.result_status === "hold"
                                     ? "bg-amber-400 text-white"
                                     : isUnregistered
@@ -474,7 +514,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               </button>
                               <button
                                 onClick={() => handleResultChange(item.id, "other")}
-                                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                   item.result_status === "other"
                                     ? "bg-neutral-600 text-white line-through"
                                     : "text-slate-400 hover:bg-slate-100"
@@ -487,7 +527,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                                   onClick={() =>
                                     handleToggleField(item.id, "notify_sent", item.notify_sent)
                                   }
-                                  className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
+                                  className={`inline-flex items-center gap-0 px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                     isUnregistered
                                       ? item.notify_sent ? "bg-neutral-700 text-neutral-400" : "bg-neutral-800 text-neutral-500 border border-neutral-700"
                                       : item.notify_sent
@@ -505,7 +545,7 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-2 whitespace-nowrap">
+                          <td className="py-2 px-1.5 whitespace-nowrap">
                             <div className="flex items-center gap-0.5">
                               <button
                                 onClick={() => handleCopy(item)}
@@ -521,15 +561,13 @@ export function ConsultationListClient({ initialData, initialPagination }: Props
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
-                              {isUnregistered && (
-                                <button
-                                  onClick={() => handleDelete(item.id, item.name)}
-                                  className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-100 hover:text-red-600"
-                                  title="삭제"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleDelete(item.id, item.name)}
+                                className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-100 hover:text-red-600"
+                                title="삭제"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>

@@ -228,6 +228,26 @@ export async function regenerateAnalysisReport(id: string) {
   }
 }
 
+// ========== 재분석 (기존 분석 삭제 후 새로 실행) ==========
+export async function reAnalyzeSurvey(surveyId: string) {
+  const supabase = await createClient();
+
+  // 1. 설문 조회 → 기존 analysis_id 확인
+  const { data: survey } = await supabase
+    .from("surveys")
+    .select("analysis_id")
+    .eq("id", surveyId)
+    .single();
+
+  // 2. 기존 분석이 있으면 삭제
+  if (survey?.analysis_id) {
+    await deleteAnalysis(survey.analysis_id);
+  }
+
+  // 3. 새 분석 실행
+  return analyzeSurvey(surveyId);
+}
+
 // ========== 분석 삭제 ==========
 export async function deleteAnalysis(id: string) {
   const supabase = await createClient();

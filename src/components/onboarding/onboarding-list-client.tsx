@@ -46,10 +46,20 @@ type Registration = {
   parent_phone: string | null;
   registration_date: string | null;
   assigned_class: string | null;
+  assigned_class_2: string | null;
   subject: string | null;
   teacher: string | null;
+  teacher_2: string | null;
   report_html: string | null;
   onboarding_status: Record<string, boolean> | null;
+};
+
+type DisplayRow = Registration & {
+  _displaySubject: string;
+  _displayClass: string | null;
+  _displayTeacher: string | null;
+  _isFirstRow: boolean;
+  _rowKey: string;
 };
 
 type Analysis = {
@@ -82,15 +92,49 @@ export function OnboardingList({ registrations, analyses }: Props) {
     return map;
   });
 
-  const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return registrations;
-    const q = searchQuery.toLowerCase();
-    return registrations.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        (r.school && r.school.toLowerCase().includes(q)) ||
-        (r.assigned_class && r.assigned_class.toLowerCase().includes(q))
-    );
+  const displayRows = useMemo(() => {
+    const base = searchQuery.trim()
+      ? registrations.filter((r) => {
+          const q = searchQuery.toLowerCase();
+          return (
+            r.name.toLowerCase().includes(q) ||
+            (r.school && r.school.toLowerCase().includes(q)) ||
+            (r.assigned_class && r.assigned_class.toLowerCase().includes(q))
+          );
+        })
+      : registrations;
+
+    const rows: DisplayRow[] = [];
+    for (const reg of base) {
+      if (reg.subject === "영어수학") {
+        rows.push({
+          ...reg,
+          _displaySubject: "수학",
+          _displayClass: reg.assigned_class,
+          _displayTeacher: reg.teacher,
+          _isFirstRow: true,
+          _rowKey: `${reg.id}_math`,
+        });
+        rows.push({
+          ...reg,
+          _displaySubject: "영어",
+          _displayClass: reg.assigned_class_2,
+          _displayTeacher: reg.teacher_2,
+          _isFirstRow: false,
+          _rowKey: `${reg.id}_eng`,
+        });
+      } else {
+        rows.push({
+          ...reg,
+          _displaySubject: reg.subject || "-",
+          _displayClass: reg.assigned_class,
+          _displayTeacher: reg.teacher,
+          _isFirstRow: true,
+          _rowKey: reg.id,
+        });
+      }
+    }
+    return rows;
   }, [registrations, searchQuery]);
 
   // Toggle a step
@@ -220,12 +264,13 @@ export function OnboardingList({ registrations, analyses }: Props) {
         ) : (
           <div className="overflow-x-auto">
             {/* Column Headers */}
-            <div className="px-4 py-2.5 flex items-center gap-0 border-b border-slate-100 bg-slate-50/50 min-w-[1200px]">
+            <div className="px-4 py-2.5 flex items-center gap-0 border-b border-slate-100 bg-slate-50/50 min-w-[1250px]">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[80px] flex-shrink-0 px-2">등록일</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">이름</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">학교</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[68px] flex-shrink-0 px-2">과목</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[52px] flex-shrink-0 px-2">과목</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[72px] flex-shrink-0 px-2">반명</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[60px] flex-shrink-0 px-2">담당</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-2">학생연락처</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-1">학부모연락처</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-1 px-1 text-center">진행 현황</span>
@@ -233,160 +278,180 @@ export function OnboardingList({ registrations, analyses }: Props) {
             </div>
 
             {/* Rows */}
-            {filtered.map((reg) => {
-              const progress = getProgress(reg.id);
-              const status = statusMap[reg.id] || {};
-              const analysis = getAnalysis(reg);
+            {displayRows.map((row) => {
+              const progress = getProgress(row.id);
+              const status = statusMap[row.id] || {};
+              const analysis = getAnalysis(row);
               const progressPct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+              const isSub = !row._isFirstRow; // 영어수학 두 번째 행 (영어)
+              const subjectColor = row._displaySubject === "수학" || row._displaySubject.includes("수학")
+                ? { bg: "#DBEAFE", text: "#1D4ED8", ring: "#BFDBFE" }
+                : row._displaySubject === "영어" || row._displaySubject.includes("영어")
+                  ? { bg: "#F3E8FF", text: "#7C3AED", ring: "#DDD6FE" }
+                  : { bg: "#F1F5F9", text: "#64748B", ring: "#E2E8F0" };
 
               return (
                 <div
-                  key={reg.id}
-                  className="px-4 py-3 flex items-center gap-0 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-[1200px]"
+                  key={row._rowKey}
+                  className={`px-4 flex items-center gap-0 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-[1250px] ${isSub ? "py-2 bg-slate-50/30" : "py-3"}`}
                 >
-                  {/* 등록일 */}
+                  {/* 등록일 - 두 번째 행은 비움 */}
                   <span className="text-xs text-slate-500 w-[80px] flex-shrink-0 px-2 tabular-nums">
-                    {reg.registration_date || "-"}
+                    {isSub ? "" : (row.registration_date || "-")}
                   </span>
 
-                  {/* 이름 - 클릭하면 상세 페이지 */}
-                  <Link
-                    href={`/registrations/${reg.id}`}
-                    className="text-sm font-bold w-[70px] flex-shrink-0 px-2 truncate hover:underline cursor-pointer"
-                    style={{ color: NK_PRIMARY }}
-                  >
-                    {reg.name}
-                  </Link>
+                  {/* 이름 - 두 번째 행은 └ 표시 */}
+                  <span className="w-[70px] flex-shrink-0 px-2 truncate">
+                    {isSub ? (
+                      <span className="text-xs text-slate-300 pl-1">└</span>
+                    ) : (
+                      <Link
+                        href={`/registrations/${row.id}`}
+                        className="text-sm font-bold truncate hover:underline cursor-pointer"
+                        style={{ color: NK_PRIMARY }}
+                      >
+                        {row.name}
+                      </Link>
+                    )}
+                  </span>
 
-                  {/* 학교 */}
+                  {/* 학교 - 두 번째 행은 비움 */}
                   <span className="text-xs text-slate-500 w-[70px] flex-shrink-0 px-2 truncate">
-                    {reg.school || "-"}
+                    {isSub ? "" : (row.school || "-")}
                   </span>
 
                   {/* 과목 */}
-                  <span className="w-[68px] flex-shrink-0 px-2">
-                    {reg.subject ? (
-                      <span
-                        className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md ring-1 ring-inset"
-                        style={{
-                          background: reg.subject.includes("수학") ? "#DBEAFE" : reg.subject.includes("영어") ? "#F3E8FF" : "#F1F5F9",
-                          color: reg.subject.includes("수학") ? "#1D4ED8" : reg.subject.includes("영어") ? "#7C3AED" : "#64748B",
-                          ["--tw-ring-color" as string]: reg.subject.includes("수학") ? "#BFDBFE" : reg.subject.includes("영어") ? "#DDD6FE" : "#E2E8F0",
-                        } as React.CSSProperties}
-                      >
-                        {reg.subject}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-400">-</span>
-                    )}
+                  <span className="w-[52px] flex-shrink-0 px-2">
+                    <span
+                      className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md ring-1 ring-inset"
+                      style={{
+                        background: subjectColor.bg,
+                        color: subjectColor.text,
+                        ["--tw-ring-color" as string]: subjectColor.ring,
+                      } as React.CSSProperties}
+                    >
+                      {row._displaySubject}
+                    </span>
                   </span>
 
                   {/* 반명 */}
                   <span className="text-xs text-slate-600 w-[72px] flex-shrink-0 px-2 truncate font-medium">
-                    {reg.assigned_class || "-"}
+                    {row._displayClass || "-"}
                   </span>
 
-                  {/* 학생 연락처 */}
+                  {/* 담당 */}
+                  <span className="text-xs text-slate-500 w-[60px] flex-shrink-0 px-2 truncate">
+                    {row._displayTeacher || "-"}
+                  </span>
+
+                  {/* 학생 연락처 - 두 번째 행은 비움 */}
                   <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-2 tabular-nums whitespace-nowrap">
-                    {reg.student_phone || "-"}
+                    {isSub ? "" : (row.student_phone || "-")}
                   </span>
 
-                  {/* 학부모 연락처 */}
+                  {/* 학부모 연락처 - 두 번째 행은 비움 */}
                   <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-1 tabular-nums whitespace-nowrap">
-                    {reg.parent_phone || "-"}
+                    {isSub ? "" : (row.parent_phone || "-")}
                   </span>
 
-                  {/* 진행 현황 - Checkboxes */}
+                  {/* 진행 현황 - 첫 번째 행에만 표시 */}
                   <div className="flex-1 px-1 flex items-center gap-1 justify-center">
-                    {ONBOARDING_STEPS.map((step) => {
-                      const done = status[step.key] || false;
-                      return (
-                        <button
-                          key={step.key}
-                          onClick={() => toggleStep(reg.id, step.key)}
-                          className="group relative flex flex-col items-center gap-0.5"
-                          title={step.label}
-                        >
-                          <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                              done
-                                ? "bg-emerald-500 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-300 hover:bg-slate-200 hover:text-slate-400"
-                            }`}
-                          >
-                            {done ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <Circle className="h-3 w-3" />
-                            )}
+                    {row._isFirstRow ? (
+                      <>
+                        {ONBOARDING_STEPS.map((step) => {
+                          const done = status[step.key] || false;
+                          return (
+                            <button
+                              key={step.key}
+                              onClick={() => toggleStep(row.id, step.key)}
+                              className="group relative flex flex-col items-center gap-0.5"
+                              title={step.label}
+                            >
+                              <div
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                                  done
+                                    ? "bg-emerald-500 text-white shadow-sm"
+                                    : "bg-slate-100 text-slate-300 hover:bg-slate-200 hover:text-slate-400"
+                                }`}
+                              >
+                                {done ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Circle className="h-3 w-3" />
+                                )}
+                              </div>
+                              <span className={`text-[9px] leading-tight ${done ? "text-emerald-600 font-bold" : "text-slate-400"}`}>
+                                {step.shortLabel}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        <div className="ml-2 flex flex-col items-center gap-0.5">
+                          <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${progressPct}%`,
+                                background: progressPct === 100 ? "#059669" : NK_GOLD,
+                              }}
+                            />
                           </div>
-                          <span className={`text-[9px] leading-tight ${done ? "text-emerald-600 font-bold" : "text-slate-400"}`}>
-                            {step.shortLabel}
+                          <span className={`text-[9px] font-bold ${progressPct === 100 ? "text-emerald-600" : "text-slate-400"}`}>
+                            {progress.done}/{progress.total}
                           </span>
-                        </button>
-                      );
-                    })}
-                    {/* Progress bar */}
-                    <div className="ml-2 flex flex-col items-center gap-0.5">
-                      <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{
-                            width: `${progressPct}%`,
-                            background: progressPct === 100 ? "#059669" : NK_GOLD,
-                          }}
-                        />
-                      </div>
-                      <span className={`text-[9px] font-bold ${progressPct === 100 ? "text-emerald-600" : "text-slate-400"}`}>
-                        {progress.done}/{progress.total}
-                      </span>
-                    </div>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
 
-                  {/* 문서 + 수정/삭제 */}
+                  {/* 문서 + 수정/삭제 - 첫 번째 행에만 표시 */}
                   <div className="w-[160px] flex-shrink-0 px-2 flex items-center gap-1 justify-center">
-                    {reg.report_html && (
-                      <button
-                        onClick={() => setReportPopup(reg.id)}
-                        className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap"
-                        style={{ background: `${NK_PRIMARY}10`, color: NK_PRIMARY }}
-                        title="등록안내문 보기"
-                      >
-                        <FileText className="h-3 w-3" />
-                        안내문
-                      </button>
+                    {row._isFirstRow && (
+                      <>
+                        {row.report_html && (
+                          <button
+                            onClick={() => setReportPopup(row.id)}
+                            className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap"
+                            style={{ background: `${NK_PRIMARY}10`, color: NK_PRIMARY }}
+                            title="등록안내문 보기"
+                          >
+                            <FileText className="h-3 w-3" />
+                            안내문
+                          </button>
+                        )}
+                        {analysis && (
+                          <button
+                            onClick={() => {
+                              if (analysis.report_html) {
+                                setAnalysisPopup(analysis.id);
+                              } else {
+                                window.open(`/analyses/${analysis.id}`, '_blank');
+                              }
+                            }}
+                            className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap"
+                            style={{ background: `${NK_GOLD}15`, color: "#92400E" }}
+                            title="성향분석 결과 보기"
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            분석
+                          </button>
+                        )}
+                        <Link
+                          href={`/registrations/${row.id}`}
+                          className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                          title="수정"
+                        >
+                          <PenLine className="h-3.5 w-3.5" />
+                        </Link>
+                        <button
+                          onClick={() => setDeleteTarget(row.id)}
+                          className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                     )}
-                    {analysis && (
-                      <button
-                        onClick={() => {
-                          if (analysis.report_html) {
-                            setAnalysisPopup(analysis.id);
-                          } else {
-                            window.open(`/analyses/${analysis.id}`, '_blank');
-                          }
-                        }}
-                        className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap"
-                        style={{ background: `${NK_GOLD}15`, color: "#92400E" }}
-                        title="성향분석 결과 보기"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        분석
-                      </button>
-                    )}
-                    <Link
-                      href={`/registrations/${reg.id}`}
-                      className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                      title="수정"
-                    >
-                      <PenLine className="h-3.5 w-3.5" />
-                    </Link>
-                    <button
-                      onClick={() => setDeleteTarget(reg.id)}
-                      className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                      title="삭제"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
                   </div>
                 </div>
               );

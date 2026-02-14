@@ -7,7 +7,6 @@ import {
   Users,
   CalendarCheck,
   ClipboardList,
-  Sparkles,
   FileText,
   GraduationCap,
   BookOpen,
@@ -28,8 +27,7 @@ const consultItems = [
 ];
 
 const analysisItems = [
-  { href: "/surveys", label: "설문 현황", icon: ClipboardList },
-  { href: "/analyses", label: "성향분석 결과", icon: Sparkles },
+  { href: "/surveys", label: "설문/분석", icon: ClipboardList },
   { href: "/onboarding", label: "등록 관리", icon: FileText },
 ];
 

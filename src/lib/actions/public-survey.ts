@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateFactors } from "@/lib/factors";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -79,7 +79,7 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
     insertData[`q${i}`] = parsed.data[key] ?? null;
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.from("surveys").insert(insertData);
 
   if (error) {

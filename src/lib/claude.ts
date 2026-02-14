@@ -798,19 +798,19 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     </tr>`;
   }).join("");
 
-  // Strengths bullet list
-  const strengthsList = (analysis.strengths || []).map((item) =>
-    `<li style="display:flex;align-items:flex-start;margin-bottom:8px">
+  // Strengths bullet list (max 3 items to fit page 1)
+  const strengthsList = (analysis.strengths || []).slice(0, 3).map((item) =>
+    `<li style="display:flex;align-items:flex-start;margin-bottom:5px">
       <svg class="bullet-icon" style="color:#2563eb" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-      <span style="font-size:8.5pt;color:#374151;line-height:1.5"><strong style="color:#2563eb">${item.title}:</strong> ${item.description}</span>
+      <span style="font-size:8.5pt;color:#374151;line-height:1.45"><strong style="color:#2563eb">${item.title}:</strong> ${item.description}</span>
     </li>`
   ).join("");
 
-  // Weaknesses bullet list
-  const weaknessesList = (analysis.weaknesses || []).map((item) =>
-    `<li style="display:flex;align-items:flex-start;margin-bottom:8px">
+  // Weaknesses bullet list (max 3 items to fit page 1)
+  const weaknessesList = (analysis.weaknesses || []).slice(0, 3).map((item) =>
+    `<li style="display:flex;align-items:flex-start;margin-bottom:5px">
       <svg class="bullet-icon" style="color:#dc2626" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-      <span style="font-size:8.5pt;color:#374151;line-height:1.5"><strong style="color:#dc2626">${item.title}:</strong> ${item.description}</span>
+      <span style="font-size:8.5pt;color:#374151;line-height:1.45"><strong style="color:#dc2626">${item.title}:</strong> ${item.description}</span>
     </li>`
   ).join("");
 
@@ -928,7 +928,7 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     </header>
 
     <!-- 1. Executive Summary -->
-    <section style="margin-bottom:20px">
+    <section style="margin-bottom:14px">
       <div class="card-box" style="background:#f8fafc;border-color:#e2e8f0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <h2 style="font-size:12pt;font-weight:800;color:#334155;display:flex;align-items:center;margin:0">
@@ -942,7 +942,7 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     </section>
 
     <!-- 2. Charts Section (2-column) -->
-    <section style="display:flex;gap:14px;margin-bottom:14px;height:330px">
+    <section style="display:flex;gap:14px;margin-bottom:10px;height:260px">
       <div class="card-box" style="flex:1;display:flex;flex-direction:column">
         <div class="section-title">
           <svg style="color:#1d4ed8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
@@ -973,14 +973,14 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     </section>
 
     <!-- 3. Core Competency Matrix -->
-    <section style="display:flex;flex-direction:column;margin-top:0">
-      <div class="section-title">
+    <section style="display:flex;flex-direction:column;margin-top:0;flex:1;min-height:0;overflow:hidden">
+      <div class="section-title" style="margin-bottom:8px">
         <svg style="color:#1d4ed8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
         Core Competency Matrix (핵심 역량 분석)
       </div>
-      <div style="display:flex;gap:14px">
-        <div class="card-box" style="flex:1;background:#eff6ff;border-color:#bfdbfe;display:flex;flex-direction:column">
-          <h3 style="color:#1e40af;font-weight:700;font-size:10pt;margin:0 0 8px;display:flex;align-items:center;border-bottom:1px solid #bfdbfe;padding-bottom:8px">
+      <div style="display:flex;gap:14px;flex:1;min-height:0;overflow:hidden">
+        <div class="card-box" style="flex:1;background:#eff6ff;border-color:#bfdbfe;display:flex;flex-direction:column;overflow:hidden">
+          <h3 style="color:#1e40af;font-weight:700;font-size:10pt;margin:0 0 6px;display:flex;align-items:center;border-bottom:1px solid #bfdbfe;padding-bottom:6px">
             <svg class="svg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path></svg>
             Strength (강점)
           </h3>
@@ -988,8 +988,8 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
             ${strengthsList || '<li style="font-size:8.5pt;color:#9ca3af">데이터 없음</li>'}
           </ul>
         </div>
-        <div class="card-box" style="flex:1;background:#fef2f2;border-color:#fecaca;display:flex;flex-direction:column">
-          <h3 style="color:#991b1b;font-weight:700;font-size:10pt;margin:0 0 8px;display:flex;align-items:center;border-bottom:1px solid #fecaca;padding-bottom:8px">
+        <div class="card-box" style="flex:1;background:#fef2f2;border-color:#fecaca;display:flex;flex-direction:column;overflow:hidden">
+          <h3 style="color:#991b1b;font-weight:700;font-size:10pt;margin:0 0 6px;display:flex;align-items:center;border-bottom:1px solid #fecaca;padding-bottom:6px">
             <svg class="svg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             Weakness (개선영역)
           </h3>
@@ -1145,7 +1145,7 @@ function buildAnalysisReportTemplateHTML(data: {
         .tag-purple { background-color: #f3e8ff; color: #6b21a8; }
         .svg-icon { width: 20px; height: 20px; margin-right: 8px; stroke-width: 2; }
         .bullet-icon { width: 14px; height: 14px; margin-right: 6px; display: inline-block; vertical-align: text-top; margin-top: 2px; flex-shrink: 0; }
-        .footer { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; border-top: 1px solid #e5e7eb; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8pt; color: #9ca3af; }
+        .footer { margin-top: auto; border-top: 1px solid #e5e7eb; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8pt; color: #9ca3af; }
         .download-btn-group { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
         .download-btn { background-color: #2563eb; color: white; padding: 12px 20px; border-radius: 50px; box-shadow: 0 4px 15px rgba(37,99,235,0.3); font-weight: bold; display: flex; align-items: center; cursor: pointer; transition: all 0.3s; border: none; font-size: 14px; }
         .download-btn:hover { background-color: #1d4ed8; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,99,235,0.4); }

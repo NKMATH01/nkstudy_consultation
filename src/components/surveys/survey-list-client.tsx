@@ -334,6 +334,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
       {/* Survey Preview Dialog */}
       <SurveyPreviewDialog
         survey={previewSurvey}
+        analysisReportHtml={previewSurvey ? (analysisMap.get(previewSurvey.id)?.report_html ?? null) : null}
         open={!!previewSurvey}
         onOpenChange={(open) => { if (!open) setPreviewSurvey(null); }}
       />

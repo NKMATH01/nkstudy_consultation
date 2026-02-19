@@ -12,6 +12,8 @@ import type { Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
 import { downloadElementAsPdf } from "@/lib/pdf";
 import { shareViaKakao } from "@/lib/kakao";
+import { createReportToken } from "@/lib/actions/report-token";
+import { toast } from "sonner";
 
 const FACTOR_COLORS: Record<string, { bar: string; text: string }> = {
   attitude: { bar: "bg-blue-500", text: "text-blue-600" },
@@ -26,13 +28,15 @@ const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "s
 
 interface Props {
   survey: Survey | null;
+  analysisReportHtml?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function SurveyPreviewDialog({ survey, open, onOpenChange }: Props) {
+export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenChange }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   if (!survey) return null;
 
@@ -46,17 +50,34 @@ export function SurveyPreviewDialog({ survey, open, onOpenChange }: Props) {
     }
   };
 
-  const handleKakaoShare = () => {
-    if (!survey.analysis_id) {
+  const handleKakaoShare = async () => {
+    if (!analysisReportHtml) {
       alert("분석 결과가 없습니다. 먼저 성향분석을 실행해주세요.");
       return;
     }
-    const desc = [survey.school, survey.grade].filter(Boolean).join(" ");
-    shareViaKakao({
-      title: `${survey.name} 성향분석 결과`,
-      description: desc ? `${desc} | NK학원 학습 성향 분석 결과` : "NK학원 학습 성향 분석 결과",
-      pageUrl: `/analyses/${survey.analysis_id}`,
-    });
+    setShareLoading(true);
+    toast.info("공유 링크 생성 중...");
+    try {
+      const result = await createReportToken({
+        reportType: "analysis",
+        reportHtml: analysisReportHtml,
+        name: survey.name,
+      });
+      if (!result.success || !result.token) {
+        toast.error("공유 링크 생성에 실패했습니다");
+        return;
+      }
+      const desc = [survey.school, survey.grade].filter(Boolean).join(" ");
+      shareViaKakao({
+        title: `${survey.name} 성향분석 결과`,
+        description: desc ? `${desc} | NK학원 학습 성향 분석 결과` : "NK학원 학습 성향 분석 결과",
+        pageUrl: `/report/${result.token}`,
+      });
+    } catch {
+      toast.error("카카오톡 공유에 실패했습니다");
+    } finally {
+      setShareLoading(false);
+    }
   };
 
   return (
@@ -85,11 +106,12 @@ export function SurveyPreviewDialog({ survey, open, onOpenChange }: Props) {
               </button>
               <button
                 onClick={handleKakaoShare}
-                className="h-8 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
+                disabled={shareLoading}
+                className="h-8 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100 disabled:opacity-50"
                 title="카카오톡 공유"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
-                카카오톡
+                {shareLoading ? "공유 중..." : "카카오톡"}
               </button>
             </div>
           </div>

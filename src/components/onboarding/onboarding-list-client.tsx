@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRegistration } from "@/lib/actions/registration";
+import { createReportToken } from "@/lib/actions/report-token";
 import { downloadHtmlAsPdf } from "@/lib/pdf";
 import { shareViaKakao } from "@/lib/kakao";
 
@@ -489,11 +490,22 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     PDF
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!html) return;
+                      toast.info("공유 링크 생성 중...");
+                      const result = await createReportToken({
+                        reportType: "registration",
+                        reportHtml: html,
+                        name: reg?.name,
+                      });
+                      if (!result.success || !result.token) {
+                        toast.error("공유 링크 생성에 실패했습니다");
+                        return;
+                      }
                       shareViaKakao({
                         title: `${reg?.name || ""} 등록안내문`,
                         description: "NK학원 등록안내문입니다.",
-                        pageUrl: `/registrations/${reportPopup}`,
+                        pageUrl: `/report/${result.token}`,
                       });
                     }}
                     className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
@@ -558,11 +570,22 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     PDF
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!analysis?.report_html) return;
+                      toast.info("공유 링크 생성 중...");
+                      const result = await createReportToken({
+                        reportType: "analysis",
+                        reportHtml: analysis.report_html,
+                        name: analysis.name,
+                      });
+                      if (!result.success || !result.token) {
+                        toast.error("공유 링크 생성에 실패했습니다");
+                        return;
+                      }
                       shareViaKakao({
                         title: `${analysis?.name || ""} 성향분석 결과`,
                         description: "NK학원 학습 성향 분석 결과입니다.",
-                        pageUrl: `/analyses/${analysisPopup}`,
+                        pageUrl: `/report/${result.token}`,
                       });
                     }}
                     className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100"

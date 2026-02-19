@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_withdrawals_withdrawal_date ON withdrawals(withdr
 
 -- RLS
 ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all for authenticated" ON withdrawals FOR ALL USING (true);
+CREATE POLICY "Allow all for authenticated" ON withdrawals FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Updated_at trigger
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON withdrawals

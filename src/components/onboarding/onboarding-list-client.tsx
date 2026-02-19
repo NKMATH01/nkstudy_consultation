@@ -13,9 +13,13 @@ import {
   Search,
   PenLine,
   Trash2,
+  Download,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRegistration } from "@/lib/actions/registration";
+import { downloadHtmlAsPdf } from "@/lib/pdf";
+import { shareViaKakao } from "@/lib/kakao";
 
 const NK_PRIMARY = "#0F2B5B";
 const NK_GOLD = "#D4A853";
@@ -344,64 +348,60 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     {row._displayTeacher || "-"}
                   </span>
 
-                  {/* 학생 연락처 - 두 번째 행은 비움 */}
+                  {/* 학생 연락처 */}
                   <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-2 tabular-nums whitespace-nowrap">
-                    {isSub ? "" : (row.student_phone || "-")}
+                    {row.student_phone || "-"}
                   </span>
 
-                  {/* 학부모 연락처 - 두 번째 행은 비움 */}
+                  {/* 학부모 연락처 */}
                   <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-1 tabular-nums whitespace-nowrap">
-                    {isSub ? "" : (row.parent_phone || "-")}
+                    {row.parent_phone || "-"}
                   </span>
 
-                  {/* 진행 현황 - 첫 번째 행에만 표시 */}
+                  {/* 진행 현황 */}
                   <div className="flex-1 px-1 flex items-center gap-1 justify-center">
-                    {row._isFirstRow ? (
-                      <>
-                        {ONBOARDING_STEPS.map((step) => {
-                          const done = status[step.key] || false;
-                          return (
-                            <button
-                              key={step.key}
-                              onClick={() => toggleStep(row.id, step.key)}
-                              className="group relative flex flex-col items-center gap-0.5"
-                              title={step.label}
-                            >
-                              <div
-                                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                                  done
-                                    ? "bg-emerald-500 text-white shadow-sm"
-                                    : "bg-slate-100 text-slate-300 hover:bg-slate-200 hover:text-slate-400"
-                                }`}
-                              >
-                                {done ? (
-                                  <Check className="h-3.5 w-3.5" />
-                                ) : (
-                                  <Circle className="h-3 w-3" />
-                                )}
-                              </div>
-                              <span className={`text-[9px] leading-tight ${done ? "text-emerald-600 font-bold" : "text-slate-400"}`}>
-                                {step.shortLabel}
-                              </span>
-                            </button>
-                          );
-                        })}
-                        <div className="ml-2 flex flex-col items-center gap-0.5">
-                          <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-300"
-                              style={{
-                                width: `${progressPct}%`,
-                                background: progressPct === 100 ? "#059669" : NK_GOLD,
-                              }}
-                            />
+                    {ONBOARDING_STEPS.map((step) => {
+                      const done = status[step.key] || false;
+                      return (
+                        <button
+                          key={step.key}
+                          onClick={() => toggleStep(row.id, step.key)}
+                          className="group relative flex flex-col items-center gap-0.5"
+                          title={step.label}
+                        >
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                              done
+                                ? "bg-emerald-500 text-white shadow-sm"
+                                : "bg-slate-100 text-slate-300 hover:bg-slate-200 hover:text-slate-400"
+                            }`}
+                          >
+                            {done ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Circle className="h-3 w-3" />
+                            )}
                           </div>
-                          <span className={`text-[9px] font-bold ${progressPct === 100 ? "text-emerald-600" : "text-slate-400"}`}>
-                            {progress.done}/{progress.total}
+                          <span className={`text-[9px] leading-tight ${done ? "text-emerald-600 font-bold" : "text-slate-400"}`}>
+                            {step.shortLabel}
                           </span>
-                        </div>
-                      </>
-                    ) : null}
+                        </button>
+                      );
+                    })}
+                    <div className="ml-2 flex flex-col items-center gap-0.5">
+                      <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${progressPct}%`,
+                            background: progressPct === 100 ? "#059669" : NK_GOLD,
+                          }}
+                        />
+                      </div>
+                      <span className={`text-[9px] font-bold ${progressPct === 100 ? "text-emerald-600" : "text-slate-400"}`}>
+                        {progress.done}/{progress.total}
+                      </span>
+                    </div>
                   </div>
 
                   {/* 문서 + 수정/삭제 - 첫 번째 행에만 표시 */}
@@ -473,6 +473,35 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   <h2 className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>{reg?.name} 등록안내문</h2>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (!html) return;
+                      try {
+                        await downloadHtmlAsPdf(html, `${reg?.name || "안내문"}_등록안내문.pdf`);
+                      } catch {
+                        toast.error("PDF 생성에 실패했습니다");
+                      }
+                    }}
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
+                    title="PDF 다운로드"
+                  >
+                    <Download className="h-3 w-3" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      shareViaKakao({
+                        title: `${reg?.name || ""} 등록안내문`,
+                        description: "NK학원 등록안내문입니다.",
+                        pageUrl: `/registrations/${reportPopup}`,
+                      });
+                    }}
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
+                    title="카카오톡 공유"
+                  >
+                    <MessageCircle className="h-3 w-3" />
+                    카카오톡
+                  </button>
                   <a
                     href={`/registrations/${reportPopup}`}
                     target="_blank"
@@ -513,6 +542,35 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   <h2 className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>{analysis.name} 성향분석 결과</h2>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (!analysis?.report_html) return;
+                      try {
+                        await downloadHtmlAsPdf(analysis.report_html, `${analysis.name}_성향분석.pdf`);
+                      } catch {
+                        toast.error("PDF 생성에 실패했습니다");
+                      }
+                    }}
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
+                    title="PDF 다운로드"
+                  >
+                    <Download className="h-3 w-3" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      shareViaKakao({
+                        title: `${analysis?.name || ""} 성향분석 결과`,
+                        description: "NK학원 학습 성향 분석 결과입니다.",
+                        pageUrl: `/analyses/${analysisPopup}`,
+                      });
+                    }}
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
+                    title="카카오톡 공유"
+                  >
+                    <MessageCircle className="h-3 w-3" />
+                    카카오톡
+                  </button>
                   <a
                     href={`/analyses/${analysisPopup}`}
                     target="_blank"

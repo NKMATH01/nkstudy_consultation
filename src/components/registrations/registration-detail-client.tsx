@@ -63,14 +63,10 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
 
   const handlePrint = () => {
     if (!registration.report_html) return;
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(registration.report_html);
-      printWindow.document.close();
-      printWindow.onload = () => {
-        setTimeout(() => printWindow.print(), 500);
-      };
-    }
+    const blob = new Blob([registration.report_html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   const formatFee = (fee: number | null) => {
@@ -145,11 +141,10 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
               size="sm"
               className="rounded-xl"
               onClick={() => {
-                const win = window.open("", "_blank");
-                if (win) {
-                  win.document.write(analysisReportHtml);
-                  win.document.close();
-                }
+                const blob = new Blob([analysisReportHtml!], { type: "text/html;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                window.open(url, "_blank");
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
               }}
             >
               <Sparkles className="h-4 w-4 mr-1.5" />

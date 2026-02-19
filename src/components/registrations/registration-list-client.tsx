@@ -165,11 +165,10 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const win = window.open("", "_blank");
-                            if (win) {
-                              win.document.write(item.report_html!);
-                              win.document.close();
-                            }
+                            const blob = new Blob([item.report_html!], { type: "text/html;charset=utf-8" });
+                            const url = URL.createObjectURL(blob);
+                            window.open(url, "_blank");
+                            setTimeout(() => URL.revokeObjectURL(url), 60000);
                           }}
                           className="inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:text-emerald-800 font-bold px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 transition-colors"
                           title="안내문 보기"

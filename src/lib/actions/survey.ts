@@ -149,7 +149,7 @@ export async function deleteSurvey(id: string) {
   try {
     const supabase = await createClient();
 
-    // 연결된 분석이 있으면 함께 삭제
+    // 연결된 분석이 있으면 함께 삭제 (analysis_id 또는 survey_id로 조회)
     const { data: survey } = await supabase
       .from("surveys")
       .select("analysis_id")
@@ -160,6 +160,9 @@ export async function deleteSurvey(id: string) {
       await supabase.from("analyses").delete().eq("id", survey.analysis_id);
     }
 
+    // survey_id로 연결된 분석도 삭제 (analysis_id 연결이 끊어진 경우)
+    await supabase.from("analyses").delete().eq("survey_id", id);
+
     const { error } = await supabase.from("surveys").delete().eq("id", id);
 
     if (error) {
@@ -169,6 +172,8 @@ export async function deleteSurvey(id: string) {
 
     revalidatePath("/surveys");
     revalidatePath("/analyses");
+    revalidatePath("/registrations");
+    revalidatePath("/onboarding");
     return { success: true };
   } catch (e) {
     console.error("[설문] 삭제 중 예외:", { id, error: e instanceof Error ? e.message : e });

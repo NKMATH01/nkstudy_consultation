@@ -235,6 +235,25 @@ export async function deleteConsultation(id: string) {
   try {
     const supabase = await createClient();
 
+    // 상담 정보 조회 → 연동된 예약 삭제
+    const { data: consultation } = await supabase
+      .from("consultations")
+      .select("name, consult_date, consult_time")
+      .eq("id", id)
+      .single();
+
+    if (consultation?.consult_date && consultation?.consult_time) {
+      const hour = parseInt(consultation.consult_time.split(":")[0]);
+      if (!isNaN(hour)) {
+        await supabase
+          .from("bookings")
+          .delete()
+          .eq("student_name", consultation.name)
+          .eq("booking_date", consultation.consult_date)
+          .eq("booking_hour", hour);
+      }
+    }
+
     const { error } = await supabase
       .from("consultations")
       .delete()
@@ -246,6 +265,7 @@ export async function deleteConsultation(id: string) {
     }
 
     revalidatePath("/consultations");
+    revalidatePath("/bookings");
     return { success: true };
   } catch (e) {
     console.error("[상담] 삭제 중 예외:", { id, error: e instanceof Error ? e.message : e });

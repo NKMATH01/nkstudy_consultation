@@ -500,15 +500,16 @@ export function WithdrawalDashboard({
 
   const insightData = useMemo(() => {
     const count = filtered.length;
-    // Calculate month-adjusted total
-    let total = totalStudentCount || 0;
+    // Total = current active students + all withdrawn students
+    const activeCount = totalStudentCount || 0;
+    let total = activeCount + withdrawals.length;
     if (activeMonth !== null && total > 0) {
-      // Students who withdrew after the selected month were still enrolled at that month's end
-      const withdrawnAfter = withdrawals.filter((w) => {
+      // For a specific month: total at that time = active now + withdrew at/after that month
+      const withdrawnAtOrAfter = withdrawals.filter((w) => {
         const m = getMonthFromDate(w.withdrawal_date);
-        return m !== null && m > activeMonth;
+        return m !== null && m >= activeMonth;
       }).length;
-      total = total + withdrawnAfter;
+      total = activeCount + withdrawnAtOrAfter;
     }
     const withdrawalRate = total > 0 ? (count / total) * 100 : 0;
 
@@ -695,7 +696,6 @@ export function WithdrawalDashboard({
   const monthlyTrendData = useMemo(() => {
     if (activeMonth !== null) return [];
     const byMonth: Record<number, number> = {};
-    // Apply subject filter only, not month
     const subjectFiltered = withdrawals.filter((w) => matchesSubject(w, activeSubject));
     subjectFiltered.forEach((w) => {
       const m = getMonthFromDate(w.withdrawal_date);
@@ -707,13 +707,26 @@ export function WithdrawalDashboard({
 
     const minMonth = Math.min(...activeMonthNums);
     const maxMonth = Math.max(...activeMonthNums);
+    const activeCount = totalStudentCount || 0;
 
-    return MONTH_LABELS.map((label, i) => ({
-      month: label,
-      count: byMonth[i + 1] || 0,
-      monthNum: i + 1,
-    })).filter((m) => m.monthNum >= minMonth && m.monthNum <= maxMonth);
-  }, [withdrawals, activeMonth, activeSubject]);
+    return MONTH_LABELS.map((label, i) => {
+      const monthNum = i + 1;
+      const monthCount = byMonth[monthNum] || 0;
+      // Total at month = active now + withdrew at/after this month
+      const withdrawnAtOrAfter = subjectFiltered.filter((w) => {
+        const m = getMonthFromDate(w.withdrawal_date);
+        return m !== null && m >= monthNum;
+      }).length;
+      const monthTotal = activeCount + withdrawnAtOrAfter;
+      const rate = monthTotal > 0 ? Math.round((monthCount / monthTotal) * 1000) / 10 : 0;
+      return {
+        month: label,
+        count: monthCount,
+        rate,
+        monthNum,
+      };
+    }).filter((m) => m.monthNum >= minMonth && m.monthNum <= maxMonth);
+  }, [withdrawals, activeMonth, activeSubject, totalStudentCount]);
 
   // ─── Render ────────────────────────────────────────────────────────────
 
@@ -1472,9 +1485,9 @@ export function WithdrawalDashboard({
       {/* ── 7. Monthly Trend (only when "전체" month tab) ─────────────── */}
       {activeMonth === null && monthlyTrendData.length > 0 && (
         <DashboardCard
-          title="월별 퇴원 추이"
+          title="월별 퇴원율 추이"
           icon={Clock}
-          subtitle="월별 퇴원 인원수 변화를 확인합니다"
+          subtitle="월별 퇴원율(%) 변화를 확인합니다"
         >
           <ResponsiveContainer width="100%" height={280}>
             <LineChart
@@ -1498,13 +1511,25 @@ export function WithdrawalDashboard({
                 stroke="#94A3B8"
                 tickLine={false}
                 axisLine={false}
-                allowDecimals={false}
+                unit="%"
               />
-              <Tooltip content={<CustomTooltipContent />} />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const data = payload[0].payload as { month: string; count: number; rate: number };
+                  return (
+                    <div className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white" style={{ borderColor: "#E2E8F0" }}>
+                      <div className="font-semibold mb-1" style={{ color: NK_PRIMARY }}>{label}</div>
+                      <div className="text-slate-600">퇴원율: <span className="font-bold text-slate-800">{data.rate}%</span></div>
+                      <div className="text-slate-600">퇴원생: <span className="font-bold text-slate-800">{data.count}명</span></div>
+                    </div>
+                  );
+                }}
+              />
               <Line
                 type="monotone"
-                dataKey="count"
-                name="퇴원생 수"
+                dataKey="rate"
+                name="퇴원율"
                 stroke={NK_PRIMARY}
                 strokeWidth={2.5}
                 dot={{

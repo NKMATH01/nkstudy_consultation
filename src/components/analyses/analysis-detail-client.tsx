@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, FileText, ClipboardList, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, Download, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { deleteAnalysis, regenerateAnalysisReport } from "@/lib/actions/analysis";
 import { generateRegistration } from "@/lib/actions/registration";
+import { downloadReportPageAsImage } from "@/lib/pdf";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import type { Analysis, Class, Teacher } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
@@ -48,6 +49,7 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
   const [showRegForm, setShowRegForm] = useState(false);
+  const [imgLoading, setImgLoading] = useState<1 | 2 | null>(null);
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -101,7 +103,7 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-2 justify-end">
+      <div className="flex gap-2 justify-end flex-wrap">
         <Button
           size="sm"
           onClick={() => setShowRegForm(true)}
@@ -110,6 +112,75 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
           <ClipboardList className="h-4 w-4 mr-1.5" />
           등록 안내 생성
         </Button>
+
+        {/* 이미지 다운로드 */}
+        {analysis.report_html && (
+          <>
+            <button
+              onClick={async () => {
+                setImgLoading(1);
+                try {
+                  await downloadReportPageAsImage(
+                    analysis.report_html!,
+                    1,
+                    `nk성향분석_${schoolInfo}_${analysis.name}`
+                  );
+                  toast.success("1페이지 이미지를 다운로드했습니다");
+                } catch {
+                  toast.error("이미지 생성에 실패했습니다");
+                } finally {
+                  setImgLoading(null);
+                }
+              }}
+              disabled={imgLoading !== null}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+            >
+              {imgLoading === 1 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              1페이지
+            </button>
+            <button
+              onClick={async () => {
+                setImgLoading(2);
+                try {
+                  await downloadReportPageAsImage(
+                    analysis.report_html!,
+                    2,
+                    `nk성향분석_${schoolInfo}_${analysis.name}`
+                  );
+                  toast.success("2페이지 이미지를 다운로드했습니다");
+                } catch {
+                  toast.error("이미지 생성에 실패했습니다");
+                } finally {
+                  setImgLoading(null);
+                }
+              }}
+              disabled={imgLoading !== null}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+            >
+              {imgLoading === 2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              2페이지
+            </button>
+          </>
+        )}
+
+        {/* 보고서 PDF */}
+        {analysis.report_html && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const blob = new Blob([analysis.report_html!], { type: "text/html;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              window.open(url, "_blank");
+              setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }}
+            className="rounded-xl"
+          >
+            <Printer className="h-4 w-4 mr-1.5" />
+            PDF 저장
+          </Button>
+        )}
+
         <Button
           variant="outline"
           size="sm"
@@ -128,25 +199,8 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
           className="rounded-xl"
         >
           <RefreshCw className={`h-4 w-4 mr-1.5 ${isPending ? "animate-spin" : ""}`} />
-          보고서 재생성
+          재생성
         </Button>
-        {analysis.report_html && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const win = window.open("", "_blank");
-              if (win) {
-                win.document.write(analysis.report_html!);
-                win.document.close();
-              }
-            }}
-            className="rounded-xl"
-          >
-            <FileText className="h-4 w-4 mr-1.5" />
-            보고서
-          </Button>
-        )}
         <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)} className="rounded-xl">
           <Trash2 className="h-4 w-4 mr-1.5" />
           삭제
@@ -357,6 +411,38 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
             <h3 className="text-base font-extrabold text-indigo-200">Final Assessment</h3>
           </div>
           <p className="text-sm leading-relaxed opacity-95">{analysis.final_assessment}</p>
+        </div>
+      )}
+
+      {/* 성향분석 보고서 미리보기 */}
+      {analysis.report_html && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
+            <h3 className="text-base font-extrabold text-blue-900">성향분석 보고서</h3>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <iframe
+              ref={(el) => {
+                if (el) {
+                  const resize = () => {
+                    try {
+                      const h = el.contentDocument?.documentElement?.scrollHeight;
+                      if (h && h > 100) el.style.height = h + 40 + "px";
+                    } catch { /* cross-origin fallback */ }
+                  };
+                  el.addEventListener("load", resize);
+                  setTimeout(resize, 500);
+                  setTimeout(resize, 1500);
+                }
+              }}
+              srcDoc={analysis.report_html}
+              className="w-full border-0"
+              style={{ minHeight: "2400px" }}
+              title="성향분석 보고서"
+              sandbox="allow-same-origin"
+            />
+          </div>
         </div>
       )}
 

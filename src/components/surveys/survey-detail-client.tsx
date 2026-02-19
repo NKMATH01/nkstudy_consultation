@@ -1,9 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Brain, Loader2 } from "lucide-react";
+import { ArrowLeft, Trash2, Brain, Loader2, Download, Sparkles, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { deleteSurvey } from "@/lib/actions/survey";
 import { analyzeSurvey } from "@/lib/actions/analysis";
+import { downloadElementAsPdf, downloadReportPageAsImage } from "@/lib/pdf";
 import type { Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
 import { useState } from "react";
@@ -22,6 +23,8 @@ import Link from "next/link";
 
 interface Props {
   survey: Survey;
+  analysisReportHtml?: string | null;
+  analysisId?: string | null;
 }
 
 const FACTOR_COLORS: Record<string, { bar: string; bg: string; text: string }> = {
@@ -53,11 +56,14 @@ function ScoreBar({ value, label, factorKey }: { value: number | null; label: st
   );
 }
 
-export function SurveyDetailClient({ survey }: Props) {
+export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: Props) {
   const router = useRouter();
+  const contentRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [imgLoading, setImgLoading] = useState<1 | 2 | null>(null);
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -114,9 +120,73 @@ export function SurveyDetailClient({ survey }: Props) {
           </div>
         </div>
         <div className="flex gap-2">
-          {survey.analysis_id ? (
+          <button
+            onClick={async () => {
+              if (!contentRef.current) return;
+              setPdfLoading(true);
+              try {
+                await downloadElementAsPdf(contentRef.current, `${survey.name}_설문지.pdf`);
+              } finally {
+                setPdfLoading(false);
+              }
+            }}
+            disabled={pdfLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {pdfLoading ? "생성 중..." : "PDF"}
+          </button>
+          {analysisReportHtml && (
+            <>
+              <button
+                onClick={() => {
+                  const blob = new Blob([analysisReportHtml], { type: "text/html;charset=utf-8" });
+                  const url = URL.createObjectURL(blob);
+                  window.open(url, "_blank");
+                  setTimeout(() => URL.revokeObjectURL(url), 60000);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-violet-50 text-violet-700 hover:bg-violet-100"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                PDF 저장
+              </button>
+              <button
+                onClick={async () => {
+                  setImgLoading(1);
+                  const schoolInfo = [survey.school, survey.grade].filter(Boolean).join(" ");
+                  try {
+                    await downloadReportPageAsImage(analysisReportHtml, 1, `nk성향분석_${schoolInfo}_${survey.name}`);
+                    toast.success("1페이지 이미지를 다운로드했습니다");
+                  } catch { toast.error("이미지 생성에 실패했습니다"); }
+                  finally { setImgLoading(null); }
+                }}
+                disabled={imgLoading !== null}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              >
+                {imgLoading === 1 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                1페이지
+              </button>
+              <button
+                onClick={async () => {
+                  setImgLoading(2);
+                  const schoolInfo = [survey.school, survey.grade].filter(Boolean).join(" ");
+                  try {
+                    await downloadReportPageAsImage(analysisReportHtml, 2, `nk성향분석_${schoolInfo}_${survey.name}`);
+                    toast.success("2페이지 이미지를 다운로드했습니다");
+                  } catch { toast.error("이미지 생성에 실패했습니다"); }
+                  finally { setImgLoading(null); }
+                }}
+                disabled={imgLoading !== null}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              >
+                {imgLoading === 2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                2페이지
+              </button>
+            </>
+          )}
+          {(survey.analysis_id || analysisId) ? (
             <Button variant="outline" size="sm" asChild className="rounded-[7px]">
-              <Link href={`/analyses/${survey.analysis_id}`}>분석 보기</Link>
+              <Link href={`/analyses/${survey.analysis_id || analysisId}`}>분석 보기</Link>
             </Button>
           ) : (
             <button
@@ -156,6 +226,7 @@ export function SurveyDetailClient({ survey }: Props) {
         </div>
       </div>
 
+      <div ref={contentRef}>
       {/* Basic Info */}
       <div
         className="bg-white rounded-2xl p-6"
@@ -326,6 +397,49 @@ export function SurveyDetailClient({ survey }: Props) {
           ))}
         </div>
       </div>
+
+      </div>
+
+      {/* 성향분석 결과 보고서 */}
+      {analysisReportHtml && (
+        <div
+          className="bg-white rounded-2xl p-6"
+          style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        >
+          <h3 className="text-[14.5px] font-bold mb-4 flex items-center gap-2" style={{ color: "#1E293B" }}>
+            <div className="w-1 h-5 bg-violet-500 rounded-full" />
+            성향분석 결과
+            {(survey.analysis_id || analysisId) && (
+              <Link href={`/analyses/${survey.analysis_id || analysisId}`} className="ml-auto text-xs text-violet-600 hover:text-violet-800 font-semibold flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                상세보기
+              </Link>
+            )}
+          </h3>
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <iframe
+              ref={(el) => {
+                if (el) {
+                  const resize = () => {
+                    try {
+                      const h = el.contentDocument?.documentElement?.scrollHeight;
+                      if (h && h > 100) el.style.height = h + 40 + "px";
+                    } catch { /* cross-origin fallback */ }
+                  };
+                  el.addEventListener("load", resize);
+                  setTimeout(resize, 500);
+                  setTimeout(resize, 1500);
+                }
+              }}
+              srcDoc={analysisReportHtml}
+              className="w-full border-0"
+              style={{ minHeight: "2400px" }}
+              title="성향분석 결과"
+              sandbox="allow-same-origin"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Delete Dialog */}
       <Dialog open={showDelete} onOpenChange={setShowDelete}>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR, DM_Sans } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
@@ -29,6 +30,11 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`${dmSans.variable} ${notoSansKR.variable} antialiased`}>
+        <Script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
+          strategy="beforeInteractive"
+          crossOrigin="anonymous"
+        />
         <QueryProvider>
           {children}
           <Toaster position="top-right" />

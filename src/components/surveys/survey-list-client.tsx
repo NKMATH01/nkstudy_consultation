@@ -103,7 +103,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
   const handleAnalyze = async (survey: Survey) => {
     setAnalyzingId(survey.id);
     try {
-      const hasAnalysis = !!survey.analysis_id;
+      const existingAnalysis = analysisMap.get(survey.id);
+      const hasAnalysis = !!survey.analysis_id || !!existingAnalysis;
       const result = hasAnalysis
         ? await reAnalyzeSurvey(survey.id)
         : await analyzeSurvey(survey.id);
@@ -140,11 +141,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
   const handleViewReport = (surveyId: string) => {
     const analysis = analysisMap.get(surveyId);
     if (analysis?.report_html) {
-      const win = window.open("", "_blank");
-      if (win) {
-        win.document.write(analysis.report_html);
-        win.document.close();
-      }
+      const blob = new Blob([analysis.report_html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
   };
 
@@ -217,9 +217,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
             {/* Rows */}
             {initialData.map((item) => {
               const analysis = analysisMap.get(item.id);
-              const hasAnalysis = !!item.analysis_id;
+              const hasAnalysis = !!item.analysis_id || !!analysis;
+              const analysisId = item.analysis_id || analysis?.id;
               const isAnalyzing = analyzingId === item.id;
-              const nameHref = hasAnalysis ? `/analyses/${item.analysis_id}` : `/surveys/${item.id}`;
+              const nameHref = hasAnalysis ? `/analyses/${analysisId}` : `/surveys/${item.id}`;
 
               return (
                 <div
@@ -344,7 +345,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
             <DialogTitle>설문 삭제</DialogTitle>
             <DialogDescription>
               &quot;{deleteTarget?.name}&quot; 설문을 삭제하시겠습니까?
-              {deleteTarget?.analysis_id && " 연결된 분석 결과도 함께 삭제됩니다."}
+              {(deleteTarget?.analysis_id || (deleteTarget && analysisMap.has(deleteTarget.id))) && " 연결된 분석 결과도 함께 삭제됩니다."}
               {" "}이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>

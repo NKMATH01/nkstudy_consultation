@@ -363,6 +363,24 @@ export async function toggleBlockedDate(date: string, branch: string, hours: num
 export async function deleteBooking(id: string) {
   try {
     const supabase = await createClient();
+
+    // 예약 정보 조회 → 연동된 상담 삭제
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("student_name, booking_date, booking_hour")
+      .eq("id", id)
+      .single();
+
+    if (booking) {
+      const consultTime = `${String(booking.booking_hour).padStart(2, "0")}:00`;
+      await supabase
+        .from("consultations")
+        .delete()
+        .eq("name", booking.student_name)
+        .eq("consult_date", booking.booking_date)
+        .eq("consult_time", consultTime);
+    }
+
     const { error } = await supabase.from("bookings").delete().eq("id", id);
 
     if (error) {
@@ -370,6 +388,7 @@ export async function deleteBooking(id: string) {
     }
 
     revalidatePath("/bookings");
+    revalidatePath("/consultations");
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "예약 삭제 실패";

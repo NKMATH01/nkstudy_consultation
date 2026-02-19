@@ -10,7 +10,7 @@ import {
   type ReportTemplateData,
 } from "@/lib/claude";
 import { extractJSON } from "@/lib/gemini";
-import type { Registration, Analysis, Survey, PaginatedResponse, Class } from "@/types";
+import type { Registration, Analysis, Survey, PaginatedResponse } from "@/types";
 import { TUITION_TABLE } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -135,26 +135,26 @@ export async function generateRegistration(
     TUITION_TABLE[adminFormData.grade || analysisData.grade || ""] ||
     0;
 
-  // 4. 반 시간표 정보 조회
-  let classInfo: Class | null = null;
-  let classInfo2: Class | null = null;
+  // 4. 반 시간표 정보 조회 (DB 컬럼: description→class_days, is_active→active)
+  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
+  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
 
   if (adminFormData.assigned_class) {
     const { data: cls } = await supabase
       .from("classes")
-      .select("*")
+      .select("description, class_time, clinic_time")
       .eq("name", adminFormData.assigned_class)
       .single();
-    classInfo = cls as Class | null;
+    if (cls) classInfo = { class_days: (cls as Record<string, unknown>).description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time };
   }
 
   if (adminFormData.subject === "영어수학" && adminFormData.assigned_class_2) {
     const { data: cls2 } = await supabase
       .from("classes")
-      .select("*")
+      .select("description, class_time, clinic_time")
       .eq("name", adminFormData.assigned_class_2)
       .single();
-    classInfo2 = cls2 as Class | null;
+    if (cls2) classInfo2 = { class_days: (cls2 as Record<string, unknown>).description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time };
   }
 
   // 5. Claude 프롬프트 생성 + 호출
@@ -372,26 +372,26 @@ export async function regenerateRegistration(id: string) {
     return { success: false, error: "설문 데이터를 찾을 수 없습니다" };
   }
 
-  // 4. 반 시간표 정보 조회
-  let classInfo: Class | null = null;
-  let classInfo2: Class | null = null;
+  // 4. 반 시간표 정보 조회 (DB 컬럼: description→class_days, is_active→active)
+  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
+  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
 
   if (registration.assigned_class) {
     const { data: cls } = await supabase
       .from("classes")
-      .select("*")
+      .select("description, class_time, clinic_time")
       .eq("name", registration.assigned_class)
       .single();
-    classInfo = cls as Class | null;
+    if (cls) classInfo = { class_days: (cls as Record<string, unknown>).description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time };
   }
 
   if (registration.subject === "영어수학" && registration.assigned_class_2) {
     const { data: cls2 } = await supabase
       .from("classes")
-      .select("*")
+      .select("description, class_time, clinic_time")
       .eq("name", registration.assigned_class_2)
       .single();
-    classInfo2 = cls2 as Class | null;
+    if (cls2) classInfo2 = { class_days: (cls2 as Record<string, unknown>).description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time };
   }
 
   // 5. Claude 프롬프트 생성 + 호출

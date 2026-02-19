@@ -1,8 +1,10 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { calculateFactors } from "@/lib/factors";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { env } from "@/lib/env";
 import { z } from "zod";
 
 const scoreField = z.coerce.number().min(1).max(5);
@@ -79,14 +81,21 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
     insertData[`q${i}`] = parsed.data[key] ?? null;
   }
 
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("surveys").insert(insertData);
+  try {
+    // Service role key가 있으면 admin client (RLS 우회), 없으면 일반 client
+    const supabase = env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : await createClient();
+    const { error } = await supabase.from("surveys").insert(insertData);
 
-  if (error) {
-    // TODO: Sentry 등 외부 로깅 서비스로 교체 가능
-    console.error("[DB] 공개 설문 저장 실패:", error.message);
-    return { success: false, error: "설문 저장에 실패했습니다. 다시 시도해주세요." };
+    if (error) {
+      console.error("[DB] 공개 설문 저장 실패:", error.message);
+      return { success: false, error: "설문 저장에 실패했습니다. 다시 시도해주세요." };
+    }
+
+    return { success: true };
+  } catch (e) {
+    console.error("[DB] 공개 설문 예외:", e instanceof Error ? e.message : e);
+    return { success: false, error: "설문 저장 중 오류가 발생했습니다. 다시 시도해주세요." };
   }
-
-  return { success: true };
 }

@@ -55,7 +55,7 @@ export async function shareViaKakao({
     return;
   }
 
-  const origin = linkDomain || window.location.origin;
+  const origin = process.env.NEXT_PUBLIC_BASE_URL || linkDomain || window.location.origin;
   const url = pageUrl.startsWith("http") ? pageUrl : `${origin}${pageUrl}`;
 
   console.log("[Kakao] 공유 시도:", { origin, url, title });

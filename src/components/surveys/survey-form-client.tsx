@@ -91,6 +91,8 @@ export function SurveyFormDialog({ open, onOpenChange }: Props) {
       dream: "",
       prefer_days: "",
       requests: "",
+      math_difficulty: "",
+      english_difficulty: "",
     },
   });
 
@@ -242,7 +244,7 @@ export function SurveyFormDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {/* 30문항 */}
+            {/* 설문 문항 */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-muted-foreground">
                 설문 응답 (1~5점)
@@ -327,6 +329,30 @@ export function SurveyFormDialog({ open, onOpenChange }: Props) {
                     <FormLabel>NK학원에 바라는 점</FormLabel>
                     <FormControl>
                       <Textarea className="resize-none" rows={2} {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="math_difficulty"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>수학에서 가장 어려운 단원이나 영역</FormLabel>
+                    <FormControl>
+                      <Textarea className="resize-none" rows={2} placeholder="예: 함수, 도형의 성질, 확률과 통계 등" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="english_difficulty"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>영어에서 가장 어려운 영역</FormLabel>
+                    <FormControl>
+                      <Textarea className="resize-none" rows={2} placeholder="예: 문법, 독해, 듣기, 단어 암기 등" {...field} />
                     </FormControl>
                   </FormItem>
                 )}

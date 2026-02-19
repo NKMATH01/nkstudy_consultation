@@ -3,7 +3,7 @@
 import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Brain, Loader2, Download, Sparkles, Printer } from "lucide-react";
+import { ArrowLeft, Trash2, Brain, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { deleteSurvey } from "@/lib/actions/survey";
 import { analyzeSurvey } from "@/lib/actions/analysis";
-import { downloadElementAsPdf, downloadReportPageAsImage } from "@/lib/pdf";
+
 import type { Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
 import { useState } from "react";
@@ -34,6 +34,7 @@ const FACTOR_COLORS: Record<string, { bar: string; bg: string; text: string }> =
   willingness: { bar: "from-amber-400 to-amber-500", bg: "bg-amber-50", text: "text-amber-600" },
   social: { bar: "from-pink-400 to-pink-500", bg: "bg-pink-50", text: "text-pink-600" },
   management: { bar: "from-red-400 to-red-500", bg: "bg-red-50", text: "text-red-600" },
+  emotion: { bar: "from-cyan-400 to-cyan-500", bg: "bg-cyan-50", text: "text-cyan-600" },
 };
 
 function ScoreBar({ value, label, factorKey }: { value: number | null; label: string; factorKey: string }) {
@@ -61,9 +62,7 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
   const contentRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [imgLoading, setImgLoading] = useState<1 | 2 | null>(null);
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -94,7 +93,8 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
     }
   };
 
-  const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+  const baseFKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+  const factorKeys = survey.factor_emotion != null ? [...baseFKeys, "emotion" as const] : baseFKeys;
 
   return (
     <div className="space-y-5 max-w-4xl fade-in">
@@ -120,70 +120,6 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={async () => {
-              if (!contentRef.current) return;
-              setPdfLoading(true);
-              try {
-                await downloadElementAsPdf(contentRef.current, `${survey.name}_설문지.pdf`);
-              } finally {
-                setPdfLoading(false);
-              }
-            }}
-            disabled={pdfLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-          >
-            <Download className="h-3.5 w-3.5" />
-            {pdfLoading ? "생성 중..." : "PDF"}
-          </button>
-          {analysisReportHtml && (
-            <>
-              <button
-                onClick={() => {
-                  const blob = new Blob([analysisReportHtml], { type: "text/html;charset=utf-8" });
-                  const url = URL.createObjectURL(blob);
-                  window.open(url, "_blank");
-                  setTimeout(() => URL.revokeObjectURL(url), 60000);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-violet-50 text-violet-700 hover:bg-violet-100"
-              >
-                <Printer className="h-3.5 w-3.5" />
-                PDF 저장
-              </button>
-              <button
-                onClick={async () => {
-                  setImgLoading(1);
-                  const schoolInfo = [survey.school, survey.grade].filter(Boolean).join(" ");
-                  try {
-                    await downloadReportPageAsImage(analysisReportHtml, 1, `nk성향분석_${schoolInfo}_${survey.name}`);
-                    toast.success("1페이지 이미지를 다운로드했습니다");
-                  } catch { toast.error("이미지 생성에 실패했습니다"); }
-                  finally { setImgLoading(null); }
-                }}
-                disabled={imgLoading !== null}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-              >
-                {imgLoading === 1 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                1페이지
-              </button>
-              <button
-                onClick={async () => {
-                  setImgLoading(2);
-                  const schoolInfo = [survey.school, survey.grade].filter(Boolean).join(" ");
-                  try {
-                    await downloadReportPageAsImage(analysisReportHtml, 2, `nk성향분석_${schoolInfo}_${survey.name}`);
-                    toast.success("2페이지 이미지를 다운로드했습니다");
-                  } catch { toast.error("이미지 생성에 실패했습니다"); }
-                  finally { setImgLoading(null); }
-                }}
-                disabled={imgLoading !== null}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-              >
-                {imgLoading === 2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                2페이지
-              </button>
-            </>
-          )}
           {(survey.analysis_id || analysisId) ? (
             <Button variant="outline" size="sm" asChild className="rounded-[7px]">
               <Link href={`/analyses/${survey.analysis_id || analysisId}`}>분석 보기</Link>
@@ -271,7 +207,7 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
       >
         <h3 className="text-[14.5px] font-bold mb-5 flex items-center gap-2" style={{ color: "#1E293B" }}>
           <div className="w-1 h-5 bg-indigo-500 rounded-full" />
-          6-Factor 학습 성향
+          7-Factor 학습 성향
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {factorKeys.map((key) => (
@@ -311,7 +247,7 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
       >
         <h3 className="text-[14.5px] font-bold mb-4 flex items-center gap-2" style={{ color: "#1E293B" }}>
           <div className="w-1 h-5 rounded-full" style={{ background: "#D4A853" }} />
-          설문 응답 (30문항)
+          설문 응답 ({SURVEY_QUESTIONS.length}문항)
         </h3>
         <div className="space-y-1">
           {SURVEY_QUESTIONS.map((q, idx) => {
@@ -375,6 +311,8 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
             { label: "희망 직업", value: survey.dream },
             { label: "선호 요일", value: survey.prefer_days },
             { label: "NK학원에 바라는 점", value: survey.requests },
+            { label: "수학 어려운 영역", value: survey.math_difficulty },
+            { label: "영어 어려운 영역", value: survey.english_difficulty },
           ].map(({ label, value }) => (
             <div
               key={label}

@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, FileText, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, Download, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { deleteAnalysis, regenerateAnalysisReport } from "@/lib/actions/analysis";
 import { generateRegistration } from "@/lib/actions/registration";
-import { downloadReportPageAsImage } from "@/lib/pdf";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import type { Analysis, Class, Teacher } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
@@ -29,17 +28,10 @@ interface Props {
 }
 
 function ratingClass(score: number) {
-  if (score >= 4) return { bg: "bg-teal-100 text-teal-700", label: "우수" };
-  if (score >= 3) return { bg: "bg-sky-100 text-sky-700", label: "양호" };
-  if (score >= 2) return { bg: "bg-amber-100 text-amber-700", label: "보통" };
-  return { bg: "bg-rose-100 text-rose-700", label: "주의" };
-}
-
-function barColor(score: number) {
-  if (score >= 4) return "from-emerald-400 to-emerald-500";
-  if (score >= 3) return "from-sky-400 to-sky-500";
-  if (score >= 2) return "from-amber-400 to-amber-500";
-  return "from-rose-400 to-rose-500";
+  if (score >= 4) return { bg: "bg-teal-100 text-teal-700", bar: "from-emerald-400 to-emerald-500", label: "우수" };
+  if (score >= 3) return { bg: "bg-sky-100 text-sky-700", bar: "from-sky-400 to-sky-500", label: "양호" };
+  if (score >= 2) return { bg: "bg-amber-100 text-amber-700", bar: "from-amber-400 to-amber-500", label: "보통" };
+  return { bg: "bg-rose-100 text-rose-700", bar: "from-rose-400 to-rose-500", label: "주의" };
 }
 
 const STEP_COLORS = ["bg-blue-500", "bg-violet-500", "bg-amber-500", "bg-emerald-500"];
@@ -49,7 +41,6 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
   const [showRegForm, setShowRegForm] = useState(false);
-  const [imgLoading, setImgLoading] = useState<1 | 2 | null>(null);
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -74,113 +65,45 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
     }
   };
 
-  const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+  const baseFKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+  const factorKeys = analysis.score_emotion != null ? [...baseFKeys, "emotion" as const] : baseFKeys;
   const schoolInfo = [analysis.school, analysis.grade].filter(Boolean).join(" ");
   const createdDate = analysis.created_at
     ? new Date(analysis.created_at).toLocaleDateString("ko-KR")
     : "";
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Header - 보고서 스타일 */}
-      <div className="flex items-start justify-between border-b-[3px] border-blue-900 pb-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100 mt-0.5">
+    <div className="space-y-5 max-w-lg mx-auto px-4 pb-8">
+      {/* Header */}
+      <div className="border-b-[3px] border-blue-900 pb-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100 h-8 w-8">
             <Link href="/analyses">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div>
-            <p className="text-xs font-bold text-blue-600 tracking-widest uppercase">NK EDUCATION</p>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NK 심층 학습 성향 분석서</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Deep Learning Tendency Analysis Report</p>
-          </div>
+          <p className="text-[10px] font-bold text-blue-600 tracking-widest uppercase">NK EDUCATION</p>
         </div>
-        <div className="text-right">
-          <p className="text-lg font-extrabold text-blue-900">{analysis.name}</p>
-          <p className="text-sm text-slate-500">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
+        <h1 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+          NK 심층 학습 성향 분석서
+        </h1>
+        <p className="text-[10px] text-slate-400 mb-2">Deep Learning Tendency Analysis Report</p>
+        <div className="flex items-baseline justify-between">
+          <p className="text-base font-extrabold text-blue-900">{analysis.name}</p>
+          <p className="text-xs text-slate-500">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2 justify-end flex-wrap">
+      {/* Action Buttons - 간소화 */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
         <Button
           size="sm"
           onClick={() => setShowRegForm(true)}
-          className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 shadow-lg shadow-teal-500/20"
+          className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 shadow-lg shadow-teal-500/20 text-xs shrink-0"
         >
-          <ClipboardList className="h-4 w-4 mr-1.5" />
-          등록 안내 생성
+          <ClipboardList className="h-3.5 w-3.5 mr-1" />
+          등록 안내
         </Button>
-
-        {/* 이미지 다운로드 */}
-        {analysis.report_html && (
-          <>
-            <button
-              onClick={async () => {
-                setImgLoading(1);
-                try {
-                  await downloadReportPageAsImage(
-                    analysis.report_html!,
-                    1,
-                    `nk성향분석_${schoolInfo}_${analysis.name}`
-                  );
-                  toast.success("1페이지 이미지를 다운로드했습니다");
-                } catch {
-                  toast.error("이미지 생성에 실패했습니다");
-                } finally {
-                  setImgLoading(null);
-                }
-              }}
-              disabled={imgLoading !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-            >
-              {imgLoading === 1 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              1페이지
-            </button>
-            <button
-              onClick={async () => {
-                setImgLoading(2);
-                try {
-                  await downloadReportPageAsImage(
-                    analysis.report_html!,
-                    2,
-                    `nk성향분석_${schoolInfo}_${analysis.name}`
-                  );
-                  toast.success("2페이지 이미지를 다운로드했습니다");
-                } catch {
-                  toast.error("이미지 생성에 실패했습니다");
-                } finally {
-                  setImgLoading(null);
-                }
-              }}
-              disabled={imgLoading !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-semibold transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-            >
-              {imgLoading === 2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              2페이지
-            </button>
-          </>
-        )}
-
-        {/* 보고서 PDF */}
-        {analysis.report_html && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const blob = new Blob([analysis.report_html!], { type: "text/html;charset=utf-8" });
-              const url = URL.createObjectURL(blob);
-              window.open(url, "_blank");
-              setTimeout(() => URL.revokeObjectURL(url), 60000);
-            }}
-            className="rounded-xl"
-          >
-            <Printer className="h-4 w-4 mr-1.5" />
-            PDF 저장
-          </Button>
-        )}
-
         <Button
           variant="outline"
           size="sm"
@@ -196,132 +119,126 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
             });
           }}
           disabled={isPending}
-          className="rounded-xl"
+          className="rounded-xl text-xs shrink-0"
         >
-          <RefreshCw className={`h-4 w-4 mr-1.5 ${isPending ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isPending ? "animate-spin" : ""}`} />
           재생성
         </Button>
-        <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)} className="rounded-xl">
-          <Trash2 className="h-4 w-4 mr-1.5" />
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => setShowDelete(true)}
+          className="rounded-xl text-xs shrink-0"
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-1" />
           삭제
         </Button>
       </div>
 
       {/* Executive Summary */}
-      <div className="bg-gradient-to-br from-blue-50 to-slate-50 border border-blue-200 rounded-2xl p-5">
-        <div className="flex items-center gap-3 mb-3">
-          <h3 className="text-base font-extrabold text-blue-900">Executive Summary</h3>
+      <div className="bg-gradient-to-br from-blue-50 to-slate-50 border border-blue-200 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <h3 className="text-sm font-extrabold text-blue-900">종합 평가</h3>
           {analysis.student_type && (
-            <span className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-teal-100 text-teal-700">
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
               {analysis.student_type}
             </span>
           )}
         </div>
         {analysis.summary && (
-          <p className="text-sm leading-relaxed text-slate-700">{analysis.summary}</p>
+          <p className="text-[13px] leading-relaxed text-slate-700">{analysis.summary}</p>
         )}
       </div>
 
-      {/* 6-Factor 학습 성향 분석 */}
+      {/* 6-Factor 학습 성향 분석 - 카드 레이아웃 */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
-          <h3 className="text-base font-extrabold text-blue-900">6-Factor 학습 성향 분석</h3>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1 h-4 bg-blue-600 rounded-sm" />
+          <h3 className="text-sm font-extrabold text-blue-900">{analysis.score_emotion != null ? "7" : "6"}-Factor 학습 성향 분석</h3>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b-2 border-slate-200 bg-slate-50">
-                <th className="text-left px-4 py-3 font-bold text-slate-600 w-28">항목</th>
-                <th className="text-center px-2 py-3 font-bold text-slate-600 w-14">점수</th>
-                <th className="px-4 py-3 font-bold text-slate-600">그래프</th>
-                <th className="text-center px-2 py-3 font-bold text-slate-600 w-16">등급</th>
-                <th className="text-left px-4 py-3 font-bold text-slate-600">전문가 코멘트</th>
-              </tr>
-            </thead>
-            <tbody>
-              {factorKeys.map((key) => {
-                const score = (analysis[`score_${key}` as keyof Analysis] as number | null) ?? 0;
-                const comment = (analysis[`comment_${key}` as keyof Analysis] as string | null) || "";
-                const pct = (score / 5) * 100;
-                const rating = ratingClass(score);
-                return (
-                  <tr key={key} className="border-b border-slate-100 last:border-b-0">
-                    <td className="px-4 py-3 font-bold text-slate-800">{FACTOR_LABELS[key]}</td>
-                    <td className="text-center px-2 py-3 font-extrabold text-blue-800">{score.toFixed(1)}</td>
-                    <td className="px-4 py-3">
-                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full bg-gradient-to-r ${barColor(score)} rounded-full transition-all duration-500`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </td>
-                    <td className="text-center px-2 py-3">
-                      <span className={`inline-block text-xs font-bold px-2.5 py-0.5 rounded-full ${rating.bg}`}>
-                        {rating.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 leading-relaxed">{comment}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="space-y-2.5">
+          {factorKeys.map((key) => {
+            const score = (analysis[`score_${key}` as keyof Analysis] as number | null) ?? 0;
+            const comment = (analysis[`comment_${key}` as keyof Analysis] as string | null) || "";
+            const pct = (score / 5) * 100;
+            const rating = ratingClass(score);
+            return (
+              <div key={key} className="bg-white rounded-xl border border-slate-200 shadow-sm p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-[13px] text-slate-800">{FACTOR_LABELS[key]}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-sm text-blue-800">{score.toFixed(1)}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${rating.bg}`}>
+                      {rating.label}
+                    </span>
+                  </div>
+                </div>
+                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-2">
+                  <div
+                    className={`h-full bg-gradient-to-r ${rating.bar} rounded-full transition-all duration-500`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                {comment && (
+                  <p className="text-[11px] text-slate-500 leading-relaxed">{comment}</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Core Competency Matrix */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
-          <h3 className="text-base font-extrabold text-blue-900">Core Competency Matrix</h3>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1 h-4 bg-blue-600 rounded-sm" />
+          <h3 className="text-sm font-extrabold text-blue-900">핵심 역량 분석</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="space-y-3">
           {/* Strengths */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <h4 className="text-sm font-bold text-blue-700 mb-4 flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-emerald-500" />
-              Strengths (강점)
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <h4 className="text-[13px] font-bold text-emerald-700 mb-3 flex items-center gap-1.5">
+              <CheckCircle className="h-3.5 w-3.5" />
+              강점
             </h4>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {(analysis.strengths || []).map((item, idx) => (
-                <div key={idx} className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle className="h-3 w-3 text-white" />
+                <div key={idx} className="flex items-start gap-2.5">
+                  <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle className="h-2.5 w-2.5 text-white" />
                   </div>
-                  <div>
-                    <p className="font-bold text-sm text-blue-900">{item.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.description}</p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-[13px] text-slate-800">{item.title}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.description}</p>
                   </div>
                 </div>
               ))}
               {(!analysis.strengths || analysis.strengths.length === 0) && (
-                <p className="text-xs text-slate-400">데이터 없음</p>
+                <p className="text-[11px] text-slate-400">데이터 없음</p>
               )}
             </div>
           </div>
 
           {/* Weaknesses */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <h4 className="text-sm font-bold text-red-600 mb-4 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-              Weaknesses (개선영역)
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <h4 className="text-[13px] font-bold text-rose-600 mb-3 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              개선 영역
             </h4>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {(analysis.weaknesses || []).map((item, idx) => (
-                <div key={idx} className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shrink-0 mt-0.5">
-                    <AlertTriangle className="h-3 w-3 text-white" />
+                <div key={idx} className="flex items-start gap-2.5">
+                  <div className="w-4 h-4 rounded-full bg-rose-500 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertTriangle className="h-2.5 w-2.5 text-white" />
                   </div>
-                  <div>
-                    <p className="font-bold text-sm text-red-900">{item.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.description}</p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-[13px] text-slate-800">{item.title}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.description}</p>
                   </div>
                 </div>
               ))}
               {(!analysis.weaknesses || analysis.weaknesses.length === 0) && (
-                <p className="text-xs text-slate-400">데이터 없음</p>
+                <p className="text-[11px] text-slate-400">데이터 없음</p>
               )}
             </div>
           </div>
@@ -331,35 +248,35 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
       {/* Psychological Gap Analysis */}
       {analysis.paradox && analysis.paradox.length > 0 && (
         <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-5 bg-amber-500 rounded-sm" />
-            <h3 className="text-base font-extrabold text-blue-900">Psychological Gap Analysis</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 bg-amber-500 rounded-sm" />
+            <h3 className="text-sm font-extrabold text-blue-900">심리적 갭 분석</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2.5">
             {analysis.paradox.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                <p className="font-extrabold text-sm text-slate-800 mb-2">
+              <div key={idx} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                <p className="font-extrabold text-[13px] text-slate-800 mb-1.5">
                   GAP {idx + 1}: {String(item.title || "")}
                 </p>
-                <p className="text-xs text-slate-500 leading-relaxed mb-3">
+                <p className="text-[11px] text-slate-500 leading-relaxed mb-2.5">
                   {String(item.description || "")}
                 </p>
                 {"label1" in item && "label2" in item && (
-                  <div className="flex gap-3 text-xs">
-                    <span className="font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+                  <div className="flex flex-wrap gap-2 text-[10px]">
+                    <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
                       {String(item.label1)}: {String(item.value1)}
                     </span>
-                    <span className="font-semibold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
+                    <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">
                       {String(item.label2)}: {String(item.value2)}
                     </span>
                   </div>
                 )}
                 {"studentView" in item && "nkView" in item && (
-                  <div className="flex gap-3 text-xs">
-                    <span className="font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+                  <div className="flex flex-wrap gap-2 text-[10px]">
+                    <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
                       학생 인식: {String(item.studentView)}
                     </span>
-                    <span className="font-semibold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg">
+                    <span className="font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">
                       NK 평가: {String(item.nkView)}
                     </span>
                   </div>
@@ -373,24 +290,24 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
       {/* 12-Week Customized Solution */}
       {analysis.solutions && analysis.solutions.length > 0 && (
         <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
-            <h3 className="text-base font-extrabold text-blue-900">12-Week Customized Solution</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 bg-blue-600 rounded-sm" />
+            <h3 className="text-sm font-extrabold text-blue-900">12주 맞춤 솔루션</h3>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {analysis.solutions.map((sol, idx) => (
-              <div key={idx} className="flex bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className={`w-1.5 shrink-0 ${STEP_COLORS[idx % STEP_COLORS.length]}`} />
-                <div className="p-4 flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-xs font-extrabold text-white px-2.5 py-0.5 rounded ${STEP_COLORS[idx % STEP_COLORS.length]}`}>
+              <div key={idx} className="flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className={`w-1 shrink-0 ${STEP_COLORS[idx % STEP_COLORS.length]}`} />
+                <div className="p-3.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded ${STEP_COLORS[idx % STEP_COLORS.length]}`}>
                       STEP {sol.step}
                     </span>
-                    <span className="text-xs text-slate-400 font-semibold">{sol.weeks}</span>
+                    <span className="text-[10px] text-slate-400 font-semibold">{sol.weeks}</span>
                   </div>
-                  <p className="font-bold text-sm text-slate-800 mb-2">{sol.goal}</p>
+                  <p className="font-bold text-[13px] text-slate-800 mb-1.5">{sol.goal}</p>
                   {sol.actions && (
-                    <ul className="list-disc list-inside text-xs text-slate-500 space-y-0.5 leading-relaxed">
+                    <ul className="list-disc list-inside text-[11px] text-slate-500 space-y-0.5 leading-relaxed">
                       {sol.actions.map((action, aIdx) => (
                         <li key={aIdx}>{action}</li>
                       ))}
@@ -405,44 +322,12 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
 
       {/* Final Assessment */}
       {analysis.final_assessment && (
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle className="h-5 w-5 text-indigo-400" />
-            <h3 className="text-base font-extrabold text-indigo-200">Final Assessment</h3>
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 text-white shadow-xl">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="h-4 w-4 text-indigo-400" />
+            <h3 className="text-sm font-extrabold text-indigo-200">최종 평가</h3>
           </div>
-          <p className="text-sm leading-relaxed opacity-95">{analysis.final_assessment}</p>
-        </div>
-      )}
-
-      {/* 성향분석 보고서 미리보기 */}
-      {analysis.report_html && (
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-5 bg-blue-600 rounded-sm" />
-            <h3 className="text-base font-extrabold text-blue-900">성향분석 보고서</h3>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <iframe
-              ref={(el) => {
-                if (el) {
-                  const resize = () => {
-                    try {
-                      const h = el.contentDocument?.documentElement?.scrollHeight;
-                      if (h && h > 100) el.style.height = h + 40 + "px";
-                    } catch { /* cross-origin fallback */ }
-                  };
-                  el.addEventListener("load", resize);
-                  setTimeout(resize, 500);
-                  setTimeout(resize, 1500);
-                }
-              }}
-              srcDoc={analysis.report_html}
-              className="w-full border-0"
-              style={{ minHeight: "2400px" }}
-              title="성향분석 보고서"
-              sandbox="allow-same-origin"
-            />
-          </div>
+          <p className="text-[13px] leading-relaxed opacity-95">{analysis.final_assessment}</p>
         </div>
       )}
 

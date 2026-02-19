@@ -16,6 +16,7 @@ interface GeminiAnalysisResult {
     willingness: number;
     social: number;
     management: number;
+    emotion: number;
   };
   scoreComments: {
     attitude: string;
@@ -24,6 +25,7 @@ interface GeminiAnalysisResult {
     willingness: string;
     social: string;
     management: string;
+    emotion: string;
   };
   summary: string;
   strengths: { title: string; description: string }[];
@@ -136,12 +138,14 @@ export async function analyzeSurvey(surveyId: string) {
     score_willingness: analysisResult.scores.willingness,
     score_social: analysisResult.scores.social,
     score_management: analysisResult.scores.management,
+    score_emotion: analysisResult.scores.emotion,
     comment_attitude: analysisResult.scoreComments.attitude,
     comment_self_directed: analysisResult.scoreComments.selfDirected,
     comment_assignment: analysisResult.scoreComments.assignment,
     comment_willingness: analysisResult.scoreComments.willingness,
     comment_social: analysisResult.scoreComments.social,
     comment_management: analysisResult.scoreComments.management,
+    comment_emotion: analysisResult.scoreComments.emotion,
     student_type: analysisResult.studentType,
     summary: analysisResult.summary,
     strengths: analysisResult.strengths,

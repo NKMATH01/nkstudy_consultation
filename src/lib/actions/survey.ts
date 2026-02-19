@@ -79,7 +79,7 @@ export async function createSurvey(formData: FormData) {
     raw.prev_academy = formData.get("prev_academy") || undefined;
     raw.prev_complaint = formData.get("prev_complaint") || undefined;
 
-    for (let i = 1; i <= 30; i++) {
+    for (let i = 1; i <= 35; i++) {
       const val = formData.get(`q${i}`);
       raw[`q${i}`] = val ? Number(val) : undefined;
     }
@@ -95,9 +95,9 @@ export async function createSurvey(formData: FormData) {
       return { success: false, error: parsed.error.issues[0].message };
     }
 
-    // 6-Factor 계산
+    // 7-Factor 계산
     const qValues: Record<string, number | undefined | null> = {};
-    for (let i = 1; i <= 30; i++) {
+    for (let i = 1; i <= 35; i++) {
       qValues[`q${i}`] = parsed.data[`q${i}` as keyof typeof parsed.data] as number | undefined | null;
     }
     const factors = calculateFactors(qValues);
@@ -116,10 +116,12 @@ export async function createSurvey(formData: FormData) {
       dream: parsed.data.dream || null,
       prefer_days: parsed.data.prefer_days || null,
       requests: parsed.data.requests || null,
+      math_difficulty: parsed.data.math_difficulty || null,
+      english_difficulty: parsed.data.english_difficulty || null,
       ...factors,
     };
 
-    for (let i = 1; i <= 30; i++) {
+    for (let i = 1; i <= 35; i++) {
       const key = `q${i}` as keyof typeof parsed.data;
       insertData[`q${i}`] = parsed.data[key] ?? null;
     }

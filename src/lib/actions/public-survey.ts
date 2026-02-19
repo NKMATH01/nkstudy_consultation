@@ -31,11 +31,14 @@ const publicSurveySchema = z.object({
   q16: scoreField, q17: scoreField, q18: scoreField, q19: scoreField, q20: scoreField,
   q21: scoreField, q22: scoreField, q23: scoreField, q24: scoreField, q25: scoreField,
   q26: scoreField, q27: scoreField, q28: scoreField, q29: scoreField, q30: scoreField,
+  q31: scoreField, q32: scoreField, q33: scoreField, q34: scoreField, q35: scoreField,
   study_core: z.string().optional(),
   problem_self: z.string().optional(),
   dream: z.string().optional(),
   prefer_days: z.string().optional(),
   requests: z.string().optional(),
+  math_difficulty: z.string().optional(),
+  english_difficulty: z.string().optional(),
 });
 
 export async function submitPublicSurvey(data: Record<string, unknown>) {
@@ -52,7 +55,7 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
   }
 
   const qValues: Record<string, number | undefined | null> = {};
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 1; i <= 35; i++) {
     qValues[`q${i}`] = parsed.data[`q${i}` as keyof typeof parsed.data] as number | undefined | null;
   }
   const factors = calculateFactors(qValues);
@@ -73,10 +76,12 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
     dream: parsed.data.dream || null,
     prefer_days: parsed.data.prefer_days || null,
     requests: parsed.data.requests || null,
+    math_difficulty: parsed.data.math_difficulty || null,
+    english_difficulty: parsed.data.english_difficulty || null,
     ...factors,
   };
 
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 1; i <= 35; i++) {
     const key = `q${i}` as keyof typeof parsed.data;
     insertData[`q${i}`] = parsed.data[key] ?? null;
   }

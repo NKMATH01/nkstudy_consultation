@@ -13,13 +13,11 @@ import {
   Search,
   PenLine,
   Trash2,
-  Download,
   MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRegistration } from "@/lib/actions/registration";
 import { createReportToken } from "@/lib/actions/report-token";
-import { downloadHtmlAsPdf } from "@/lib/pdf";
 import { shareViaKakao } from "@/lib/kakao";
 
 const NK_PRIMARY = "#0F2B5B";
@@ -477,21 +475,6 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   <button
                     onClick={async () => {
                       if (!html) return;
-                      try {
-                        await downloadHtmlAsPdf(html, `${reg?.name || "안내문"}_등록안내문.pdf`);
-                      } catch {
-                        toast.error("PDF 생성에 실패했습니다");
-                      }
-                    }}
-                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    title="PDF 다운로드"
-                  >
-                    <Download className="h-3 w-3" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (!html) return;
                       toast.info("공유 링크 생성 중...");
                       const result = await createReportToken({
                         reportType: "registration",
@@ -554,21 +537,6 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   <h2 className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>{analysis.name} 성향분석 결과</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={async () => {
-                      if (!analysis?.report_html) return;
-                      try {
-                        await downloadHtmlAsPdf(analysis.report_html, `${analysis.name}_성향분석.pdf`);
-                      } catch {
-                        toast.error("PDF 생성에 실패했습니다");
-                      }
-                    }}
-                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    title="PDF 다운로드"
-                  >
-                    <Download className="h-3 w-3" />
-                    PDF
-                  </button>
                   <button
                     onClick={async () => {
                       if (!analysis?.report_html) return;

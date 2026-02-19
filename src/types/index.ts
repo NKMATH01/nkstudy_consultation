@@ -147,30 +147,35 @@ export interface Survey {
   q16: number | null; q17: number | null; q18: number | null; q19: number | null; q20: number | null;
   q21: number | null; q22: number | null; q23: number | null; q24: number | null; q25: number | null;
   q26: number | null; q27: number | null; q28: number | null; q29: number | null; q30: number | null;
+  q31: number | null; q32: number | null; q33: number | null; q34: number | null; q35: number | null;
   study_core: string | null;
   problem_self: string | null;
   dream: string | null;
   prefer_days: string | null;
   requests: string | null;
+  math_difficulty: string | null;
+  english_difficulty: string | null;
   factor_attitude: number | null;
   factor_self_directed: number | null;
   factor_assignment: number | null;
   factor_willingness: number | null;
   factor_social: number | null;
   factor_management: number | null;
+  factor_emotion: number | null;
   analysis_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// 6-Factor 매핑 (GAS 원본과 동일)
+// 7-Factor 매핑
 export const FACTOR_MAPPING: Record<string, number[]> = {
   attitude: [6, 7, 8, 9, 10],
-  self_directed: [11, 14, 15, 18, 19],
-  assignment: [12, 13, 16, 17],
+  self_directed: [11, 14, 15, 18, 19, 29],
+  assignment: [12, 13, 16, 17, 34, 35],
   willingness: [21, 22, 23, 24, 25],
   social: [1, 2, 4, 5],
   management: [3, 20, 28, 30],
+  emotion: [26, 27, 31, 32, 33],
 };
 
 export const FACTOR_LABELS: Record<string, string> = {
@@ -180,6 +185,7 @@ export const FACTOR_LABELS: Record<string, string> = {
   willingness: "학업의지",
   social: "사회성",
   management: "관리선호",
+  emotion: "심리·자신감",
 };
 
 export const SURVEY_QUESTIONS: string[] = [
@@ -208,11 +214,16 @@ export const SURVEY_QUESTIONS: string[] = [
   "나는 어려워도 쉽게 포기하지 않는다",
   "나는 꼭 공부를 잘하고 싶다",
   "나는 진짜 공부를 열심히 해 볼 생각이다",
-  "나는 이해를 잘 시켜주는 선생님이 좋다",
-  "나는 친절한 선생님이 좋다",
+  "나는 시험을 볼 때 긴장하지 않고 실력을 잘 발휘한다",
+  "나는 선생님이 엄하게 지도해도 의욕이 떨어지지 않는다",
   "나는 상담을 많이 해주는 선생님이 좋다",
-  "나는 재미있는 선생님이 좋다",
+  "나는 공부할 때 핸드폰을 멀리 두는 편이다",
   "나는 강제적으로 공부하게 만드는 선생님이 좋다",
+  "나는 수학을 잘할 수 있다고 생각한다",
+  "나는 영어를 잘할 수 있다고 생각한다",
+  "나는 아는 문제를 시험에서 실수 없이 잘 푸는 편이다",
+  "나는 영어 단어를 꾸준히 외우는 편이다",
+  "나는 수학 공식이나 풀이 과정을 정리하는 편이다",
 ];
 
 export interface Analysis {
@@ -227,12 +238,14 @@ export interface Analysis {
   score_willingness: number | null;
   score_social: number | null;
   score_management: number | null;
+  score_emotion: number | null;
   comment_attitude: string | null;
   comment_self_directed: string | null;
   comment_assignment: string | null;
   comment_willingness: string | null;
   comment_social: string | null;
   comment_management: string | null;
+  comment_emotion: string | null;
   student_type: string | null;
   summary: string | null;
   strengths: { title: string; description: string }[];
@@ -305,6 +318,7 @@ export const SCORE_FACTOR_KEYS = [
   "willingness",
   "social",
   "management",
+  "emotion",
 ] as const;
 
 // ==================== API Types ====================

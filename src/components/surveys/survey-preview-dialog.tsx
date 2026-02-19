@@ -22,9 +22,10 @@ const FACTOR_COLORS: Record<string, { bar: string; text: string }> = {
   willingness: { bar: "bg-amber-500", text: "text-amber-600" },
   social: { bar: "bg-pink-500", text: "text-pink-600" },
   management: { bar: "bg-red-500", text: "text-red-600" },
+  emotion: { bar: "bg-cyan-500", text: "text-cyan-600" },
 };
 
-const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+const BASE_FACTOR_KEYS = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
 
 interface Props {
   survey: Survey | null;
@@ -142,11 +143,11 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
           </div>
         )}
 
-        {/* 6-Factor 점수 */}
+        {/* 7-Factor 점수 */}
         <div className="mt-3 p-3 rounded-xl bg-slate-50">
-          <h4 className="text-xs font-bold text-slate-700 mb-2.5">6-Factor 학습 성향</h4>
+          <h4 className="text-xs font-bold text-slate-700 mb-2.5">7-Factor 학습 성향</h4>
           <div className="space-y-2">
-            {factorKeys.map((key) => {
+            {(survey.factor_emotion != null ? [...BASE_FACTOR_KEYS, "emotion" as const] : BASE_FACTOR_KEYS).map((key) => {
               const v = (survey[`factor_${key}` as keyof Survey] as number | null) ?? 0;
               const pct = (v / 5) * 100;
               const colors = FACTOR_COLORS[key];
@@ -167,7 +168,7 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
 
         {/* 30문항 응답 */}
         <div className="mt-3">
-          <h4 className="text-xs font-bold text-slate-700 mb-2">설문 응답 (30문항)</h4>
+          <h4 className="text-xs font-bold text-slate-700 mb-2">설문 응답 ({SURVEY_QUESTIONS.length}문항)</h4>
           <div className="space-y-0.5 max-h-[300px] overflow-y-auto pr-1">
             {SURVEY_QUESTIONS.map((q, idx) => {
               const qNum = idx + 1;
@@ -211,6 +212,8 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
               { label: "희망 직업", value: survey.dream },
               { label: "선호 요일", value: survey.prefer_days },
               { label: "NK학원에 바라는 점", value: survey.requests },
+              { label: "수학 어려운 영역", value: survey.math_difficulty },
+              { label: "영어 어려운 영역", value: survey.english_difficulty },
             ].map(({ label, value }) => (
               <div key={label} className="p-2.5 rounded-lg bg-slate-50">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase">{label}</span>

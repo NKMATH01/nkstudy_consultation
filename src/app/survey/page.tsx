@@ -57,6 +57,8 @@ export default function PublicSurveyPage() {
     dream: "",
     prefer_days: "",
     requests: "",
+    math_difficulty: "",
+    english_difficulty: "",
   });
 
   const progressPercent = Math.round((step / (TOTAL_STEPS - 1)) * 100);
@@ -475,7 +477,7 @@ function StepOpenEnded({
   openEnded,
   onChange,
 }: {
-  openEnded: { study_core: string; problem_self: string; dream: string; prefer_days: string; requests: string };
+  openEnded: { study_core: string; problem_self: string; dream: string; prefer_days: string; requests: string; math_difficulty: string; english_difficulty: string };
   onChange: (v: typeof openEnded) => void;
 }) {
   const update = (key: string, value: string) => onChange({ ...openEnded, [key]: value });
@@ -512,6 +514,26 @@ function StepOpenEnded({
               value={openEnded.problem_self}
               onChange={(e) => update("problem_self", e.target.value)}
               placeholder="예: 집중력이 오래 유지되지 않습니다"
+              rows={2}
+              className={`${fieldClass} resize-none`}
+            />
+          </div>
+          <div>
+            <FieldLabel>수학에서 가장 어려운 단원이나 영역은?</FieldLabel>
+            <textarea
+              value={openEnded.math_difficulty}
+              onChange={(e) => update("math_difficulty", e.target.value)}
+              placeholder="예: 함수, 도형의 성질, 확률과 통계 등"
+              rows={2}
+              className={`${fieldClass} resize-none`}
+            />
+          </div>
+          <div>
+            <FieldLabel>영어에서 가장 어려운 영역은?</FieldLabel>
+            <textarea
+              value={openEnded.english_difficulty}
+              onChange={(e) => update("english_difficulty", e.target.value)}
+              placeholder="예: 문법, 독해, 듣기, 단어 암기 등"
               rows={2}
               className={`${fieldClass} resize-none`}
             />

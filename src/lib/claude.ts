@@ -77,8 +77,8 @@ export function surveyToText(survey: Survey): string {
     text += `${qNum}. ${SURVEY_QUESTIONS[i]}: ${score ?? "미응답"}\n`;
   }
 
-  text += "\n=== 6-Factor 평균 점수 ===\n";
-  const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+  text += "\n=== 7-Factor 평균 점수 ===\n";
+  const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management", "emotion"] as const;
   for (const key of factorKeys) {
     const val = survey[`factor_${key}` as keyof Survey] as number | null;
     text += `${FACTOR_LABELS[key]}: ${val?.toFixed(1) ?? "N/A"}\n`;
@@ -90,6 +90,8 @@ export function surveyToText(survey: Survey): string {
   text += `희망 직업: ${survey.dream || ""}\n`;
   text += `선호 요일: ${survey.prefer_days || ""}\n`;
   text += `NK학원에 바라는 점: ${survey.requests || ""}\n`;
+  text += `수학 어려운 영역: ${survey.math_difficulty || ""}\n`;
+  text += `영어 어려운 영역: ${survey.english_difficulty || ""}\n`;
 
   return text;
 }
@@ -167,6 +169,7 @@ ${surveyText}
 학업의지: ${analysis.score_willingness}점
 사회성: ${analysis.score_social}점
 관리선호: ${analysis.score_management}점
+심리·자신감: ${analysis.score_emotion ?? "N/A"}점
 종합요약: ${analysis.summary}
 
 [행정 정보]
@@ -362,7 +365,7 @@ export function buildReportHTML(data: ReportTemplateData): string {
     ? `수학: ${data.assignedClass} (${data.teacher}) / 영어: ${data.assignedClass2 || ""} (${data.teacher2 || ""})`
     : `${data.assignedClass} (${data.teacher} 선생님)`;
 
-  // 6-Factor 테이블
+  // 7-Factor 테이블
   const sixFactorHTML = page1.sixFactorScores ? page1.sixFactorScores.map((item) => {
     const gradeColors: Record<string, string> = { "우수": "#059669", "양호": "#0284c7", "보통": "#d97706", "주의": "#dc2626" };
     const gc = gradeColors[item.grade] || "#64748b";
@@ -660,9 +663,9 @@ body{font-family:'Pretendard',sans-serif;background:var(--app-bg);padding:40px 0
     </tr>` : ""}
   </table>
 
-  <!-- 2. 6-Factor -->
+  <!-- 2. 7-Factor -->
   <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px">
-    <span style="color:#4f46e5">&#9632;</span> 2. 6-Factor 학습 성향 분석
+    <span style="color:#4f46e5">&#9632;</span> 2. 7-Factor 학습 성향 분석
   </div>
   <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
     <thead><tr style="background:#f8fafc">
@@ -736,7 +739,7 @@ body{font-family:'Pretendard',sans-serif;background:var(--app-bg);padding:40px 0
 </html>`;
 }
 
-// ========== 분석 보고서 HTML 생성 (NK 심층 학습 성향 분석서) ==========
+// ========== 분석 보고서 HTML 생성 (NK 성향 검사 결과지 - Premium Design) ==========
 export function buildAnalysisReportHTML(analysis: Analysis): string {
   const name = analysis.name;
   const school = analysis.school || "";
@@ -744,22 +747,26 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
   const schoolInfo = `${school} ${grade}`.trim();
   const createdDate = new Date(analysis.created_at).toISOString().split("T")[0].replace(/-/g, ".");
 
-  const scores = {
+  const hasEmotion = analysis.score_emotion != null;
+
+  const scores: Record<string, number> = {
     attitude: analysis.score_attitude ?? 0,
     self_directed: analysis.score_self_directed ?? 0,
     assignment: analysis.score_assignment ?? 0,
     willingness: analysis.score_willingness ?? 0,
     social: analysis.score_social ?? 0,
     management: analysis.score_management ?? 0,
+    ...(hasEmotion ? { emotion: analysis.score_emotion! } : {}),
   };
 
-  const comments = {
+  const comments: Record<string, string> = {
     attitude: analysis.comment_attitude || "",
     self_directed: analysis.comment_self_directed || "",
     assignment: analysis.comment_assignment || "",
     willingness: analysis.comment_willingness || "",
     social: analysis.comment_social || "",
     management: analysis.comment_management || "",
+    ...(hasEmotion ? { emotion: analysis.comment_emotion || "" } : {}),
   };
 
   const factorLabels: Record<string, string> = {
@@ -768,68 +775,93 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     assignment: "과제수행력",
     willingness: "학업의지",
     social: "사회성",
-    management: "관리선호",
+    management: "관리선호도",
+    emotion: "심리·자신감",
   };
 
-  const factorKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
+  const factorKeys = hasEmotion
+    ? ["attitude", "self_directed", "assignment", "willingness", "social", "management", "emotion"] as const
+    : ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
 
-  function tagClass(score: number): string {
-    if (score >= 4) return "tag-emerald";
-    if (score >= 3) return "tag-teal";
-    return "tag-rose";
-  }
-
-  function tagLabel(score: number): string {
+  function ratingLabel(score: number): string {
     if (score >= 4) return "우수";
     if (score >= 3) return "양호";
     if (score >= 2) return "보통";
     return "주의";
   }
 
-  // Score table rows (3 columns: 항목, 점수, 전문가 코멘트)
-  const scoreTableRows = factorKeys.map((key) => {
+  // Nav items (dynamic based on data)
+  const navItems: { id: string; label: string }[] = [
+    { id: "summary", label: "성향 요약" },
+    { id: "factors", label: hasEmotion ? "7대 성향" : "6대 성향" },
+    { id: "strengths", label: "주요 강점" },
+    { id: "weaknesses", label: "개선 영역" },
+  ];
+  if (analysis.paradox && analysis.paradox.length > 0) {
+    navItems.push({ id: "gap", label: "간극 분석" });
+  }
+  if (analysis.solutions && analysis.solutions.length > 0) {
+    navItems.push({ id: "solution", label: "맞춤 솔루션" });
+  }
+  if (analysis.final_assessment) {
+    navItems.push({ id: "final", label: "맞춤 지도" });
+  }
+
+  const navHTML = navItems.map((n, i) =>
+    `<li><a href="#${n.id}"${i === 0 ? ' class="active"' : ''}>${n.label}</a></li>`
+  ).join("");
+
+  // Factor items
+  const factorItemsHTML = factorKeys.map((key) => {
     const s = scores[key];
     const c = comments[key];
-    const isHigh = s >= 4;
-    return `<tr>
-      <td>${isHigh ? `<span style="color:#2563eb;font-weight:700">${factorLabels[key]}</span>` : factorLabels[key]}</td>
-      <td style="text-align:center;font-weight:700">${s.toFixed(1)}</td>
-      <td>${c}</td>
-    </tr>`;
+    const pct = Math.min((s / 5) * 100, 100);
+    return `<div class="factor-item">
+          <div class="factor-header">
+            <span class="title">${factorLabels[key]}</span>
+            <div class="score-wrap">
+              <span class="score">${s.toFixed(1)}</span>
+              <span class="badge">${ratingLabel(s)}</span>
+            </div>
+          </div>
+          <div class="progress-bg"><div class="progress-fill" style="width:${pct}%"></div></div>
+          ${c ? `<div class="factor-desc">${c}</div>` : ""}
+        </div>`;
   }).join("");
 
-  // Strengths bullet list (max 3 items to fit page 1)
-  const strengthsList = (analysis.strengths || []).slice(0, 3).map((item) =>
-    `<li style="display:flex;align-items:flex-start;margin-bottom:5px">
-      <svg class="bullet-icon" style="color:#2563eb" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-      <span style="font-size:8.5pt;color:#374151;line-height:1.45"><strong style="color:#2563eb">${item.title}:</strong> ${item.description}</span>
-    </li>`
-  ).join("");
+  // Strengths
+  const strengthsHTML = (analysis.strengths || []).map((item, idx) =>
+    `<div class="list-item">
+            <div class="list-num">${idx + 1}</div>
+            <div class="list-text">
+              <h3>${item.title}</h3>
+              <p>${item.description}</p>
+            </div>
+          </div>`
+  ).join("") || '<p style="font-size:13px;color:var(--text-sub)">데이터 없음</p>';
 
-  // Weaknesses bullet list (max 3 items to fit page 1)
-  const weaknessesList = (analysis.weaknesses || []).slice(0, 3).map((item) =>
-    `<li style="display:flex;align-items:flex-start;margin-bottom:5px">
-      <svg class="bullet-icon" style="color:#dc2626" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-      <span style="font-size:8.5pt;color:#374151;line-height:1.45"><strong style="color:#dc2626">${item.title}:</strong> ${item.description}</span>
-    </li>`
-  ).join("");
+  // Weaknesses
+  const weaknessesHTML = (analysis.weaknesses || []).map((item, idx) =>
+    `<div class="list-item">
+            <div class="list-num">${idx + 1}</div>
+            <div class="list-text">
+              <h3>${item.title}</h3>
+              <p>${item.description}</p>
+            </div>
+          </div>`
+  ).join("") || '<p style="font-size:13px;color:var(--text-sub)">데이터 없음</p>';
 
-  // Paradox cards with CSS bar charts
+  // Paradox / Gap
   function parseParadoxValue(raw: unknown): { num: number; str: string } {
     if (raw == null) return { num: 0, str: "-" };
     const s = String(raw).trim();
-    // Try direct number parse
     const n = Number(s);
     if (!isNaN(n) && s !== "") return { num: n, str: s };
-    // Extract number from string like "4.2점", "3점"
     const numMatch = s.match(/(\d+\.?\d*)/);
     if (numMatch) return { num: Number(numMatch[1]), str: s };
-    // Map Korean text labels to numeric scale
     const textMap: Record<string, number> = {
-      "매우 높음": 5, "매우높음": 5,
-      "높음": 4, "높은": 4, "강함": 4, "많음": 4, "적극적": 4,
-      "보통": 3, "중간": 3, "평균": 3,
-      "낮음": 2, "낮은": 2, "약함": 2, "적음": 2, "소극적": 2,
+      "매우 높음": 5, "매우높음": 5, "높음": 4, "높은": 4, "강함": 4, "많음": 4, "적극적": 4,
+      "보통": 3, "중간": 3, "평균": 3, "낮음": 2, "낮은": 2, "약함": 2, "적음": 2, "소극적": 2,
       "매우 낮음": 1, "매우낮음": 1, "부족": 1,
     };
     for (const [key, val] of Object.entries(textMap)) {
@@ -838,7 +870,7 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     return { num: 0, str: s };
   }
 
-  const paradoxCards = (analysis.paradox || []).map((item, idx) => {
+  const gapHTML = (analysis.paradox || []).map((item, idx) => {
     const title = String(item.title || "");
     const desc = String(item.description || "");
     let lbl1 = "", lbl2 = "";
@@ -854,359 +886,208 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
       p2 = parseParadoxValue(item.nkView);
     }
 
-    const hasNumeric = p1.num > 0 || p2.num > 0;
-    const barLabel1 = p1.num > 0 ? p1.num.toFixed(1) : p1.str;
-    const barLabel2 = p2.num > 0 ? p2.num.toFixed(1) : p2.str;
+    const barsHTML = (p1.num > 0 || p2.num > 0)
+      ? `<div class="gap-bars">
+            <div class="gap-row">
+              <span class="gap-label">${lbl1}</span>
+              <div class="gap-bar-bg"><div class="gap-bar-fill" style="width:${Math.min((p1.num / 5) * 100, 100)}%;background:var(--primary-dark)"></div></div>
+              <span class="gap-score">${p1.num > 0 ? p1.num.toFixed(1) : p1.str}</span>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">${lbl2}</span>
+              <div class="gap-bar-bg"><div class="gap-bar-fill" style="width:${Math.min((p2.num / 5) * 100, 100)}%;background:var(--accent-burgundy)"></div></div>
+              <span class="gap-score">${p2.num > 0 ? p2.num.toFixed(1) : p2.str}</span>
+            </div>
+          </div>`
+      : `<div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--primary-dark);background:#F1F3F5;padding:4px 12px;border-radius:4px">${lbl1}: ${p1.str}</span>
+            <span style="font-size:12px;font-weight:600;color:var(--accent-burgundy);background:var(--accent-burgundy-light);padding:4px 12px;border-radius:4px">${lbl2}: ${p2.str}</span>
+          </div>`;
 
-    const barsHTML = hasNumeric
-      ? `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:8pt;font-weight:700;color:#64748b;width:55px;flex-shrink:0">${lbl1}</span>
-          <div style="flex:1;background:#f3f4f6;height:16px;border-radius:4px;overflow:hidden">
-            <div style="width:${Math.min((p1.num / 5) * 100, 100)}%;height:100%;background:#2563eb;border-radius:4px;font-size:7pt;color:white;text-align:center;line-height:16px;min-width:${p1.num > 0 ? "30px" : "0"}">${barLabel1}</div>
+    return `<div class="gap-card">
+          <div class="gap-header">
+            <span class="badge">분석 ${idx + 1}</span>
+            <h3>${title}</h3>
           </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:8pt;font-weight:700;color:#ef4444;width:55px;flex-shrink:0">${lbl2}</span>
-          <div style="flex:1;background:#f3f4f6;height:16px;border-radius:4px;overflow:hidden">
-            <div style="width:${Math.min((p2.num / 5) * 100, 100)}%;height:100%;background:#ef4444;border-radius:4px;font-size:7pt;color:white;text-align:center;line-height:16px;min-width:${p2.num > 0 ? "30px" : "0"}">${barLabel2}</div>
-          </div>
-        </div>
-      </div>`
-      : `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="display:inline-block;font-size:8pt;font-weight:700;color:#1e40af;background:#dbeafe;padding:4px 10px;border-radius:6px">${lbl1}: ${p1.str}</span>
-        <span style="display:inline-block;font-size:8pt;font-weight:700;color:#991b1b;background:#fee2e2;padding:4px 10px;border-radius:6px">${lbl2}: ${p2.str}</span>
-      </div>`;
-    return `<div class="card-box" style="flex:1">
-      <h4 style="font-size:9pt;font-weight:700;color:#4b5563;margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid #e5e7eb">Paradox ${idx + 1}: ${title}</h4>
-      ${barsHTML}
-      <p style="font-size:8pt;color:#6b7280;line-height:1.5;margin:0;text-align:justify">${desc}</p>
-    </div>`;
+          ${barsHTML}
+          <p class="gap-desc">${desc}</p>
+        </div>`;
   }).join("");
 
-  // Solutions STEP cards
-  const stepTextColors = ["#1e40af", "#4c1d95", "#92400e", "#065f46"];
-  const stepBgColors = ["#dbeafe", "#e0e7ff", "#ffedd5", "#d1fae5"];
-  const stepBorderColors = ["#93c5fd", "#a5b4fc", "#fdba74", "#6ee7b7"];
-  const stepBulletColors = ["#3b82f6", "#6366f1", "#f97316", "#10b981"];
-  const solutionCards = (analysis.solutions || []).map((sol, idx) => {
-    const textColor = stepTextColors[idx % stepTextColors.length];
-    const bgColor = stepBgColors[idx % stepBgColors.length];
-    const borderColor = stepBorderColors[idx % stepBorderColors.length];
-    const bulletColor = stepBulletColors[idx % stepBulletColors.length];
+  // Solutions
+  const solutionHTML = (analysis.solutions || []).map((sol) => {
     const actionsHTML = (sol.actions || []).map((a) =>
-      `<li style="display:flex;align-items:flex-start;margin-bottom:4px">
-        <svg class="bullet-icon" style="color:${bulletColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-        <span>${a}</span>
-      </li>`
+      `<li>${a}</li>`
     ).join("");
-    return `<div style="display:flex;margin-bottom:12px">
-      <div style="width:80px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${bgColor};border-radius:8px 0 0 8px;border-right:1px solid ${borderColor};padding:12px 0">
-        <span style="font-size:13pt;font-weight:900;color:${textColor}">STEP ${sol.step}</span>
-        <span style="font-size:8pt;font-weight:700;color:${textColor};opacity:0.7">${sol.weeks}</span>
-      </div>
-      <div style="flex:1;border:1px solid #e5e7eb;border-left:0;border-radius:0 8px 8px 0;padding:14px 16px;background:white">
-        <h4 style="font-weight:700;font-size:10pt;color:#1e293b;margin:0 0 6px">${sol.goal}</h4>
-        <ul style="margin:0;padding:0;list-style:none;font-size:8.5pt;color:#374151;line-height:1.6">${actionsHTML}</ul>
-      </div>
-    </div>`;
+    return `<div class="step-card">
+          <div class="step-header">
+            <span class="step-title">${sol.step}단계 과정</span>
+            <span class="step-period">${sol.weeks}</span>
+          </div>
+          <div class="step-body">
+            <h4>${sol.goal}</h4>
+            <ul class="step-list">${actionsHTML}</ul>
+          </div>
+        </div>`;
   }).join("");
 
-  // PAGE 1 Content
-  const page1 = `
-    <!-- Header -->
-    <header class="header-bar">
-      <div>
-        <h1 style="font-size:22pt;font-weight:900;color:#1f2937;letter-spacing:-0.02em;margin:0">NK 심층 학습 성향 분석서</h1>
-        <p style="font-size:9pt;color:#2563eb;font-weight:700;margin:4px 0 0">PREMIUM CONSULTING REPORT</p>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:18pt;font-weight:700;color:#374151">${name} 학생</div>
-        <p style="font-size:9pt;color:#6b7280;margin:2px 0 0">${schoolInfo}</p>
-        <p style="font-size:8pt;color:#9ca3af;margin:2px 0 0">작성일자: ${createdDate}</p>
-      </div>
-    </header>
+  // Average score
+  const avgScore = factorKeys.reduce((sum, k) => sum + scores[k], 0) / factorKeys.length;
 
-    <!-- 1. Executive Summary -->
-    <section style="margin-bottom:14px">
-      <div class="card-box" style="background:#f8fafc;border-color:#e2e8f0">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <h2 style="font-size:12pt;font-weight:800;color:#334155;display:flex;align-items:center;margin:0">
-            <svg class="svg-icon" style="color:#1e40af" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-            Executive Summary (총평 보고)
-          </h2>
-          <span class="tag tag-indigo">유형: ${analysis.student_type || "-"}</span>
-        </div>
-        <p style="font-size:9pt;color:#374151;line-height:1.7;margin:0;text-align:justify">${analysis.summary || ""}</p>
-      </div>
-    </section>
-
-    <!-- 2. Charts Section (2-column) -->
-    <section style="display:flex;gap:14px;margin-bottom:10px;height:260px">
-      <div class="card-box" style="flex:1;display:flex;flex-direction:column">
-        <div class="section-title">
-          <svg style="color:#1d4ed8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
-          6-Factor 성향 분석 (Bar Analysis)
-        </div>
-        <div style="position:relative;flex:1;width:100%">
-          <canvas id="factorChart"></canvas>
-        </div>
-      </div>
-      <div class="card-box" style="flex:1;display:flex;flex-direction:column">
-        <div class="section-title">
-          <svg style="color:#1d4ed8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-          지표별 세부 분석
-        </div>
-        <div style="flex:1;display:flex;align-items:center">
-          <table class="grid-table" style="width:100%">
-            <thead>
-              <tr>
-                <th style="width:22%">항목</th>
-                <th style="width:15%;text-align:center">점수</th>
-                <th>전문가 코멘트</th>
-              </tr>
-            </thead>
-            <tbody>${scoreTableRows}</tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. Core Competency Matrix -->
-    <section style="display:flex;flex-direction:column;margin-top:0;flex:1;min-height:0;overflow:hidden">
-      <div class="section-title" style="margin-bottom:8px">
-        <svg style="color:#1d4ed8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
-        Core Competency Matrix (핵심 역량 분석)
-      </div>
-      <div style="display:flex;gap:14px;flex:1;min-height:0;overflow:hidden">
-        <div class="card-box" style="flex:1;background:#eff6ff;border-color:#bfdbfe;display:flex;flex-direction:column;overflow:hidden">
-          <h3 style="color:#1e40af;font-weight:700;font-size:10pt;margin:0 0 6px;display:flex;align-items:center;border-bottom:1px solid #bfdbfe;padding-bottom:6px">
-            <svg class="svg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path></svg>
-            Strength (강점)
-          </h3>
-          <ul style="list-style:none;padding:0;margin:0">
-            ${strengthsList || '<li style="font-size:8.5pt;color:#9ca3af">데이터 없음</li>'}
-          </ul>
-        </div>
-        <div class="card-box" style="flex:1;background:#fef2f2;border-color:#fecaca;display:flex;flex-direction:column;overflow:hidden">
-          <h3 style="color:#991b1b;font-weight:700;font-size:10pt;margin:0 0 6px;display:flex;align-items:center;border-bottom:1px solid #fecaca;padding-bottom:6px">
-            <svg class="svg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            Weakness (개선영역)
-          </h3>
-          <ul style="list-style:none;padding:0;margin:0">
-            ${weaknessesList || '<li style="font-size:8.5pt;color:#9ca3af">데이터 없음</li>'}
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <footer class="footer">
-      <span>NK Academy Consulting Group</span>
-      <span>Page 1 of 2</span>
-    </footer>`;
-
-  // PAGE 2 Content
-  const page2 = `
-    <!-- Header -->
-    <header class="header-bar">
-      <div>
-        <h1 style="font-size:17pt;font-weight:700;color:#1f2937;margin:0">Action Plan &amp; Roadmap</h1>
-        <p style="font-size:8pt;color:#6b7280;margin:2px 0 0">${schoolInfo} ${name} 학생/학습 맞춤 솔루션</p>
-      </div>
-      <div style="text-align:right">
-        <span class="tag tag-blue" style="font-size:9pt">${analysis.student_type || ""}</span>
-      </div>
-    </header>
-
-    <!-- 4. Psychological Gap Analysis -->
-    ${(analysis.paradox && analysis.paradox.length > 0) ? `
-    <section style="margin-bottom:40px">
-      <div class="section-title">
-        <svg style="color:#1d4ed8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-        Psychological Gap Analysis (심리/행동 괴리 분석)
-      </div>
-      <div style="display:flex;gap:14px">
-        ${paradoxCards}
-      </div>
-    </section>` : ""}
-
-    <!-- 5. 12-Week Solution -->
-    ${(analysis.solutions && analysis.solutions.length > 0) ? `
-    <section style="margin-bottom:40px">
-      <div class="section-title">
-        <svg style="color:#1d4ed8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-        NK 12-Week Intensive Solution (12주 집중 솔루션)
-      </div>
-      <div>
-        ${solutionCards}
-      </div>
-    </section>` : ""}
-
-    <!-- 6. Final Assessment -->
-    ${analysis.final_assessment ? `
-    <section style="margin-top:0">
-      <div class="card-box" style="background:#1f2937;border:none;padding:16px;color:white">
-        <h3 style="font-size:11pt;font-weight:700;color:#93c5fd;margin:0 0 8px;display:flex;align-items:center">
-          <svg class="svg-icon" style="color:#93c5fd" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
-          NK 최종 의견 (Final Assessment)
-        </h3>
-        <p style="font-size:9pt;font-weight:300;line-height:1.7;margin:0;opacity:0.95;text-align:justify">${analysis.final_assessment}</p>
-      </div>
-    </section>` : ""}
-
-    <footer class="footer">
-      <span>NK Academy Consulting Group</span>
-      <span>Page 2 of 2</span>
-    </footer>`;
-
-  // Chart.js initialization - horizontal bar chart with score-based colors
-  const scoreValues = [scores.attitude, scores.self_directed, scores.assignment, scores.willingness, scores.social, scores.management];
-  const barColors = scoreValues.map(v => v >= 3.5 ? 'rgba(37,99,235,0.7)' : 'rgba(156,163,175,0.7)');
-  const chartScript = `
-    var ctx = document.getElementById('factorChart');
-    if (ctx) {
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: ['수업태도', '자기주도성', '과제수행력', '학업의지', '사회성', '관리선호'],
-          datasets: [{
-            label: '성향 점수',
-            data: [${scoreValues.join(",")}],
-            backgroundColor: ${JSON.stringify(barColors)},
-            borderColor: 'transparent',
-            borderWidth: 0,
-            borderRadius: 4,
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { max: 5, min: 0, grid: { color: '#f3f4f6' }, ticks: { stepSize: 1 } },
-            y: { grid: { display: false }, ticks: { font: { weight: 'bold' } } }
-          }
-        }
-      });
-    }
-    `;
-
-  return buildAnalysisReportTemplateHTML({
-    studentName: name,
-    schoolInfo,
-    page1Content: page1,
-    page2Content: page2,
-    chartScript,
-  });
-}
-
-function buildAnalysisReportTemplateHTML(data: {
-  studentName: string;
-  schoolInfo: string;
-  page1Content: string;
-  page2Content: string;
-  chartScript: string;
-}): string {
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NK 심층 학습 성향 분석서 - ${data.studentName}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Pretendard', sans-serif; background-color: #525659; margin: 0; padding: 20px 0; display: flex; flex-direction: column; align-items: center; color: #1f2937; }
-        #report-wrapper { width: 210mm; margin: 0 auto; }
-        .page { width: 210mm; height: 297mm; background: white; padding: 12mm 15mm; margin-bottom: 10mm; box-shadow: 0 0 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; position: relative; overflow: hidden; }
-        @media print { body { background: none; padding: 0; } .page { margin: 0; box-shadow: none; page-break-after: always; } .no-print { display: none !important; } .download-btn-group { display: none; } }
-        body.pdf-mode .page { margin: 0 !important; box-shadow: none !important; }
-        .header-bar { border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: end; }
-        .section-title { font-size: 13pt; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; margin-bottom: 12px; border-left: 5px solid #2563eb; padding-left: 10px; background: linear-gradient(90deg, #eff6ff 0%, rgba(255,255,255,0) 100%); }
-        .section-title svg { width: 20px; height: 20px; margin-right: 8px; stroke-width: 2; flex-shrink: 0; }
-        .card-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background-color: #fff; }
-        .grid-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
-        .grid-table th { background-color: #f3f4f6; color: #374151; font-weight: 700; text-align: left; padding: 6px 8px; border-bottom: 2px solid #e5e7eb; }
-        .grid-table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; color: #4b5563; }
-        .grid-table tr:last-child td { border-bottom: none; }
-        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 8pt; font-weight: 700; }
-        .tag-blue { background-color: #dbeafe; color: #1e40af; }
-        .tag-red { background-color: #fee2e2; color: #991b1b; }
-        .tag-green { background-color: #dcfce7; color: #166534; }
-        .tag-teal { background-color: #ccfbf1; color: #0f766e; }
-        .tag-rose { background-color: #ffe4e6; color: #be123c; }
-        .tag-emerald { background-color: #d1fae5; color: #065f46; }
-        .tag-indigo { background-color: #e0e7ff; color: #3730a3; }
-        .tag-orange { background-color: #ffedd5; color: #9a3412; }
-        .tag-purple { background-color: #f3e8ff; color: #6b21a8; }
-        .svg-icon { width: 20px; height: 20px; margin-right: 8px; stroke-width: 2; }
-        .bullet-icon { width: 14px; height: 14px; margin-right: 6px; display: inline-block; vertical-align: text-top; margin-top: 2px; flex-shrink: 0; }
-        .footer { margin-top: auto; border-top: 1px solid #e5e7eb; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8pt; color: #9ca3af; }
-        .download-btn-group { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
-        .download-btn { background-color: #2563eb; color: white; padding: 12px 20px; border-radius: 50px; box-shadow: 0 4px 15px rgba(37,99,235,0.3); font-weight: bold; display: flex; align-items: center; cursor: pointer; transition: all 0.3s; border: none; font-size: 14px; }
-        .download-btn:hover { background-color: #1d4ed8; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,99,235,0.4); }
-        .download-btn svg { width: 16px; height: 16px; margin-right: 8px; }
-        #pdf-loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; color: white; text-align: center; backdrop-filter: blur(5px); }
-        .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #2563eb; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>NK 성향분석 - ${name}</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth;scroll-padding-top:64px}
+    body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',serif;background:#f8f9fa;color:#212529;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+    :root{--primary-dark:#1A1D24;--primary-gold:#C6A87C;--gold-light:#F2EDE4;--text-main:#2C3038;--text-sub:#6C727D;--border-light:#E9ECEF;--accent-burgundy:#7A3B3B;--accent-burgundy-light:#F8EFEF}
+    .wrap{max-width:480px;margin:0 auto;padding:0 0 60px;background:#fff;min-height:100vh;box-shadow:0 0 40px rgba(0,0,0,0.05)}
+    .hdr{background:linear-gradient(145deg,var(--primary-dark),#2B303B);padding:40px 24px 32px;color:#fff;position:relative;overflow:hidden}
+    .hdr::after{content:'';position:absolute;top:-30%;right:-20%;width:250px;height:250px;background:radial-gradient(circle,rgba(198,168,124,0.15),transparent 70%);border-radius:50%}
+    .hdr .brand{display:flex;align-items:center;gap:8px;margin-bottom:24px;position:relative;z-index:1}
+    .hdr .brand .logo{width:28px;height:28px;border-radius:4px;background:var(--primary-gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;letter-spacing:0.05em}
+    .hdr .brand span{font-size:12px;font-weight:500;color:rgba(255,255,255,0.7);letter-spacing:0.02em}
+    .hdr .sub{font-size:11px;color:var(--primary-gold);letter-spacing:0.05em;font-weight:600;margin-bottom:6px}
+    .hdr h1{font-size:24px;font-weight:800;letter-spacing:-0.02em;margin-bottom:32px;line-height:1.3}
+    .hdr .info-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;backdrop-filter:blur(10px);position:relative;z-index:1}
+    .hdr .info-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .hdr .name{font-size:20px;font-weight:700;color:#fff}
+    .hdr .avg{display:inline-flex;align-items:center;background:rgba(198,168,124,0.15);border:1px solid rgba(198,168,124,0.3);padding:4px 12px;border-radius:4px;font-size:12px;font-weight:700;color:var(--primary-gold)}
+    .hdr .info-bottom{display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.1);padding-top:12px}
+    .hdr .meta{font-size:12px;color:rgba(255,255,255,0.6)}
+    .nav-wrap{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(198,168,124,0.2);box-shadow:0 4px 20px rgba(0,0,0,0.03);overflow-x:auto;white-space:nowrap;-ms-overflow-style:none;scrollbar-width:none}
+    .nav-wrap::-webkit-scrollbar{display:none}
+    .nav-menu{display:flex;padding:0 24px;list-style:none;gap:24px}
+    .nav-menu li{display:inline-block}
+    .nav-menu a{display:block;padding:16px 0;font-size:14px;font-weight:700;color:var(--text-sub);text-decoration:none;position:relative;transition:color 0.3s ease}
+    .nav-menu a:hover,.nav-menu a.active{color:var(--primary-dark)}
+    .nav-menu a::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;background:var(--primary-gold);transition:width 0.3s ease}
+    .nav-menu a:hover::after,.nav-menu a.active::after{width:100%}
+    .content-body{padding:0 24px}
+    .sec{margin-top:40px}
+    .sec-title{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+    .sec-title::before{content:'';display:block;width:3px;height:16px;background:var(--primary-gold)}
+    .sec-title h2{font-size:17px;font-weight:800;color:var(--text-main);letter-spacing:-0.02em}
+    .summary-box{background:var(--gold-light);border-radius:12px;padding:24px;border:1px solid rgba(198,168,124,0.3);box-shadow:0 8px 24px rgba(198,168,124,0.08)}
+    .summary-box .type-tag{display:inline-block;font-size:12px;font-weight:700;padding:6px 14px;border-radius:4px;background:var(--primary-gold);color:#fff;margin-bottom:16px;letter-spacing:-0.01em}
+    .summary-box p{font-size:14px;line-height:1.75;color:var(--text-main);word-break:keep-all}
+    .factor-item{padding:20px 0;border-bottom:1px solid var(--border-light)}
+    .factor-item:last-child{border-bottom:none;padding-bottom:0}
+    .factor-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .factor-header .title{font-size:15px;font-weight:700;color:var(--text-main)}
+    .factor-header .score-wrap{display:flex;align-items:center;gap:8px}
+    .factor-header .score{font-size:18px;font-weight:800;color:var(--primary-dark)}
+    .factor-header .badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:#F1F3F5;color:var(--text-sub)}
+    .progress-bg{height:4px;background:#E9ECEF;border-radius:4px;overflow:hidden;margin-bottom:16px}
+    .progress-fill{height:100%;background:var(--primary-dark);border-radius:4px}
+    .factor-desc{font-size:13.5px;color:var(--text-sub);line-height:1.65;word-break:keep-all;background:#F8F9FA;padding:14px 16px;border-radius:8px}
+    .list-card{border:1px solid var(--border-light);border-radius:12px;padding:24px 20px;box-shadow:0 8px 24px rgba(0,0,0,0.02)}
+    .list-item{display:flex;align-items:flex-start;gap:14px;margin-bottom:24px}
+    .list-item:last-child{margin-bottom:0}
+    .list-num{width:24px;height:24px;border-radius:50%;background:#F1F3F5;color:var(--text-sub);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+    .list-text h3{font-size:15px;font-weight:700;color:var(--text-main);margin-bottom:6px}
+    .list-text p{font-size:13.5px;line-height:1.65;color:var(--text-sub);word-break:keep-all}
+    .weakness-card .list-num{background:var(--accent-burgundy-light);color:var(--accent-burgundy)}
+    .weakness-card .list-text h3{color:var(--accent-burgundy)}
+    .gap-card{background:#fff;border:1px solid var(--border-light);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,0.02)}
+    .gap-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    .gap-header .badge{background:var(--gold-light);color:#A68B61;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px}
+    .gap-header h3{font-size:14px;font-weight:700;color:var(--text-main)}
+    .gap-bars{display:flex;flex-direction:column;gap:12px;margin-bottom:16px;padding:16px;background:#F8F9FA;border-radius:8px}
+    .gap-row{display:flex;align-items:center;gap:12px}
+    .gap-label{font-size:12px;font-weight:600;color:var(--text-sub);width:55px;flex-shrink:0}
+    .gap-bar-bg{flex:1;height:6px;background:#E9ECEF;border-radius:4px;overflow:hidden}
+    .gap-bar-fill{height:100%;border-radius:4px}
+    .gap-score{font-size:12px;font-weight:700;color:var(--text-main);width:24px;text-align:right}
+    .gap-desc{font-size:13px;color:var(--text-sub);line-height:1.65;margin:0}
+    .step-card{border:1px solid var(--border-light);border-radius:12px;overflow:hidden;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,0.02)}
+    .step-header{background:#F8F9FA;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-light)}
+    .step-header .step-title{font-size:14px;font-weight:800;color:var(--primary-dark)}
+    .step-header .step-period{font-size:12px;font-weight:600;color:var(--text-sub)}
+    .step-body{padding:20px}
+    .step-body h4{font-size:14.5px;font-weight:700;color:var(--text-main);margin-bottom:14px}
+    .step-list{list-style:none}
+    .step-list li{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;color:var(--text-sub);line-height:1.6;margin-bottom:8px}
+    .step-list li::before{content:'\\2022';color:var(--primary-gold);font-size:14px;font-weight:bold}
+    .step-list li:last-child{margin-bottom:0}
+    .final-box{background:var(--primary-dark);border-radius:12px;padding:32px 24px;color:#fff;text-align:center}
+    .final-box h3{font-size:18px;font-weight:700;color:var(--primary-gold);margin-bottom:16px}
+    .final-box p{font-size:14px;line-height:1.8;color:rgba(255,255,255,0.85);word-break:keep-all;text-align:left}
+    .footer{text-align:center;padding:40px 0 20px;font-size:12px;color:var(--text-sub);font-weight:500;letter-spacing:0.05em}
+    .footer span{color:var(--primary-gold);font-weight:700}
+  </style>
 </head>
 <body>
-    <div id="pdf-loading-overlay" style="display: none;">
-        <div class="spinner"></div>
-        <p>이미지 파일을 생성 중입니다. 잠시만 기다려주세요...</p>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="brand">
+        <div class="logo">NK</div>
+        <span>NK EDUCATION</span>
+      </div>
+      <div class="sub">맞춤형 심층 분석 보고서</div>
+      <h1>NK 성향 검사 결과지</h1>
+      <div class="info-card">
+        <div class="info-top">
+          <div class="name">${name} 학생</div>
+          <div class="avg">종합 ${avgScore.toFixed(1)}점</div>
+        </div>
+        <div class="info-bottom">
+          <div class="meta">${schoolInfo}</div>
+          <div class="meta">${createdDate}</div>
+        </div>
+      </div>
     </div>
-    <div class="download-btn-group">
-        <button class="download-btn" onclick="downloadImage(1)">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            1페이지 다운로드
-        </button>
-        <button class="download-btn" onclick="downloadImage(2)">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            2페이지 다운로드
-        </button>
+    <nav class="nav-wrap">
+      <ul class="nav-menu">${navHTML}</ul>
+    </nav>
+    <div class="content-body">
+      <div class="sec" id="summary">
+        <div class="sec-title"><h2>학생 성향 요약</h2></div>
+        <div class="summary-box">
+          ${analysis.student_type ? `<span class="type-tag">${analysis.student_type}</span>` : ""}
+          <p>${analysis.summary || ""}</p>
+        </div>
+      </div>
+      <div class="sec" id="factors">
+        <div class="sec-title"><h2>${hasEmotion ? "7" : "6"}대 핵심 학습 성향</h2></div>
+        ${factorItemsHTML}
+      </div>
+      <div class="sec" id="strengths">
+        <div class="sec-title"><h2>주요 강점</h2></div>
+        <div class="list-card">${strengthsHTML}</div>
+      </div>
+      <div class="sec" id="weaknesses">
+        <div class="sec-title"><h2>보완 및 개선 영역</h2></div>
+        <div class="list-card weakness-card">${weaknessesHTML}</div>
+      </div>
+      ${(analysis.paradox && analysis.paradox.length > 0) ? `
+      <div class="sec" id="gap">
+        <div class="sec-title"><h2>심리적 간극 분석</h2></div>
+        ${gapHTML}
+      </div>` : ""}
+      ${(analysis.solutions && analysis.solutions.length > 0) ? `
+      <div class="sec" id="solution">
+        <div class="sec-title"><h2>12주 맞춤 솔루션</h2></div>
+        ${solutionHTML}
+      </div>` : ""}
+      ${analysis.final_assessment ? `
+      <div class="sec" id="final">
+        <div class="final-box">
+          <h3>NK 학습 맞춤 지도</h3>
+          <p>${analysis.final_assessment}</p>
+        </div>
+      </div>` : ""}
     </div>
-    <div id="report-wrapper">
-        <div class="page" id="page1">${data.page1Content}</div>
-        <div class="page" id="page2">${data.page2Content}</div>
-    </div>
-    <script>
-        Chart.defaults.font.family = "'Pretendard', sans-serif";
-        Chart.defaults.font.size = 10;
-        Chart.defaults.color = '#4b5563';
-        Chart.defaults.animation = false;
-        ${data.chartScript}
-        async function downloadImage(pageNum) {
-            var overlay = document.getElementById('pdf-loading-overlay');
-            overlay.style.display = 'flex';
-            try {
-                var studentName = "${data.studentName}";
-                var schoolInfo = "${data.schoolInfo}";
-                var baseFilename = 'nk성향분석_' + schoolInfo + '_' + studentName;
-                var pageElement = document.getElementById('page' + pageNum);
-                if (!pageElement) throw new Error("Page not found");
-                document.body.classList.add('pdf-mode');
-                var canvas = await html2canvas(pageElement, { scale: 2, useCORS: true, logging: false, windowWidth: pageElement.scrollWidth, windowHeight: pageElement.scrollHeight });
-                var imgData = canvas.toDataURL('image/png');
-                var link = document.createElement("a");
-                link.download = baseFilename + '_' + pageNum + '페이지.png';
-                link.href = imgData;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } catch (error) {
-                console.error("Image Error:", error);
-                alert("이미지 생성 중 오류가 발생했습니다.");
-            } finally {
-                overlay.style.display = 'none';
-                document.body.classList.remove('pdf-mode');
-            }
-        }
-    <\/script>
+    <div class="footer"><span>NK</span> EDUCATION</div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded",()=>{const s=document.querySelectorAll(".sec"),n=document.querySelectorAll(".nav-menu a");window.addEventListener("scroll",()=>{let c="";s.forEach(e=>{if(scrollY>=e.offsetTop-120)c=e.getAttribute("id")});n.forEach(l=>{l.classList.remove("active");if(c&&l.getAttribute("href").includes(c)){l.classList.add("active");const w=document.querySelector(".nav-wrap"),a=l.parentElement;if(a){w.scrollTo({left:a.offsetLeft-(w.offsetWidth/2)+(a.offsetWidth/2),behavior:"smooth"})}}})});n.forEach(l=>{l.addEventListener("click",function(e){e.preventDefault();const t=document.getElementById(this.getAttribute("href").substring(1));if(t)window.scrollTo({top:t.offsetTop-60,behavior:"smooth"})})})});
+  </script>
 </body>
 </html>`;
 }

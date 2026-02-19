@@ -123,15 +123,6 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
               <RefreshCw className={`h-4 w-4 mr-1.5 ${isRegenerating ? "animate-spin" : ""}`} />
               {isRegenerating ? "재생성 중..." : "보고서 재생성"}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              className="rounded-xl"
-            >
-              <FileText className="h-4 w-4 mr-1.5" />
-              PDF 다운로드
-            </Button>
           </>
         )}
         {registration.analysis_id && (

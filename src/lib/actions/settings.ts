@@ -31,7 +31,7 @@ function mapDbToClass(row: Record<string, unknown>): Class {
     id: String(row.id ?? ""),
     name: String(row.name ?? ""),
     teacher: teacherName,
-    target_grade: null, // DB에 없음 - 프론트에서 이름에서 추출
+    target_grade: row.target_grade != null ? String(row.target_grade) : null,
     class_days: row.description != null ? String(row.description) : null,
     class_time: row.class_time != null ? String(row.class_time) : null,
     clinic_time: row.clinic_time != null ? String(row.clinic_time) : null,

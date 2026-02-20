@@ -19,18 +19,30 @@ export default async function SurveysPage({
     limit: 20,
   });
 
-  // 분석 데이터 페칭 (설문 목록과 연동 표시용)
+  // 분석 + 등록 + 상담 데이터 페칭
   const supabase = await createClient();
-  const { data: analyses } = await supabase
-    .from("analyses")
-    .select("id, survey_id, report_html")
-    .order("created_at", { ascending: false });
+  const [{ data: analyses }, { data: registrations }, { data: consultations }] = await Promise.all([
+    supabase
+      .from("analyses")
+      .select("id, survey_id, report_html")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("registrations")
+      .select("id, analysis_id")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("consultations")
+      .select("name, result_status")
+      .order("created_at", { ascending: false }),
+  ]);
 
   return (
     <SurveyListClient
       initialData={result.data}
       initialPagination={result.pagination}
       analyses={(analyses ?? []) as { id: string; survey_id: string | null; report_html: string | null }[]}
+      registrations={(registrations ?? []) as { id: string; analysis_id: string | null }[]}
+      consultations={(consultations ?? []) as { name: string; result_status: string }[]}
     />
   );
 }

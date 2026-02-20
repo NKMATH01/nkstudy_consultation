@@ -155,6 +155,16 @@ export function RegistrationForm({
   const [customEngClass, setCustomEngClass] = useState(false);
   const [customEngTeacher, setCustomEngTeacher] = useState(false);
 
+  // 이름 중복 제거
+  const uniqueTeachers = useMemo(() => {
+    const seen = new Set<string>();
+    return teachers.filter((t) => {
+      if (seen.has(t.name)) return false;
+      seen.add(t.name);
+      return true;
+    });
+  }, [teachers]);
+
   const defaultTuition = getTuitionWithDiscount(grade || "", "");
 
   const form = useForm<RegistrationAdminFormData>({
@@ -177,6 +187,7 @@ export function RegistrationForm({
       use_vehicle: "미사용",
       test_score: "",
       test_note: "",
+      school_score: "",
       location: "",
       consult_date: "",
       additional_note: "",
@@ -192,7 +203,10 @@ export function RegistrationForm({
 
   const filteredClasses = useMemo(() => {
     if (!selectedGrade) return classes;
-    return classes.filter((c) => c.name.slice(0, 2) === selectedGrade);
+    // target_grade 또는 반 이름 앞 2글자로 학년 매칭
+    return classes.filter((c) =>
+      c.target_grade === selectedGrade || c.name.startsWith(selectedGrade)
+    );
   }, [classes, selectedGrade]);
 
   const autoCalcFee = (g: string, s: string) => {
@@ -409,7 +423,7 @@ export function RegistrationForm({
                             <SelectTrigger><SelectValue placeholder="선생님 선택" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {teachers.map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                            {uniqueTeachers.map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -528,7 +542,7 @@ export function RegistrationForm({
                               <SelectTrigger><SelectValue placeholder="선생님 선택" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {teachers.map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                              {uniqueTeachers.map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
                               <SelectItem value="__custom__">직접 입력...</SelectItem>
                             </SelectContent>
                           </Select>
@@ -638,7 +652,7 @@ export function RegistrationForm({
               </div>
             </div>
 
-            {/* 테스트/상담 */}
+            {/* 테스트/내신/상담 */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -655,18 +669,31 @@ export function RegistrationForm({
               />
               <FormField
                 control={form.control}
-                name="consult_date"
+                name="school_score"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>학부모 상담 예정일</FormLabel>
+                    <FormLabel>내신 점수</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input placeholder="예: 수학 92점" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="consult_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>학부모 상담 예정일</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

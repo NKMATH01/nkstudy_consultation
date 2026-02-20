@@ -18,6 +18,7 @@ export const registrationAdminSchema = z.object({
   use_vehicle: z.string().optional(),
   test_score: z.string().optional(),
   test_note: z.string().optional(),
+  school_score: z.string().optional(),
   location: z.string().optional(),
   consult_date: z.string().optional(),
   additional_note: z.string().optional(),

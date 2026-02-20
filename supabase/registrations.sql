@@ -32,6 +32,7 @@ ALTER TABLE registrations ADD COLUMN IF NOT EXISTS subject TEXT;
 ALTER TABLE registrations ADD COLUMN IF NOT EXISTS preferred_days TEXT;
 ALTER TABLE registrations ADD COLUMN IF NOT EXISTS assigned_class_2 TEXT;
 ALTER TABLE registrations ADD COLUMN IF NOT EXISTS teacher_2 TEXT;
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS school_score TEXT;
 
 -- 인덱스
 CREATE INDEX IF NOT EXISTS idx_registrations_analysis_id ON registrations(analysis_id);

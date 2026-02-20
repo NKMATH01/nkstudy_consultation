@@ -3,7 +3,7 @@
 import { useState, useTransition, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { Plus, ClipboardList, Search, Sparkles, Brain, Trash2, Loader2 } from "lucide-react";
+import { Plus, ClipboardList, Search, Sparkles, Brain, Trash2, Loader2, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,8 @@ import { toast } from "sonner";
 import { analyzeSurvey, reAnalyzeSurvey } from "@/lib/actions/analysis";
 import { deleteSurvey } from "@/lib/actions/survey";
 import type { Survey } from "@/types";
-import { FACTOR_LABELS } from "@/types";
+import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
+import type { ResultStatus } from "@/types";
 import Link from "next/link";
 
 interface Props {
@@ -34,6 +35,8 @@ interface Props {
     totalPages: number;
   };
   analyses: { id: string; survey_id: string | null; report_html: string | null }[];
+  registrations: { id: string; analysis_id: string | null }[];
+  consultations: { name: string; result_status: string }[];
 }
 
 function FactorScore({ value, label }: { value: number | null; label: string }) {
@@ -47,7 +50,21 @@ function FactorScore({ value, label }: { value: number | null; label: string }) 
   );
 }
 
-export function SurveyListClient({ initialData, initialPagination, analyses }: Props) {
+function ResultStatusBadge({ status }: { status: ResultStatus }) {
+  if (status === "none") return <span className="text-[10px] text-slate-300">-</span>;
+  const styles: Record<string, string> = {
+    registered: "bg-red-500 text-white",
+    hold: "bg-amber-400 text-white",
+    other: "bg-neutral-500 text-white line-through",
+  };
+  return (
+    <Badge className={`text-[10px] border-0 ${styles[status] || "bg-slate-100 text-slate-500"}`}>
+      {RESULT_STATUS_LABELS[status]}
+    </Badge>
+  );
+}
+
+export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -69,6 +86,28 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
     }
     return map;
   }, [analyses]);
+
+  // 등록 데이터 맵 (analysis_id → registration_id)
+  const registrationMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of registrations) {
+      if (r.analysis_id) {
+        map.set(r.analysis_id, r.id);
+      }
+    }
+    return map;
+  }, [registrations]);
+
+  // 상담 result_status 맵 (이름 → result_status) - 가장 최근 상담 기준
+  const consultationStatusMap = useMemo(() => {
+    const map = new Map<string, ResultStatus>();
+    for (const c of consultations) {
+      if (!map.has(c.name)) {
+        map.set(c.name, c.result_status as ResultStatus);
+      }
+    }
+    return map;
+  }, [consultations]);
 
   const updateFilters = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -211,7 +250,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
               <div className="w-[80px]">이름</div>
               <div className="w-[100px] hidden sm:block">학교/학년</div>
               <div className="flex-1 hidden md:block">6-Factor</div>
-              <div className="w-[60px] text-center">분석</div>
+              <div className="w-[50px] text-center">분석</div>
+              <div className="w-[50px] text-center">등록</div>
               <div className="w-[180px] text-center">액션</div>
             </div>
             {/* Rows */}
@@ -221,6 +261,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
               const analysisId = item.analysis_id || analysis?.id;
               const isAnalyzing = analyzingId === item.id;
               const nameHref = hasAnalysis ? `/analyses/${analysisId}` : `/surveys/${item.id}`;
+              const regId = analysisId ? registrationMap.get(analysisId) : undefined;
+              const consultStatus = consultationStatusMap.get(item.name) || "none";
 
               return (
                 <div
@@ -247,14 +289,32 @@ export function SurveyListClient({ initialData, initialPagination, analyses }: P
                       />
                     ))}
                   </div>
-                  <div className="w-[60px] text-center">
+                  <div className="w-[50px] text-center">
                     {hasAnalysis ? (
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">완료</Badge>
                     ) : (
                       <Badge variant="secondary" className="text-[10px]">미분석</Badge>
                     )}
                   </div>
+                  <div className="w-[50px] text-center">
+                    <ResultStatusBadge status={consultStatus} />
+                    {regId && (
+                      <Link href={`/registrations/${regId}`} className="block mt-0.5" title="등록 안내문 보기">
+                        <FileCheck className="h-3 w-3 text-teal-500 mx-auto" />
+                      </Link>
+                    )}
+                  </div>
                   <div className="w-[180px] flex items-center justify-end gap-1">
+                    {/* 등록 안내 생성/보기 */}
+                    {hasAnalysis && (
+                      <Link
+                        href={regId ? `/registrations/${regId}` : `/analyses/${analysisId}`}
+                        className="px-2 py-1 rounded-md text-[10px] font-semibold bg-teal-50 text-teal-600 hover:bg-teal-100 transition-colors"
+                        title={regId ? "등록 안내 보기" : "등록 안내 생성"}
+                      >
+                        <ClipboardList className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
                     {/* 설문지 보기 */}
                     <button
                       onClick={() => setPreviewSurvey(item)}

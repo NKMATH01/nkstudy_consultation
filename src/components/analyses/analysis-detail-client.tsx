@@ -3,8 +3,9 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -16,15 +17,18 @@ import {
 import { deleteAnalysis, regenerateAnalysisReport } from "@/lib/actions/analysis";
 import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
-import type { Analysis, Class, Teacher } from "@/types";
+import type { Analysis, Class, Teacher, ResultStatus } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
-import { FACTOR_LABELS } from "@/types";
+import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
 import Link from "next/link";
 
 interface Props {
   analysis: Analysis;
   classes: Class[];
   teachers: Teacher[];
+  surveyId?: string | null;
+  consultationResultStatus?: ResultStatus | null;
+  existingRegistrationId?: string | null;
 }
 
 function ratingClass(score: number) {
@@ -36,7 +40,7 @@ function ratingClass(score: number) {
 
 const STEP_COLORS = ["bg-blue-500", "bg-violet-500", "bg-amber-500", "bg-emerald-500"];
 
-export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
+export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, existingRegistrationId }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
@@ -47,7 +51,7 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
       const result = await deleteAnalysis(analysis.id);
       if (result.success) {
         toast.success("분석 결과가 삭제되었습니다");
-        router.push("/analyses");
+        router.push("/surveys");
       } else {
         toast.error(result.error || "삭제에 실패했습니다");
       }
@@ -65,6 +69,14 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
     }
   };
 
+  const handleRegisterClick = () => {
+    if (existingRegistrationId) {
+      router.push(`/registrations/${existingRegistrationId}`);
+    } else {
+      setShowRegForm(true);
+    }
+  };
+
   const baseFKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
   const factorKeys = analysis.score_emotion != null ? [...baseFKeys, "emotion" as const] : baseFKeys;
   const schoolInfo = [analysis.school, analysis.grade].filter(Boolean).join(" ");
@@ -72,13 +84,20 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
     ? new Date(analysis.created_at).toLocaleDateString("ko-KR")
     : "";
 
+  // 상담 결과 상태 배지 스타일
+  const resultStatusStyle: Record<string, string> = {
+    registered: "bg-red-500 text-white",
+    hold: "bg-amber-400 text-white",
+    other: "bg-neutral-500 text-white",
+  };
+
   return (
     <div className="space-y-5 max-w-lg mx-auto px-4 pb-8">
       {/* Header */}
       <div className="border-b-[3px] border-blue-900 pb-3">
         <div className="flex items-center gap-2 mb-2">
           <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100 h-8 w-8">
-            <Link href="/analyses">
+            <Link href="/surveys">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -88,22 +107,45 @@ export function AnalysisDetailClient({ analysis, classes, teachers }: Props) {
           NK 심층 학습 성향 분석서
         </h1>
         <p className="text-[10px] text-slate-400 mb-2">Deep Learning Tendency Analysis Report</p>
-        <div className="flex items-baseline justify-between">
-          <p className="text-base font-extrabold text-blue-900">{analysis.name}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <p className="text-base font-extrabold text-blue-900">{analysis.name}</p>
+            {consultationResultStatus && consultationResultStatus !== "none" && (
+              <Badge className={`text-[10px] border-0 ${resultStatusStyle[consultationResultStatus] || ""}`}>
+                {RESULT_STATUS_LABELS[consultationResultStatus]}
+              </Badge>
+            )}
+          </div>
           <p className="text-xs text-slate-500">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
         </div>
       </div>
 
-      {/* Action Buttons - 간소화 */}
+      {/* Registration Status Card */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-[13px] font-bold text-slate-800">등록 안내</h3>
+            {existingRegistrationId && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-600">
+                <FileCheck className="h-3 w-3" />
+                생성됨
+              </span>
+            )}
+          </div>
+          <Button
+            size="sm"
+            onClick={handleRegisterClick}
+            className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 shadow-lg shadow-teal-500/20 text-xs"
+          >
+            <ClipboardList className="h-3.5 w-3.5 mr-1" />
+            {existingRegistrationId ? "등록 안내 보기" : "등록 안내 생성"}
+            {existingRegistrationId && <ExternalLink className="h-3 w-3 ml-1" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        <Button
-          size="sm"
-          onClick={() => setShowRegForm(true)}
-          className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 shadow-lg shadow-teal-500/20 text-xs shrink-0"
-        >
-          <ClipboardList className="h-3.5 w-3.5 mr-1" />
-          등록 안내
-        </Button>
         <Button
           variant="outline"
           size="sm"

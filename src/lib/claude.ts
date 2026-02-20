@@ -168,9 +168,12 @@ ${surveyText}
 과제수행력: ${analysis.score_assignment}점
 학업의지: ${analysis.score_willingness}점
 사회성: ${analysis.score_social}점
-관리선호: ${analysis.score_management}점
+관리선호도: ${analysis.score_management}점
 심리·자신감: ${analysis.score_emotion ?? "N/A"}점
 종합요약: ${analysis.summary}
+강점: ${(analysis.strengths || []).map(s => s.title).join(", ") || "없음"}
+개선영역: ${(analysis.weaknesses || []).map(w => w.title).join(", ") || "없음"}
+학생유형설명: ${analysis.final_assessment || "없음"}
 
 [행정 정보]
 - 등록일: ${adminData.registrationDate}
@@ -198,22 +201,23 @@ ${surveyText}
       {"factor": "과제수행력", "score": 4.0, "grade": "...", "insight": "..."},
       {"factor": "학업의지", "score": 3.0, "grade": "...", "insight": "..."},
       {"factor": "사회성", "score": 3.5, "grade": "...", "insight": "..."},
-      {"factor": "관리선호", "score": 4.0, "grade": "...", "insight": "..."}
+      {"factor": "관리선호도", "score": 4.0, "grade": "...", "insight": "..."},
+      {"factor": "심리·자신감", "score": 3.5, "grade": "...", "insight": "... (심리·자신감 점수가 N/A이면 이 항목 생략)"}
     ],
     "managementGuide": [
       {"title": "가이드 제목 1", "description": "상세 설명 (2문장, 담임이 실행할 구체적 행동)"},
       {"title": "가이드 제목 2", "description": "상세 설명 (2문장)"},
-      {"title": "가이드 제목 3", "description": "상세 설명 (2문장)"}
+      {"title": "가이드 제목 3", "description": "상세 설명 (2문장)"},
+      {"title": "가이드 제목 4", "description": "상세 설명 (2문장)"}
     ],
-    "firstMonthPlan": [
-      {"week": "1주차", "goal": "목표", "actions": "구체적 실행 사항 (1~2문장)"},
-      {"week": "2주차", "goal": "목표", "actions": "구체적 실행 사항 (1~2문장)"},
-      {"week": "3주차", "goal": "목표", "actions": "구체적 실행 사항 (1~2문장)"},
-      {"week": "4주차", "goal": "목표", "actions": "구체적 실행 사항 (1~2문장)"}
+    "adaptationRoadmap": [
+      {"month": "1개월 차", "title": "단계 제목 (예: 환경 적응 및 기초 확립)", "description": "상세 설명 (2~3문장)"},
+      {"month": "2개월 차", "title": "단계 제목 (예: 자기주도 학습 습관화)", "description": "상세 설명 (2~3문장)"},
+      {"month": "3개월 차", "title": "단계 제목 (예: 성과 분석 및 로드맵 재정립)", "description": "상세 설명 (2~3문장)"}
     ],
     "actionChecklist": [
-      "체크리스트 항목 1", "체크리스트 항목 2", "체크리스트 항목 3",
-      "체크리스트 항목 4", "체크리스트 항목 5", "체크리스트 항목 6"
+      "체크리스트 항목 (순수 텍스트만, ✓✔☑▶ 등 기호 절대 넣지 말 것)",
+      "체크리스트 항목 2", "체크리스트 항목 3", "체크리스트 항목 4"
     ]
   },
   "page2": {
@@ -266,6 +270,7 @@ export interface ReportTemplateData {
     tendencyAnalysis?: { title: string; score: number; color: string; comment: string }[];
     managementGuide: { title: string; description: string }[];
     firstMonthPlan?: { week: string; goal: string; actions: string }[];
+    adaptationRoadmap?: { month: string; title: string; description: string }[];
     actionChecklist: string[];
   };
   page2: {
@@ -285,456 +290,220 @@ export interface ReportTemplateData {
   clinicTime2?: string;
 }
 
-function scoreColor(color: string): string {
-  const map: Record<string, string> = {
-    indigo: "#4f46e5",
-    red: "#ef4444",
-    orange: "#f97316",
-    emerald: "#10b981",
-  };
-  return map[color] || "#64748b";
-}
-
-function scorePercent(score: number): number {
-  return Math.round((score / 5) * 100);
-}
-
 function formatFee(fee: number): string {
   return fee.toLocaleString();
 }
 
-function vehicleText(useVehicle: string, vehicleFee: string): string {
-  if (useVehicle === "미사용") return "미이용";
-  return `이용 (월 ${vehicleFee})`;
-}
-
-function feeWithVehicle(fee: number, useVehicle: string): string {
-  const vehicleFeeNum = 20000; // 기본 2만원
-  const total = useVehicle !== "미사용" ? fee + vehicleFeeNum : fee;
-  const suffix = useVehicle !== "미사용" ? "(차량비 포함 / 교재비 별도)" : "(교재비 별도)";
-  return `${formatFee(total)}원<span style="font-size:10px;font-weight:normal;color:#94a3b8;margin-left:4px">${suffix}</span>`;
-}
-
-function scheduleRow(label: string, value: string): string {
-  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
-    <span style="color:#cbd5e1;font-size:12px">${label}</span>
-    <span style="font-weight:700;color:white;font-size:12px;text-align:right">${value}</span>
-  </div>`;
-}
-
-function buildScheduleSection(data: ReportTemplateData): string {
-  const mathDays = data.classDays || data.preferredDays || "";
-  const engDays = data.classDays2 || data.preferredDays || "";
-
-  if (data.subject === "영어수학") {
-    const rows: string[] = [];
-    rows.push(scheduleRow("수학 담임", `${data.teacher} 선생님`));
-    rows.push(scheduleRow("수학 수업", data.classTime ? `[${mathDays}] ${data.classTime}` : "시간표 확인 필요"));
-    if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${mathDays}] ${data.clinicTime}`));
-    rows.push(scheduleRow("영어 담임", `${data.teacher2 || ""} 선생님`));
-    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${engDays}] ${data.classTime2}` : "시간표 확인 필요"));
-    if (data.clinicTime2) rows.push(scheduleRow("영어 클리닉", `[${engDays}] ${data.clinicTime2}`));
-    return rows.join("");
-  }
-
-  if (data.subject === "영어") {
-    const rows: string[] = [];
-    rows.push(scheduleRow("담임 선생님", `${data.teacher2 || data.teacher} 선생님`));
-    rows.push(scheduleRow("영어 수업", data.classTime2 ? `[${engDays}] ${data.classTime2}` : data.classTime ? `[${engDays}] ${data.classTime}` : "시간표 확인 필요"));
-    const clinic = data.clinicTime2 || data.clinicTime;
-    if (clinic) rows.push(scheduleRow("영어 클리닉", `[${engDays}] ${clinic}`));
-    return rows.join("");
-  }
-
-  // 수학 (기본)
-  const rows: string[] = [];
-  rows.push(scheduleRow("담임 선생님", `${data.teacher} 선생님`));
-  rows.push(scheduleRow("수학 수업", data.classTime ? `[${mathDays}] ${data.classTime}` : "시간표 확인 필요"));
-  if (data.clinicTime) rows.push(scheduleRow("수학 클리닉", `[${mathDays}] ${data.clinicTime}`));
-  return rows.join("");
-}
-
 export function buildReportHTML(data: ReportTemplateData): string {
-  const bankInfo = env.NK_ACADEMY_BANK_INFO || "신한은행 110-383-883419";
+  const bankInfo = env.NK_ACADEMY_BANK_INFO || "신한 110-383-883419";
   const bankOwner = env.NK_ACADEMY_BANK_OWNER || "노윤희";
   const vehicleFee = env.NK_ACADEMY_VEHICLE_FEE || "2만원";
   const vehicleFeeNum = parseInt(vehicleFee.replace(/[^0-9]/g, "")) * 10000 || 20000;
   const { page1, page2 } = data;
+  const totalFee = data.useVehicle !== "미사용" ? data.tuitionFee + vehicleFeeNum : data.tuitionFee;
+  const feeBreakdown = data.useVehicle !== "미사용"
+    ? `수업료 ${formatFee(data.tuitionFee)}원 + 차량비 ${vehicleFee} (교재비 별도)`
+    : "(교재비 별도)";
+  const vehicleDisplay = data.useVehicle === "미사용" ? "미이용" : "이용 (O)";
+  const regDateFormatted = data.registrationDate.replace(/-/g, ".");
+  const payDay = data.registrationDate.split("-").pop() || "";
 
-  const classLabel = data.subject === "영어수학"
-    ? `수학: ${data.assignedClass} (${data.teacher}) / 영어: ${data.assignedClass2 || ""} (${data.teacher2 || ""})`
-    : `${data.assignedClass} (${data.teacher} 선생님)`;
+  // 스케줄 카드 HTML
+  function buildScheduleCards(): string {
+    if (data.subject === "영어수학") {
+      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.classTime || "시간 확인 필요"}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.clinicTime}</span></div>` : ""}</div></div><div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || ""} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || ""}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays2 || data.preferredDays || ""} ${data.classTime2 || "시간 확인 필요"}</span></div>${data.clinicTime2 ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays2 || data.preferredDays || ""} ${data.clinicTime2}</span></div>` : ""}</div></div>`;
+    }
+    if (data.subject === "영어") {
+      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays2 || data.classDays || data.preferredDays || ""} ${data.classTime2 || data.classTime || "시간 확인 필요"}</span></div>${(data.clinicTime2 || data.clinicTime) ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays2 || data.classDays || data.preferredDays || ""} ${data.clinicTime2 || data.clinicTime}</span></div>` : ""}</div></div>`;
+    }
+    return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.classTime || "시간 확인 필요"}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.clinicTime}</span></div>` : ""}</div></div>`;
+  }
 
-  // 7-Factor 테이블
-  const sixFactorHTML = page1.sixFactorScores ? page1.sixFactorScores.map((item) => {
-    const gradeColors: Record<string, string> = { "우수": "#059669", "양호": "#0284c7", "보통": "#d97706", "주의": "#dc2626" };
-    const gc = gradeColors[item.grade] || "#64748b";
-    return `<tr>
-      <td style="border:1px solid #e2e8f0;padding:8px 12px;font-weight:700;font-size:12px;color:#1e293b;white-space:nowrap">${item.factor}</td>
-      <td style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;font-weight:800;color:#1e40af;font-size:13px">${item.score.toFixed(1)}</td>
-      <td style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;white-space:nowrap"><span style="font-size:11px;font-weight:700;color:${gc};background:${gc}15;padding:3px 12px;border-radius:10px;white-space:nowrap">${item.grade}</span></td>
-      <td style="border:1px solid #e2e8f0;padding:8px 10px;font-size:11px;color:#64748b;line-height:1.5">${item.insight}</td>
-    </tr>`;
-  }).join("") : (page1.tendencyAnalysis || []).map((item) => `<tr>
-    <td style="border:1px solid #e2e8f0;padding:8px 12px;font-weight:700;font-size:12px;color:#1e293b;white-space:nowrap">${item.title}</td>
-    <td style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;font-weight:800;color:${scoreColor(item.color)};font-size:13px">${item.score.toFixed(1)}</td>
-    <td style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;white-space:nowrap"><span style="font-size:11px;font-weight:700;color:${scoreColor(item.color)};white-space:nowrap">${item.score >= 4 ? "우수" : item.score >= 3 ? "양호" : item.score >= 2 ? "보통" : "주의"}</span></td>
-    <td style="border:1px solid #e2e8f0;padding:8px 10px;font-size:11px;color:#64748b;line-height:1.5">${item.comment}</td>
-  </tr>`).join("");
+  // 7대 핵심 학습 성향 점수 HTML
+  function ratingGrade(score: number): { label: string; color: string; bg: string } {
+    if (score >= 4) return { label: "우수", color: "#0d9488", bg: "#f0fdfa" };
+    if (score >= 3) return { label: "양호", color: "#0284c7", bg: "#f0f9ff" };
+    if (score >= 2) return { label: "보통", color: "#d97706", bg: "#fffbeb" };
+    return { label: "주의", color: "#dc2626", bg: "#fef2f2" };
+  }
 
-  const guideHTML = page1.managementGuide.slice(0, 3).map((item, idx) => `
-    <div style="padding:12px 16px;border-left:4px solid #3730a3;background:#f8fafc;margin-bottom:8px;border-radius:0 8px 8px 0">
-      <p style="font-weight:800;color:#1e293b;font-size:13px;margin:0">${idx + 1}. ${item.title}</p>
-      <p style="font-size:12px;color:#64748b;margin:5px 0 0;line-height:1.6">${item.description}</p>
-    </div>
-  `).join("");
-
-  const guideHTML2 = page1.managementGuide.slice(3).map((item, idx) => `
-    <div style="padding:12px 16px;border-left:4px solid #3730a3;background:#f8fafc;margin-bottom:8px;border-radius:0 8px 8px 0">
-      <p style="font-weight:800;color:#1e293b;font-size:13px;margin:0">${idx + 4}. ${item.title}</p>
-      <p style="font-size:12px;color:#64748b;margin:5px 0 0;line-height:1.6">${item.description}</p>
-    </div>
-  `).join("");
-
-  const firstMonthHTML = (page1.firstMonthPlan || []).map((item) => `
-    <div style="padding:12px 14px;border:1px solid #e2e8f0;border-radius:10px;text-align:center;background:#fafbff">
-      <p style="font-size:11px;font-weight:800;color:#4f46e5;margin:0 0 4px;background:#eef2ff;padding:3px 10px;border-radius:6px;display:inline-block">${item.week}</p>
-      <p style="font-size:12px;font-weight:700;color:#1e293b;margin:4px 0 4px">${item.goal}</p>
-      <p style="font-size:11px;color:#64748b;margin:0;line-height:1.5">${item.actions}</p>
-    </div>
-  `).join("");
-
-  const checklistHTML = page1.actionChecklist.map((item) =>
-    `<p style="margin:0 0 5px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#4f46e5;border-radius:3px;margin-right:6px;vertical-align:middle;color:white;font-size:10px;font-weight:900;line-height:1">✓</span>${item}</p>`
-  ).join("");
-
-  const focusHTML = page2.focusPoints.map((item) => `
-    <div style="padding:12px 14px;background:white;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-        <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:10px;flex-shrink:0">${item.number}</div>
-        <h4 style="font-weight:800;color:#0f172a;font-size:12px;margin:0">${item.title}</h4>
+  const sixFactorHTML = (page1.sixFactorScores || []).map((item) => {
+    const pct = Math.min((item.score / 5) * 100, 100);
+    const r = ratingGrade(item.score);
+    return `<div style="padding:16px 0;border-bottom:1px solid var(--border-light)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:700;color:var(--text-main)">${item.factor}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:17px;font-weight:800;color:var(--primary-dark)">${item.score.toFixed(1)}</span>
+          <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:${r.bg};color:${r.color}">${r.label}</span>
+        </div>
       </div>
-      <p style="font-size:11px;color:#64748b;line-height:1.6;margin:0;padding-left:28px">${item.description}</p>
-    </div>
-  `).join("");
-
-  // 학년별 수업료 테이블 (현재 학생 학년 하이라이트)
-  const tuitionRows = [
-    { grade: "초3", fee: 280000 }, { grade: "초4~5", fee: 300000 }, { grade: "초6~중1", fee: 320000 },
-    { grade: "중2~3", fee: 350000 }, { grade: "고1", fee: 380000 }, { grade: "고2~3", fee: 400000 },
-  ];
-  const currentGrade = data.grade;
-  const tuitionTableHTML = tuitionRows.map((row) => {
-    const isActive = row.grade.includes(currentGrade) ||
-      (row.grade === "초4~5" && ["초4", "초5"].includes(currentGrade)) ||
-      (row.grade === "초6~중1" && ["초6", "중1"].includes(currentGrade)) ||
-      (row.grade === "중2~3" && ["중2", "중3"].includes(currentGrade)) ||
-      (row.grade === "고2~3" && ["고2", "고3"].includes(currentGrade));
-    const bg = isActive ? "background:#eef2ff;font-weight:800" : "";
-    const marker = isActive ? ' style="color:#4f46e5;font-weight:900"' : "";
-    return `<tr style="${bg}">
-      <td style="border:1px solid #e2e8f0;padding:6px 10px;font-size:11px;text-align:center"${marker}>${isActive ? "▶ " : ""}${row.grade}</td>
-      <td style="border:1px solid #e2e8f0;padding:6px 10px;font-size:11px;text-align:right;font-weight:700"${marker}>${row.fee.toLocaleString()}원</td>
-    </tr>`;
+      <div style="height:4px;background:#E9ECEF;border-radius:4px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${pct}%;background:var(--primary-dark);border-radius:4px"></div></div>
+      ${item.insight ? `<p style="font-size:13px;color:var(--text-sub);line-height:1.6;background:#F8F9FA;padding:10px 14px;border-radius:8px;word-break:keep-all">${item.insight}</p>` : ""}
+    </div>`;
   }).join("");
 
-  // 공통 헤더/푸터 스타일
-  const pageFooter = (num: number, total: number) =>
-    `<div style="margin-top:auto;padding-top:10px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;color:#94a3b8">
-      <p style="font-size:9px;font-weight:700;letter-spacing:0.3em;text-transform:uppercase">NK Education</p>
-      <p style="font-size:9px;font-family:monospace">PAGE ${String(num).padStart(2, "0")} / ${String(total).padStart(2, "0")}</p>
-    </div>`;
+  // 학생 배경 HTML
+  const backgroundHTML = page1.studentBackground
+    ? `<div class="card" style="background:#F8F9FA;border:1px solid var(--border-light)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <h3 style="font-size:15px;font-weight:700;color:var(--primary-dark)">학생 배경 분석</h3>
+        </div>
+        <p style="font-size:14px;line-height:1.7;color:var(--text-main);word-break:keep-all">${page1.studentBackground}</p>
+      </div>`
+    : "";
+
+  // 포커스 포인트 HTML
+  const focusHTML = page2.focusPoints.map((item, idx) => `<div class="num-item"><div class="num-badge">${idx + 1}</div><div class="num-content"><h3>${item.title}</h3><p>${item.description}</p></div></div>`).join("");
+
+  // 매니지먼트 가이드 HTML
+  const guideHTML = page1.managementGuide.map((item, idx) => `<div class="num-item"><div class="num-badge">${idx + 1}</div><div class="num-content"><h3>${item.title}</h3><p>${item.description}</p></div></div>`).join("");
+
+  // 로드맵 HTML (adaptationRoadmap 우선, firstMonthPlan 폴백)
+  const roadmapItems = page1.adaptationRoadmap || (page1.firstMonthPlan ? [
+    { month: "1개월 차", title: page1.firstMonthPlan[0]?.goal || "환경 적응", description: page1.firstMonthPlan.slice(0, 2).map(w => w.actions).join(" ") },
+    { month: "2개월 차", title: page1.firstMonthPlan[2]?.goal || "학습 습관화", description: page1.firstMonthPlan[2]?.actions || "" },
+    { month: "3개월 차", title: page1.firstMonthPlan[3]?.goal || "성과 분석", description: page1.firstMonthPlan[3]?.actions || "" },
+  ] : []);
+  const roadmapHTML = roadmapItems.map(item => `<div class="time-item"><div class="time-dot"></div><div class="time-week">${item.month}</div><div class="time-title">${item.title}</div><div class="time-desc">${item.description}</div></div>`).join("");
+
+  // 체크리스트 HTML — 아이콘 없이 텍스트만 (AI 텍스트의 선행 체크/불릿 문자 제거)
+  const checklistHTML = page1.actionChecklist.map(item => {
+    const cleanItem = item.replace(/^[\s✓✔☑✅☐☑️▶►●○•◆◇■□▪▫∙·※★☆✦✧V√\-–—:,.]+\s*/u, "").trim();
+    return `<li class="check-item"><span class="check-bullet">▸</span>${cleanItem}</li>`;
+  }).join("");
 
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NK 교육 - ${data.name} 학생 등록 안내 리포트</title>
-<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NK 등록 안내문 - ${data.name} 학생</title>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-:root{--nk-main:#0f172a;--nk-accent:#3730a3;--nk-text:#1e293b;--nk-border:#e2e8f0;--app-bg:#334155}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Pretendard',sans-serif;background:var(--app-bg);padding:40px 0;display:flex;flex-direction:column;align-items:center;gap:40px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.page{width:210mm;height:297mm;background:white;padding:14mm 15mm;position:relative;display:flex;flex-direction:column;box-shadow:0 0 20px rgba(0,0,0,0.5);margin:0 auto;overflow:hidden}
-.pdf-btn{position:fixed;top:20px;right:20px;z-index:9999;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(79,70,229,0.4);font-family:'Pretendard',sans-serif;display:flex;align-items:center;gap:8px;transition:all 0.2s}
-.pdf-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,70,229,0.5)}
-@page{size:A4;margin:0}
-@media print{body{background:none;padding:0;gap:0;margin:0}.page{margin:0;padding:14mm 15mm;box-shadow:none;page-break-after:always;page-break-inside:avoid;break-after:page;break-inside:avoid}.no-print{display:none!important}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#F4F5F7;color:#111827;-webkit-font-smoothing:antialiased;line-height:1.6}
+:root{--primary-dark:#11141A;--primary-dark-soft:#1E232E;--primary-gold:#B8905B;--primary-gold-light:#F4EFE6;--text-main:#1F2937;--text-sub:#6B7280;--text-light:#9CA3AF;--bg-card:#FFFFFF;--border-light:rgba(0,0,0,0.06);--shadow-sm:0 2px 8px rgba(0,0,0,0.04);--shadow-md:0 8px 24px rgba(0,0,0,0.06);--shadow-lg:0 12px 32px rgba(184,144,91,0.08);--radius-sm:8px;--radius-md:16px;--radius-lg:24px}
+.wrap{max-width:480px;margin:0 auto;padding:0 0 80px;background:#FAFAFA;min-height:100vh;box-shadow:0 0 40px rgba(0,0,0,0.05);position:relative}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}.animate-up{animation:fadeUp .8s cubic-bezier(.16,1,.3,1) forwards}
+.hdr{background:linear-gradient(145deg,var(--primary-dark),var(--primary-dark-soft));padding:48px 24px 60px;color:#fff;position:relative;overflow:hidden;border-bottom-left-radius:32px;border-bottom-right-radius:32px}
+.hdr::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;opacity:.03;mix-blend-mode:overlay;pointer-events:none}
+.hdr::after{content:'';position:absolute;top:-20%;right:-10%;width:300px;height:300px;background:radial-gradient(circle,rgba(184,144,91,.15),transparent 70%);border-radius:50%;pointer-events:none}
+.brand-wrap{display:flex;align-items:center;gap:8px;margin-bottom:32px;position:relative;z-index:1}
+.brand-logo{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#D4AF37,var(--primary-gold));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;letter-spacing:.05em;box-shadow:0 4px 12px rgba(184,144,91,.3)}
+.brand-name{font-size:13px;font-weight:600;color:rgba(255,255,255,.9);letter-spacing:.02em}
+.hdr-sub{display:inline-block;font-size:11px;color:var(--primary-gold);letter-spacing:.05em;font-weight:700;margin-bottom:12px;padding:4px 10px;border-radius:20px;background:rgba(184,144,91,.1);border:1px solid rgba(184,144,91,.2)}
+.hdr-title{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-bottom:16px;line-height:1.4;color:#fff}
+.hdr-desc{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:32px;line-height:1.6;word-break:keep-all;position:relative;z-index:1;font-weight:400}
+.profile-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);padding:24px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);position:relative;z-index:1;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+.profile-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.profile-name{font-size:22px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.profile-badge{display:inline-flex;align-items:center;background:var(--primary-gold);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;color:#fff;letter-spacing:-.02em}
+.profile-bottom{display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.1);padding-top:16px}
+.profile-meta{display:flex;flex-direction:column;gap:4px}.meta-label{font-size:11px;color:rgba(255,255,255,.5);font-weight:500}.meta-value{font-size:13px;color:rgba(255,255,255,.9);font-weight:600}
+.nav-container{position:sticky;top:0;z-index:100;padding:12px 24px;background:rgba(250,250,250,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(0,0,0,.03)}
+.nav-scroll{display:flex;gap:8px;overflow-x:auto;white-space:nowrap;-ms-overflow-style:none;scrollbar-width:none;padding-bottom:4px}.nav-scroll::-webkit-scrollbar{display:none}
+.nav-scroll a{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;font-size:14px;font-weight:600;color:var(--text-sub);text-decoration:none;border-radius:20px;transition:all .3s cubic-bezier(.4,0,.2,1);background:transparent}
+.nav-scroll a:hover{color:var(--primary-dark)}.nav-scroll a.active{background:var(--primary-dark);color:#fff;box-shadow:0 4px 12px rgba(17,20,26,.15)}
+.content-body{padding:0 24px;margin-top:-20px;position:relative;z-index:10}
+.sec{margin-top:48px;scroll-margin-top:80px}
+.sec-title{display:flex;align-items:center;gap:10px;margin-bottom:24px}.sec-title svg{width:20px;height:20px;color:var(--primary-gold)}.sec-title h2{font-size:19px;font-weight:800;color:var(--primary-dark);letter-spacing:-.02em}
+.summary-box{background:#FDFBF8;border-radius:var(--radius-md);padding:28px 24px;border:1px solid #EBE4D5;box-shadow:var(--shadow-lg);margin-bottom:32px;position:relative;overflow:hidden}
+.summary-box::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:var(--primary-gold)}
+.summary-box .type-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--primary-gold);margin-bottom:12px;letter-spacing:-.01em}
+.summary-box p{font-size:14.5px;line-height:1.7;color:var(--text-main);word-break:keep-all}
+.summary-box strong{color:var(--primary-dark);font-weight:800;background:linear-gradient(120deg,rgba(184,144,91,.2) 0%,rgba(184,144,91,0) 100%);background-repeat:no-repeat;background-size:100% 40%;background-position:0 88%}
+.card{background:var(--bg-card);border:1px solid var(--border-light);border-radius:var(--radius-md);padding:28px 24px;box-shadow:var(--shadow-md);margin-bottom:24px}
+.info-group{margin-bottom:24px}.info-group:last-child{margin-bottom:0}.info-header{margin-bottom:16px}
+.info-label{font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.info-value{font-size:16px;font-weight:700;color:var(--primary-dark)}.info-value.price{font-size:24px;color:var(--primary-gold);font-weight:800}.info-sub{font-size:13px;color:var(--text-sub);margin-top:4px}
+.schedule-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.schedule-item{display:flex;justify-content:space-between;align-items:center;background:#F9FAFB;padding:12px 16px;border-radius:var(--radius-sm);border:1px solid rgba(0,0,0,.02)}
+.schedule-subj{font-size:13px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px}
+.schedule-subj::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary-gold)}
+.schedule-time{font-size:13px;color:var(--text-sub);font-weight:500}
+.num-list{display:flex;flex-direction:column;gap:24px}
+.num-item{display:flex;align-items:flex-start;gap:16px}
+.num-badge{width:28px;height:28px;border-radius:8px;background:var(--primary-gold-light);color:var(--primary-gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.num-content h3{font-size:15px;font-weight:700;color:var(--text-main);margin-bottom:6px;line-height:1.4}.num-content p{font-size:14px;line-height:1.6;color:var(--text-sub);word-break:keep-all}
+.msg-box{background:#F3F4F6;border-radius:var(--radius-md);padding:24px;margin-top:32px}
+.msg-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}.msg-header svg{color:var(--primary-dark);width:18px;height:18px}.msg-header h4{font-size:15px;font-weight:700;color:var(--primary-dark)}
+.msg-box p{font-size:14px;line-height:1.7;color:var(--text-main);word-break:keep-all}
+.rule-list{list-style:none}.rule-item{padding:20px 0;border-bottom:1px solid var(--border-light)}.rule-item:first-child{padding-top:0}.rule-item:last-child{border-bottom:none;padding-bottom:0}
+.rule-item h4{font-size:14px;font-weight:700;color:var(--text-main);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.rule-item p{font-size:13.5px;color:var(--text-sub);line-height:1.6;word-break:keep-all;padding-left:14px}
+.rule-sublist{margin-top:8px;padding-left:14px;list-style:none;display:flex;flex-direction:column;gap:6px}
+.rule-sublist li{font-size:13.5px;color:var(--text-sub);position:relative;padding-left:10px;word-break:keep-all;line-height:1.5}
+.rule-sublist li::before{content:'-';position:absolute;left:0;color:var(--text-light)}.rule-sublist li strong{color:var(--text-main);font-weight:600}
+.timeline{position:relative;padding-left:28px}
+.timeline::before{content:'';position:absolute;left:11px;top:8px;bottom:0;width:2px;background:linear-gradient(to bottom,var(--primary-gold) 0%,rgba(184,144,91,.2) 100%);border-radius:2px}
+.time-item{position:relative;margin-bottom:32px}.time-item:last-child{margin-bottom:0}
+.time-dot{position:absolute;left:-32.5px;top:4px;width:15px;height:15px;border-radius:50%;background:var(--primary-gold);border:3px solid #FAFAFA;box-shadow:0 0 0 1px rgba(184,144,91,.3);z-index:2}
+.time-week{font-size:12px;font-weight:800;color:var(--primary-gold);margin-bottom:6px;letter-spacing:.05em;text-transform:uppercase}
+.time-title{font-size:16px;font-weight:700;color:var(--primary-dark);margin-bottom:8px}
+.time-desc{font-size:14px;line-height:1.6;color:var(--text-sub);word-break:keep-all;background:#fff;padding:16px;border-radius:var(--radius-sm);border:1px solid var(--border-light);box-shadow:var(--shadow-sm)}
+.check-card{background:var(--primary-dark);border-radius:var(--radius-lg);padding:32px 24px;color:#fff;box-shadow:0 12px 32px rgba(17,20,26,.2);margin-top:24px;background-image:radial-gradient(circle at top right,rgba(255,255,255,.05) 0%,transparent 60%)}
+.check-title{font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;display:flex;align-items:center;gap:8px}.check-title svg{color:var(--primary-gold)}
+.check-list{list-style:none;display:flex;flex-direction:column;gap:16px}
+.check-item{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;line-height:1.5;color:rgba(255,255,255,.8);word-break:keep-all}
+.check-bullet{color:var(--primary-gold);font-size:14px;flex-shrink:0;margin-top:1px}
+.footer{text-align:center;padding:48px 0 24px;font-size:12px;color:var(--text-light);font-weight:500;letter-spacing:.05em}.footer strong{color:var(--primary-dark);font-weight:700}
 </style>
 </head>
 <body>
-<button class="pdf-btn no-print" onclick="window.print()">&#128196; PDF 다운로드</button>
-
-<!-- ===== PAGE 1: 학부모 등록 안내문 ===== -->
-<div class="page" id="page1">
-  <div style="position:absolute;top:0;left:0;width:100%;height:10px;background:linear-gradient(90deg,#4f46e5,#7c3aed)"></div>
-
-  <div style="text-align:center;padding:22px 0 14px;margin-bottom:14px;border-bottom:2px solid #f1f5f9">
-    <p style="color:#3730a3;font-weight:600;letter-spacing:0.3em;text-transform:uppercase;margin-bottom:6px;font-size:10px">Premium Academic Consulting</p>
-    <h2 style="font-weight:900;font-size:34px;color:#0f172a;margin-bottom:2px;letter-spacing:-0.02em">
-      ${data.name} <span style="font-size:18px;font-weight:300;color:#94a3b8;margin-left:4px">학생</span>
-    </h2>
-    <div style="width:40px;height:3px;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:2px;margin:8px auto"></div>
-    <p style="font-size:14px;color:#475569;font-weight:400;line-height:1.6">${page2.welcomeTitle}<br>${page2.welcomeSubtitle}</p>
-  </div>
-
-  <!-- 등록 정보 + 시간표 -->
-  <div style="display:flex;gap:12px;margin-bottom:14px">
-    <div style="flex:1;background:white;border:1px solid #e2e8f0;padding:14px 16px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
-      <h3 style="font-weight:900;font-size:14px;color:#1e293b;margin-bottom:10px"><span style="color:#6366f1;margin-right:5px">&#128196;</span>등록 정보</h3>
-      <div style="font-size:12px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="color:#64748b">수업 시작일</span><span style="font-weight:700;color:#3730a3;background:#eef2ff;padding:2px 10px;border-radius:4px">${data.registrationDate}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="color:#64748b">수업 장소</span><span style="font-weight:700;color:#1e293b">${data.location || "미정"}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="color:#64748b">차량 운행</span><span style="font-weight:700;color:#1e293b">${data.useVehicle === "미사용" ? "미이용" : `이용 (월 ${vehicleFee})`}</span></div>
-        <div style="display:flex;justify-content:space-between;padding-top:7px;border-top:1px solid #f1f5f9"><span style="color:#64748b">월 교육비</span><span style="font-weight:800;font-size:15px;color:#0f172a">${formatFee(data.tuitionFee)}원<span style="font-size:11px;font-weight:normal;color:#94a3b8;margin-left:3px">(교재비 별도)</span></span></div>
+<div class="wrap">
+  <header class="hdr animate-up">
+    <div class="brand-wrap"><div class="brand-logo">NK</div><span class="brand-name">NK 교육컨설팅</span></div>
+    <span class="hdr-sub">NK 심층 학습 성향 분석 기반</span>
+    <h1 class="hdr-title">신입생 등록 안내서</h1>
+    <p class="hdr-desc">${page2.welcomeTitle}<br>${page2.welcomeSubtitle}</p>
+    <div class="profile-card">
+      <div class="profile-top"><div class="profile-name">${data.name} 학생</div><div class="profile-badge">${data.school} ${data.grade}</div></div>
+      <div class="profile-bottom"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>
+    </div>
+  </header>
+  <nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a><a href="#management">관리 전략</a><a href="#roadmap">적응 로드맵</a></div></nav>
+  <main class="content-body">
+    <section class="sec animate-up" id="info" style="animation-delay:.1s">
+      <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><h2>수강 정보 및 안내</h2></div>
+      <div class="card">${buildScheduleCards()}</div>
+      <div class="card"><div class="info-group"><div class="info-header"><div class="info-label">결제 정보 (매월 ${payDay}일 기준)</div><div class="info-value price">${formatFee(totalFee)}원</div><div class="info-sub">${feeBreakdown}</div></div>
+        <div class="schedule-list"><div class="schedule-item" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="schedule-subj" style="color:var(--text-light);font-size:12px;font-weight:600">계좌 이체</span><span style="font-size:14px;font-weight:700;color:var(--text-main)">${bankInfo} (${bankOwner})</span><span style="font-size:12px;color:var(--primary-gold)">* 학생 이름으로 입금 요망</span></div>
+        <div class="schedule-item"><span class="schedule-subj" style="color:var(--text-light);font-size:12px;font-weight:600">교육 상담</span><span style="font-size:14px;font-weight:700;color:var(--text-main)">031-401-8102</span></div></div></div></div>
+      <div class="card"><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark);margin-bottom:16px">학원 주요 운영 규칙</h3>
+        <ul class="rule-list">
+          <li class="rule-item"><h4><span style="color:var(--primary-gold)">•</span> 출결 및 보강 관리</h4><ul class="rule-sublist"><li>매 수업 <strong>10분 전 등원</strong>을 원칙으로 하며, 결석 시 학부모님의 사전 연락이 필수입니다.</li><li>무단결석 2회 또는 지각 누적 3회 발생 시 학부모 상담 및 경고 조치됩니다.</li><li><strong>보강 관리:</strong> 개인 사정에 의한 결석으로 인한 보강은 <strong>학원 자체 인강으로 대체</strong>됩니다.</li></ul></li>
+          <li class="rule-item"><h4><span style="color:var(--primary-gold)">•</span> 수강료 미납 관리</h4><p>수강료는 <strong>매월 ${payDay}일 선결제</strong>가 원칙이며, 미납 시 아래와 같이 조치됩니다.</p><ul class="rule-sublist"><li><strong>1주 미납:</strong> 학부모님께 결제 안내 문자 발송</li><li><strong>2주 미납:</strong> 학생의 정규 수업 및 클리닉 참여 제한</li><li><strong>3주 이상 미납:</strong> 학원 운영 규정에 따라 자동 퇴원 처리</li></ul></li>
+          <li class="rule-item"><h4><span style="color:var(--primary-gold)">•</span> 상담 및 평가</h4><ul class="rule-sublist"><li>상담은 <strong>학생 상담을 기본</strong>으로 진행합니다.</li><li>학부모님께서 궁금하신 부분이 있으실 경우, 언제든 <strong>담당 선생님께 상담을 요청</strong>하시면 됩니다.</li><li>일일/주간/월말 평가 결과는 학생의 학업 성취도 분석 자료로 활용됩니다.</li></ul></li>
+          <li class="rule-item"><h4><span style="color:var(--primary-gold)">•</span> 과제 및 환불 규정</h4><ul class="rule-sublist"><li><strong>숙제 및 과제:</strong> 기한 내 제출이 원칙이며, 미제출 2회 누적 시 의무 보충 학습이 진행됩니다.</li><li><strong>교습비 환불:</strong> 교육청 반환 기준(제18조 제3항)을 엄격히 준수하여 경과율에 따라 차등 환불됩니다.</li></ul></li>
+        </ul>
       </div>
-    </div>
-    <div style="flex:1;background:linear-gradient(135deg,#0f172a,#1e293b);padding:14px 16px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.15);color:white">
-      <h3 style="font-weight:900;font-size:14px;color:white;margin-bottom:10px"><span style="color:#818cf8;margin-right:5px">&#128336;</span>Weekly Schedule</h3>
-      <div style="font-size:12px">${buildScheduleSection(data)}</div>
-    </div>
-  </div>
-
-  <!-- Expert Diagnosis -->
-  <div style="padding:14px 18px;border-radius:10px;background:linear-gradient(135deg,rgba(238,242,255,0.6),rgba(224,231,255,0.4));border:1px solid #c7d2fe;margin-bottom:14px">
-    <h3 style="font-weight:900;font-size:11px;color:#1e1b4b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.15em">Expert Diagnosis</h3>
-    <p style="font-size:12px;color:#334155;line-height:1.7;text-align:justify;margin:0">${page2.expertDiagnosis}</p>
-  </div>
-
-  <!-- 핵심 포인트 2x2 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">${focusHTML}</div>
-
-  <!-- 학부모님께 드리는 말씀 -->
-  ${page2.parentMessage ? `
-  <div style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px">
-    <h3 style="font-weight:900;font-size:12px;color:#6b21a8;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em">&#128140; 학부모님께 드리는 말씀</h3>
-    <p style="font-size:12px;color:#4c1d95;line-height:1.7;margin:0">${page2.parentMessage}</p>
-  </div>` : ""}
-
-  ${pageFooter(1, 4)}
+    </section>
+    <section class="sec animate-up" id="diagnosis" style="animation-delay:.2s">
+      <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg><h2>NK 심층 성향 분석</h2></div>
+      <div class="summary-box"><div class="type-tag"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>${page1.profileSummary || ""}</div><p>${page2.expertDiagnosis}</p></div>
+      ${backgroundHTML}
+      ${sixFactorHTML ? '<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark)">7대 핵심 학습 성향</h3></div>' + sixFactorHTML + '</div>' : ''}
+      <div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark)">핵심 학습 포인트</h3></div><div class="num-list">${focusHTML}</div></div>
+      ${page2.parentMessage ? '<div class="msg-box"><div class="msg-header"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><h4>학부모님께 드리는 말씀</h4></div><p>' + page2.parentMessage + '</p></div>' : ""}
+    </section>
+    <section class="sec animate-up" id="management" style="animation-delay:.3s">
+      <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg><h2>담임 매니지먼트 가이드</h2></div>
+      <div class="card"><div class="num-list">${guideHTML}</div></div>
+    </section>
+    <section class="sec animate-up" id="roadmap" style="animation-delay:.4s">
+      <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg><h2>3개월 적응 및 성장 로드맵</h2></div>
+      <div class="timeline">${roadmapHTML}</div>
+      <div class="check-card"><div class="check-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>담당 선생님 필수 점검 체크리스트</div><ul class="check-list">${checklistHTML}</ul></div>
+    </section>
+  </main>
+  <footer class="footer"><strong>NK</strong> 교육 컨설팅 그룹</footer>
 </div>
-
-<!-- ===== PAGE 2: 원비 안내 및 학원 운영 규정 ===== -->
-<div class="page" id="page2">
-  <div style="position:absolute;top:0;left:0;width:100%;height:10px;background:linear-gradient(90deg,#4f46e5,#7c3aed)"></div>
-
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:2px;margin-bottom:14px;border-bottom:2px solid #e2e8f0;padding-bottom:10px">
-    <div>
-      <h1 style="font-size:22px;font-weight:900;color:#0f172a;letter-spacing:-0.05em;font-style:italic;text-transform:uppercase;margin:0">NK EDUCATION</h1>
-      <p style="color:#3730a3;font-weight:700;font-size:10px;letter-spacing:0.3em;margin-top:3px">원비 안내 및 학원 운영 규정</p>
-    </div>
-    <div style="text-align:right">
-      <p style="font-size:11px;font-weight:700;color:#1e293b">${data.name} / ${data.school} ${data.grade}</p>
-    </div>
-  </div>
-
-  <!-- 1. 월 수업료 안내 -->
-  <div style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:900;color:#1e293b;margin-bottom:8px">
-    <span style="color:#4f46e5">&#9632;</span> 1. 월 수업료 안내
-  </div>
-  <div style="display:flex;gap:12px;margin-bottom:12px">
-    <div style="flex:1">
-      <table style="width:100%;border-collapse:collapse;font-size:11px">
-        <thead><tr style="background:#1e1b4b;color:white">
-          <th style="padding:6px 10px;text-align:center;font-size:11px;border:1px solid #1e1b4b">학년</th>
-          <th style="padding:6px 10px;text-align:center;font-size:11px;border:1px solid #1e1b4b">월 수업료</th>
-        </tr></thead>
-        <tbody>${tuitionTableHTML}</tbody>
-      </table>
-      <p style="font-size:9px;color:#94a3b8;margin-top:4px">* 교재비는 별도이며, 학기 초 안내됩니다.</p>
-    </div>
-    <div style="flex:1">
-      <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;margin-bottom:8px">
-        <p style="font-size:11px;font-weight:800;color:#3730a3;margin:0 0 6px">&#127775; 복수 과목 할인 (영어수학 동시 수강)</p>
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <tr><td style="padding:4px 0;color:#475569">중등부 (초6~중3)</td><td style="text-align:right;font-weight:700;color:#dc2626">-50,000원 할인</td></tr>
-          <tr><td style="padding:4px 0;color:#475569">고등부 (고1~고3)</td><td style="text-align:right;font-weight:700;color:#dc2626">-30,000원 할인</td></tr>
-        </table>
-      </div>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px">
-        <p style="font-size:11px;font-weight:800;color:#166534;margin:0 0 5px">&#128652; 차량 운행</p>
-        <p style="font-size:11px;color:#475569;line-height:1.5;margin:0">월 ${vehicleFee} (왕복 기준)<br>차량 운행 노선 및 시간은 별도 안내</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- 이 학생의 원비 요약 -->
-  <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:12px;padding:14px 20px;color:white;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <p style="font-size:11px;color:#818cf8;font-weight:700;margin:0 0 3px">&#128176; ${data.name} 학생 월 납부 금액</p>
-      <p style="font-size:11px;color:#94a3b8;margin:0">${data.subject} · ${data.grade} · 차량 ${data.useVehicle === "미사용" ? "미이용" : "이용"}</p>
-    </div>
-    <div style="text-align:right">
-      <p style="font-size:26px;font-weight:900;color:white;margin:0">${formatFee(data.useVehicle !== "미사용" ? data.tuitionFee + vehicleFeeNum : data.tuitionFee)}원</p>
-      <p style="font-size:10px;color:#94a3b8;margin:2px 0 0">${data.useVehicle !== "미사용" ? `수업료 ${formatFee(data.tuitionFee)}원 + 차량비 ${vehicleFee}` : "수업료"} (교재비 별도)</p>
-    </div>
-  </div>
-
-  <!-- 2. 납부 안내 -->
-  <div style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:900;color:#1e293b;margin-bottom:6px">
-    <span style="color:#4f46e5">&#9632;</span> 2. 납부 안내
-  </div>
-  <div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 16px;margin-bottom:10px;font-size:11px">
-    <table style="width:100%;border-collapse:collapse">
-      <tr><td style="padding:5px 0;color:#64748b;width:80px;font-weight:600;border-bottom:1px solid #f1f5f9">입금 계좌</td><td style="padding:5px 0;font-weight:800;color:#1e1b4b;border-bottom:1px solid #f1f5f9">${bankInfo} <span style="font-size:10px;background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:4px;font-weight:600;margin-left:4px">예금주: ${bankOwner}</span></td></tr>
-      <tr><td style="padding:5px 0;color:#64748b;font-weight:600;border-bottom:1px solid #f1f5f9">납부 방법</td><td style="padding:5px 0;font-weight:700;color:#1e293b;border-bottom:1px solid #f1f5f9">${data.name} (학생 이름) 입금 · 매월 등록일(${data.registrationDate.split("-").pop() || ""}일) 기준</td></tr>
-      <tr><td style="padding:5px 0;color:#64748b;font-weight:600;border-bottom:1px solid #f1f5f9">카드 결제</td><td style="padding:5px 0;font-weight:700;color:#1e293b;border-bottom:1px solid #f1f5f9"><span style="color:#4f46e5;font-weight:800">다온카드</span> <span style="font-size:10px;color:#64748b">(현장결제)</span> · <span style="font-weight:800;color:#1e293b">일반카드</span> <span style="font-size:10px;color:#64748b">(학원 전화 후 카드번호 직접 결제 가능)</span></td></tr>
-      <tr><td style="padding:5px 0;color:#64748b;font-weight:600">교육 상담</td><td style="padding:5px 0;font-weight:700;color:#1e293b">031-401-8102</td></tr>
-    </table>
-  </div>
-
-  <!-- 미납 시 조치 -->
-  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 14px;margin-bottom:10px">
-    <p style="font-size:10px;font-weight:800;color:#991b1b;margin:0 0 3px">&#9888;&#65039; 수업료 미납 시 조치 사항</p>
-    <p style="font-size:10px;color:#7f1d1d;line-height:1.5;margin:0"><strong>1주 미납</strong>: 납부 안내 연락 (문자/전화) · <strong>2주 미납</strong>: 수업 참여 불가 · <strong>3주 이상</strong>: 자동 퇴원 처리</p>
-  </div>
-
-  <!-- 3. 학원 운영 규칙 -->
-  <div style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:900;color:#1e293b;margin-bottom:5px">
-    <span style="color:#4f46e5">&#9632;</span> 3. 학원 운영 규칙
-  </div>
-  <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px">
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <tr style="background:#f8fafc"><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;width:75px;font-weight:700;color:#475569;vertical-align:top">출결 관리</td><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;line-height:1.5">매 수업일 정시 출석 필수이며, 부득이한 결석 시 <strong>사전 연락</strong> 바랍니다. 지각 누적 3회 시 학부모님께 안내드립니다.</td></tr>
-      <tr><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#475569;vertical-align:top">숙제/과제</td><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;line-height:1.5">매 수업 후 과제가 출제되며, 정해진 기한 내 제출을 원칙으로 합니다. 미제출 2회 누적 시 보충 학습이 진행됩니다.</td></tr>
-      <tr style="background:#f8fafc"><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#475569;vertical-align:top">시험/평가</td><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;line-height:1.5">일일, 주간, 월말평가가 진행되며, 결과는 정기 상담 시 함께 검토합니다.</td></tr>
-      <tr><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#475569;vertical-align:top">정기 상담</td><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;line-height:1.5">학생, 학부모 월 1회 정기 상담을 진행하며, 학습 진행 상황 및 진로 등을 함께 논의합니다.</td></tr>
-      <tr style="background:#f8fafc"><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#475569;vertical-align:top">보강</td><td style="padding:6px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;line-height:1.5">개인 사정으로 인한 보강은 <strong>인강(인터넷 강의)으로 대체</strong>됩니다.</td></tr>
-      <tr><td style="padding:6px 12px;font-weight:700;color:#475569;vertical-align:top">기타 사항</td><td style="padding:6px 12px;color:#1e293b;line-height:1.5">학원 내 휴대폰 사용은 제한되며, 수업 분위기 저해 행위 시 학부모 면담 후 조치합니다.</td></tr>
-    </table>
-  </div>
-
-  <!-- 4. 환불 규정 -->
-  <div style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:900;color:#1e293b;margin-bottom:6px">
-    <span style="color:#4f46e5">&#9632;</span> 4. 환불 규정
-  </div>
-  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:11px;color:#475569;line-height:1.7">
-    <p style="margin:0 0 4px;font-size:12px"><strong style="color:#1e293b">교육청 「교습비 등 반환 기준」을 엄격히 준수합니다.</strong></p>
-    <ul style="margin:0;padding-left:16px">
-      <li>수업 시작 전: 이미 납부한 교습비 전액 환불</li>
-      <li>총 교습 시간의 1/3 경과 전: 이미 납부한 교습비의 2/3 해당액 환불</li>
-      <li>총 교습 시간의 1/2 경과 전: 이미 납부한 교습비의 1/2 해당액 환불</li>
-      <li>총 교습 시간의 1/2 경과 후: 환불하지 않음</li>
-    </ul>
-  </div>
-
-  ${pageFooter(2, 4)}
-</div>
-
-<!-- ===== PAGE 3: 신입생 분석 전략서 (내부용) ===== -->
-<div class="page" id="page3">
-  <div style="position:absolute;top:0;left:0;width:100%;height:8px;background:#1e1b4b"></div>
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:2px;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:10px">
-    <div>
-      <h1 style="font-size:22px;font-weight:900;color:#0f172a;letter-spacing:-0.05em;font-style:italic;text-transform:uppercase;margin:0">NK EDUCATION</h1>
-      <p style="color:#3730a3;font-weight:700;font-size:10px;letter-spacing:0.3em;margin-top:3px">신입생 통합 분석 및 관리 전략서 (${page1.deptLabel})</p>
-    </div>
-    <div style="text-align:right">
-      <p style="font-size:10px;color:#94a3b8;font-family:monospace">Doc. No: ${page1.docNo}</p>
-    </div>
-  </div>
-
-  <!-- 1. 프로필 -->
-  <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px">
-    <span style="color:#4f46e5">&#9632;</span> 1. 신입생 핵심 프로필
-  </div>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px">
-    <tr>
-      <th style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px;text-align:center;width:85px;color:#475569;font-weight:700">성명/학교</th>
-      <td style="border:1px solid #e2e8f0;padding:8px 12px;font-weight:700;color:#0f172a">${data.name} / ${data.school} ${data.grade}</td>
-      <th style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px;text-align:center;width:85px;color:#475569;font-weight:700">등록 예정일</th>
-      <td style="border:1px solid #e2e8f0;padding:8px 12px;color:#0f172a">${data.registrationDate}</td>
-    </tr>
-    <tr>
-      <th style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px;text-align:center;color:#475569;font-weight:700">배정반</th>
-      <td style="border:1px solid #e2e8f0;padding:8px 12px;color:#3730a3;font-weight:700">${classLabel}</td>
-      <th style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px;text-align:center;color:#475569;font-weight:700">차량</th>
-      <td style="border:1px solid #e2e8f0;padding:8px 12px;color:#64748b">${vehicleText(data.useVehicle, vehicleFee)}</td>
-    </tr>
-    <tr>
-      <th style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px;text-align:center;color:#475569;font-weight:700">진단 요약</th>
-      <td colspan="3" style="border:1px solid #e2e8f0;padding:8px 12px"><span style="color:#dc2626;font-weight:800;font-size:12px">${page1.profileSummary}</span></td>
-    </tr>
-    ${page1.studentBackground ? `<tr>
-      <th style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px;text-align:center;color:#475569;font-weight:700">학생 배경</th>
-      <td colspan="3" style="border:1px solid #e2e8f0;padding:8px 12px;font-size:11px;color:#475569;line-height:1.6">${page1.studentBackground}</td>
-    </tr>` : ""}
-  </table>
-
-  <!-- 2. 7-Factor -->
-  <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px">
-    <span style="color:#4f46e5">&#9632;</span> 2. 7-Factor 학습 성향 분석
-  </div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
-    <thead><tr style="background:#f8fafc">
-      <th style="border:1px solid #e2e8f0;padding:8px 12px;font-size:11px;color:#475569;font-weight:700;text-align:left;width:85px">항목</th>
-      <th style="border:1px solid #e2e8f0;padding:8px 10px;font-size:11px;color:#475569;font-weight:700;text-align:center;width:50px">점수</th>
-      <th style="border:1px solid #e2e8f0;padding:8px 10px;font-size:11px;color:#475569;font-weight:700;text-align:center;width:55px">등급</th>
-      <th style="border:1px solid #e2e8f0;padding:8px 12px;font-size:11px;color:#475569;font-weight:700;text-align:left">핵심 인사이트</th>
-    </tr></thead>
-    <tbody>${sixFactorHTML}</tbody>
-  </table>
-
-  <!-- 3. 매니지먼트 가이드 -->
-  <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px">
-    <span style="color:#4f46e5">&#9632;</span> 3. 담임 매니지먼트 가이드 (${data.teacher} 선생님)
-  </div>
-  <div style="margin-bottom:14px">${guideHTML}</div>
-
-  ${pageFooter(3, 4)}
-</div>
-
-<!-- ===== PAGE 4: 적응 전략 및 실행 계획 (내부용) ===== -->
-<div class="page" id="page4">
-  <div style="position:absolute;top:0;left:0;width:100%;height:8px;background:#1e1b4b"></div>
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:2px;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:10px">
-    <div>
-      <h1 style="font-size:22px;font-weight:900;color:#0f172a;letter-spacing:-0.05em;font-style:italic;text-transform:uppercase;margin:0">NK EDUCATION</h1>
-      <p style="color:#3730a3;font-weight:700;font-size:10px;letter-spacing:0.3em;margin-top:3px">적응 전략 및 실행 계획</p>
-    </div>
-    <div style="text-align:right">
-      <p style="font-size:11px;font-weight:700;color:#1e293b">${data.name} / ${data.school} ${data.grade}</p>
-    </div>
-  </div>
-
-  <!-- 매니지먼트 가이드 나머지 -->
-  ${guideHTML2 ? `
-  <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px">
-    <span style="color:#4f46e5">&#9632;</span> 3. 담임 매니지먼트 가이드 (계속)
-  </div>
-  <div style="margin-bottom:18px">${guideHTML2}</div>` : ""}
-
-  <!-- 4. 첫 달 적응 로드맵 -->
-  ${firstMonthHTML ? `
-  <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px">
-    <span style="color:#4f46e5">&#9632;</span> 4. 첫 달(4주) 적응 로드맵
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">${firstMonthHTML}</div>` : ""}
-
-  <!-- 5. Action Checklist -->
-  <div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:16px 18px;border-radius:12px;color:white;margin-bottom:18px">
-    <p style="font-size:12px;font-weight:900;color:#818cf8;margin-bottom:10px;border-bottom:1px solid #475569;padding-bottom:7px;text-transform:uppercase;letter-spacing:0.05em">Required Action Checklist</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 18px;opacity:0.95">${checklistHTML}</div>
-  </div>
-
-  <!-- 학생 배경 상세 -->
-  ${page1.studentBackground ? `
-  <div style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:900;color:#1e293b;margin-bottom:10px">
-    <span style="color:#4f46e5">&#9632;</span> 5. 학생 배경 분석 및 유의사항
-  </div>
-  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:18px">
-    <p style="font-size:12px;color:#92400e;line-height:1.7;margin:0">${page1.studentBackground}</p>
-  </div>` : ""}
-
-  <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;text-align:center">
-    <p style="font-size:11px;font-weight:700;color:#475569;margin:0">NK EDUCATION은 학생 한 명 한 명의 성장을 위해 최선을 다하겠습니다.</p>
-  </div>
-
-  ${pageFooter(4, 4)}
-</div>
-
+<script>
+document.addEventListener("DOMContentLoaded",()=>{const s=document.querySelectorAll(".sec"),n=document.querySelectorAll(".nav-scroll a"),ns=document.querySelector(".nav-scroll");window.addEventListener("scroll",()=>{let c="";s.forEach(e=>{if(scrollY>=e.offsetTop-140)c=e.getAttribute("id")});n.forEach(l=>{l.classList.remove("active");if(c&&l.getAttribute("href").includes(c)){l.classList.add("active");ns.scrollTo({left:l.offsetLeft-(ns.offsetWidth/2)+(l.offsetWidth/2),behavior:'smooth'})}})});n.forEach(l=>{l.addEventListener("click",function(e){e.preventDefault();const el=document.getElementById(this.getAttribute("href").substring(1));if(el)window.scrollTo({top:el.offsetTop-100,behavior:"smooth"})})})});
+</script>
 </body>
 </html>`;
 }

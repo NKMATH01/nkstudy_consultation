@@ -276,6 +276,7 @@ export interface Registration {
   use_vehicle: string | null;
   test_score: string | null;
   test_note: string | null;
+  school_score: string | null;
   location: string | null;
   consult_date: string | null;
   additional_note: string | null;

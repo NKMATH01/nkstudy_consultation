@@ -93,6 +93,7 @@ export async function generateRegistration(
     use_vehicle?: string;
     test_score?: string;
     test_note?: string;
+    school_score?: string;
     location?: string;
     consult_date?: string;
     additional_note?: string;
@@ -263,7 +264,10 @@ export async function generateRegistration(
     test_note: adminFormData.test_note || null,
     location: adminFormData.location || null,
     consult_date: adminFormData.consult_date || null,
-    additional_note: adminFormData.additional_note || null,
+    additional_note: [
+      adminFormData.school_score ? `[내신] ${adminFormData.school_score}` : "",
+      adminFormData.additional_note || "",
+    ].filter(Boolean).join("\n") || null,
     tuition_fee: tuitionFee,
     report_data: reportData,
     report_html: reportHTML,
@@ -288,7 +292,7 @@ export async function generateRegistration(
       .select("id")
       .eq("name", analysisData.name)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     const studentData: Record<string, unknown> = {
       name: analysisData.name,
@@ -318,6 +322,7 @@ export async function generateRegistration(
 
   revalidatePath("/registrations");
   revalidatePath("/analyses");
+  revalidatePath("/surveys");
   revalidatePath("/settings/students");
   revalidatePath("/onboarding");
   return { success: true, data: registration };

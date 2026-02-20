@@ -41,6 +41,30 @@ function extractGradeFromClassName(name: string): string | null {
   return match ? match[1] : null;
 }
 
+// ── 고등학교 특수과목 반 판별 ──
+const HIGH_SCHOOL_SUBJECTS = ["기하", "확통", "미적"];
+function isHighSchoolSubjectClass(className: string): boolean {
+  return HIGH_SCHOOL_SUBJECTS.some((s) => className.startsWith(s));
+}
+
+// ── 학생의 실제 학년 판별 (grade 숫자 + class_name 조합) ──
+function resolveStudentGrade(student: { grade?: string | null; assigned_class?: string | null }): string | null {
+  // 1. class_name에서 학년 추출 (가장 정확)
+  if (student.assigned_class) {
+    const fromClass = extractGradeFromClassName(student.assigned_class);
+    if (fromClass) return fromClass;
+    // 기하/확통/미적 등 고등학교 특수과목 반 → 고3 고정
+    if (isHighSchoolSubjectClass(student.assigned_class)) {
+      return "고3";
+    }
+  }
+  // 2. grade가 이미 "초3", "중1" 형식이면 그대로
+  if (student.grade && /^(초[3-6]|중[1-3]|고[1-3])$/.test(student.grade)) {
+    return student.grade;
+  }
+  return null;
+}
+
 // ── Props ──
 interface Props {
   students: Student[];
@@ -252,7 +276,7 @@ export function StudentList({ students, teachers, classes }: Props) {
   const [filterClass, setFilterClass] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  // 학년에 맞는 반 목록
+  // 학년에 맞는 반 목록 (classes 테이블 + 학생 실제 배정반 합치기)
   const classesForGrade = useMemo(() => {
     if (!filterGrade) return classes;
     return classes.filter((c) => extractGradeFromClassName(c.name) === filterGrade);
@@ -264,12 +288,29 @@ export function StudentList({ students, teachers, classes }: Props) {
     return Array.from(set).sort();
   }, [students]);
 
+  // 학년 필터 시 표시할 반 목록 (classes 테이블 + 학생 데이터 병합)
+  const classOptionsForFilter = useMemo(() => {
+    if (!filterGrade) return uniqueClasses;
+    // classes 테이블에서 해당 학년 반 이름
+    const fromTable = new Set(classesForGrade.map((c) => c.name));
+    // 학생 데이터에서 해당 학년에 해당하는 반 이름
+    students.forEach((s) => {
+      if (s.assigned_class && resolveStudentGrade(s) === filterGrade) {
+        fromTable.add(s.assigned_class);
+      }
+    });
+    return Array.from(fromTable).sort();
+  }, [filterGrade, classesForGrade, students, uniqueClasses]);
+
   // 필터 적용
   const filteredStudents = useMemo(() => {
     let result = students;
 
     if (filterGrade) {
-      result = result.filter((s) => s.grade === filterGrade);
+      result = result.filter((s) => {
+        const resolved = resolveStudentGrade(s);
+        return resolved === filterGrade;
+      });
     }
 
     if (filterClass) {
@@ -349,7 +390,7 @@ export function StudentList({ students, teachers, classes }: Props) {
           </select>
           <select className={filterSelectCls} value={filterClass} onChange={(e) => setFilterClass(e.target.value)}>
             <option value="">전체 반</option>
-            {(filterGrade ? classesForGrade.map((c) => c.name) : uniqueClasses).map((c) => (
+            {classOptionsForFilter.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
@@ -414,7 +455,7 @@ export function StudentList({ students, teachers, classes }: Props) {
                   <TableCell className="px-4 py-3.5 font-medium text-sm text-slate-800">{student.name}</TableCell>
                   <TableCell className="px-4 py-3.5 text-sm text-slate-600">{student.school || "-"}</TableCell>
                   <TableCell className="hidden sm:table-cell px-4 py-3.5 text-sm text-slate-600">
-                    {student.grade || "-"}
+                    {resolveStudentGrade(student) || student.grade || "-"}
                   </TableCell>
                   <TableCell className="hidden md:table-cell px-4 py-3.5 text-sm text-slate-600">
                     {student.assigned_class || "-"}

@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
+  Pencil,
   Trash2,
   UserMinus,
   Filter,
@@ -119,6 +120,7 @@ export function WithdrawalList({ withdrawals }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<Withdrawal | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Withdrawal | undefined>();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterReason, setFilterReason] = useState("");
@@ -218,7 +220,7 @@ export function WithdrawalList({ withdrawals }: Props) {
             </div>
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => { setEditTarget(undefined); setShowForm(true); }}
             className="h-8 px-4 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all hover:-translate-y-px hover:shadow-lg"
             style={{ background: "#D4A853", color: "#0F2B5B" }}
           >
@@ -356,7 +358,7 @@ export function WithdrawalList({ withdrawals }: Props) {
               퇴원 기록을 추가하여 퇴원 사유와 패턴을 분석해보세요
             </p>
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => { setEditTarget(undefined); setShowForm(true); }}
               className="h-9 px-5 rounded-xl text-white text-sm font-bold flex items-center gap-2 transition-all hover:-translate-y-px hover:shadow-lg"
               style={{ background: "#0F2B5B" }}
             >
@@ -392,7 +394,7 @@ export function WithdrawalList({ withdrawals }: Props) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[140px] flex-shrink-0">퇴원 사유</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[48px] flex-shrink-0">재원</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[60px] flex-shrink-0">복귀 가능</span>
-              <span className="ml-auto w-7 flex-shrink-0" />
+              <span className="ml-auto w-[60px] flex-shrink-0" />
             </div>
 
             {/* ─── List Rows ─── */}
@@ -421,7 +423,15 @@ export function WithdrawalList({ withdrawals }: Props) {
                     <span className="w-[140px] flex-shrink-0"><ReasonBadge value={w.reason_category} /></span>
                     <span className="text-xs text-slate-400 w-[48px] flex-shrink-0 tabular-nums">{w.duration_months ? `${w.duration_months}개월` : "-"}</span>
                     <span className="w-[60px] flex-shrink-0"><ComebackBadge value={w.comeback_possibility} /></span>
-                    <div className="ml-auto flex-shrink-0">
+                    <div className="ml-auto flex-shrink-0 flex gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-blue-600 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
+                        onClick={(e) => { e.stopPropagation(); setEditTarget(w); setShowForm(true); }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -547,7 +557,14 @@ export function WithdrawalList({ withdrawals }: Props) {
       </div>
 
       {/* ─── Form Dialog ─── */}
-      <WithdrawalFormDialog open={showForm} onOpenChange={setShowForm} />
+      <WithdrawalFormDialog
+        open={showForm}
+        onOpenChange={(open) => {
+          setShowForm(open);
+          if (!open) setEditTarget(undefined);
+        }}
+        withdrawal={editTarget}
+      />
 
       {/* ─── Delete Confirmation Dialog ─── */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(undefined)}>

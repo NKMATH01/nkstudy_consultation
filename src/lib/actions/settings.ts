@@ -464,6 +464,10 @@ export async function deleteTeacher(id: string) {
 //           teacher_name → teacher, is_active → active
 /** DB 컬럼 → Student 인터페이스 매핑 */
 function mapDbToStudent(row: Record<string, unknown>): Student {
+  // teachers JOIN 결과에서 이름 추출
+  const teacherObj = row.teachers as Record<string, unknown> | null;
+  const teacherName = teacherObj?.name ? String(teacherObj.name) : null;
+
   return {
     id: String(row.id ?? ""),
     name: String(row.name ?? ""),
@@ -472,7 +476,7 @@ function mapDbToStudent(row: Record<string, unknown>): Student {
     student_phone: row.phone != null ? String(row.phone) : null,
     parent_phone: row.parent_phone != null ? String(row.parent_phone) : null,
     assigned_class: row.class_name != null ? String(row.class_name) : null,
-    teacher: row.teacher_name != null ? String(row.teacher_name) : null,
+    teacher: teacherName,
     memo: row.memo != null ? String(row.memo) : null,
     registration_date: row.registration_date != null ? String(row.registration_date) : null,
     active: row.is_active !== false,
@@ -482,19 +486,22 @@ function mapDbToStudent(row: Record<string, unknown>): Student {
 }
 
 /** Student 인터페이스 → DB 실제 컬럼 매핑
- * 컬럼명 매핑: student_phone→phone, assigned_class→class_name, teacher→teacher_name */
-function mapStudentToDb(parsed: Record<string, unknown>): Record<string, unknown> {
-  return {
+ * teacher는 이름 → teacher_id 변환 필요 (호출 측에서 처리) */
+function mapStudentToDb(parsed: Record<string, unknown>, teacherId?: string | null): Record<string, unknown> {
+  const result: Record<string, unknown> = {
     name: parsed.name || null,
     school: parsed.school || null,
     grade: parsed.grade || null,
     phone: parsed.student_phone || null,
     parent_phone: parsed.parent_phone || null,
     class_name: parsed.assigned_class || null,
-    teacher_name: parsed.teacher || null,
     memo: parsed.memo || null,
     registration_date: parsed.registration_date || null,
   };
+  if (teacherId !== undefined) {
+    result.teacher_id = teacherId;
+  }
+  return result;
 }
 
 export async function getStudents(): Promise<Student[]> {
@@ -502,7 +509,8 @@ export async function getStudents(): Promise<Student[]> {
 
   const { data, error } = await supabase
     .from("students")
-    .select("*")
+    .select("*, teachers:teacher_id(name)")
+    .eq("is_active", true)
     .order("name", { ascending: true });
 
   if (error) {
@@ -534,7 +542,20 @@ export async function createStudent(formData: FormData) {
       return { success: false, error: parsed.error.issues[0].message };
     }
 
-    const dbData = mapStudentToDb(parsed.data as Record<string, unknown>);
+    // 선생님 이름 → teacher_id 변환
+    let teacherId: string | null = null;
+    const teacherName = parsed.data.teacher;
+    if (teacherName) {
+      const { data: teacherRow } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("name", String(teacherName))
+        .limit(1)
+        .maybeSingle();
+      teacherId = teacherRow?.id || null;
+    }
+
+    const dbData = mapStudentToDb(parsed.data as Record<string, unknown>, teacherId);
 
     const { error } = await supabase.from("students").insert(dbData);
 
@@ -571,7 +592,20 @@ export async function updateStudent(id: string, formData: FormData) {
       return { success: false, error: parsed.error.issues[0].message };
     }
 
-    const dbData = mapStudentToDb(parsed.data as Record<string, unknown>);
+    // 선생님 이름 → teacher_id 변환
+    let teacherId: string | null = null;
+    const teacherName = parsed.data.teacher;
+    if (teacherName) {
+      const { data: teacherRow } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("name", String(teacherName))
+        .limit(1)
+        .maybeSingle();
+      teacherId = teacherRow?.id || null;
+    }
+
+    const dbData = mapStudentToDb(parsed.data as Record<string, unknown>, teacherId);
 
     const { error } = await supabase.from("students").update(dbData).eq("id", id);
 

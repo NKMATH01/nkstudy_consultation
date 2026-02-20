@@ -286,7 +286,19 @@ export async function generateRegistration(
 
   // 8. 학생 관리에 자동 등록/업데이트
   try {
-    // Check if student already exists by name + grade
+    // 선생님 이름 → teacher_id 조회
+    let teacherId: string | null = null;
+    if (adminFormData.teacher) {
+      const { data: teacherRow } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("name", adminFormData.teacher)
+        .limit(1)
+        .maybeSingle();
+      teacherId = teacherRow?.id || null;
+    }
+
+    // 기존 학생 확인 (이름 기준)
     const { data: existingStudent } = await supabase
       .from("students")
       .select("id")
@@ -301,22 +313,20 @@ export async function generateRegistration(
       phone: surveyData.student_phone || null,
       parent_phone: surveyData.parent_phone || null,
       class_name: adminFormData.assigned_class || null,
-      teacher_name: adminFormData.teacher || null,
+      teacher_id: teacherId,
       is_active: true,
+      registration_date: adminFormData.registration_date || null,
     };
 
     if (existingStudent) {
-      // Update existing student
       await supabase
         .from("students")
         .update(studentData)
         .eq("id", existingStudent.id);
     } else {
-      // Create new student
       await supabase.from("students").insert(studentData);
     }
   } catch (e) {
-    // Non-critical: log but don't fail the registration
     console.error("[Student] 학생 자동 등록/업데이트 실패:", e instanceof Error ? e.message : e);
   }
 

@@ -107,6 +107,10 @@ interface Props {
   withdrawals: Withdrawal[];
   totalStudentCount?: number;
   teacherStudentCounts?: Record<string, number>;
+  /** 월별 전달 말일 기준 총 재원생 수 (key: month number) */
+  monthlyBaseTotal?: Record<number, number>;
+  /** 월별 + 강사별 전달 말일 기준 재원생 수 */
+  monthlyBaseByTeacher?: Record<number, Record<string, number>>;
 }
 
 interface TeacherRow {
@@ -403,6 +407,8 @@ export function WithdrawalDashboard({
   withdrawals,
   totalStudentCount,
   teacherStudentCounts,
+  monthlyBaseTotal,
+  monthlyBaseByTeacher,
 }: Props) {
   const [activeMonth, setActiveMonth] = useState<number | null>(() => {
     const currentMonth = new Date().getMonth() + 1;
@@ -500,22 +506,25 @@ export function WithdrawalDashboard({
 
   const insightData = useMemo(() => {
     const count = filtered.length;
-    // Total = current active students + all withdrawn students
-    const activeCount = totalStudentCount || 0;
-    let total = activeCount + withdrawals.length;
-    if (activeMonth !== null && total > 0) {
-      // For a specific month: total at that time = active now + withdrew at/after that month
-      const withdrawnAtOrAfter = withdrawals.filter((w) => {
-        const m = getMonthFromDate(w.withdrawal_date);
-        return m !== null && m >= activeMonth;
-      }).length;
-      total = activeCount + withdrawnAtOrAfter;
+
+    // 퇴원율 = 해당월 퇴원생 / 전달 말일 기준 재원생 수
+    // 예: 2월 퇴원율 = 2월 퇴원생 / 1월 31일 기준 재원생 수
+    let total: number;
+    if (activeMonth !== null && monthlyBaseTotal?.[activeMonth]) {
+      // 특정 월 선택: 전달 말일 기준 재원생 수 사용
+      total = monthlyBaseTotal[activeMonth];
+    } else if (activeMonth !== null) {
+      // monthlyBaseTotal 데이터가 없으면 fallback
+      total = (totalStudentCount || 0) + withdrawals.length;
+    } else {
+      // "전체" 선택: 현재 활성 학생 + 전체 퇴원생
+      total = (totalStudentCount || 0) + withdrawals.length;
     }
     const withdrawalRate = total > 0 ? (count / total) * 100 : 0;
 
-    // Early withdrawal (duration_months <= 2)
+    // Early withdrawal (duration_months <= 2, 120 이상은 비정상 데이터 제외)
     const earlyWithdrawals = filtered.filter(
-      (w) => w.duration_months != null && w.duration_months <= 2
+      (w) => w.duration_months != null && w.duration_months <= 2 && w.duration_months > 0
     );
     const earlyCount = earlyWithdrawals.length;
     const earlyTeachers = Array.from(
@@ -547,7 +556,13 @@ export function WithdrawalDashboard({
     const sortedTeachers = Object.entries(teacherWithdrawalMap).sort((a, b) => b[1] - a[1]);
     const topTeacherName = sortedTeachers[0]?.[0] || "-";
     const topTeacherCount = sortedTeachers[0]?.[1] || 0;
-    const topTeacherTotal = teacherStudentCounts?.[topTeacherName] || 0;
+    // 특정 월 선택 시 전달 말일 기준 강사별 재원생 수 사용
+    let topTeacherTotal: number;
+    if (activeMonth !== null && monthlyBaseByTeacher?.[activeMonth]) {
+      topTeacherTotal = monthlyBaseByTeacher[activeMonth][topTeacherName] || 0;
+    } else {
+      topTeacherTotal = teacherStudentCounts?.[topTeacherName] || 0;
+    }
     const topTeacherRate =
       topTeacherTotal > 0 ? ((topTeacherCount / topTeacherTotal) * 100).toFixed(1) : "-";
 
@@ -565,7 +580,7 @@ export function WithdrawalDashboard({
       topTeacherCount,
       topTeacherRate,
     };
-  }, [filtered, totalStudentCount, teacherStudentCounts, activeMonth, withdrawals]);
+  }, [filtered, totalStudentCount, teacherStudentCounts, activeMonth, withdrawals, monthlyBaseTotal, monthlyBaseByTeacher]);
 
   // ─── Teacher Withdrawal Rate Table ─────────────────────────────────────
 
@@ -601,7 +616,7 @@ export function WithdrawalDashboard({
       const reason = w.reason_category || "기타";
       td.reasons[reason] = (td.reasons[reason] || 0) + 1;
 
-      if (w.duration_months != null) {
+      if (w.duration_months != null && w.duration_months <= 120) {
         td.totalDuration += w.duration_months;
         td.validDurationCount++;
         if (w.duration_months <= 2) {
@@ -610,12 +625,36 @@ export function WithdrawalDashboard({
       }
     });
 
+    // 퇴원생이 없는 강사도 포함 (teacherStudentCounts 기반)
+    if (teacherStudentCounts) {
+      Object.keys(teacherStudentCounts).forEach((name) => {
+        if (!map[name]) {
+          map[name] = {
+            count: 0,
+            students: [],
+            reasons: {},
+            totalDuration: 0,
+            validDurationCount: 0,
+            earlyWithdrawals: [],
+          };
+        }
+      });
+    }
+
     const rows: TeacherRow[] = Object.entries(map).map(([name, data]) => {
-      const totalStudents = teacherStudentCounts?.[name] || 0;
+      // 특정 월 선택 시 전달 말일 기준 강사별 재원생 수 사용
+      let totalStudents: number;
+      if (activeMonth !== null && monthlyBaseByTeacher?.[activeMonth]) {
+        totalStudents = monthlyBaseByTeacher[activeMonth][name] || 0;
+      } else {
+        totalStudents = teacherStudentCounts?.[name] || 0;
+      }
       const withdrawalRate = totalStudents > 0 ? (data.count / totalStudents) * 100 : 0;
+      // duration_months > 120 (10년) 은 비정상 데이터로 제외
+      const validDurations = data.validDurationCount > 0 ? data.totalDuration : 0;
       const avgDuration =
         data.validDurationCount > 0
-          ? Math.round((data.totalDuration / data.validDurationCount) * 10) / 10
+          ? Math.round((validDurations / data.validDurationCount) * 10) / 10
           : 0;
 
       const problems: string[] = [];
@@ -651,7 +690,7 @@ export function WithdrawalDashboard({
     });
 
     return rows.sort((a, b) => b.withdrawalRate - a.withdrawalRate);
-  }, [filtered, teacherStudentCounts]);
+  }, [filtered, teacherStudentCounts, activeMonth, monthlyBaseByTeacher]);
 
   // ─── Reason Analysis (horizontal bar) ──────────────────────────────────
 
@@ -707,26 +746,22 @@ export function WithdrawalDashboard({
 
     const minMonth = Math.min(...activeMonthNums);
     const maxMonth = Math.max(...activeMonthNums);
-    const activeCount = totalStudentCount || 0;
 
     return MONTH_LABELS.map((label, i) => {
       const monthNum = i + 1;
       const monthCount = byMonth[monthNum] || 0;
-      // Total at month = active now + withdrew at/after this month
-      const withdrawnAtOrAfter = subjectFiltered.filter((w) => {
-        const m = getMonthFromDate(w.withdrawal_date);
-        return m !== null && m >= monthNum;
-      }).length;
-      const monthTotal = activeCount + withdrawnAtOrAfter;
-      const rate = monthTotal > 0 ? Math.round((monthCount / monthTotal) * 1000) / 10 : 0;
+      // 전달 말일 기준 재원생 수 사용
+      const monthBase = monthlyBaseTotal?.[monthNum] || ((totalStudentCount || 0) + withdrawals.length);
+      const rate = monthBase > 0 ? Math.round((monthCount / monthBase) * 1000) / 10 : 0;
       return {
         month: label,
         count: monthCount,
         rate,
+        base: monthBase,
         monthNum,
       };
     }).filter((m) => m.monthNum >= minMonth && m.monthNum <= maxMonth);
-  }, [withdrawals, activeMonth, activeSubject, totalStudentCount]);
+  }, [withdrawals, activeMonth, activeSubject, totalStudentCount, monthlyBaseTotal]);
 
   // ─── Render ────────────────────────────────────────────────────────────
 
@@ -858,6 +893,7 @@ export function WithdrawalDashboard({
               </div>
               <div className="text-[11px] text-slate-400 mt-1">
                 {insightData.count}명 / {insightData.total}명
+                {activeMonth !== null && <span className="block text-[10px]">({activeMonth > 1 ? `${activeMonth - 1}` : "12"}월 말 기준)</span>}
               </div>
             </div>
             <div
@@ -1060,7 +1096,7 @@ export function WithdrawalDashboard({
       </DashboardCard>
 
       {/* ── 4. Teacher Withdrawal Rate Table ─────────────────────────── */}
-      {teacherTableData.length > 0 && (
+      {(teacherTableData.length > 0 || (teacherStudentCounts && Object.keys(teacherStudentCounts).length > 0)) && (
         <DashboardCard
           title="강사별 퇴원율 분석"
           icon={BarChart3}
@@ -1516,12 +1552,13 @@ export function WithdrawalDashboard({
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
-                  const data = payload[0].payload as { month: string; count: number; rate: number };
+                  const data = payload[0].payload as { month: string; count: number; rate: number; base: number };
                   return (
                     <div className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white" style={{ borderColor: "#E2E8F0" }}>
                       <div className="font-semibold mb-1" style={{ color: NK_PRIMARY }}>{label}</div>
                       <div className="text-slate-600">퇴원율: <span className="font-bold text-slate-800">{data.rate}%</span></div>
                       <div className="text-slate-600">퇴원생: <span className="font-bold text-slate-800">{data.count}명</span></div>
+                      <div className="text-slate-400">전달 말일 기준: {data.base}명</div>
                     </div>
                   );
                 }}

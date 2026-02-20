@@ -1,13 +1,14 @@
-import { getWithdrawals, getStudentCountsByTeacher } from "@/lib/actions/withdrawal";
+import { getWithdrawals, getStudentCountsByTeacher, getMonthlyBaseStudentCounts } from "@/lib/actions/withdrawal";
 import { WithdrawalDashboard } from "@/components/withdrawals/withdrawal-dashboard-client";
 import { BarChart3 } from "lucide-react";
 import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function WithdrawalDashboardPage() {
   await checkPagePermission("/withdrawals/dashboard");
-  const [withdrawals, studentCounts] = await Promise.all([
+  const [withdrawals, studentCounts, monthlyBase] = await Promise.all([
     getWithdrawals(),
     getStudentCountsByTeacher(),
+    getMonthlyBaseStudentCounts(),
   ]);
 
   const mathCount = withdrawals.filter((w) => w.subject?.includes("수학")).length;
@@ -59,6 +60,8 @@ export default async function WithdrawalDashboardPage() {
         withdrawals={withdrawals}
         totalStudentCount={studentCounts.total}
         teacherStudentCounts={studentCounts.byTeacher}
+        monthlyBaseTotal={monthlyBase.byMonth}
+        monthlyBaseByTeacher={monthlyBase.byMonthTeacher}
       />
     </div>
   );

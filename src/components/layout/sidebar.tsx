@@ -86,7 +86,7 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
     items.map((item) => {
       const isActive =
         pathname === item.href ||
-        (item.href !== "/" && pathname.startsWith(item.href));
+        (item.href !== "/" && item.href !== "/withdrawals" && pathname.startsWith(item.href));
       return (
         <Link
           key={item.href}

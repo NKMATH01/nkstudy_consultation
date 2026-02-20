@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createWithdrawal } from "@/lib/actions/withdrawal";
+import { createWithdrawal, updateWithdrawal } from "@/lib/actions/withdrawal";
 import { WITHDRAWAL_REASONS } from "@/types";
+import type { Withdrawal } from "@/types";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  withdrawal?: Withdrawal;
 }
 
 /** Normalize date string: dots/slashes → hyphens */
@@ -179,19 +181,52 @@ const ATTITUDES = ["상", "중상", "중", "중하", "하"];
 const GRADE_CHANGES = ["상승", "유지", "하락"];
 const COMEBACKS = ["상", "중상", "중", "중하", "하", "최하"];
 
-export function WithdrawalFormDialog({ open, onOpenChange }: Props) {
+export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [rawText, setRawText] = useState("");
   const [fields, setFields] = useState<Record<string, string>>({});
+  const isEditMode = !!withdrawal;
 
-  // Reset form when dialog opens
+  // Reset form when dialog opens, pre-fill for edit mode
   useEffect(() => {
     if (open) {
-      setRawText("");
-      setFields({});
+      if (withdrawal) {
+        const prefill: Record<string, string> = {};
+        if (withdrawal.name) prefill.name = withdrawal.name;
+        if (withdrawal.school) prefill.school = withdrawal.school;
+        if (withdrawal.subject) prefill.subject = withdrawal.subject;
+        if (withdrawal.class_name) prefill.class_name = withdrawal.class_name;
+        if (withdrawal.teacher) prefill.teacher = withdrawal.teacher;
+        if (withdrawal.grade) prefill.grade = withdrawal.grade;
+        if (withdrawal.withdrawal_date) prefill.withdrawal_date = withdrawal.withdrawal_date;
+        if (withdrawal.enrollment_start) prefill.enrollment_start = withdrawal.enrollment_start;
+        if (withdrawal.enrollment_end) prefill.enrollment_end = withdrawal.enrollment_end;
+        if (withdrawal.duration_months != null) prefill.duration_months = String(withdrawal.duration_months);
+        if (withdrawal.class_attitude) prefill.class_attitude = withdrawal.class_attitude;
+        if (withdrawal.homework_submission) prefill.homework_submission = withdrawal.homework_submission;
+        if (withdrawal.attendance) prefill.attendance = withdrawal.attendance;
+        if (withdrawal.grade_change) prefill.grade_change = withdrawal.grade_change;
+        if (withdrawal.recent_grade) prefill.recent_grade = withdrawal.recent_grade;
+        if (withdrawal.reason_category) prefill.reason_category = withdrawal.reason_category;
+        if (withdrawal.student_opinion) prefill.student_opinion = withdrawal.student_opinion;
+        if (withdrawal.parent_opinion) prefill.parent_opinion = withdrawal.parent_opinion;
+        if (withdrawal.teacher_opinion) prefill.teacher_opinion = withdrawal.teacher_opinion;
+        if (withdrawal.final_consult_date) prefill.final_consult_date = withdrawal.final_consult_date;
+        if (withdrawal.final_counselor) prefill.final_counselor = withdrawal.final_counselor;
+        if (withdrawal.final_consult_summary) prefill.final_consult_summary = withdrawal.final_consult_summary;
+        prefill.parent_thanks = withdrawal.parent_thanks ? "true" : "false";
+        if (withdrawal.comeback_possibility) prefill.comeback_possibility = withdrawal.comeback_possibility;
+        if (withdrawal.expected_comeback_date) prefill.expected_comeback_date = withdrawal.expected_comeback_date;
+        if (withdrawal.special_notes) prefill.special_notes = withdrawal.special_notes;
+        setFields(prefill);
+        setRawText(withdrawal.raw_text || "");
+      } else {
+        setRawText("");
+        setFields({});
+      }
     }
-  }, [open]);
+  }, [open, withdrawal]);
 
   const handleParse = () => {
     if (!rawText.trim()) {
@@ -219,15 +254,17 @@ export function WithdrawalFormDialog({ open, onOpenChange }: Props) {
       });
       formData.set("raw_text", rawText);
 
-      const result = await createWithdrawal(formData);
+      const result = isEditMode
+        ? await updateWithdrawal(withdrawal!.id, formData)
+        : await createWithdrawal(formData);
       if (result.success) {
-        toast.success("퇴원생이 등록되었습니다");
+        toast.success(isEditMode ? "퇴원생 정보가 수정되었습니다" : "퇴원생이 등록되었습니다");
         onOpenChange(false);
         setRawText("");
         setFields({});
         router.refresh();
       } else {
-        toast.error(result.error || "등록 실패");
+        toast.error(result.error || (isEditMode ? "수정 실패" : "등록 실패"));
       }
     });
   };
@@ -242,7 +279,7 @@ export function WithdrawalFormDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            퇴원생 등록
+            {isEditMode ? "퇴원생 수정" : "퇴원생 등록"}
           </DialogTitle>
         </DialogHeader>
 
@@ -454,7 +491,7 @@ export function WithdrawalFormDialog({ open, onOpenChange }: Props) {
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
             <Button onClick={handleSubmit} disabled={isPending} style={{ background: "#0F2B5B" }}>
-              {isPending ? "등록 중..." : "퇴원생 등록"}
+              {isPending ? (isEditMode ? "수정 중..." : "등록 중...") : (isEditMode ? "퇴원생 수정" : "퇴원생 등록")}
             </Button>
           </div>
         </div>

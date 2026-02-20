@@ -105,7 +105,27 @@ export async function createWithdrawal(formData: FormData) {
       return { success: false, error: error.message };
     }
 
+    // 퇴원 등록 시 학생관리에서 해당 학생 비활성화 (이름+학교 기준 매칭)
+    if (parsed.data.name) {
+      const matchQuery = supabase
+        .from("students")
+        .update({ is_active: false })
+        .eq("name", parsed.data.name)
+        .eq("is_active", true);
+
+      // 학교 정보가 있으면 더 정확하게 매칭
+      if (parsed.data.school) {
+        matchQuery.eq("school", parsed.data.school);
+      }
+
+      const { error: deactivateError } = await matchQuery;
+      if (deactivateError) {
+        console.error("[퇴원] 학생 비활성화 실패:", deactivateError.message);
+      }
+    }
+
     revalidatePath("/withdrawals");
+    revalidatePath("/settings/students");
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "퇴원생 등록 실패";
@@ -197,9 +217,10 @@ export async function deleteWithdrawal(id: string) {
 
 export async function getStudentCountsByTeacher(): Promise<{ total: number; byTeacher: Record<string, number> }> {
   const supabase = await createClient();
+  // teacher_id → teachers 테이블 JOIN으로 선생님 이름 조회
   const { data, error } = await supabase
     .from("students")
-    .select("teacher_name")
+    .select("teacher_id, teachers:teacher_id(name)")
     .eq("is_active", true);
 
   if (error) {
@@ -210,9 +231,128 @@ export async function getStudentCountsByTeacher(): Promise<{ total: number; byTe
   const rows = data ?? [];
   const byTeacher: Record<string, number> = {};
   rows.forEach((row) => {
-    const name = row.teacher_name || "미지정";
+    const teacherObj = row.teachers as { name?: string } | null;
+    const name = teacherObj?.name || "미지정";
     byTeacher[name] = (byTeacher[name] || 0) + 1;
   });
 
   return { total: rows.length, byTeacher };
+}
+
+/**
+ * N월 퇴원율 계산을 위한 (N-1)월 말일 기준 재원생 수 역산
+ *
+ * 계산 공식:
+ *   (N-1)월 말일 재원생 = 현재 활성 학생 + (N월~현재 퇴원생) - (N월~현재 신규등록 학생)
+ *
+ * students.registration_date 또는 created_at 기반으로 등록 시점 판단
+ * withdrawals.withdrawal_date 기반으로 퇴원 시점 판단
+ */
+export async function getMonthlyBaseStudentCounts(): Promise<{
+  /** 월별 전달 말일 기준 총 재원생 수 (key: month number 1~12) */
+  byMonth: Record<number, number>;
+  /** 월별 + 강사별 전달 말일 기준 재원생 수 */
+  byMonthTeacher: Record<number, Record<string, number>>;
+}> {
+  const supabase = await createClient();
+
+  // 1. 현재 활성 학생 (teacher JOIN 포함)
+  const { data: activeStudents } = await supabase
+    .from("students")
+    .select("teacher_id, teachers:teacher_id(name), registration_date, created_at")
+    .eq("is_active", true);
+
+  // 2. 전체 퇴원생 (teacher, withdrawal_date)
+  const { data: allWithdrawals } = await supabase
+    .from("withdrawals")
+    .select("teacher, withdrawal_date");
+
+  const active = (activeStudents ?? []).map((s) => {
+    const teacherObj = s.teachers as { name?: string } | null;
+    return { ...s, teacherName: teacherObj?.name || "미지정" };
+  });
+  const withdrawn = allWithdrawals ?? [];
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  // 현재 활성 학생 수 (전체 + 강사별)
+  const currentTotal = active.length;
+  const currentByTeacher: Record<string, number> = {};
+  active.forEach((s) => {
+    currentByTeacher[s.teacherName] = (currentByTeacher[s.teacherName] || 0) + 1;
+  });
+
+  // 학생의 등록 월 파싱 (registration_date 또는 created_at 기반)
+  function getStudentRegMonth(s: { registration_date?: string | null; created_at?: string | null }): number | null {
+    const dateStr = s.registration_date || s.created_at || null;
+    if (!dateStr) return null;
+    const match = dateStr.match(/(\d{4})[.\-/](\d{1,2})/);
+    if (match && parseInt(match[1]) === currentYear) return parseInt(match[2]);
+    return null;
+  }
+
+  // 퇴원 월 파싱
+  function getWithdrawalMonth(w: { withdrawal_date?: string | null }): number | null {
+    if (!w.withdrawal_date) return null;
+    const match = w.withdrawal_date.match(/(\d{4})[.\-/](\d{1,2})/);
+    if (match && parseInt(match[1]) === currentYear) return parseInt(match[2]);
+    // 연도 없이 "2.15" 같은 형식
+    const shortMatch = w.withdrawal_date.match(/^(\d{1,2})[.\-/]/);
+    if (shortMatch) {
+      const m = parseInt(shortMatch[1]);
+      if (m >= 1 && m <= 12) return m;
+    }
+    return null;
+  }
+
+  const byMonth: Record<number, number> = {};
+  const byMonthTeacher: Record<number, Record<string, number>> = {};
+
+  // 각 월(1~12)에 대해 전달 말일 기준 재원생 수 계산
+  // N월 퇴원율 기준 = (N-1)월 말일 재원생 수
+  // = 현재 활성 학생 + (N월~현재 퇴원생) - (N월~현재 신규 등록 학생)
+  for (let month = 1; month <= 12; month++) {
+    // N월 이후(N월 포함) 퇴원한 학생 수
+    let withdrawnAfter = 0;
+    const withdrawnAfterByTeacher: Record<string, number> = {};
+    withdrawn.forEach((w) => {
+      const wm = getWithdrawalMonth(w);
+      if (wm !== null && wm >= month) {
+        withdrawnAfter++;
+        const t = w.teacher || "미지정";
+        withdrawnAfterByTeacher[t] = (withdrawnAfterByTeacher[t] || 0) + 1;
+      }
+    });
+
+    // N월 이후(N월 포함) 신규 등록한 현재 활성 학생 수
+    let registeredAfter = 0;
+    const registeredAfterByTeacher: Record<string, number> = {};
+    active.forEach((s) => {
+      const rm = getStudentRegMonth(s);
+      if (rm !== null && rm >= month) {
+        registeredAfter++;
+        registeredAfterByTeacher[s.teacherName] = (registeredAfterByTeacher[s.teacherName] || 0) + 1;
+      }
+    });
+
+    // (N-1)월 말일 재원생 = 현재 활성 + N월 이후 퇴원 - N월 이후 신규등록
+    const baseTotal = currentTotal + withdrawnAfter - registeredAfter;
+    byMonth[month] = Math.max(baseTotal, 0);
+
+    // 강사별
+    const teacherBase: Record<string, number> = {};
+    const allTeachers = new Set([
+      ...Object.keys(currentByTeacher),
+      ...Object.keys(withdrawnAfterByTeacher),
+      ...Object.keys(registeredAfterByTeacher),
+    ]);
+    allTeachers.forEach((t) => {
+      const val = (currentByTeacher[t] || 0) + (withdrawnAfterByTeacher[t] || 0) - (registeredAfterByTeacher[t] || 0);
+      if (val > 0) teacherBase[t] = val;
+    });
+    byMonthTeacher[month] = teacherBase;
+  }
+
+  return { byMonth, byMonthTeacher };
 }

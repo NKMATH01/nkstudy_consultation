@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -153,10 +153,18 @@ export function TeacherList({ teachers }: Props) {
     <>
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
         <div className="bg-[#f8fafc] border-b px-6 py-4 flex items-center justify-between">
-          <h3 className="font-bold text-slate-700 flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            선생님 정보 관리
-          </h3>
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-slate-700 flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              선생님 정보 관리
+            </h3>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100">
+              <Info className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+              <span className="text-[11px] text-blue-600">
+                로그인: <b>전화번호</b> + 비밀번호 | 초기 비밀번호: <b>1234</b>
+              </span>
+            </div>
+          </div>
           <button
             onClick={handleAdd}
             className="h-7 px-3 rounded-lg text-white text-xs font-bold flex items-center gap-1 transition-all hover:-translate-y-px"

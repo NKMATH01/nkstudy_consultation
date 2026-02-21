@@ -20,13 +20,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   registrationAdminSchema,
@@ -352,14 +345,14 @@ export function RegistrationForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>학년 *</FormLabel>
-                    <Select onValueChange={handleGradeChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue placeholder="학년 선택" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {GRADES.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={field.value || ""}
+                      onChange={(e) => handleGradeChange(e.target.value)}
+                      className={sel}
+                    >
+                      <option value="">학년 선택</option>
+                      {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
+                    </select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -370,14 +363,14 @@ export function RegistrationForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>과목 *</FormLabel>
-                    <Select onValueChange={handleSubjectChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue placeholder="과목 선택" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {SUBJECTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={field.value || ""}
+                      onChange={(e) => handleSubjectChange(e.target.value)}
+                      className={sel}
+                    >
+                      <option value="">과목 선택</option>
+                      {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -397,17 +390,19 @@ export function RegistrationForm({
                   <FormField
                     control={form.control}
                     name="assigned_class"
-                    render={({ field }) => (
+                    render={() => (
                       <FormItem>
                         <FormLabel>{mathLabel} *</FormLabel>
-                        <Select onValueChange={handleClassChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="반 선택" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredClasses.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <select
+                          value={form.watch("assigned_class") || ""}
+                          onChange={(e) => handleClassChange(e.target.value)}
+                          className={sel}
+                        >
+                          <option value="">반 선택</option>
+                          {filteredClasses.map((c) => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -418,14 +413,16 @@ export function RegistrationForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{mathTeacherLabel} *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="선생님 선택" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {uniqueTeachers.map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <select
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={sel}
+                        >
+                          <option value="">선생님 선택</option>
+                          {uniqueTeachers.map((t) => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))}
+                        </select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -503,15 +500,17 @@ export function RegistrationForm({
                             </Button>
                           </div>
                         ) : (
-                          <Select onValueChange={handleClass2Change} value={field.value || ""}>
-                            <FormControl>
-                              <SelectTrigger><SelectValue placeholder="영어반 선택" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {filteredClasses.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                              <SelectItem value="__custom__">직접 입력...</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <select
+                            value={field.value || ""}
+                            onChange={(e) => handleClass2Change(e.target.value)}
+                            className={sel}
+                          >
+                            <option value="">영어반 선택</option>
+                            {filteredClasses.map((c) => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                            <option value="__custom__">직접 입력...</option>
+                          </select>
                         )}
                         <FormMessage />
                       </FormItem>
@@ -537,15 +536,17 @@ export function RegistrationForm({
                             </Button>
                           </div>
                         ) : (
-                          <Select onValueChange={handleTeacher2Change} value={field.value || ""}>
-                            <FormControl>
-                              <SelectTrigger><SelectValue placeholder="선생님 선택" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {uniqueTeachers.map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
-                              <SelectItem value="__custom__">직접 입력...</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <select
+                            value={field.value || ""}
+                            onChange={(e) => handleTeacher2Change(e.target.value)}
+                            className={sel}
+                          >
+                            <option value="">선생님 선택</option>
+                            {uniqueTeachers.map((t) => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))}
+                            <option value="__custom__">직접 입력...</option>
+                          </select>
                         )}
                         <FormMessage />
                       </FormItem>
@@ -616,17 +617,16 @@ export function RegistrationForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>차량 이용</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || "미사용"}>
-                        <FormControl>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="미사용">미사용</SelectItem>
-                          <SelectItem value="등원">등원</SelectItem>
-                          <SelectItem value="하원">하원</SelectItem>
-                          <SelectItem value="등하원">등하원</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={field.value || "미사용"}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        className={sel}
+                      >
+                        <option value="미사용">미사용</option>
+                        <option value="등원">등원</option>
+                        <option value="하원">하원</option>
+                        <option value="등하원">등하원</option>
+                      </select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -637,14 +637,14 @@ export function RegistrationForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>수업 장소</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger><SelectValue placeholder="장소 선택" /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {LOCATIONS.map((loc) => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        className={sel}
+                      >
+                        <option value="">장소 선택</option>
+                        {LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                      </select>
                       <FormMessage />
                     </FormItem>
                   )}

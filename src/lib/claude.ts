@@ -120,7 +120,11 @@ export function buildRegistrationPrompt(
   analysis: Analysis,
   adminData: RegistrationAdminData
 ): string {
-  const vehicleFee = env.NK_ACADEMY_VEHICLE_FEE || "2만원";
+  const vehicleFeeRaw = env.NK_ACADEMY_VEHICLE_FEE || "20000";
+  const vehicleFeeVal = vehicleFeeRaw.includes("만")
+    ? parseInt(vehicleFeeRaw.replace(/[^0-9]/g, "")) * 10000 || 20000
+    : parseInt(vehicleFeeRaw.replace(/[^0-9]/g, "")) || 20000;
+  const vehicleFee = vehicleFeeVal >= 10000 ? `${vehicleFeeVal / 10000}만원` : `${vehicleFeeVal.toLocaleString()}원`;
   const bankInfo = env.NK_ACADEMY_BANK_INFO || "신한은행 110-383-883419";
   const bankOwner = env.NK_ACADEMY_BANK_OWNER || "노윤희";
 
@@ -301,12 +305,15 @@ function formatFee(fee: number): string {
 export function buildReportHTML(data: ReportTemplateData): string {
   const bankInfo = env.NK_ACADEMY_BANK_INFO || "신한 110-383-883419";
   const bankOwner = env.NK_ACADEMY_BANK_OWNER || "노윤희";
-  const vehicleFee = env.NK_ACADEMY_VEHICLE_FEE || "2만원";
-  const vehicleFeeNum = parseInt(vehicleFee.replace(/[^0-9]/g, "")) * 10000 || 20000;
+  const vehicleFeeRaw = env.NK_ACADEMY_VEHICLE_FEE || "20000";
+  const vehicleFeeNum = vehicleFeeRaw.includes("만")
+    ? parseInt(vehicleFeeRaw.replace(/[^0-9]/g, "")) * 10000 || 20000
+    : parseInt(vehicleFeeRaw.replace(/[^0-9]/g, "")) || 20000;
+  const vehicleFeeLabel = vehicleFeeNum >= 10000 ? `${vehicleFeeNum / 10000}만원` : `${vehicleFeeNum.toLocaleString()}원`;
   const { page1, page2 } = data;
   const totalFee = data.useVehicle !== "미사용" ? data.tuitionFee + vehicleFeeNum : data.tuitionFee;
   const feeBreakdown = data.useVehicle !== "미사용"
-    ? `수업료 ${formatFee(data.tuitionFee)}원 + 차량비 ${vehicleFee} (교재비 별도)`
+    ? `수업료 ${formatFee(data.tuitionFee)}원 + 차량비 ${vehicleFeeLabel} (교재비 별도)`
     : "(교재비 별도)";
   const vehicleDisplay = data.useVehicle === "미사용" ? "미이용" : "이용 (O)";
   const regDateFormatted = data.registrationDate.replace(/-/g, ".");

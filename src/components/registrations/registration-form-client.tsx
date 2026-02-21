@@ -147,6 +147,8 @@ export function RegistrationForm({
   const [manualFee, setManualFee] = useState(false);
   const [customEngClass, setCustomEngClass] = useState(false);
   const [customEngTeacher, setCustomEngTeacher] = useState(false);
+  const [mathMultiSet, setMathMultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
+  const [engMultiSet, setEngMultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
 
   // 이름 중복 제거
   const uniqueTeachers = useMemo(() => {
@@ -221,7 +223,7 @@ export function RegistrationForm({
     autoCalcFee(value, selectedSubject || "");
   };
 
-  /** 반 스케줄(파이프 구분)에서 수업일/테스트일/시간을 분리 */
+  /** 파이프 구분 스케줄에서 요일별 시간 세트를 분석 */
   const parseClassSchedule = (cls: Class) => {
     const daysSets = (cls.class_days || "").split("|");
     const timeSets = (cls.class_time || "").split("|");
@@ -230,18 +232,37 @@ export function RegistrationForm({
 
     let classDaysStr = "";
     let testDaysStr = "";
+    const classTimeSets: { days: string; time: string }[] = [];
+    const clinicTimeSets: { days: string; time: string }[] = [];
     daysSets.forEach((days, i) => {
-      if (timeSets[i]?.includes("~")) classDaysStr += days;
+      if (timeSets[i]?.includes("~")) {
+        classDaysStr += days;
+        classTimeSets.push({ days, time: timeSets[i] });
+      }
+      if (clinicSets[i]?.includes("~")) {
+        clinicTimeSets.push({ days, time: clinicSets[i] });
+      }
       if (testSets[i]?.includes("~")) testDaysStr += days;
     });
 
+    // 모든 시간이 동일한지 확인
+    const allClassTimesSame = classTimeSets.length <= 1 || classTimeSets.every((s) => s.time === classTimeSets[0].time);
+    const allClinicTimesSame = clinicTimeSets.length <= 1 || clinicTimeSets.every((s) => s.time === clinicTimeSets[0].time);
+
+    // 멀티셋 표시 문자열 (요일별 시간이 다를 때)
+    const formatMultiSet = (sets: { days: string; time: string }[]) =>
+      sets.map((s) => `${WEEKDAYS.filter((d) => s.days.includes(d)).join("")} ${s.time}`).join(" / ");
+
     return {
       classDays: WEEKDAYS.filter((d) => classDaysStr.includes(d)).join(""),
-      classTime: timeSets.find((t) => t.includes("~")) || "",
-      clinicTime: clinicSets.find((t) => t.includes("~")) || "",
+      classTime: allClassTimesSame ? (classTimeSets[0]?.time || "") : "",
+      clinicTime: allClinicTimesSame ? (clinicTimeSets[0]?.time || "") : "",
       testDays: WEEKDAYS.filter((d) => testDaysStr.includes(d)).join(""),
       testTime: testSets.find((t) => t.includes("~")) || "",
       allDays: WEEKDAYS.filter((d) => (classDaysStr + testDaysStr).includes(d)).join(""),
+      // 멀티셋 정보 (요일별 다른 시간)
+      multiSetClass: allClassTimesSame ? "" : formatMultiSet(classTimeSets),
+      multiSetClinic: allClinicTimesSame ? "" : formatMultiSet(clinicTimeSets),
     };
   };
 
@@ -265,8 +286,10 @@ export function RegistrationForm({
       if (selectedClass.teacher) form.setValue("teacher", selectedClass.teacher);
       const sch = parseClassSchedule(selectedClass);
       if (sch.classDays) form.setValue("math_class_days", sch.classDays);
-      if (sch.classTime) form.setValue("math_class_time", sch.classTime);
-      if (sch.clinicTime) form.setValue("math_clinic_time", sch.clinicTime);
+      // 멀티셋이면 시간 필드 비움 → 서버에서 DB 기반 formatScheduleDisplay 사용
+      form.setValue("math_class_time", sch.classTime);
+      form.setValue("math_clinic_time", sch.clinicTime);
+      setMathMultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
       form.setValue("math_test_days", sch.testDays);
       form.setValue("math_test_time", sch.testTime);
       updatePreferredDays(sch.allDays, form.getValues("eng_class_days") || "");
@@ -287,8 +310,9 @@ export function RegistrationForm({
       if (selectedClass.teacher) form.setValue("teacher_2", selectedClass.teacher);
       const sch = parseClassSchedule(selectedClass);
       if (sch.classDays) form.setValue("eng_class_days", sch.classDays);
-      if (sch.classTime) form.setValue("eng_class_time", sch.classTime);
-      if (sch.clinicTime) form.setValue("eng_clinic_time", sch.clinicTime);
+      form.setValue("eng_class_time", sch.classTime);
+      form.setValue("eng_clinic_time", sch.clinicTime);
+      setEngMultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
       form.setValue("eng_test_days", sch.testDays);
       form.setValue("eng_test_time", sch.testTime);
       updatePreferredDays(form.getValues("math_class_days") || "", sch.allDays);
@@ -513,6 +537,19 @@ export function RegistrationForm({
                     )}
                   />
                 </div>
+                {/* 멀티셋 스케줄 안내 (요일별 다른 시간) */}
+                {(mathMultiSet.classDisplay || mathMultiSet.clinicDisplay) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs font-bold text-blue-700 mb-1.5">요일별 시간 (자동 반영)</p>
+                    {mathMultiSet.classDisplay && (
+                      <div className="text-sm text-blue-900"><span className="font-semibold">수업:</span> {mathMultiSet.classDisplay}</div>
+                    )}
+                    {mathMultiSet.clinicDisplay && (
+                      <div className="text-sm text-blue-900 mt-0.5"><span className="font-semibold">클리닉:</span> {mathMultiSet.clinicDisplay}</div>
+                    )}
+                    <p className="text-[10px] text-blue-500 mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
+                  </div>
+                )}
                 {/* 주간테스트 (자동입력, 있을때만 표시) */}
                 {(form.watch("math_test_days") || form.watch("math_test_time")) && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -649,6 +686,19 @@ export function RegistrationForm({
                     )}
                   />
                 </div>
+                {/* 영어 멀티셋 스케줄 안내 */}
+                {(engMultiSet.classDisplay || engMultiSet.clinicDisplay) && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <p className="text-xs font-bold text-purple-700 mb-1.5">요일별 시간 (자동 반영)</p>
+                    {engMultiSet.classDisplay && (
+                      <div className="text-sm text-purple-900"><span className="font-semibold">수업:</span> {engMultiSet.classDisplay}</div>
+                    )}
+                    {engMultiSet.clinicDisplay && (
+                      <div className="text-sm text-purple-900 mt-0.5"><span className="font-semibold">클리닉:</span> {engMultiSet.clinicDisplay}</div>
+                    )}
+                    <p className="text-[10px] text-purple-500 mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
+                  </div>
+                )}
                 {/* 영어 주간테스트 (자동입력, 있을때만 표시) */}
                 {(form.watch("eng_test_days") || form.watch("eng_test_time")) && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">

@@ -14,6 +14,8 @@ import {
   PenLine,
   Trash2,
   MessageCircle,
+  Plus,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRegistration } from "@/lib/actions/registration";
@@ -37,6 +39,18 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   { key: "analysis_review", label: "성향 분석 결과 점검", shortLabel: "성향점검" },
 ];
 
+interface CustomCheckItem {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractCustomItems(status: Record<string, any>): CustomCheckItem[] {
+  if (Array.isArray(status._custom)) return status._custom;
+  return [];
+}
+
 type Registration = {
   id: string;
   analysis_id: string | null;
@@ -52,7 +66,8 @@ type Registration = {
   teacher: string | null;
   teacher_2: string | null;
   report_html: string | null;
-  onboarding_status: Record<string, boolean> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onboarding_status: Record<string, any> | null;
 };
 
 type DisplayRow = Registration & {
@@ -85,13 +100,19 @@ export function OnboardingList({ registrations, analyses }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Use local state for onboarding status (will save to DB)
-  const [statusMap, setStatusMap] = useState<Record<string, Record<string, boolean>>>(() => {
-    const map: Record<string, Record<string, boolean>> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [statusMap, setStatusMap] = useState<Record<string, Record<string, any>>>(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const map: Record<string, Record<string, any>> = {};
     registrations.forEach((r) => {
       map[r.id] = r.onboarding_status || {};
     });
     return map;
   });
+
+  // 커스텀 항목 추가 입력 상태
+  const [addingCustomFor, setAddingCustomFor] = useState<string | null>(null);
+  const [customInput, setCustomInput] = useState("");
 
   const displayRows = useMemo(() => {
     const base = searchQuery.trim()
@@ -138,13 +159,9 @@ export function OnboardingList({ registrations, analyses }: Props) {
     return rows;
   }, [registrations, searchQuery]);
 
-  // Toggle a step
-  const toggleStep = async (regId: string, stepKey: string) => {
-    const current = statusMap[regId] || {};
-    const newStatus = { ...current, [stepKey]: !current[stepKey] };
-    setStatusMap((prev) => ({ ...prev, [regId]: newStatus }));
-
-    // Save to DB
+  // DB에 상태 저장
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const saveStatus = async (regId: string, newStatus: Record<string, any>, rollback: Record<string, any>) => {
     try {
       const res = await fetch("/api/onboarding-status", {
         method: "PATCH",
@@ -152,21 +169,64 @@ export function OnboardingList({ registrations, analyses }: Props) {
         body: JSON.stringify({ registrationId: regId, status: newStatus }),
       });
       if (!res.ok) {
-        // Revert on failure
-        setStatusMap((prev) => ({ ...prev, [regId]: current }));
+        setStatusMap((prev) => ({ ...prev, [regId]: rollback }));
         toast.error("저장 실패");
       }
     } catch {
-      setStatusMap((prev) => ({ ...prev, [regId]: current }));
+      setStatusMap((prev) => ({ ...prev, [regId]: rollback }));
       toast.error("저장 실패");
     }
   };
 
-  // Count completed steps
+  // 고정 항목 토글
+  const toggleStep = async (regId: string, stepKey: string) => {
+    const current = statusMap[regId] || {};
+    const newStatus = { ...current, [stepKey]: !current[stepKey] };
+    setStatusMap((prev) => ({ ...prev, [regId]: newStatus }));
+    saveStatus(regId, newStatus, current);
+  };
+
+  // 커스텀 항목 추가
+  const addCustomItem = async (regId: string, label: string) => {
+    if (!label.trim()) return;
+    const current = statusMap[regId] || {};
+    const customs = extractCustomItems(current);
+    const newItem: CustomCheckItem = { id: `c_${Date.now()}`, label: label.trim(), done: false };
+    const newStatus = { ...current, _custom: [...customs, newItem] };
+    setStatusMap((prev) => ({ ...prev, [regId]: newStatus }));
+    setAddingCustomFor(null);
+    setCustomInput("");
+    saveStatus(regId, newStatus, current);
+  };
+
+  // 커스텀 항목 토글
+  const toggleCustomItem = async (regId: string, itemId: string) => {
+    const current = statusMap[regId] || {};
+    const customs = extractCustomItems(current);
+    const updated = customs.map((c) => c.id === itemId ? { ...c, done: !c.done } : c);
+    const newStatus = { ...current, _custom: updated };
+    setStatusMap((prev) => ({ ...prev, [regId]: newStatus }));
+    saveStatus(regId, newStatus, current);
+  };
+
+  // 커스텀 항목 삭제
+  const deleteCustomItem = async (regId: string, itemId: string) => {
+    const current = statusMap[regId] || {};
+    const customs = extractCustomItems(current);
+    const filtered = customs.filter((c) => c.id !== itemId);
+    const newStatus = { ...current, _custom: filtered.length > 0 ? filtered : undefined };
+    if (!filtered.length) delete newStatus._custom;
+    setStatusMap((prev) => ({ ...prev, [regId]: newStatus }));
+    saveStatus(regId, newStatus, current);
+  };
+
+  // 진행률 (고정 + 커스텀)
   const getProgress = (regId: string) => {
     const status = statusMap[regId] || {};
-    const done = ONBOARDING_STEPS.filter((s) => status[s.key]).length;
-    return { done, total: ONBOARDING_STEPS.length };
+    const customs = extractCustomItems(status);
+    const fixedDone = ONBOARDING_STEPS.filter((s) => status[s.key]).length;
+    const customDone = customs.filter((c) => c.done).length;
+    return { done: fixedDone + customDone, total: ONBOARDING_STEPS.length + customs.length };
   };
 
   // Find analysis for registration
@@ -356,7 +416,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   </span>
 
                   {/* 진행 현황 */}
-                  <div className="flex-1 px-1 flex items-center gap-1 justify-center">
+                  <div className="flex-1 px-1 flex items-center gap-1 justify-center flex-wrap">
+                    {/* 고정 항목 */}
                     {ONBOARDING_STEPS.map((step) => {
                       const done = status[step.key] || false;
                       return (
@@ -385,6 +446,74 @@ export function OnboardingList({ registrations, analyses }: Props) {
                         </button>
                       );
                     })}
+                    {/* 커스텀 항목 */}
+                    {extractCustomItems(status).map((item) => (
+                      <div key={item.id} className="group relative flex flex-col items-center gap-0.5">
+                        <button
+                          onClick={() => toggleCustomItem(row.id, item.id)}
+                          title={item.label}
+                          className="relative"
+                        >
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                              item.done
+                                ? "bg-blue-500 text-white shadow-sm"
+                                : "bg-amber-50 text-amber-400 border border-amber-200 hover:bg-amber-100"
+                            }`}
+                          >
+                            {item.done ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Circle className="h-3 w-3" />
+                            )}
+                          </div>
+                        </button>
+                        <span className={`text-[9px] leading-tight max-w-[48px] truncate ${item.done ? "text-blue-600 font-bold" : "text-amber-600"}`}>
+                          {item.label}
+                        </span>
+                        <button
+                          onClick={() => deleteCustomItem(row.id, item.id)}
+                          className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-400 text-white items-center justify-center text-[8px] hidden group-hover:flex"
+                          title="삭제"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {/* 추가 버튼 / 입력 */}
+                    {row._isFirstRow && (
+                      addingCustomFor === row.id ? (
+                        <form
+                          onSubmit={(e) => { e.preventDefault(); addCustomItem(row.id, customInput); }}
+                          className="flex items-center gap-1"
+                        >
+                          <input
+                            autoFocus
+                            type="text"
+                            value={customInput}
+                            onChange={(e) => setCustomInput(e.target.value)}
+                            onBlur={() => { if (!customInput.trim()) { setAddingCustomFor(null); setCustomInput(""); } }}
+                            placeholder="항목 입력"
+                            className="h-7 w-24 rounded-md border border-slate-200 px-2 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          />
+                          <button type="submit" className="h-7 px-1.5 rounded-md bg-blue-500 text-white text-[10px] font-bold">
+                            <Check className="h-3 w-3" />
+                          </button>
+                        </form>
+                      ) : (
+                        <button
+                          onClick={() => { setAddingCustomFor(row.id); setCustomInput(""); }}
+                          className="flex flex-col items-center gap-0.5"
+                          title="항목 추가"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-50 text-slate-300 border border-dashed border-slate-200 hover:bg-blue-50 hover:text-blue-400 hover:border-blue-300 transition-all">
+                            <Plus className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-[9px] text-slate-300">추가</span>
+                        </button>
+                      )
+                    )}
+                    {/* 진행률 */}
                     <div className="ml-2 flex flex-col items-center gap-0.5">
                       <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                         <div

@@ -50,6 +50,43 @@ function parseFirstTime(timeStr?: string | null): string | undefined {
   return first || undefined;
 }
 
+/** 파이프 구분 스케줄에서 요일별 시간 표시 문자열 생성
+ *  - 같은 시간: { days: "월수토", time: "19:00~20:30" }
+ *  - 다른 시간: { days: "월수토", time: "월수 19:00~20:30 / 토 14:00~15:30" }
+ */
+function formatScheduleDisplay(classDays?: string | null, timeStr?: string | null): { days: string; time: string } | undefined {
+  if (!classDays || !timeStr) return undefined;
+  const daysSets = classDays.split("|");
+  const timeSets = timeStr.split("|");
+
+  const validSets: { days: string; time: string }[] = [];
+  daysSets.forEach((days, i) => {
+    const time = timeSets[i];
+    if (time?.includes("~")) {
+      validSets.push({ days, time });
+    }
+  });
+
+  if (validSets.length === 0) return undefined;
+
+  const allDays = validSets.map((s) => s.days).join("");
+  const sortedDays = WEEKDAYS.filter((d) => allDays.includes(d)).join("");
+
+  const allSameTime = validSets.every((s) => s.time === validSets[0].time);
+
+  if (allSameTime || validSets.length === 1) {
+    return { days: sortedDays, time: validSets[0].time };
+  }
+  // 요일별 다른 시간: "월수 19:00~20:30 / 토 14:00~15:30"
+  const display = validSets
+    .map((s) => {
+      const sd = WEEKDAYS.filter((d) => s.days.includes(d)).join("");
+      return `${sd} ${s.time}`;
+    })
+    .join(" / ");
+  return { days: sortedDays, time: display };
+}
+
 // ========== 등록 안내 목록 조회 ==========
 export async function getRegistrations(
   filters: { search?: string; page?: number; limit?: number } = {}
@@ -274,16 +311,24 @@ export async function generateRegistration(
       parentMessage: page2Data.parentMessage || undefined,
       academyRules: page2Data.academyRules || undefined,
     },
-    classDays: adminFormData.math_class_days && adminFormData.math_class_days !== "N/A" ? adminFormData.math_class_days : parseClassDaysOnly(classInfo?.class_days, classInfo?.class_time) || adminFormData.preferred_days || undefined,
-    classTime: adminFormData.math_class_time && adminFormData.math_class_time !== "N/A" ? adminFormData.math_class_time : parseFirstTime(classInfo?.class_time) || undefined,
-    clinicTime: adminFormData.math_clinic_time && adminFormData.math_clinic_time !== "N/A" ? adminFormData.math_clinic_time : parseFirstTime(classInfo?.clinic_time) || undefined,
-    testDays: adminFormData.math_test_days || parseTestDaysFromClass(classInfo?.class_days, classInfo?.test_time) || undefined,
-    testTime: adminFormData.math_test_time || parseFirstTime(classInfo?.test_time) || undefined,
-    classDays2: adminFormData.eng_class_days || parseClassDaysOnly(classInfo2?.class_days, classInfo2?.class_time) || adminFormData.preferred_days || undefined,
-    classTime2: adminFormData.eng_class_time || parseFirstTime(classInfo2?.class_time) || undefined,
-    clinicTime2: adminFormData.eng_clinic_time || parseFirstTime(classInfo2?.clinic_time) || undefined,
-    testDays2: adminFormData.eng_test_days || parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.test_time) || undefined,
-    testTime2: adminFormData.eng_test_time || parseFirstTime(classInfo2?.test_time) || undefined,
+    ...(() => {
+      const classSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.class_time);
+      const clinicSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.clinic_time);
+      const classSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.class_time);
+      const clinicSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.clinic_time);
+      return {
+        classDays: adminFormData.math_class_days && adminFormData.math_class_days !== "N/A" ? adminFormData.math_class_days : classSchedule?.days || adminFormData.preferred_days || undefined,
+        classTime: adminFormData.math_class_time && adminFormData.math_class_time !== "N/A" ? adminFormData.math_class_time : classSchedule?.time || undefined,
+        clinicTime: adminFormData.math_clinic_time && adminFormData.math_clinic_time !== "N/A" ? adminFormData.math_clinic_time : clinicSchedule?.time || undefined,
+        testDays: adminFormData.math_test_days || parseTestDaysFromClass(classInfo?.class_days, classInfo?.test_time) || undefined,
+        testTime: adminFormData.math_test_time || parseFirstTime(classInfo?.test_time) || undefined,
+        classDays2: adminFormData.eng_class_days || classSchedule2?.days || adminFormData.preferred_days || undefined,
+        classTime2: adminFormData.eng_class_time || classSchedule2?.time || undefined,
+        clinicTime2: adminFormData.eng_clinic_time || clinicSchedule2?.time || undefined,
+        testDays2: adminFormData.eng_test_days || parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.test_time) || undefined,
+        testTime2: adminFormData.eng_test_time || parseFirstTime(classInfo2?.test_time) || undefined,
+      };
+    })(),
   };
 
   let reportHTML: string;
@@ -535,16 +580,24 @@ export async function regenerateRegistration(id: string) {
       parentMessage: page2Data.parentMessage || undefined,
       academyRules: page2Data.academyRules || undefined,
     },
-    classDays: parseClassDaysOnly(classInfo?.class_days, classInfo?.class_time) || undefined,
-    classTime: parseFirstTime(classInfo?.class_time) || undefined,
-    clinicTime: parseFirstTime(classInfo?.clinic_time) || undefined,
-    testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
-    testTime: parseFirstTime(classInfo?.weekly_test_time),
-    classDays2: parseClassDaysOnly(classInfo2?.class_days, classInfo2?.class_time) || undefined,
-    classTime2: parseFirstTime(classInfo2?.class_time) || undefined,
-    clinicTime2: parseFirstTime(classInfo2?.clinic_time) || undefined,
-    testDays2: parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.weekly_test_time),
-    testTime2: parseFirstTime(classInfo2?.weekly_test_time),
+    ...(() => {
+      const classSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.class_time);
+      const clinicSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.clinic_time);
+      const classSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.class_time);
+      const clinicSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.clinic_time);
+      return {
+        classDays: classSchedule?.days || undefined,
+        classTime: classSchedule?.time || undefined,
+        clinicTime: clinicSchedule?.time || undefined,
+        testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
+        testTime: parseFirstTime(classInfo?.weekly_test_time),
+        classDays2: classSchedule2?.days || undefined,
+        classTime2: classSchedule2?.time || undefined,
+        clinicTime2: clinicSchedule2?.time || undefined,
+        testDays2: parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.weekly_test_time),
+        testTime2: parseFirstTime(classInfo2?.weekly_test_time),
+      };
+    })(),
   };
 
   let reportHTML: string;

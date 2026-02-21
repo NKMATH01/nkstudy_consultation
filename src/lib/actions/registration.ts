@@ -29,6 +29,20 @@ function parseTestDaysFromClass(classDays?: string | null, weeklyTestTime?: stri
   return sorted || undefined;
 }
 
+/** 파이프 구분 class_days + class_time에서 수업 요일만 추출 (테스트 전용일 제외) */
+function parseClassDaysOnly(classDays?: string | null, classTime?: string | null): string | undefined {
+  if (!classDays) return undefined;
+  if (!classTime) return classDays.replace(/\|/g, "") || undefined;
+  const daysSets = classDays.split("|");
+  const timeSets = classTime.split("|");
+  let classDaysStr = "";
+  daysSets.forEach((days, i) => {
+    if (timeSets[i]?.includes("~")) classDaysStr += days;
+  });
+  const sorted = WEEKDAYS.filter((d) => classDaysStr.includes(d)).join("");
+  return sorted || undefined;
+}
+
 /** 파이프 구분 시간 문자열에서 첫 번째 유효 시간 추출 */
 function parseFirstTime(timeStr?: string | null): string | undefined {
   if (!timeStr) return undefined;
@@ -260,16 +274,16 @@ export async function generateRegistration(
       parentMessage: page2Data.parentMessage || undefined,
       academyRules: page2Data.academyRules || undefined,
     },
-    classDays: adminFormData.math_class_days && adminFormData.math_class_days !== "N/A" ? adminFormData.math_class_days : classInfo?.class_days || adminFormData.preferred_days || undefined,
-    classTime: adminFormData.math_class_time && adminFormData.math_class_time !== "N/A" ? adminFormData.math_class_time : classInfo?.class_time || undefined,
-    clinicTime: adminFormData.math_clinic_time && adminFormData.math_clinic_time !== "N/A" ? adminFormData.math_clinic_time : classInfo?.clinic_time || undefined,
-    testDays: adminFormData.math_test_days || undefined,
-    testTime: adminFormData.math_test_time || undefined,
-    classDays2: adminFormData.eng_class_days || classInfo2?.class_days || adminFormData.preferred_days || undefined,
-    classTime2: adminFormData.eng_class_time || classInfo2?.class_time || undefined,
-    clinicTime2: adminFormData.eng_clinic_time || classInfo2?.clinic_time || undefined,
-    testDays2: adminFormData.eng_test_days || undefined,
-    testTime2: adminFormData.eng_test_time || undefined,
+    classDays: adminFormData.math_class_days && adminFormData.math_class_days !== "N/A" ? adminFormData.math_class_days : parseClassDaysOnly(classInfo?.class_days, classInfo?.class_time) || adminFormData.preferred_days || undefined,
+    classTime: adminFormData.math_class_time && adminFormData.math_class_time !== "N/A" ? adminFormData.math_class_time : parseFirstTime(classInfo?.class_time) || undefined,
+    clinicTime: adminFormData.math_clinic_time && adminFormData.math_clinic_time !== "N/A" ? adminFormData.math_clinic_time : parseFirstTime(classInfo?.clinic_time) || undefined,
+    testDays: adminFormData.math_test_days || parseTestDaysFromClass(classInfo?.class_days, classInfo?.test_time) || undefined,
+    testTime: adminFormData.math_test_time || parseFirstTime(classInfo?.test_time) || undefined,
+    classDays2: adminFormData.eng_class_days || parseClassDaysOnly(classInfo2?.class_days, classInfo2?.class_time) || adminFormData.preferred_days || undefined,
+    classTime2: adminFormData.eng_class_time || parseFirstTime(classInfo2?.class_time) || undefined,
+    clinicTime2: adminFormData.eng_clinic_time || parseFirstTime(classInfo2?.clinic_time) || undefined,
+    testDays2: adminFormData.eng_test_days || parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.test_time) || undefined,
+    testTime2: adminFormData.eng_test_time || parseFirstTime(classInfo2?.test_time) || undefined,
   };
 
   let reportHTML: string;
@@ -521,14 +535,14 @@ export async function regenerateRegistration(id: string) {
       parentMessage: page2Data.parentMessage || undefined,
       academyRules: page2Data.academyRules || undefined,
     },
-    classDays: classInfo?.class_days || undefined,
-    classTime: classInfo?.class_time || undefined,
-    clinicTime: classInfo?.clinic_time || undefined,
+    classDays: parseClassDaysOnly(classInfo?.class_days, classInfo?.class_time) || undefined,
+    classTime: parseFirstTime(classInfo?.class_time) || undefined,
+    clinicTime: parseFirstTime(classInfo?.clinic_time) || undefined,
     testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
     testTime: parseFirstTime(classInfo?.weekly_test_time),
-    classDays2: classInfo2?.class_days || undefined,
-    classTime2: classInfo2?.class_time || undefined,
-    clinicTime2: classInfo2?.clinic_time || undefined,
+    classDays2: parseClassDaysOnly(classInfo2?.class_days, classInfo2?.class_time) || undefined,
+    classTime2: parseFirstTime(classInfo2?.class_time) || undefined,
+    clinicTime2: parseFirstTime(classInfo2?.clinic_time) || undefined,
     testDays2: parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.weekly_test_time),
     testTime2: parseFirstTime(classInfo2?.weekly_test_time),
   };

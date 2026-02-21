@@ -35,6 +35,7 @@ function mapDbToClass(row: Record<string, unknown>): Class {
     class_days: row.description != null ? String(row.description) : null,
     class_time: row.class_time != null ? String(row.class_time) : null,
     clinic_time: row.clinic_time != null ? String(row.clinic_time) : null,
+    weekly_test_time: row.weekly_test_time != null ? String(row.weekly_test_time) : null,
     active: row.is_active !== false,
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
@@ -68,6 +69,7 @@ export async function createClass(formData: FormData) {
       class_days: formData.get("class_days") || undefined,
       class_time: formData.get("class_time") || undefined,
       clinic_time: formData.get("clinic_time") || undefined,
+      weekly_test_time: formData.get("weekly_test_time") || undefined,
     };
 
     const parsed = classFormSchema.safeParse(raw);
@@ -92,6 +94,7 @@ export async function createClass(formData: FormData) {
       description: parsed.data.class_days || null,
       class_time: parsed.data.class_time || null,
       clinic_time: parsed.data.clinic_time || null,
+      weekly_test_time: parsed.data.weekly_test_time || null,
       ...(teacherId ? { teacher_id: teacherId } : {}),
     });
 
@@ -118,6 +121,7 @@ export async function updateClass(id: string, formData: FormData) {
       class_days: formData.get("class_days") || undefined,
       class_time: formData.get("class_time") || undefined,
       clinic_time: formData.get("clinic_time") || undefined,
+      weekly_test_time: formData.get("weekly_test_time") || undefined,
     };
 
     const parsed = classFormSchema.safeParse(raw);
@@ -144,6 +148,7 @@ export async function updateClass(id: string, formData: FormData) {
         description: parsed.data.class_days || null,
         class_time: parsed.data.class_time || null,
         clinic_time: parsed.data.clinic_time || null,
+        weekly_test_time: parsed.data.weekly_test_time || null,
         teacher_id: teacherId,
       })
       .eq("id", id);

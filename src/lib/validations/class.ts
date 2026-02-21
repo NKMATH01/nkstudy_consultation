@@ -7,6 +7,7 @@ export const classFormSchema = z.object({
   class_days: z.string().optional(),
   class_time: z.string().optional(),
   clinic_time: z.string().optional(),
+  weekly_test_time: z.string().optional(),
 });
 
 export type ClassFormValues = z.infer<typeof classFormSchema>;

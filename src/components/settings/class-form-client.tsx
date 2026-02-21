@@ -52,40 +52,48 @@ interface ScheduleSet {
   classEnd: string;
   clinicStart: string;
   clinicEnd: string;
+  testStart: string;
+  testEnd: string;
 }
 
 function emptySet(): ScheduleSet {
-  return { days: [], classStart: "19:00", classEnd: "20:30", clinicStart: "20:30", clinicEnd: "22:00" };
+  return { days: [], classStart: "19:00", classEnd: "20:30", clinicStart: "20:30", clinicEnd: "22:00", testStart: "", testEnd: "" };
 }
 
-// class_days: "월수|토", class_time: "19:00~20:30|13:00~14:30", clinic_time: "20:30~22:00|11:30~13:00"
+// class_days: "월수|토", class_time: "19:00~20:30|13:00~14:30", clinic_time: "20:30~22:00|11:30~13:00", weekly_test_time: "18:00~19:00|12:00~13:00"
 function parseSets(cls?: Class): ScheduleSet[] {
   if (!cls?.class_days) return [emptySet()];
   const dayParts = cls.class_days.split("|").map((s) => s.trim());
   const timeParts = (cls.class_time || "").split("|").map((s) => s.trim());
   const clinicParts = (cls.clinic_time || "").split("|").map((s) => s.trim());
+  const testParts = (cls.weekly_test_time || "").split("|").map((s) => s.trim());
 
   return dayParts.map((dp, i) => {
     const days = dp.split("").filter((ch) => ALL_DAYS.includes(ch as typeof ALL_DAYS[number]));
     const [cs, ce] = (timeParts[i] || "19:00~20:30").split("~");
     const [cls2, cle] = (clinicParts[i] || "20:30~22:00").split("~");
+    const testRaw = testParts[i] || "";
+    const [ts, te] = testRaw.includes("~") ? testRaw.split("~") : ["", ""];
     return {
       days,
       classStart: cs || "19:00",
       classEnd: ce || "20:30",
       clinicStart: cls2 || "20:30",
       clinicEnd: cle || "22:00",
+      testStart: ts || "",
+      testEnd: te || "",
     };
   });
 }
 
 function serializeSets(sets: ScheduleSet[]) {
   const valid = sets.filter((s) => s.days.length > 0);
-  if (valid.length === 0) return { class_days: "", class_time: "", clinic_time: "" };
+  if (valid.length === 0) return { class_days: "", class_time: "", clinic_time: "", weekly_test_time: "" };
   return {
     class_days: valid.map((s) => s.days.join("")).join("|"),
     class_time: valid.map((s) => `${s.classStart}~${s.classEnd}`).join("|"),
     clinic_time: valid.map((s) => `${s.clinicStart}~${s.clinicEnd}`).join("|"),
+    weekly_test_time: valid.map((s) => s.testStart && s.testEnd ? `${s.testStart}~${s.testEnd}` : "").join("|"),
   };
 }
 
@@ -117,6 +125,7 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
       class_days: classData?.class_days ?? "",
       class_time: classData?.class_time ?? "",
       clinic_time: classData?.clinic_time ?? "",
+      weekly_test_time: classData?.weekly_test_time ?? "",
     },
   });
 
@@ -129,9 +138,10 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
         class_days: classData.class_days ?? "",
         class_time: classData.class_time ?? "",
         clinic_time: classData.clinic_time ?? "",
+        weekly_test_time: classData.weekly_test_time ?? "",
       });
     } else if (open) {
-      form.reset({ name: "", teacher: "", target_grade: "", class_days: "", class_time: "", clinic_time: "" });
+      form.reset({ name: "", teacher: "", target_grade: "", class_days: "", class_time: "", clinic_time: "", weekly_test_time: "" });
     }
   }, [open, classData, form]);
 
@@ -171,6 +181,7 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
       formData.set("class_days", serialized.class_days);
       formData.set("class_time", serialized.class_time);
       formData.set("clinic_time", serialized.clinic_time);
+      formData.set("weekly_test_time", serialized.weekly_test_time);
 
       const result = isEdit
         ? await updateClass(classData!.id, formData)
@@ -393,11 +404,58 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
                     </div>
                   </div>
 
+                  {/* 주간 테스트 시간 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
+                        주간 테스트 시작
+                      </label>
+                      <Select
+                        value={set.testStart || "__none__"}
+                        onValueChange={(v) => updateSetField(idx, "testStart", v === "__none__" ? "" : v)}
+                      >
+                        <SelectTrigger className="h-9 text-sm rounded-lg">
+                          <SelectValue placeholder="선택 안함" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-48">
+                          <SelectItem value="__none__">선택 안함</SelectItem>
+                          {TIME_OPTIONS.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
+                        주간 테스트 종료
+                      </label>
+                      <Select
+                        value={set.testEnd || "__none__"}
+                        onValueChange={(v) => updateSetField(idx, "testEnd", v === "__none__" ? "" : v)}
+                      >
+                        <SelectTrigger className="h-9 text-sm rounded-lg">
+                          <SelectValue placeholder="선택 안함" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-48">
+                          <SelectItem value="__none__">선택 안함</SelectItem>
+                          {TIME_OPTIONS.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   {/* 세트 요약 */}
                   {set.days.length > 0 && (
                     <div className="text-xs text-slate-500 bg-white rounded-lg px-3 py-2 border border-slate-100">
                       <span className="font-semibold text-slate-700">{set.days.join("")}</span>
                       {" "}수업 {set.classStart}~{set.classEnd} / 클리닉 {set.clinicStart}~{set.clinicEnd}
+                      {set.testStart && set.testEnd && <> / 주간테스트 {set.testStart}~{set.testEnd}</>}
                     </div>
                   )}
                 </div>

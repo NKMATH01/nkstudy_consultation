@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   Calendar,
   Trash2,
+  Search,
 } from "lucide-react";
 import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import { TextParseModal } from "@/components/consultations/text-parse-modal";
@@ -101,12 +102,25 @@ export function ConsultationListClient({ initialData, initialPagination, classes
   const [editingConsultation, setEditingConsultation] = useState<Consultation | undefined>();
   const [showTextParse, setShowTextParse] = useState(false);
   const [localData, setLocalData] = useState(initialData);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setLocalData(initialData);
   }, [initialData]);
 
-  const grouped = localData.reduce<Record<string, Consultation[]>>((acc, item) => {
+  const filteredData = searchQuery.trim()
+    ? localData.filter((c) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          c.name.toLowerCase().includes(q) ||
+          (c.school && c.school.toLowerCase().includes(q)) ||
+          (c.parent_phone && c.parent_phone.includes(q)) ||
+          (c.grade && c.grade.toLowerCase().includes(q))
+        );
+      })
+    : localData;
+
+  const grouped = filteredData.reduce<Record<string, Consultation[]>>((acc, item) => {
     const date = item.consult_date || "unknown";
     if (!acc[date]) acc[date] = [];
     acc[date].push(item);
@@ -279,6 +293,16 @@ export function ConsultationListClient({ initialData, initialPagination, classes
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="이름, 학교, 연락처 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 pl-9 pr-3 rounded-lg text-sm bg-white border border-slate-200 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 w-52"
+            />
+          </div>
           <button
             onClick={() => startTransition(() => router.refresh())}
             className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"

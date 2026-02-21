@@ -177,6 +177,10 @@ export function RegistrationForm({
       eng_class_days: "",
       eng_class_time: "",
       eng_clinic_time: "",
+      math_test_days: "",
+      math_test_time: "",
+      eng_test_days: "",
+      eng_test_time: "",
       use_vehicle: "미사용",
       test_score: "",
       test_note: "",
@@ -217,10 +221,34 @@ export function RegistrationForm({
     autoCalcFee(value, selectedSubject || "");
   };
 
-  const updatePreferredDays = (mathDays?: string, engDays?: string) => {
+  /** 반 스케줄(파이프 구분)에서 수업일/테스트일/시간을 분리 */
+  const parseClassSchedule = (cls: Class) => {
+    const daysSets = (cls.class_days || "").split("|");
+    const timeSets = (cls.class_time || "").split("|");
+    const clinicSets = (cls.clinic_time || "").split("|");
+    const testSets = (cls.weekly_test_time || "").split("|");
+
+    let classDaysStr = "";
+    let testDaysStr = "";
+    daysSets.forEach((days, i) => {
+      if (timeSets[i]?.includes("~")) classDaysStr += days;
+      if (testSets[i]?.includes("~")) testDaysStr += days;
+    });
+
+    return {
+      classDays: WEEKDAYS.filter((d) => classDaysStr.includes(d)).join(""),
+      classTime: timeSets.find((t) => t.includes("~")) || "",
+      clinicTime: clinicSets.find((t) => t.includes("~")) || "",
+      testDays: WEEKDAYS.filter((d) => testDaysStr.includes(d)).join(""),
+      testTime: testSets.find((t) => t.includes("~")) || "",
+      allDays: WEEKDAYS.filter((d) => (classDaysStr + testDaysStr).includes(d)).join(""),
+    };
+  };
+
+  const updatePreferredDays = (mathAllDays?: string, engAllDays?: string) => {
     const allDays = new Set<string>();
-    for (const d of (mathDays || "")) allDays.add(d);
-    for (const d of (engDays || "")) allDays.add(d);
+    for (const d of (mathAllDays || "")) allDays.add(d);
+    for (const d of (engAllDays || "")) allDays.add(d);
     const sorted = WEEKDAYS.filter((d) => allDays.has(d));
     form.setValue("preferred_days", sorted.join(""));
   };
@@ -233,8 +261,16 @@ export function RegistrationForm({
   const handleClassChange = (value: string) => {
     form.setValue("assigned_class", value);
     const selectedClass = classes.find((c) => c.name === value);
-    if (selectedClass?.teacher) {
-      form.setValue("teacher", selectedClass.teacher);
+    if (selectedClass) {
+      if (selectedClass.teacher) form.setValue("teacher", selectedClass.teacher);
+      const sch = parseClassSchedule(selectedClass);
+      if (sch.classDays) form.setValue("math_class_days", sch.classDays);
+      if (sch.classTime) form.setValue("math_class_time", sch.classTime);
+      if (sch.clinicTime) form.setValue("math_clinic_time", sch.clinicTime);
+      form.setValue("math_test_days", sch.testDays);
+      form.setValue("math_test_time", sch.testTime);
+      updatePreferredDays(sch.allDays, form.getValues("eng_class_days") || "");
+      if (selectedClass.location) form.setValue("location", selectedClass.location);
     }
   };
 
@@ -247,8 +283,15 @@ export function RegistrationForm({
     setCustomEngClass(false);
     form.setValue("assigned_class_2", value);
     const selectedClass = classes.find((c) => c.name === value);
-    if (selectedClass?.teacher) {
-      form.setValue("teacher_2", selectedClass.teacher);
+    if (selectedClass) {
+      if (selectedClass.teacher) form.setValue("teacher_2", selectedClass.teacher);
+      const sch = parseClassSchedule(selectedClass);
+      if (sch.classDays) form.setValue("eng_class_days", sch.classDays);
+      if (sch.classTime) form.setValue("eng_class_time", sch.classTime);
+      if (sch.clinicTime) form.setValue("eng_clinic_time", sch.clinicTime);
+      form.setValue("eng_test_days", sch.testDays);
+      form.setValue("eng_test_time", sch.testTime);
+      updatePreferredDays(form.getValues("math_class_days") || "", sch.allDays);
     }
   };
 
@@ -470,6 +513,17 @@ export function RegistrationForm({
                     )}
                   />
                 </div>
+                {/* 주간테스트 (자동입력, 있을때만 표시) */}
+                {(form.watch("math_test_days") || form.watch("math_test_time")) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-xs font-bold text-amber-700 mb-1.5">주간 테스트</p>
+                    <div className="flex items-center gap-3 text-sm text-amber-900">
+                      <span className="font-semibold">{form.watch("math_test_days") || "-"}</span>
+                      <span className="text-amber-400">|</span>
+                      <span>{form.watch("math_test_time") || "-"}</span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -595,6 +649,17 @@ export function RegistrationForm({
                     )}
                   />
                 </div>
+                {/* 영어 주간테스트 (자동입력, 있을때만 표시) */}
+                {(form.watch("eng_test_days") || form.watch("eng_test_time")) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-xs font-bold text-amber-700 mb-1.5">주간 테스트</p>
+                    <div className="flex items-center gap-3 text-sm text-amber-900">
+                      <span className="font-semibold">{form.watch("eng_test_days") || "-"}</span>
+                      <span className="text-amber-400">|</span>
+                      <span>{form.watch("eng_test_time") || "-"}</span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 

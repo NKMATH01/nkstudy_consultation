@@ -285,9 +285,13 @@ export interface ReportTemplateData {
   classDays?: string;
   classTime?: string;
   clinicTime?: string;
+  testDays?: string;
+  testTime?: string;
   classDays2?: string;
   classTime2?: string;
   clinicTime2?: string;
+  testDays2?: string;
+  testTime2?: string;
 }
 
 function formatFee(fee: number): string {
@@ -308,15 +312,21 @@ export function buildReportHTML(data: ReportTemplateData): string {
   const regDateFormatted = data.registrationDate.replace(/-/g, ".");
   const payDay = data.registrationDate.split("-").pop() || "";
 
+  // 주간테스트 스케줄 항목 HTML
+  function testRow(days?: string, time?: string): string {
+    if (!days && !time) return "";
+    return `<div class="schedule-item" style="background:#FFFBEB;border:1px solid rgba(217,119,6,0.1)"><span class="schedule-subj" style="color:#B45309">주간 테스트</span><span class="schedule-time" style="color:#92400E">${days || ""} ${time || ""}</span></div>`;
+  }
+
   // 스케줄 카드 HTML
   function buildScheduleCards(): string {
     if (data.subject === "영어수학") {
-      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.classTime || "시간 확인 필요"}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.clinicTime}</span></div>` : ""}</div></div><div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || ""} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || ""}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays2 || data.preferredDays || ""} ${data.classTime2 || "시간 확인 필요"}</span></div>${data.clinicTime2 ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays2 || data.preferredDays || ""} ${data.clinicTime2}</span></div>` : ""}</div></div>`;
+      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.classTime || "시간 확인 필요"}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.clinicTime}</span></div>` : ""}${testRow(data.testDays, data.testTime)}</div></div><div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || ""} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || ""}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays2 || data.preferredDays || ""} ${data.classTime2 || "시간 확인 필요"}</span></div>${data.clinicTime2 ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays2 || data.preferredDays || ""} ${data.clinicTime2}</span></div>` : ""}${testRow(data.testDays2, data.testTime2)}</div></div>`;
     }
     if (data.subject === "영어") {
-      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays2 || data.classDays || data.preferredDays || ""} ${data.classTime2 || data.classTime || "시간 확인 필요"}</span></div>${(data.clinicTime2 || data.clinicTime) ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays2 || data.classDays || data.preferredDays || ""} ${data.clinicTime2 || data.clinicTime}</span></div>` : ""}</div></div>`;
+      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays2 || data.classDays || data.preferredDays || ""} ${data.classTime2 || data.classTime || "시간 확인 필요"}</span></div>${(data.clinicTime2 || data.clinicTime) ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays2 || data.classDays || data.preferredDays || ""} ${data.clinicTime2 || data.clinicTime}</span></div>` : ""}${testRow(data.testDays2 || data.testDays, data.testTime2 || data.testTime)}</div></div>`;
     }
-    return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.classTime || "시간 확인 필요"}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.clinicTime}</span></div>` : ""}</div></div>`;
+    return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.classTime || "시간 확인 필요"}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${data.classDays || data.preferredDays || ""} ${data.clinicTime}</span></div>` : ""}${testRow(data.testDays, data.testTime)}</div></div>`;
   }
 
   // 7대 핵심 학습 성향 점수 HTML

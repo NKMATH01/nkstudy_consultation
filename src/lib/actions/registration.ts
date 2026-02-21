@@ -14,6 +14,28 @@ import type { Registration, Analysis, Survey, PaginatedResponse } from "@/types"
 import { TUITION_TABLE } from "@/types";
 import { revalidatePath } from "next/cache";
 
+const WEEKDAYS = ["월", "화", "수", "목", "금", "토"] as const;
+
+/** 파이프 구분 class_days + weekly_test_time에서 테스트 요일 추출 */
+function parseTestDaysFromClass(classDays?: string | null, weeklyTestTime?: string | null): string | undefined {
+  if (!classDays || !weeklyTestTime) return undefined;
+  const daysSets = classDays.split("|");
+  const testSets = weeklyTestTime.split("|");
+  let testDaysStr = "";
+  daysSets.forEach((days, i) => {
+    if (testSets[i]?.includes("~")) testDaysStr += days;
+  });
+  const sorted = WEEKDAYS.filter((d) => testDaysStr.includes(d)).join("");
+  return sorted || undefined;
+}
+
+/** 파이프 구분 시간 문자열에서 첫 번째 유효 시간 추출 */
+function parseFirstTime(timeStr?: string | null): string | undefined {
+  if (!timeStr) return undefined;
+  const first = timeStr.split("|").find((t) => t.includes("~"));
+  return first || undefined;
+}
+
 // ========== 등록 안내 목록 조회 ==========
 export async function getRegistrations(
   filters: { search?: string; page?: number; limit?: number } = {}
@@ -90,6 +112,10 @@ export async function generateRegistration(
     eng_class_days?: string;
     eng_class_time?: string;
     eng_clinic_time?: string;
+    math_test_days?: string;
+    math_test_time?: string;
+    eng_test_days?: string;
+    eng_test_time?: string;
     use_vehicle?: string;
     test_score?: string;
     test_note?: string;
@@ -136,26 +162,32 @@ export async function generateRegistration(
     TUITION_TABLE[adminFormData.grade || analysisData.grade || ""] ||
     0;
 
-  // 4. 반 시간표 정보 조회 (DB 컬럼: description→class_days, is_active→active)
-  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
-  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
+  // 4. 반 시간표 정보 (폼에서 이미 파싱된 데이터 사용, 폴백으로 DB 조회)
+  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null; test_days: string | null; test_time: string | null } | null = null;
+  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null; test_days: string | null; test_time: string | null } | null = null;
 
   if (adminFormData.assigned_class) {
     const { data: cls } = await supabase
       .from("classes")
-      .select("description, class_time, clinic_time")
+      .select("description, class_time, clinic_time, weekly_test_time")
       .eq("name", adminFormData.assigned_class)
       .single();
-    if (cls) classInfo = { class_days: (cls as Record<string, unknown>).description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time };
+    if (cls) {
+      const raw = cls as Record<string, unknown>;
+      classInfo = { class_days: raw.description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time, test_days: null, test_time: raw.weekly_test_time as string | null };
+    }
   }
 
   if (adminFormData.subject === "영어수학" && adminFormData.assigned_class_2) {
     const { data: cls2 } = await supabase
       .from("classes")
-      .select("description, class_time, clinic_time")
+      .select("description, class_time, clinic_time, weekly_test_time")
       .eq("name", adminFormData.assigned_class_2)
       .single();
-    if (cls2) classInfo2 = { class_days: (cls2 as Record<string, unknown>).description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time };
+    if (cls2) {
+      const raw2 = cls2 as Record<string, unknown>;
+      classInfo2 = { class_days: raw2.description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time, test_days: null, test_time: raw2.weekly_test_time as string | null };
+    }
   }
 
   // 5. Claude 프롬프트 생성 + 호출
@@ -231,9 +263,13 @@ export async function generateRegistration(
     classDays: adminFormData.math_class_days && adminFormData.math_class_days !== "N/A" ? adminFormData.math_class_days : classInfo?.class_days || adminFormData.preferred_days || undefined,
     classTime: adminFormData.math_class_time && adminFormData.math_class_time !== "N/A" ? adminFormData.math_class_time : classInfo?.class_time || undefined,
     clinicTime: adminFormData.math_clinic_time && adminFormData.math_clinic_time !== "N/A" ? adminFormData.math_clinic_time : classInfo?.clinic_time || undefined,
+    testDays: adminFormData.math_test_days || undefined,
+    testTime: adminFormData.math_test_time || undefined,
     classDays2: adminFormData.eng_class_days || classInfo2?.class_days || adminFormData.preferred_days || undefined,
     classTime2: adminFormData.eng_class_time || classInfo2?.class_time || undefined,
     clinicTime2: adminFormData.eng_clinic_time || classInfo2?.clinic_time || undefined,
+    testDays2: adminFormData.eng_test_days || undefined,
+    testTime2: adminFormData.eng_test_time || undefined,
   };
 
   let reportHTML: string;
@@ -388,25 +424,31 @@ export async function regenerateRegistration(id: string) {
   }
 
   // 4. 반 시간표 정보 조회 (DB 컬럼: description→class_days, is_active→active)
-  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
-  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null } | null = null;
+  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
 
   if (registration.assigned_class) {
     const { data: cls } = await supabase
       .from("classes")
-      .select("description, class_time, clinic_time")
+      .select("description, class_time, clinic_time, weekly_test_time")
       .eq("name", registration.assigned_class)
       .single();
-    if (cls) classInfo = { class_days: (cls as Record<string, unknown>).description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time };
+    if (cls) {
+      const raw = cls as Record<string, unknown>;
+      classInfo = { class_days: raw.description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time, weekly_test_time: raw.weekly_test_time as string | null };
+    }
   }
 
   if (registration.subject === "영어수학" && registration.assigned_class_2) {
     const { data: cls2 } = await supabase
       .from("classes")
-      .select("description, class_time, clinic_time")
+      .select("description, class_time, clinic_time, weekly_test_time")
       .eq("name", registration.assigned_class_2)
       .single();
-    if (cls2) classInfo2 = { class_days: (cls2 as Record<string, unknown>).description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time };
+    if (cls2) {
+      const raw2 = cls2 as Record<string, unknown>;
+      classInfo2 = { class_days: raw2.description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time, weekly_test_time: raw2.weekly_test_time as string | null };
+    }
   }
 
   // 5. Claude 프롬프트 생성 + 호출
@@ -482,9 +524,13 @@ export async function regenerateRegistration(id: string) {
     classDays: classInfo?.class_days || undefined,
     classTime: classInfo?.class_time || undefined,
     clinicTime: classInfo?.clinic_time || undefined,
+    testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
+    testTime: parseFirstTime(classInfo?.weekly_test_time),
     classDays2: classInfo2?.class_days || undefined,
     classTime2: classInfo2?.class_time || undefined,
     clinicTime2: classInfo2?.clinic_time || undefined,
+    testDays2: parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.weekly_test_time),
+    testTime2: parseFirstTime(classInfo2?.weekly_test_time),
   };
 
   let reportHTML: string;

@@ -21,9 +21,13 @@ import { SurveyPreviewDialog } from "@/components/surveys/survey-preview-dialog"
 import { toast } from "sonner";
 import { analyzeSurvey, reAnalyzeSurvey } from "@/lib/actions/analysis";
 import { deleteSurvey } from "@/lib/actions/survey";
-import type { Survey } from "@/types";
+import { updateRegistrationInfo } from "@/lib/actions/consultation";
+import { generateRegistration } from "@/lib/actions/registration";
+import { RegistrationForm } from "@/components/registrations/registration-form-client";
+import type { Survey, Class, Teacher } from "@/types";
 import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
 import type { ResultStatus } from "@/types";
+import type { RegistrationAdminFormData } from "@/lib/validations/registration";
 import Link from "next/link";
 
 interface Props {
@@ -37,6 +41,8 @@ interface Props {
   analyses: { id: string; survey_id: string | null; report_html: string | null }[];
   registrations: { id: string; analysis_id: string | null }[];
   consultations: { name: string; result_status: string }[];
+  classes: Class[];
+  teachers: Teacher[];
 }
 
 function FactorScore({ value, label }: { value: number | null; label: string }) {
@@ -64,7 +70,7 @@ function ResultStatusBadge({ status }: { status: ResultStatus }) {
   );
 }
 
-export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations }: Props) {
+export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations, classes, teachers }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -75,6 +81,63 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [deleteTarget, setDeleteTarget] = useState<Survey | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+
+  // 등록 다이얼로그 상태
+  const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus } | null>(null);
+  const [regForm, setRegForm] = useState({ plan_date: "", plan_class: "", deposit: false });
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // 등록 안내문 생성 다이얼로그 상태
+  const [regFormTarget, setRegFormTarget] = useState<{ analysisId: string; grade: string | null } | null>(null);
+
+  const handleGenerateRegistration = async (data: RegistrationAdminFormData) => {
+    if (!regFormTarget) return;
+    const result = await generateRegistration(regFormTarget.analysisId, data);
+    if (result.success && result.data) {
+      toast.success("등록 안내문이 생성되었습니다");
+      setRegFormTarget(null);
+      router.push(`/registrations/${result.data.id}`);
+    } else {
+      toast.error(result.error || "등록 안내문 생성에 실패했습니다");
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!regTarget) return;
+    setIsRegistering(true);
+    try {
+      const result = await updateRegistrationInfo(regTarget.name, {
+        result_status: "registered",
+        plan_date: regForm.plan_date || undefined,
+        plan_class: regForm.plan_class || undefined,
+        reserve_deposit: regForm.deposit,
+      });
+      if (result.success) {
+        toast.success(`${regTarget.name} 학생이 등록 처리되었습니다`);
+        setRegTarget(null);
+        setRegForm({ plan_date: "", plan_class: "", deposit: false });
+        router.refresh();
+      } else {
+        toast.error(result.error || "등록 처리 실패");
+      }
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handleStatusChange = async (name: string, status: ResultStatus) => {
+    if (status === "registered") {
+      setRegTarget({ name, currentStatus: status });
+      return;
+    }
+    const result = await updateRegistrationInfo(name, { result_status: status });
+    if (result.success) {
+      toast.success("상태가 변경되었습니다");
+      router.refresh();
+    } else {
+      toast.error(result.error || "상태 변경 실패");
+    }
+  };
 
   // 분석 데이터 맵 생성
   const analysisMap = useMemo(() => {
@@ -251,7 +314,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               <div className="w-[100px] hidden sm:block">학교/학년</div>
               <div className="flex-1 hidden md:block">6-Factor</div>
               <div className="w-[50px] text-center">분석</div>
-              <div className="w-[50px] text-center">등록</div>
+              <div className="w-[80px] text-center">등록</div>
               <div className="w-[180px] text-center">액션</div>
             </div>
             {/* Rows */}
@@ -296,24 +359,41 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                       <Badge variant="secondary" className="text-[10px]">미분석</Badge>
                     )}
                   </div>
-                  <div className="w-[50px] text-center">
-                    <ResultStatusBadge status={consultStatus} />
-                    {regId && (
-                      <Link href={`/registrations/${regId}`} className="block mt-0.5" title="등록 안내문 보기">
-                        <FileCheck className="h-3 w-3 text-teal-500 mx-auto" />
-                      </Link>
-                    )}
+                  <div className="w-[80px] text-center">
+                    <select
+                      value={consultStatus}
+                      onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)}
+                      className={`text-[10px] font-semibold rounded-md border-0 py-0.5 px-1 cursor-pointer outline-none ${
+                        consultStatus === "registered" ? "bg-red-500 text-white" :
+                        consultStatus === "hold" ? "bg-amber-400 text-white" :
+                        consultStatus === "other" ? "bg-neutral-500 text-white" :
+                        "bg-slate-100 text-slate-400"
+                      }`}
+                    >
+                      <option value="none">-</option>
+                      <option value="registered">등록</option>
+                      <option value="hold">고민중</option>
+                      <option value="other">미등록</option>
+                    </select>
                   </div>
                   <div className="w-[180px] flex items-center justify-end gap-1">
-                    {/* 등록 안내 생성/보기 */}
+                    {/* 등록 안내문 생성/보기 */}
                     {hasAnalysis && (
-                      <Link
-                        href={regId ? `/registrations/${regId}` : `/analyses/${analysisId}`}
-                        className="px-2 py-1 rounded-md text-[10px] font-semibold bg-teal-50 text-teal-600 hover:bg-teal-100 transition-colors"
-                        title={regId ? "등록 안내 보기" : "등록 안내 생성"}
+                      <button
+                        onClick={() => {
+                          if (regId) {
+                            router.push(`/registrations/${regId}`);
+                          } else {
+                            setRegFormTarget({ analysisId: analysisId!, grade: item.grade });
+                          }
+                        }}
+                        className={`px-2 py-1 rounded-md text-[10px] font-semibold transition-colors ${
+                          regId ? "bg-teal-500 text-white hover:bg-teal-600" : "bg-teal-50 text-teal-600 hover:bg-teal-100"
+                        }`}
+                        title={regId ? "등록 안내문 보기" : "등록 안내문 생성"}
                       >
-                        <ClipboardList className="h-3.5 w-3.5" />
-                      </Link>
+                        {regId ? "안내문" : "안내문"}
+                      </button>
                     )}
                     {/* 설문지 보기 */}
                     <button
@@ -421,6 +501,73 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               className="rounded-xl"
             >
               {isDeleting ? "삭제 중..." : "삭제"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 등록 안내문 생성 다이얼로그 */}
+      {regFormTarget && (
+        <RegistrationForm
+          open={!!regFormTarget}
+          onOpenChange={(open) => { if (!open) setRegFormTarget(null); }}
+          onSubmit={handleGenerateRegistration}
+          grade={regFormTarget.grade}
+          classes={classes}
+          teachers={teachers}
+        />
+      )}
+
+      {/* 등록 정보 입력 다이얼로그 */}
+      <Dialog open={!!regTarget} onOpenChange={(open) => { if (!open) { setRegTarget(null); setRegForm({ plan_date: "", plan_class: "", deposit: false }); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>등록 처리 - {regTarget?.name}</DialogTitle>
+            <DialogDescription>
+              등록 관련 추가 정보를 입력해주세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-1">등록 예정일</label>
+              <Input
+                type="date"
+                value={regForm.plan_date}
+                onChange={(e) => setRegForm((p) => ({ ...p, plan_date: e.target.value }))}
+                className="rounded-lg border-slate-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-1">등록 예정반</label>
+              <Input
+                placeholder="예: 초5-A반"
+                value={regForm.plan_class}
+                onChange={(e) => setRegForm((p) => ({ ...p, plan_class: e.target.value }))}
+                className="rounded-lg border-slate-200"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="reg-deposit"
+                checked={regForm.deposit}
+                onChange={(e) => setRegForm((p) => ({ ...p, deposit: e.target.checked }))}
+                className="rounded border-slate-300"
+              />
+              <label htmlFor="reg-deposit" className="text-sm text-slate-700">결제 완료</label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRegTarget(null); setRegForm({ plan_date: "", plan_class: "", deposit: false }); }} className="rounded-xl">
+              취소
+            </Button>
+            <Button
+              onClick={handleRegister}
+              disabled={isRegistering}
+              className="rounded-xl text-white"
+              style={{ background: "#0F2B5B" }}
+            >
+              {isRegistering ? "처리 중..." : "등록 확인"}
             </Button>
           </DialogFooter>
         </DialogContent>

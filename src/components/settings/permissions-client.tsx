@@ -96,38 +96,19 @@ export function PermissionsClient({ teachers }: Props) {
     }));
   };
 
-  // 그룹 전체 토글 (특정 선생님)
-  const toggleGroupForTeacher = (teacherId: string, groupHrefs: string[]) => {
+  // 개별 메뉴 컬럼 전체 토글 (모든 선생님의 해당 메뉴)
+  const toggleMenuForAll = (href: string) => {
     setPermState((prev) => {
-      const current = prev[teacherId] || [];
-      const allChecked = groupHrefs.every((h) => current.includes(h));
-      if (allChecked) {
-        return {
-          ...prev,
-          [teacherId]: current.filter((h) => !groupHrefs.includes(h)),
-        };
-      } else {
-        return { ...prev, [teacherId]: [...new Set([...current, ...groupHrefs])] };
-      }
-    });
-  };
-
-  // 그룹 전체 토글 (모든 선생님)
-  const toggleGroupForAll = (groupHrefs: string[]) => {
-    setPermState((prev) => {
-      // 모든 선생님이 해당 그룹을 전부 가지고 있으면 → 전체 해제, 아니면 → 전체 선택
-      const allTeachersAllChecked = teachers.every((t) => {
-        const current = prev[t.id] || [];
-        return groupHrefs.every((h) => current.includes(h));
-      });
-
+      const allChecked = teachers.every((t) => (prev[t.id] || []).includes(href));
       const next = { ...prev };
       teachers.forEach((t) => {
         const current = next[t.id] || [];
-        if (allTeachersAllChecked) {
-          next[t.id] = current.filter((h) => !groupHrefs.includes(h));
+        if (allChecked) {
+          next[t.id] = current.filter((h) => h !== href);
         } else {
-          next[t.id] = [...new Set([...current, ...groupHrefs])];
+          if (!current.includes(href)) {
+            next[t.id] = [...current, href];
+          }
         }
       });
       return next;
@@ -188,7 +169,10 @@ export function PermissionsClient({ teachers }: Props) {
   return (
     <div className="space-y-3">
       {/* 전체 저장 버튼 */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-400">
+          메뉴 이름을 클릭하면 모든 선생님의 해당 메뉴를 선택/해제합니다
+        </p>
         <button
           onClick={saveAllPermissions}
           disabled={isPending || !hasChanges}
@@ -210,7 +194,7 @@ export function PermissionsClient({ teachers }: Props) {
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: "800px" }}>
             <thead>
-              {/* 그룹 헤더 행 */}
+              {/* 그룹 헤더 행 (시각적 구분용) */}
               <tr>
                 <th
                   rowSpan={2}
@@ -219,52 +203,20 @@ export function PermissionsClient({ teachers }: Props) {
                 >
                   선생님
                 </th>
-                {MENU_GROUPS.map((group) => {
-                  // 헤더에서 그룹 전체 토글 상태 계산
-                  const allTeachersAllChecked = teachers.every((t) => {
-                    const perms = permState[t.id] || [];
-                    return group.hrefs.every((h) => perms.includes(h));
-                  });
-                  const someChecked = teachers.some((t) => {
-                    const perms = permState[t.id] || [];
-                    return group.hrefs.some((h) => perms.includes(h));
-                  });
-
-                  return (
-                    <th
-                      key={group.label}
-                      colSpan={group.hrefs.length}
-                      className="px-2 py-2 text-[11px] font-bold border-b border-slate-200 text-center cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{
-                        background: group.color,
-                        borderLeft: `2px solid ${group.borderColor}`,
-                        borderRight: `2px solid ${group.borderColor}`,
-                      }}
-                      onClick={() => toggleGroupForAll(group.hrefs)}
-                      title={`${group.label} 전체 ${allTeachersAllChecked ? "해제" : "선택"}`}
-                    >
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div
-                          className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                            allTeachersAllChecked
-                              ? "bg-blue-500 border-blue-500"
-                              : someChecked
-                                ? "bg-blue-200 border-blue-400"
-                                : "border-slate-300 bg-white"
-                          }`}
-                        >
-                          {allTeachersAllChecked && (
-                            <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
-                          )}
-                          {someChecked && !allTeachersAllChecked && (
-                            <div className="w-1.5 h-0.5 bg-blue-600 rounded" />
-                          )}
-                        </div>
-                        <span className="text-slate-600">{group.label}</span>
-                      </div>
-                    </th>
-                  );
-                })}
+                {MENU_GROUPS.map((group) => (
+                  <th
+                    key={group.label}
+                    colSpan={group.hrefs.length}
+                    className="px-2 py-2 text-[11px] font-bold border-b border-slate-200 text-center"
+                    style={{
+                      background: group.color,
+                      borderLeft: `2px solid ${group.borderColor}`,
+                      borderRight: `2px solid ${group.borderColor}`,
+                    }}
+                  >
+                    <span className="text-slate-600">{group.label}</span>
+                  </th>
+                ))}
                 <th
                   rowSpan={2}
                   className="px-3 py-3 text-xs font-bold text-slate-500 border-b border-slate-200 text-center"
@@ -273,15 +225,22 @@ export function PermissionsClient({ teachers }: Props) {
                   전체
                 </th>
               </tr>
-              {/* 개별 메뉴 헤더 행 */}
+              {/* 개별 메뉴 헤더 행 (클릭하면 모든 강사 토글) */}
               <tr style={{ background: "#F8FAFC" }}>
                 {ASSIGNABLE_MENUS.map((m) => {
                   const gi = HREF_TO_GROUP.get(m.href) ?? -1;
                   const group = MENU_GROUPS[gi];
+                  const allChecked = teachers.every((t) =>
+                    (permState[t.id] || []).includes(m.href)
+                  );
+                  const someChecked = teachers.some((t) =>
+                    (permState[t.id] || []).includes(m.href)
+                  );
+
                   return (
                     <th
                       key={m.href}
-                      className="px-2 py-2 text-[10px] font-semibold text-slate-400 border-b border-slate-200 text-center whitespace-nowrap"
+                      className="px-1 py-2 text-center border-b border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors"
                       style={
                         group
                           ? {
@@ -296,8 +255,30 @@ export function PermissionsClient({ teachers }: Props) {
                             }
                           : undefined
                       }
+                      onClick={() => toggleMenuForAll(m.href)}
+                      title={`${m.label} - 모든 선생님 ${allChecked ? "해제" : "선택"}`}
                     >
-                      {m.label}
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                            allChecked
+                              ? "bg-blue-500 border-blue-500"
+                              : someChecked
+                                ? "bg-blue-200 border-blue-400"
+                                : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {allChecked && (
+                            <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                          )}
+                          {someChecked && !allChecked && (
+                            <div className="w-1.5 h-0.5 bg-blue-600 rounded" />
+                          )}
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
+                          {m.label}
+                        </span>
+                      </div>
                     </th>
                   );
                 })}

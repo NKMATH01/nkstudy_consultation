@@ -299,13 +299,76 @@ export async function updateTeacher(id: string, formData: FormData) {
       return { success: false, error: parsed.error.issues[0].message };
     }
 
+    // 기존 선생님 정보 조회 (Auth 동기화용)
+    const { data: existingTeacher } = await admin
+      .from("teachers")
+      .select("phone, auth_user_id, role")
+      .eq("id", id)
+      .single();
+
+    const oldPhone = existingTeacher?.phone || null;
+    const newPhone = parsed.data.phone || null;
+    const newPassword = parsed.data.password || null;
+    const newRole = parsed.data.role || existingTeacher?.role || "teacher";
+
+    // Supabase Auth 동기화
+    if (env.SUPABASE_SERVICE_ROLE_KEY && newRole !== "clinic") {
+      try {
+        // 기존 Auth 사용자 찾기 (auth_user_id 또는 이전 전화번호로)
+        let authUserId = existingTeacher?.auth_user_id || null;
+
+        if (!authUserId && oldPhone) {
+          const oldEmail = phoneToEmail(oldPhone);
+          const { data: { users } } = await admin.auth.admin.listUsers();
+          const found = users.find((u: { email?: string }) => u.email === oldEmail);
+          if (found) authUserId = found.id;
+        }
+
+        if (authUserId) {
+          // 기존 Auth 사용자 업데이트
+          const authUpdate: { email?: string; password?: string } = {};
+          if (newPhone && newPhone !== oldPhone) {
+            authUpdate.email = phoneToEmail(newPhone);
+          }
+          if (newPassword) {
+            authUpdate.password = toAuthPassword(newPassword);
+          }
+          if (Object.keys(authUpdate).length > 0) {
+            await admin.auth.admin.updateUserById(authUserId, authUpdate);
+          }
+        } else if (newPhone) {
+          // Auth 사용자가 없으면 새로 생성
+          const email = phoneToEmail(newPhone);
+          const pw = newPassword || "1234";
+          const { data: authData } = await admin.auth.admin.createUser({
+            email,
+            password: toAuthPassword(pw),
+            email_confirm: true,
+          });
+          if (authData?.user) {
+            authUserId = authData.user.id;
+          }
+        }
+
+        // auth_user_id 업데이트
+        if (authUserId && !existingTeacher?.auth_user_id) {
+          await admin
+            .from("teachers")
+            .update({ auth_user_id: authUserId })
+            .eq("id", id);
+        }
+      } catch (authErr) {
+        console.error("[Teacher Auth] 동기화 실패:", authErr);
+      }
+    }
+
     const updateData: Record<string, unknown> = {
       name: parsed.data.name,
-      phone: parsed.data.phone || null,
+      phone: newPhone,
       building: parsed.data.subject || null,
     };
     if (parsed.data.role) updateData.role = parsed.data.role;
-    if (parsed.data.password) updateData.password = "changed";
+    if (newPassword) updateData.password = "changed";
 
     const { error } = await admin
       .from("teachers")

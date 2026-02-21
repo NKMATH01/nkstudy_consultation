@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,7 +57,7 @@ export function ConsultationFormDialog({
   const emptyValues: ConsultationFormValues = {
     name: "", school: "", grade: "", parent_phone: "",
     consult_date: "", consult_time: "", subject: "", location: "",
-    consult_type: "유선", memo: "",
+    consult_type: "유선 상담", memo: "",
     prev_academy: "", prev_complaint: "", school_score: "", test_score: "",
     advance_level: "", study_goal: "", prefer_days: "",
     plan_date: "", plan_class: "", requests: "", student_consult_note: "",
@@ -67,6 +67,8 @@ export function ConsultationFormDialog({
     resolver: zodResolver(consultationFormSchema) as never,
     defaultValues: emptyValues,
   });
+
+  const [meetingTime, setMeetingTime] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -80,7 +82,7 @@ export function ConsultationFormDialog({
         consult_time: consultation.consult_time?.slice(0, 5) ?? "",
         subject: consultation.subject ?? "",
         location: consultation.location ?? "",
-        consult_type: consultation.consult_type ?? "유선",
+        consult_type: consultation.consult_type?.includes("대면") ? "대면 상담" : (consultation.consult_type ?? "유선 상담"),
         memo: consultation.memo ?? "",
         prev_academy: consultation.prev_academy ?? "",
         prev_complaint: consultation.prev_complaint ?? "",
@@ -94,8 +96,16 @@ export function ConsultationFormDialog({
         requests: consultation.requests ?? "",
         student_consult_note: consultation.student_consult_note ?? "",
       });
+      // 대면 시간 추출
+      if (consultation.consult_type?.includes("대면")) {
+        const timeMatch = consultation.consult_type.match(/(\d{1,2}:\d{2})/);
+        setMeetingTime(timeMatch ? timeMatch[1] : "");
+      } else {
+        setMeetingTime("");
+      }
     } else {
       form.reset(emptyValues);
+      setMeetingTime("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, consultation]);
@@ -105,7 +115,11 @@ export function ConsultationFormDialog({
       const formData = new FormData();
       Object.entries(values).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          formData.set(key, String(value));
+          if (key === "consult_type" && value === "대면 상담" && meetingTime) {
+            formData.set(key, `대면 상담 ${meetingTime}`);
+          } else {
+            formData.set(key, String(value));
+          }
         }
       });
 
@@ -199,8 +213,14 @@ export function ConsultationFormDialog({
                   <FormItem>
                     <FormLabel className="text-xs text-slate-500">상담방식</FormLabel>
                     <FormControl>
-                      <Input className={inp} placeholder="유선, 대면 14:00" {...field} />
+                      <select value={field.value ?? ""} onChange={(e) => { field.onChange(e); if (e.target.value !== "대면 상담") setMeetingTime(""); }} className={sel}>
+                        <option value="유선 상담">유선 상담</option>
+                        <option value="대면 상담">대면 상담</option>
+                      </select>
                     </FormControl>
+                    {field.value === "대면 상담" && (
+                      <Input type="time" className={`${inp} mt-1.5`} value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} />
+                    )}
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="location" render={({ field }) => (

@@ -8,6 +8,86 @@ import type {
   PaginatedResponse,
 } from "@/types";
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+// 상담 → 예약 동기화 헬퍼
+async function syncConsultationToBooking(consultation: {
+  name: string;
+  consult_date: string | null;
+  consult_time: string | null;
+  consult_type: string;
+  location: string | null;
+  subject: string | null;
+  parent_phone: string | null;
+  school: string | null;
+  grade: string | null;
+}) {
+  if (!consultation.consult_date || !consultation.consult_time) return;
+
+  const hour = parseInt(consultation.consult_time.split(":")[0]);
+  if (isNaN(hour) || hour < 13 || hour > 20) return;
+
+  const admin = createAdminClient();
+
+  // consult_type 매핑
+  const bookingType = consultation.consult_type?.includes("대면") ? "inperson" : "phone";
+
+  // location + subject → branch 매핑
+  let branch = "gojan-math";
+  if (consultation.location?.includes("자이")) {
+    branch = "zai-both";
+  } else if (consultation.subject?.includes("영어")) {
+    branch = "gojan-eng";
+  }
+
+  // subject 매핑
+  let subjectCode = "math";
+  if (consultation.subject?.includes("영어수학") || consultation.subject?.includes("영수")) {
+    subjectCode = "both";
+  } else if (consultation.subject?.includes("영어")) {
+    subjectCode = "eng";
+  }
+
+  // 기존 예약 존재 여부 확인 (이름+날짜+시간으로)
+  const { data: existing } = await admin
+    .from("bookings")
+    .select("id")
+    .eq("student_name", consultation.name)
+    .eq("booking_date", consultation.consult_date)
+    .eq("booking_hour", hour)
+    .maybeSingle();
+
+  if (existing) {
+    // 기존 예약 업데이트
+    await admin
+      .from("bookings")
+      .update({
+        consult_type: bookingType,
+        branch,
+        subject: subjectCode,
+        phone: consultation.parent_phone || "",
+        school: consultation.school || null,
+        grade: consultation.grade || null,
+      })
+      .eq("id", existing.id);
+  } else {
+    // 새 예약 생성
+    await admin.from("bookings").insert({
+      student_name: consultation.name,
+      parent_name: consultation.name,
+      phone: consultation.parent_phone || "",
+      booking_date: consultation.consult_date,
+      booking_hour: hour,
+      consult_type: bookingType,
+      branch,
+      subject: subjectCode,
+      school: consultation.school || null,
+      grade: consultation.grade || null,
+      paid: false,
+      pay_method: "later",
+    });
+  }
+}
 
 export async function getConsultations(
   filters: ConsultationFilters = {}
@@ -140,12 +220,29 @@ export async function createConsultation(formData: FormData) {
       .single();
 
     if (error) {
-      // TODO: Sentry 등 외부 로깅 서비스로 교체 가능
       console.error("[DB] 상담 등록 실패:", error.message);
       return { success: false, error: error.message };
     }
 
+    // 예약 현황판 동기화
+    try {
+      await syncConsultationToBooking({
+        name: parsed.data.name,
+        consult_date: parsed.data.consult_date || null,
+        consult_time: parsed.data.consult_time || null,
+        consult_type: parsed.data.consult_type || "유선 상담",
+        location: parsed.data.location || null,
+        subject: parsed.data.subject || null,
+        parent_phone: parsed.data.parent_phone || null,
+        school: parsed.data.school || null,
+        grade: parsed.data.grade || null,
+      });
+    } catch (syncErr) {
+      console.error("[Booking Sync] 예약 동기화 실패:", syncErr);
+    }
+
     revalidatePath("/consultations");
+    revalidatePath("/bookings");
     return { success: true, data };
   } catch (e) {
     console.error("[상담] 등록 중 예외:", e instanceof Error ? e.message : e);
@@ -221,7 +318,25 @@ export async function updateConsultation(id: string, formData: FormData) {
       return { success: false, error: error.message };
     }
 
+    // 예약 현황판 동기화
+    try {
+      await syncConsultationToBooking({
+        name: parsed.data.name,
+        consult_date: parsed.data.consult_date || null,
+        consult_time: parsed.data.consult_time || null,
+        consult_type: parsed.data.consult_type || "유선 상담",
+        location: parsed.data.location || null,
+        subject: parsed.data.subject || null,
+        parent_phone: parsed.data.parent_phone || null,
+        school: parsed.data.school || null,
+        grade: parsed.data.grade || null,
+      });
+    } catch (syncErr) {
+      console.error("[Booking Sync] 예약 동기화 실패:", syncErr);
+    }
+
     revalidatePath("/consultations");
+    revalidatePath("/bookings");
     revalidatePath(`/consultations/${id}`);
     return { success: true, data };
   } catch (e) {
@@ -333,6 +448,57 @@ export async function updateConsultationField(
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "필드 업데이트 실패";
+    return { success: false, error: msg };
+  }
+}
+
+/** 학생 이름 기준으로 등록 상태 + 추가 정보 업데이트 */
+export async function updateRegistrationInfo(
+  studentName: string,
+  data: {
+    result_status: string;
+    plan_date?: string;
+    plan_class?: string;
+    reserve_deposit?: boolean;
+  }
+) {
+  try {
+    const supabase = await createClient();
+
+    // 가장 최근 상담 찾기
+    const { data: consultation, error: findErr } = await supabase
+      .from("consultations")
+      .select("id")
+      .eq("name", studentName)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (findErr || !consultation) {
+      return { success: false, error: "해당 학생의 상담 정보를 찾을 수 없습니다" };
+    }
+
+    const updateData: Record<string, unknown> = {
+      result_status: data.result_status,
+    };
+    if (data.plan_date !== undefined) updateData.plan_date = data.plan_date || null;
+    if (data.plan_class !== undefined) updateData.plan_class = data.plan_class || null;
+    if (data.reserve_deposit !== undefined) updateData.reserve_deposit = data.reserve_deposit;
+
+    const { error } = await supabase
+      .from("consultations")
+      .update(updateData)
+      .eq("id", consultation.id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/consultations");
+    revalidatePath("/surveys");
+    return { success: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "등록 정보 업데이트 실패";
     return { success: false, error: msg };
   }
 }

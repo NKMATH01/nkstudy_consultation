@@ -72,6 +72,7 @@ export interface Class {
   class_time: string | null;
   clinic_time: string | null;
   weekly_test_time: string | null;
+  location: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;

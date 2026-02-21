@@ -35,6 +35,7 @@ import {
 } from "@/lib/validations/class";
 import { createClass, updateClass } from "@/lib/actions/settings";
 import type { Class, Teacher } from "@/types";
+import { LOCATIONS } from "@/types";
 
 // 30분 단위 시간 옵션 생성
 const TIME_OPTIONS: string[] = [];
@@ -46,21 +47,35 @@ TIME_OPTIONS.push("22:30", "23:00");
 
 const ALL_DAYS = ["월", "화", "수", "목", "금", "토", "일"] as const;
 
+const PERIOD_PRESETS = [
+  { label: "0교시", start: "16:00", end: "17:30" },
+  { label: "1교시", start: "17:30", end: "19:00" },
+  { label: "2교시", start: "19:00", end: "20:30" },
+  { label: "3교시", start: "20:30", end: "22:00" },
+] as const;
+
 interface ScheduleSet {
   days: string[];
+  hasClass: boolean;
   classStart: string;
   classEnd: string;
+  hasClinic: boolean;
   clinicStart: string;
   clinicEnd: string;
+  hasTest: boolean;
   testStart: string;
   testEnd: string;
 }
 
 function emptySet(): ScheduleSet {
-  return { days: [], classStart: "19:00", classEnd: "20:30", clinicStart: "20:30", clinicEnd: "22:00", testStart: "", testEnd: "" };
+  return {
+    days: [],
+    hasClass: true, classStart: "19:00", classEnd: "20:30",
+    hasClinic: true, clinicStart: "20:30", clinicEnd: "22:00",
+    hasTest: false, testStart: "16:00", testEnd: "17:30",
+  };
 }
 
-// class_days: "월수|토", class_time: "19:00~20:30|13:00~14:30", clinic_time: "20:30~22:00|11:30~13:00", weekly_test_time: "18:00~19:00|12:00~13:00"
 function parseSets(cls?: Class): ScheduleSet[] {
   if (!cls?.class_days) return [emptySet()];
   const dayParts = cls.class_days.split("|").map((s) => s.trim());
@@ -70,18 +85,30 @@ function parseSets(cls?: Class): ScheduleSet[] {
 
   return dayParts.map((dp, i) => {
     const days = dp.split("").filter((ch) => ALL_DAYS.includes(ch as typeof ALL_DAYS[number]));
-    const [cs, ce] = (timeParts[i] || "19:00~20:30").split("~");
-    const [cls2, cle] = (clinicParts[i] || "20:30~22:00").split("~");
+
+    const classRaw = timeParts[i] || "";
+    const clinicRaw = clinicParts[i] || "";
     const testRaw = testParts[i] || "";
-    const [ts, te] = testRaw.includes("~") ? testRaw.split("~") : ["", ""];
+
+    const hasClass = classRaw.includes("~");
+    const hasClinic = clinicRaw.includes("~");
+    const hasTest = testRaw.includes("~");
+
+    const [cs, ce] = hasClass ? classRaw.split("~") : ["19:00", "20:30"];
+    const [cl, cle] = hasClinic ? clinicRaw.split("~") : ["20:30", "22:00"];
+    const [ts, te] = hasTest ? testRaw.split("~") : ["16:00", "17:30"];
+
     return {
       days,
+      hasClass,
       classStart: cs || "19:00",
       classEnd: ce || "20:30",
-      clinicStart: cls2 || "20:30",
+      hasClinic,
+      clinicStart: cl || "20:30",
       clinicEnd: cle || "22:00",
-      testStart: ts || "",
-      testEnd: te || "",
+      hasTest,
+      testStart: ts || "16:00",
+      testEnd: te || "17:30",
     };
   });
 }
@@ -91,10 +118,16 @@ function serializeSets(sets: ScheduleSet[]) {
   if (valid.length === 0) return { class_days: "", class_time: "", clinic_time: "", weekly_test_time: "" };
   return {
     class_days: valid.map((s) => s.days.join("")).join("|"),
-    class_time: valid.map((s) => `${s.classStart}~${s.classEnd}`).join("|"),
-    clinic_time: valid.map((s) => `${s.clinicStart}~${s.clinicEnd}`).join("|"),
-    weekly_test_time: valid.map((s) => s.testStart && s.testEnd ? `${s.testStart}~${s.testEnd}` : "").join("|"),
+    class_time: valid.map((s) => s.hasClass ? `${s.classStart}~${s.classEnd}` : "").join("|"),
+    clinic_time: valid.map((s) => s.hasClinic ? `${s.clinicStart}~${s.clinicEnd}` : "").join("|"),
+    weekly_test_time: valid.map((s) => s.hasTest ? `${s.testStart}~${s.testEnd}` : "").join("|"),
   };
+}
+
+/** 교시 프리셋 매칭 확인 */
+function matchedPeriod(start: string, end: string): string | null {
+  const found = PERIOD_PRESETS.find((p) => p.start === start && p.end === end);
+  return found ? found.label : null;
 }
 
 interface Props {
@@ -126,6 +159,7 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
       class_time: classData?.class_time ?? "",
       clinic_time: classData?.clinic_time ?? "",
       weekly_test_time: classData?.weekly_test_time ?? "",
+      location: classData?.location ?? "",
     },
   });
 
@@ -139,9 +173,10 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
         class_time: classData.class_time ?? "",
         clinic_time: classData.clinic_time ?? "",
         weekly_test_time: classData.weekly_test_time ?? "",
+        location: classData.location ?? "",
       });
     } else if (open) {
-      form.reset({ name: "", teacher: "", target_grade: "", class_days: "", class_time: "", clinic_time: "", weekly_test_time: "" });
+      form.reset({ name: "", teacher: "", target_grade: "", class_days: "", class_time: "", clinic_time: "", weekly_test_time: "", location: "" });
     }
   }, [open, classData, form]);
 
@@ -162,9 +197,9 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
     );
   };
 
-  const updateSetField = (setIdx: number, field: keyof ScheduleSet, value: string) => {
+  const updateSet = (setIdx: number, updates: Partial<ScheduleSet>) => {
     setSets((prev) =>
-      prev.map((s, i) => (i === setIdx ? { ...s, [field]: value } : s))
+      prev.map((s, i) => (i === setIdx ? { ...s, ...updates } : s))
     );
   };
 
@@ -182,6 +217,7 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
       formData.set("class_time", serialized.class_time);
       formData.set("clinic_time", serialized.clinic_time);
       formData.set("weekly_test_time", serialized.weekly_test_time);
+      formData.set("location", values.location || "");
 
       const result = isEdit
         ? await updateClass(classData!.id, formData)
@@ -196,6 +232,85 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
         toast.error(result.error || "오류가 발생했습니다");
       }
     });
+  };
+
+  /** 시간 섹션 렌더 (수업/클리닉/주간테스트 공통) */
+  const renderTimeSection = (
+    idx: number,
+    set: ScheduleSet,
+    label: string,
+    enabledKey: "hasClass" | "hasClinic" | "hasTest",
+    startKey: "classStart" | "clinicStart" | "testStart",
+    endKey: "classEnd" | "clinicEnd" | "testEnd",
+  ) => {
+    const enabled = set[enabledKey];
+    const start = set[startKey];
+    const end = set[endKey];
+    const period = matchedPeriod(start, end);
+
+    return (
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => updateSet(idx, { [enabledKey]: e.target.checked })}
+              className="w-3.5 h-3.5 rounded accent-slate-800"
+            />
+            <span className="text-xs font-semibold text-slate-600">{label}</span>
+          </label>
+          {enabled && (
+            <div className="flex gap-1 ml-1">
+              {PERIOD_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => updateSet(idx, { [startKey]: p.start, [endKey]: p.end })}
+                  className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium transition-colors ${
+                    period === p.label
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {enabled && (
+          <div className="grid grid-cols-2 gap-3 ml-5">
+            <Select
+              value={start}
+              onValueChange={(v) => updateSet(idx, { [startKey]: v })}
+            >
+              <SelectTrigger className="h-8 text-xs rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-48">
+                {TIME_OPTIONS.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={end}
+              onValueChange={(v) => updateSet(idx, { [endKey]: v })}
+            >
+              <SelectTrigger className="h-8 text-xs rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-48">
+                {TIME_OPTIONS.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -257,6 +372,29 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
               />
             </div>
 
+            {/* 장소 */}
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>장소</FormLabel>
+                  <FormControl>
+                    <select
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">선택</option>
+                      {LOCATIONS.map((loc) => (
+                        <option key={loc} value={loc}>{loc}</option>
+                      ))}
+                    </select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             {/* 시간표 세트 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -296,7 +434,7 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
                   {/* 요일 선택 */}
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-                      수업 요일
+                      요일
                     </label>
                     <div className="flex gap-1.5">
                       {ALL_DAYS.map((day) => (
@@ -316,146 +454,18 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
                     </div>
                   </div>
 
-                  {/* 수업 시간 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-                        수업 시작
-                      </label>
-                      <Select
-                        value={set.classStart}
-                        onValueChange={(v) => updateSetField(idx, "classStart", v)}
-                      >
-                        <SelectTrigger className="h-9 text-sm rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-48">
-                          {TIME_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-                        수업 종료
-                      </label>
-                      <Select
-                        value={set.classEnd}
-                        onValueChange={(v) => updateSetField(idx, "classEnd", v)}
-                      >
-                        <SelectTrigger className="h-9 text-sm rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-48">
-                          {TIME_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* 클리닉 시간 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-                        클리닉 시작
-                      </label>
-                      <Select
-                        value={set.clinicStart}
-                        onValueChange={(v) => updateSetField(idx, "clinicStart", v)}
-                      >
-                        <SelectTrigger className="h-9 text-sm rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-48">
-                          {TIME_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-                        클리닉 종료
-                      </label>
-                      <Select
-                        value={set.clinicEnd}
-                        onValueChange={(v) => updateSetField(idx, "clinicEnd", v)}
-                      >
-                        <SelectTrigger className="h-9 text-sm rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-48">
-                          {TIME_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* 주간 테스트 시간 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-                        주간 테스트 시작
-                      </label>
-                      <Select
-                        value={set.testStart || "__none__"}
-                        onValueChange={(v) => updateSetField(idx, "testStart", v === "__none__" ? "" : v)}
-                      >
-                        <SelectTrigger className="h-9 text-sm rounded-lg">
-                          <SelectValue placeholder="선택 안함" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-48">
-                          <SelectItem value="__none__">선택 안함</SelectItem>
-                          {TIME_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-slate-600 mb-1.5 block">
-                        주간 테스트 종료
-                      </label>
-                      <Select
-                        value={set.testEnd || "__none__"}
-                        onValueChange={(v) => updateSetField(idx, "testEnd", v === "__none__" ? "" : v)}
-                      >
-                        <SelectTrigger className="h-9 text-sm rounded-lg">
-                          <SelectValue placeholder="선택 안함" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-48">
-                          <SelectItem value="__none__">선택 안함</SelectItem>
-                          {TIME_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  {/* 수업 / 클리닉 / 주간 테스트 - 각각 토글 + 교시 프리셋 */}
+                  {renderTimeSection(idx, set, "수업", "hasClass", "classStart", "classEnd")}
+                  {renderTimeSection(idx, set, "클리닉", "hasClinic", "clinicStart", "clinicEnd")}
+                  {renderTimeSection(idx, set, "주간 테스트", "hasTest", "testStart", "testEnd")}
 
                   {/* 세트 요약 */}
-                  {set.days.length > 0 && (
+                  {set.days.length > 0 && (set.hasClass || set.hasClinic || set.hasTest) && (
                     <div className="text-xs text-slate-500 bg-white rounded-lg px-3 py-2 border border-slate-100">
                       <span className="font-semibold text-slate-700">{set.days.join("")}</span>
-                      {" "}수업 {set.classStart}~{set.classEnd} / 클리닉 {set.clinicStart}~{set.clinicEnd}
-                      {set.testStart && set.testEnd && <> / 주간테스트 {set.testStart}~{set.testEnd}</>}
+                      {set.hasClass && <>{" "}수업 {set.classStart}~{set.classEnd}</>}
+                      {set.hasClinic && <>{set.hasClass ? " /" : ""} 클리닉 {set.clinicStart}~{set.clinicEnd}</>}
+                      {set.hasTest && <>{(set.hasClass || set.hasClinic) ? " /" : ""} 주간테스트 {set.testStart}~{set.testEnd}</>}
                     </div>
                   )}
                 </div>

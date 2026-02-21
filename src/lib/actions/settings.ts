@@ -36,6 +36,7 @@ function mapDbToClass(row: Record<string, unknown>): Class {
     class_time: row.class_time != null ? String(row.class_time) : null,
     clinic_time: row.clinic_time != null ? String(row.clinic_time) : null,
     weekly_test_time: row.weekly_test_time != null ? String(row.weekly_test_time) : null,
+    location: row.location != null ? String(row.location) : null,
     active: row.is_active !== false,
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
@@ -70,6 +71,7 @@ export async function createClass(formData: FormData) {
       class_time: formData.get("class_time") || undefined,
       clinic_time: formData.get("clinic_time") || undefined,
       weekly_test_time: formData.get("weekly_test_time") || undefined,
+      location: formData.get("location") || undefined,
     };
 
     const parsed = classFormSchema.safeParse(raw);
@@ -95,6 +97,7 @@ export async function createClass(formData: FormData) {
       class_time: parsed.data.class_time || null,
       clinic_time: parsed.data.clinic_time || null,
       weekly_test_time: parsed.data.weekly_test_time || null,
+      location: parsed.data.location || null,
       ...(teacherId ? { teacher_id: teacherId } : {}),
     });
 
@@ -122,6 +125,7 @@ export async function updateClass(id: string, formData: FormData) {
       class_time: formData.get("class_time") || undefined,
       clinic_time: formData.get("clinic_time") || undefined,
       weekly_test_time: formData.get("weekly_test_time") || undefined,
+      location: formData.get("location") || undefined,
     };
 
     const parsed = classFormSchema.safeParse(raw);
@@ -149,6 +153,7 @@ export async function updateClass(id: string, formData: FormData) {
         class_time: parsed.data.class_time || null,
         clinic_time: parsed.data.clinic_time || null,
         weekly_test_time: parsed.data.weekly_test_time || null,
+        location: parsed.data.location || null,
         teacher_id: teacherId,
       })
       .eq("id", id);

@@ -30,13 +30,11 @@ interface OnboardingStep {
 }
 
 const ONBOARDING_STEPS: OnboardingStep[] = [
-  { key: "doc_confirmed", label: "등록안내문 확인", shortLabel: "안내문" },
-  { key: "mathflat_entered", label: "매쓰플랫 입력", shortLabel: "매쓰플랫" },
-  { key: "clinic_entered", label: "클리닉 입력", shortLabel: "클리닉" },
-  { key: "pre_parent_consult", label: "등원전 학부모상담", shortLabel: "등원전" },
-  { key: "post_student_consult", label: "등원후 학생상담", shortLabel: "등원후" },
-  { key: "two_week_consult", label: "2주후 학부모상담", shortLabel: "2주후" },
-  { key: "four_week_consult", label: "4주후 학부모상담", shortLabel: "4주후" },
+  { key: "parent_consult", label: "학부모 상담 진행", shortLabel: "학부모상담" },
+  { key: "textbook_select", label: "교재 선정 및 안내", shortLabel: "교재선정" },
+  { key: "mathflat_entered", label: "매쓰플랫 학생 자료 입력", shortLabel: "매쓰플랫" },
+  { key: "orientation_prep", label: "오리엔테이션 자료 준비", shortLabel: "OT준비" },
+  { key: "analysis_review", label: "성향 분석 결과 점검", shortLabel: "성향점검" },
 ];
 
 type Registration = {

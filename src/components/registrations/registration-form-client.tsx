@@ -203,10 +203,10 @@ export function RegistrationForm({
 
   const filteredClasses = useMemo(() => {
     if (!selectedGrade) return classes;
-    // target_grade 또는 반 이름 앞 2글자로 학년 매칭
-    return classes.filter((c) =>
+    const matched = classes.filter((c) =>
       c.target_grade === selectedGrade || c.name.startsWith(selectedGrade)
     );
+    return matched.length > 0 ? matched : classes;
   }, [classes, selectedGrade]);
 
   const autoCalcFee = (g: string, s: string) => {

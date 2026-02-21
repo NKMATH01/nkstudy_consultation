@@ -94,6 +94,7 @@ export async function createClass(formData: FormData) {
     const { error } = await supabase.from("classes").insert({
       name: parsed.data.name,
       description: parsed.data.class_days || null,
+      target_grade: parsed.data.target_grade || null,
       class_time: parsed.data.class_time || null,
       clinic_time: parsed.data.clinic_time || null,
       weekly_test_time: parsed.data.weekly_test_time || null,
@@ -150,6 +151,7 @@ export async function updateClass(id: string, formData: FormData) {
       .update({
         name: parsed.data.name,
         description: parsed.data.class_days || null,
+        target_grade: parsed.data.target_grade || null,
         class_time: parsed.data.class_time || null,
         clinic_time: parsed.data.clinic_time || null,
         weekly_test_time: parsed.data.weekly_test_time || null,

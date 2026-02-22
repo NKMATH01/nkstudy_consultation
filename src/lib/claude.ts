@@ -501,7 +501,8 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
     <p class="hdr-desc">${page2.welcomeTitle}<br>${page2.welcomeSubtitle}</p>
     <div class="profile-card">
       <div class="profile-top"><div class="profile-name">${data.name} 학생</div><div class="profile-badge">${data.school} ${data.grade}</div></div>
-      <div class="profile-bottom"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>
+      <div class="profile-bottom"><div class="profile-meta"><span class="meta-label">학생 연락처</span><span class="meta-value">${data.studentPhone || "-"}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">학부모 연락처</span><span class="meta-value">${data.parentPhone || "-"}</span></div></div>
+      <div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>
     </div>
   </header>
   <nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a><a href="#management">관리 전략</a><a href="#roadmap">적응 로드맵</a></div></nav>

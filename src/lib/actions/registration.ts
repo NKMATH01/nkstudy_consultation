@@ -174,6 +174,7 @@ export async function generateRegistration(
     location?: string;
     consult_date?: string;
     additional_note?: string;
+    checklist_items?: string;
     tuition_fee?: number;
   }
 ) {
@@ -331,6 +332,11 @@ export async function generateRegistration(
     })(),
     additionalNote: adminFormData.additional_note || undefined,
     consultDate: adminFormData.consult_date || undefined,
+    testScore: adminFormData.test_score || undefined,
+    schoolScore: adminFormData.school_score || undefined,
+    checklistItems: adminFormData.checklist_items
+      ? adminFormData.checklist_items.split("\n").map(l => l.trim()).filter(l => l.length > 0)
+      : undefined,
   };
 
   let reportHTML: string;
@@ -361,10 +367,8 @@ export async function generateRegistration(
     test_note: adminFormData.test_note || null,
     location: adminFormData.location || null,
     consult_date: adminFormData.consult_date || null,
-    additional_note: [
-      adminFormData.school_score ? `[내신] ${adminFormData.school_score}` : "",
-      adminFormData.additional_note || "",
-    ].filter(Boolean).join("\n") || null,
+    school_score: adminFormData.school_score || null,
+    additional_note: adminFormData.additional_note || null,
     tuition_fee: tuitionFee,
     report_data: reportData,
     report_html: reportHTML,
@@ -602,6 +606,8 @@ export async function regenerateRegistration(id: string) {
     })(),
     additionalNote: registration.additional_note || undefined,
     consultDate: registration.consult_date || undefined,
+    testScore: registration.test_score || undefined,
+    schoolScore: registration.school_score || undefined,
   };
 
   let reportHTML: string;

@@ -191,6 +191,7 @@ export function RegistrationForm({
       location: "",
       consult_date: "",
       additional_note: "",
+      checklist_items: "매쓰플랫 학생 자료 입력 완료\n기존 교재 점검할 것\n학생 성향 분석 결과 철저하게 읽어볼 것\n학부모 상담 해당일까지 완료할 것",
       tuition_fee: defaultTuition,
     },
   });
@@ -825,6 +826,21 @@ export function RegistrationForm({
                   <FormLabel>테스트 특이사항</FormLabel>
                   <FormControl>
                     <Textarea rows={2} placeholder="테스트 관련 특이사항..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="checklist_items"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>담당 선생님 필수 점검 체크리스트</FormLabel>
+                  <p className="text-[11px] text-slate-400 -mt-1">한 줄에 하나씩 입력. 수정/삭제/추가 가능</p>
+                  <FormControl>
+                    <Textarea rows={5} placeholder="체크리스트 항목을 한 줄씩 입력..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

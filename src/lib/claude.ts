@@ -299,6 +299,11 @@ export interface ReportTemplateData {
   // 추가 입력사항 (폼에서 입력)
   additionalNote?: string;
   consultDate?: string;
+  // 테스트/내신 점수
+  testScore?: string;
+  schoolScore?: string;
+  // 사용자 편집 체크리스트
+  checklistItems?: string[];
 }
 
 function formatFee(fee: number): string {
@@ -395,21 +400,19 @@ export function buildReportHTML(data: ReportTemplateData): string {
   ] : []);
   const roadmapHTML = roadmapItems.map(item => `<div class="time-item"><div class="time-dot"></div><div class="time-week">${item.month}</div><div class="time-title">${item.title}</div><div class="time-desc">${item.description}</div></div>`).join("");
 
-  // 체크리스트 HTML — 고정 항목 + AI 학생 맞춤 항목 + 추가 입력사항
-  const fixedChecklist = [
-    "매쓰플랫 학생 자료 입력 완료",
-    "기존 교재 점검할 것",
-    "학생 성향 분석 결과 철저하게 읽어볼 것",
-    `학부모 상담 ${data.consultDate ? data.consultDate.replace(/-/g, ".") + "까지" : "해당일 전까지"} 완료할 것`,
-  ];
+  // 체크리스트 HTML — 사용자 편집 항목 + AI 학생 맞춤 항목
+  const userChecklist = (data.checklistItems && data.checklistItems.length > 0)
+    ? data.checklistItems
+    : [
+        "매쓰플랫 학생 자료 입력 완료",
+        "기존 교재 점검할 것",
+        "학생 성향 분석 결과 철저하게 읽어볼 것",
+        `학부모 상담 ${data.consultDate ? data.consultDate.replace(/-/g, ".") + "까지" : "해당일 전까지"} 완료할 것`,
+      ];
   const aiChecklist = page1.actionChecklist.map(item => {
     return item.replace(/^[\s✓✔☑✅☐☑️▶►●○•◆◇■□▪▫∙·※★☆✦✧V√\-–—:,.]+\s*/u, "").trim();
   }).filter(item => item.length > 0);
-  const additionalItems = (data.additionalNote || "")
-    .split("\n")
-    .map(line => line.replace(/^\[내신\]\s*/, "").trim())
-    .filter(line => line.length > 0);
-  const allChecklist = [...fixedChecklist, ...aiChecklist, ...additionalItems];
+  const allChecklist = [...userChecklist, ...aiChecklist];
   const checklistHTML = allChecklist.map(item =>
     `<li class="check-item"><span class="check-bullet">▸</span>${item}</li>`
   ).join("");
@@ -502,7 +505,7 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
     <div class="profile-card">
       <div class="profile-top"><div class="profile-name">${data.name} 학생</div><div class="profile-badge">${data.school} ${data.grade}</div></div>
       <div class="profile-bottom"><div class="profile-meta"><span class="meta-label">학생 연락처</span><span class="meta-value">${data.studentPhone || "-"}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">학부모 연락처</span><span class="meta-value">${data.parentPhone || "-"}</span></div></div>
-      <div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>
+      <div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>${(data.testScore || data.schoolScore) ? `<div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)">${data.testScore ? `<div class="profile-meta"><span class="meta-label">테스트 점수</span><span class="meta-value">${data.testScore}</span></div>` : ""}${data.schoolScore ? `<div class="profile-meta"${data.testScore ? ' style="text-align:right"' : ""}><span class="meta-label">내신 점수</span><span class="meta-value">${data.schoolScore}</span></div>` : ""}</div>` : ""}
     </div>
   </header>
   <nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a><a href="#management">관리 전략</a><a href="#roadmap">적응 로드맵</a></div></nav>

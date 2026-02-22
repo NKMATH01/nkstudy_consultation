@@ -26,6 +26,7 @@ export const registrationAdminSchema = z.object({
   location: z.string().optional(),
   consult_date: z.string().optional(),
   additional_note: z.string().optional(),
+  checklist_items: z.string().optional(),
   tuition_fee: z.coerce.number().optional(),
 }).refine(
   (data) => {

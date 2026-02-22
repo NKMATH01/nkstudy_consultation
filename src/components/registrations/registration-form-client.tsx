@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -338,6 +339,12 @@ export function RegistrationForm({
     }
   };
 
+  const handleInvalid = (errors: FieldErrors<RegistrationAdminFormData>) => {
+    const firstError = Object.values(errors)[0];
+    const msg = firstError?.message || (firstError?.root as { message?: string } | undefined)?.message || "입력 값을 확인하세요";
+    toast.error(String(msg));
+  };
+
   const mathLabel = isDoubleSubject ? "수학 배정반" : "배정반";
   const mathTeacherLabel = isDoubleSubject ? "수학 담임" : "담임";
 
@@ -349,7 +356,7 @@ export function RegistrationForm({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit, handleInvalid)} className="space-y-4">
             {/* 등록일 + 수업료 */}
             <div className="grid grid-cols-2 gap-4">
               <FormField

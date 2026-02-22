@@ -10,7 +10,8 @@ declare global {
   }
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://nkstudy-consultation.vercel.app";
+export const KAKAO_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://nkstudy-consultation.vercel.app";
+const BASE_URL = KAKAO_BASE_URL;
 
 export function initKakao() {
   if (typeof window === "undefined" || !window.Kakao) return false;

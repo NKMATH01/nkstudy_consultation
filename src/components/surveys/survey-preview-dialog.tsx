@@ -7,11 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, MessageCircle } from "lucide-react";
+import { Download, MessageCircle, Link2 } from "lucide-react";
 import type { Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
 import { downloadElementAsPdf } from "@/lib/pdf";
-import { shareViaKakao } from "@/lib/kakao";
+import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 import { createReportToken } from "@/lib/actions/report-token";
 import { toast } from "sonner";
 
@@ -48,6 +48,29 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
       await downloadElementAsPdf(contentRef.current, `${survey.name}_설문지.pdf`);
     } finally {
       setPdfLoading(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!analysisReportHtml) {
+      alert("분석 결과가 없습니다. 먼저 성향분석을 실행해주세요.");
+      return;
+    }
+    try {
+      const result = await createReportToken({
+        reportType: "analysis",
+        reportHtml: analysisReportHtml,
+        name: survey.name,
+      });
+      if (!result.success || !result.token) {
+        toast.error("링크 생성에 실패했습니다");
+        return;
+      }
+      const url = `${KAKAO_BASE_URL}/report/${result.token}`;
+      await navigator.clipboard.writeText(url);
+      toast.success("링크가 복사되었습니다");
+    } catch {
+      toast.error("링크 복사에 실패했습니다");
     }
   };
 
@@ -113,6 +136,14 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 {shareLoading ? "공유 중..." : "카카오톡"}
+              </button>
+              <button
+                onClick={handleCopyLink}
+                className="h-8 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all hover:shadow-sm bg-slate-50 text-slate-700 hover:bg-slate-100"
+                title="링크 복사"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                링크복사
               </button>
             </div>
           </div>

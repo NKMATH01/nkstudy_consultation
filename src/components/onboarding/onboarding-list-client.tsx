@@ -16,11 +16,12 @@ import {
   MessageCircle,
   Plus,
   X,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRegistration } from "@/lib/actions/registration";
 import { createReportToken } from "@/lib/actions/report-token";
-import { shareViaKakao } from "@/lib/kakao";
+import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 
 const NK_PRIMARY = "#0F2B5B";
 const NK_GOLD = "#D4A853";
@@ -624,6 +625,30 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     <MessageCircle className="h-3 w-3" />
                     카카오톡
                   </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const result = await createReportToken({
+                          reportType: "registration",
+                          reportHtml: html,
+                          name: reg?.name,
+                        });
+                        if (!result.success || !result.token) {
+                          toast.error("링크 생성에 실패했습니다");
+                          return;
+                        }
+                        await navigator.clipboard.writeText(`${KAKAO_BASE_URL}/report/${result.token}`);
+                        toast.success("링크가 복사되었습니다");
+                      } catch {
+                        toast.error("링크 복사에 실패했습니다");
+                      }
+                    }}
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    title="링크 복사"
+                  >
+                    <Link2 className="h-3 w-3" />
+                    링크복사
+                  </button>
                   <a
                     href={`/registrations/${reportPopup}`}
                     target="_blank"
@@ -688,6 +713,30 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   >
                     <MessageCircle className="h-3 w-3" />
                     카카오톡
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const result = await createReportToken({
+                          reportType: "analysis",
+                          reportHtml: analysis.report_html || "",
+                          name: analysis.name,
+                        });
+                        if (!result.success || !result.token) {
+                          toast.error("링크 생성에 실패했습니다");
+                          return;
+                        }
+                        await navigator.clipboard.writeText(`${KAKAO_BASE_URL}/report/${result.token}`);
+                        toast.success("링크가 복사되었습니다");
+                      } catch {
+                        toast.error("링크 복사에 실패했습니다");
+                      }
+                    }}
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    title="링크 복사"
+                  >
+                    <Link2 className="h-3 w-3" />
+                    링크복사
                   </button>
                   <a
                     href={`/analyses/${analysisPopup}`}

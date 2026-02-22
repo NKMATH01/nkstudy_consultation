@@ -329,6 +329,8 @@ export async function generateRegistration(
         testTime2: adminFormData.eng_test_time || parseFirstTime(classInfo2?.test_time) || undefined,
       };
     })(),
+    additionalNote: adminFormData.additional_note || undefined,
+    consultDate: adminFormData.consult_date || undefined,
   };
 
   let reportHTML: string;
@@ -598,6 +600,8 @@ export async function regenerateRegistration(id: string) {
         testTime2: parseFirstTime(classInfo2?.weekly_test_time),
       };
     })(),
+    additionalNote: registration.additional_note || undefined,
+    consultDate: registration.consult_date || undefined,
   };
 
   let reportHTML: string;

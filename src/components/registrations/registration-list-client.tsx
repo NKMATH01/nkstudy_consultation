@@ -107,7 +107,7 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
           <Table>
             <TableHeader>
               <TableRow className="bg-[#f8fafc] hover:bg-[#f8fafc]">
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">등록 예정일</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">입학 예정일</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
                 <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학교/학년</TableHead>
                 <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">과목</TableHead>

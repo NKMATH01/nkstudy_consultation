@@ -220,8 +220,8 @@ ${surveyText}
       {"month": "3개월 차", "title": "단계 제목 (예: 성과 분석 및 로드맵 재정립)", "description": "상세 설명 (2~3문장)"}
     ],
     "actionChecklist": [
-      "체크리스트 항목 (순수 텍스트만, ✓✔☑▶ 등 기호 절대 넣지 말 것)",
-      "체크리스트 항목 2", "체크리스트 항목 3", "체크리스트 항목 4"
+      "학생 성향에 맞는 담임 준비사항 1 (순수 텍스트만, 기호 절대 넣지 말 것)",
+      "학생 성향에 맞는 담임 준비사항 2 (예: 자기주도성이 낮으면 '첫 주 숙제 점검 강화', 수업태도가 좋으면 '심화 문제 별도 준비' 등)"
     ]
   },
   "page2": {
@@ -296,6 +296,9 @@ export interface ReportTemplateData {
   clinicTime2?: string;
   testDays2?: string;
   testTime2?: string;
+  // 추가 입력사항 (폼에서 입력)
+  additionalNote?: string;
+  consultDate?: string;
 }
 
 function formatFee(fee: number): string {
@@ -392,11 +395,24 @@ export function buildReportHTML(data: ReportTemplateData): string {
   ] : []);
   const roadmapHTML = roadmapItems.map(item => `<div class="time-item"><div class="time-dot"></div><div class="time-week">${item.month}</div><div class="time-title">${item.title}</div><div class="time-desc">${item.description}</div></div>`).join("");
 
-  // 체크리스트 HTML — 아이콘 없이 텍스트만 (AI 텍스트의 선행 체크/불릿 문자 제거)
-  const checklistHTML = page1.actionChecklist.map(item => {
-    const cleanItem = item.replace(/^[\s✓✔☑✅☐☑️▶►●○•◆◇■□▪▫∙·※★☆✦✧V√\-–—:,.]+\s*/u, "").trim();
-    return `<li class="check-item"><span class="check-bullet">▸</span>${cleanItem}</li>`;
-  }).join("");
+  // 체크리스트 HTML — 고정 항목 + AI 학생 맞춤 항목 + 추가 입력사항
+  const fixedChecklist = [
+    "매쓰플랫 학생 자료 입력 완료",
+    "기존 교재 점검할 것",
+    "학생 성향 분석 결과 철저하게 읽어볼 것",
+    `학부모 상담 ${data.consultDate ? data.consultDate.replace(/-/g, ".") + "까지" : "해당일 전까지"} 완료할 것`,
+  ];
+  const aiChecklist = page1.actionChecklist.map(item => {
+    return item.replace(/^[\s✓✔☑✅☐☑️▶►●○•◆◇■□▪▫∙·※★☆✦✧V√\-–—:,.]+\s*/u, "").trim();
+  }).filter(item => item.length > 0);
+  const additionalItems = (data.additionalNote || "")
+    .split("\n")
+    .map(line => line.replace(/^\[내신\]\s*/, "").trim())
+    .filter(line => line.length > 0);
+  const allChecklist = [...fixedChecklist, ...aiChecklist, ...additionalItems];
+  const checklistHTML = allChecklist.map(item =>
+    `<li class="check-item"><span class="check-bullet">▸</span>${item}</li>`
+  ).join("");
 
   return `<!DOCTYPE html>
 <html lang="ko">

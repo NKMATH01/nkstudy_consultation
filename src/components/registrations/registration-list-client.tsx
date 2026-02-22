@@ -107,7 +107,7 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
           <Table>
             <TableHeader>
               <TableRow className="bg-[#f8fafc] hover:bg-[#f8fafc]">
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">생성일</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">등록 예정일</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
                 <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학교/학년</TableHead>
                 <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">과목</TableHead>
@@ -115,7 +115,7 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
                 <TableHead className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-slate-500">담임</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">수업료</TableHead>
                 <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">안내문 / 분석</TableHead>
-                <TableHead className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-slate-500">등록일</TableHead>
+                <TableHead className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-slate-500">생성일</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -123,7 +123,7 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
                 <TableRow key={item.id} className="cursor-pointer hover:bg-[#F8FAFC] transition-colors">
                   <TableCell className="text-xs text-slate-500">
                     <Link href={`/registrations/${item.id}`} className="block py-1">
-                      {new Date(item.created_at).toLocaleDateString("ko-KR")}
+                      {item.registration_date ? item.registration_date.replace(/-/g, ".") : "-"}
                     </Link>
                   </TableCell>
                   <TableCell>
@@ -194,7 +194,7 @@ export function RegistrationListClient({ initialData, initialPagination }: Props
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-xs text-slate-500">
                     <Link href={`/registrations/${item.id}`} className="block py-1">
-                      {item.registration_date || "-"}
+                      {new Date(item.created_at).toLocaleDateString("ko-KR")}
                     </Link>
                   </TableCell>
                 </TableRow>

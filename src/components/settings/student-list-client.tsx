@@ -70,6 +70,7 @@ interface Props {
   students: Student[];
   teachers: Teacher[];
   classes: Class[];
+  canDelete?: boolean;
 }
 
 // ── 등록 상태 ──
@@ -265,7 +266,7 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
 const filterSelectCls = "h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
 
 // ── 메인 컴포넌트 ──
-export function StudentList({ students, teachers, classes }: Props) {
+export function StudentList({ students, teachers, classes, canDelete = false }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
@@ -476,9 +477,11 @@ export function StudentList({ students, teachers, classes }: Props) {
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(student)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget(student)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget(student)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

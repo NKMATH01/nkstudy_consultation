@@ -726,6 +726,12 @@ export async function updateStudentRegistrationDate(id: string, registrationDate
 
 export async function deleteStudent(id: string) {
   try {
+    // 김기영만 삭제 가능
+    const currentTeacher = await getCurrentTeacher();
+    if (!currentTeacher || currentTeacher.name !== "김기영") {
+      return { success: false, error: "학생 삭제 권한이 없습니다" };
+    }
+
     const supabase = await createClient();
 
     const { error } = await supabase.from("students").delete().eq("id", id);

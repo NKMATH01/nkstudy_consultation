@@ -1,10 +1,14 @@
-import { getStudents, getTeachers, getClasses } from "@/lib/actions/settings";
+import { getStudents, getTeachers, getClasses, getCurrentTeacher } from "@/lib/actions/settings";
 import { StudentList } from "@/components/settings/student-list-client";
 import { checkPagePermission } from "@/lib/check-permission";
 
 export default async function StudentsPage() {
   await checkPagePermission("/settings/students");
-  const [students, teachers, classes] = await Promise.all([getStudents(), getTeachers(), getClasses()]);
+  const [students, teachers, classes, currentTeacher] = await Promise.all([
+    getStudents(), getTeachers(), getClasses(), getCurrentTeacher(),
+  ]);
+
+  const canDelete = currentTeacher?.name === "김기영";
 
   return (
     <div className="space-y-5">
@@ -16,7 +20,7 @@ export default async function StudentsPage() {
           {students.length}명
         </p>
       </div>
-      <StudentList students={students} teachers={teachers} classes={classes} />
+      <StudentList students={students} teachers={teachers} classes={classes} canDelete={canDelete} />
     </div>
   );
 }

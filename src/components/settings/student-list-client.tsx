@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, GraduationCap, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, GraduationCap, Filter, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -278,6 +278,7 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
   const [filterClass, setFilterClass] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
+  const [searchName, setSearchName] = useState("");
 
   // 학생의 과목 (배정반 → 담당 선생님 → 과목)
   const getStudentSubject = (student: Student): string | null => {
@@ -348,10 +349,15 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
       result = result.filter((s) => getStudentSubject(s) === filterSubject);
     }
 
-    return result;
-  }, [students, filterGrade, filterClass, filterStatus, filterSubject]);
+    if (searchName.trim()) {
+      const keyword = searchName.trim().toLowerCase();
+      result = result.filter((s) => s.name.toLowerCase().includes(keyword));
+    }
 
-  const hasActiveFilter = filterGrade || filterClass || filterStatus || filterSubject;
+    return result;
+  }, [students, filterGrade, filterClass, filterStatus, filterSubject, searchName]);
+
+  const hasActiveFilter = filterGrade || filterClass || filterStatus || filterSubject || searchName;
 
   const handleEdit = (student: Student) => {
     setEditTarget(student);
@@ -382,6 +388,7 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
     setFilterClass("");
     setFilterStatus("");
     setFilterSubject("");
+    setSearchName("");
   };
 
   return (
@@ -404,6 +411,16 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
 
         {/* 필터 영역 */}
         <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="이름 검색"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              className="h-8 w-[130px] rounded-lg border border-slate-200 bg-white pl-7 pr-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
           <Filter className="h-4 w-4 text-slate-400" />
           <select className={filterSelectCls} value={filterGrade} onChange={(e) => { setFilterGrade(e.target.value); setFilterClass(""); }}>
             <option value="">전체 학년</option>

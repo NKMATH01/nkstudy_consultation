@@ -732,9 +732,9 @@ export async function deleteStudent(id: string) {
       return { success: false, error: "학생 삭제 권한이 없습니다" };
     }
 
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
-    const { error } = await supabase.from("students").delete().eq("id", id);
+    const { error } = await admin.from("students").delete().eq("id", id);
 
     if (error) {
       return { success: false, error: error.message };

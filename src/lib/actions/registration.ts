@@ -301,7 +301,7 @@ export async function generateRegistration(
       sixFactorScores: page1Data.sixFactorScores || undefined,
       tendencyAnalysis: page1Data.tendencyAnalysis || [],
       managementGuide: page1Data.managementGuide || [],
-      firstMonthPlan: page1Data.firstMonthPlan || undefined,
+
       actionChecklist: page1Data.actionChecklist || [],
     },
     page2: {
@@ -575,7 +575,7 @@ export async function regenerateRegistration(id: string) {
       sixFactorScores: page1Data.sixFactorScores || undefined,
       tendencyAnalysis: page1Data.tendencyAnalysis || [],
       managementGuide: page1Data.managementGuide || [],
-      firstMonthPlan: page1Data.firstMonthPlan || undefined,
+
       actionChecklist: page1Data.actionChecklist || [],
     },
     page2: {

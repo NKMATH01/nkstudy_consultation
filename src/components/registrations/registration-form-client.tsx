@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +42,99 @@ const TIME_OPTIONS = [
 ];
 
 const sel = "w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400";
+
+const DEFAULT_CHECKLIST: { text: string; checked: boolean }[] = [
+  { text: "매쓰플랫 학생 자료 입력 완료", checked: true },
+  { text: "기존 교재 점검할 것", checked: true },
+  { text: "학생 성향 분석 결과 철저하게 읽어볼 것", checked: true },
+  { text: "학부모 상담 해당일까지 완료할 것", checked: true },
+  { text: "첫 수업 전 학생 학습 이력 및 수준 파악", checked: false },
+  { text: "담당반 수업 교재 및 진도 확인", checked: false },
+  { text: "출결 시스템 및 좌석 배치 등록", checked: false },
+  { text: "학부모 연락처 저장 및 소통 채널 안내", checked: false },
+  { text: "클리닉 담당 선생님에게 학생 정보 인수인계", checked: false },
+  { text: "차량 이용 학생 차량 배정 확인", checked: false },
+];
+
+function ChecklistEditor({ onChange }: { onChange: (v: string) => void }) {
+  const [items, setItems] = useState(() => DEFAULT_CHECKLIST.map((i) => ({ ...i })));
+  const [newItem, setNewItem] = useState("");
+
+  const sync = useCallback(
+    (updated: { text: string; checked: boolean }[]) => {
+      onChange(updated.filter((i) => i.checked).map((i) => i.text).join("\n"));
+    },
+    [onChange]
+  );
+
+  const toggle = (idx: number) => {
+    const updated = items.map((item, i) => (i === idx ? { ...item, checked: !item.checked } : item));
+    setItems(updated);
+    sync(updated);
+  };
+
+  const remove = (idx: number) => {
+    const updated = items.filter((_, i) => i !== idx);
+    setItems(updated);
+    sync(updated);
+  };
+
+  const add = () => {
+    const text = newItem.trim();
+    if (!text) return;
+    const updated = [...items, { text, checked: true }];
+    setItems(updated);
+    setNewItem("");
+    sync(updated);
+  };
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+      {items.map((item, idx) => (
+        <label key={idx} className="flex items-center gap-2.5 cursor-pointer group py-1 px-1 rounded hover:bg-white transition-colors">
+          <input
+            type="checkbox"
+            checked={item.checked}
+            onChange={() => toggle(idx)}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/40 cursor-pointer"
+          />
+          <span className={`text-sm flex-1 ${item.checked ? "text-slate-700" : "text-slate-400 line-through"}`}>
+            {item.text}
+          </span>
+          <button
+            type="button"
+            onClick={() => remove(idx)}
+            className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </label>
+      ))}
+      <div className="flex gap-2 pt-2 border-t border-slate-200">
+        <input
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder="새 항목 추가..."
+          className="flex-1 h-8 rounded-md border border-dashed border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="h-8 px-3 rounded-md bg-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-300 transition-colors flex items-center gap-1"
+        >
+          <Plus className="h-3 w-3" />
+          추가
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -191,7 +284,7 @@ export function RegistrationForm({
       location: "",
       consult_date: "",
       additional_note: "",
-      checklist_items: "매쓰플랫 학생 자료 입력 완료\n기존 교재 점검할 것\n학생 성향 분석 결과 철저하게 읽어볼 것\n학부모 상담 해당일까지 완료할 것",
+      checklist_items: DEFAULT_CHECKLIST.filter((i) => i.checked).map((i) => i.text).join("\n"),
       tuition_fee: defaultTuition,
     },
   });
@@ -838,10 +931,8 @@ export function RegistrationForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>담당 선생님 필수 점검 체크리스트</FormLabel>
-                  <p className="text-[11px] text-slate-400 -mt-1">한 줄에 하나씩 입력. 수정/삭제/추가 가능</p>
-                  <FormControl>
-                    <Textarea rows={5} placeholder="체크리스트 항목을 한 줄씩 입력..." {...field} />
-                  </FormControl>
+                  <p className="text-[11px] text-slate-400 -mt-1">체크한 항목만 안내문에 포함됩니다</p>
+                  <ChecklistEditor onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )}

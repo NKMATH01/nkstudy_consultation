@@ -214,11 +214,6 @@ ${surveyText}
       {"title": "가이드 제목 3", "description": "상세 설명 (2문장)"},
       {"title": "가이드 제목 4", "description": "상세 설명 (2문장)"}
     ],
-    "adaptationRoadmap": [
-      {"month": "1개월 차", "title": "단계 제목 (예: 환경 적응 및 기초 확립)", "description": "상세 설명 (2~3문장)"},
-      {"month": "2개월 차", "title": "단계 제목 (예: 자기주도 학습 습관화)", "description": "상세 설명 (2~3문장)"},
-      {"month": "3개월 차", "title": "단계 제목 (예: 성과 분석 및 로드맵 재정립)", "description": "상세 설명 (2~3문장)"}
-    ],
     "actionChecklist": [
       "학생 성향에 맞는 담임 준비사항 1 (순수 텍스트만, 기호 절대 넣지 말 것)",
       "학생 성향에 맞는 담임 준비사항 2 (예: 자기주도성이 낮으면 '첫 주 숙제 점검 강화', 수업태도가 좋으면 '심화 문제 별도 준비' 등)"
@@ -273,8 +268,6 @@ export interface ReportTemplateData {
     sixFactorScores?: { factor: string; score: number; grade: string; insight: string }[];
     tendencyAnalysis?: { title: string; score: number; color: string; comment: string }[];
     managementGuide: { title: string; description: string }[];
-    firstMonthPlan?: { week: string; goal: string; actions: string }[];
-    adaptationRoadmap?: { month: string; title: string; description: string }[];
     actionChecklist: string[];
   };
   page2: {
@@ -392,23 +385,8 @@ export function buildReportHTML(data: ReportTemplateData): string {
   // 매니지먼트 가이드 HTML
   const guideHTML = page1.managementGuide.map((item, idx) => `<div class="num-item"><div class="num-badge">${idx + 1}</div><div class="num-content"><h3>${item.title}</h3><p>${item.description}</p></div></div>`).join("");
 
-  // 로드맵 HTML (adaptationRoadmap 우선, firstMonthPlan 폴백)
-  const roadmapItems = page1.adaptationRoadmap || (page1.firstMonthPlan ? [
-    { month: "1개월 차", title: page1.firstMonthPlan[0]?.goal || "환경 적응", description: page1.firstMonthPlan.slice(0, 2).map(w => w.actions).join(" ") },
-    { month: "2개월 차", title: page1.firstMonthPlan[2]?.goal || "학습 습관화", description: page1.firstMonthPlan[2]?.actions || "" },
-    { month: "3개월 차", title: page1.firstMonthPlan[3]?.goal || "성과 분석", description: page1.firstMonthPlan[3]?.actions || "" },
-  ] : []);
-  const roadmapHTML = roadmapItems.map(item => `<div class="time-item"><div class="time-dot"></div><div class="time-week">${item.month}</div><div class="time-title">${item.title}</div><div class="time-desc">${item.description}</div></div>`).join("");
-
-  // 체크리스트 HTML — 사용자 편집 항목 + AI 학생 맞춤 항목
-  const userChecklist = (data.checklistItems && data.checklistItems.length > 0)
-    ? data.checklistItems
-    : [
-        "매쓰플랫 학생 자료 입력 완료",
-        "기존 교재 점검할 것",
-        "학생 성향 분석 결과 철저하게 읽어볼 것",
-        `학부모 상담 ${data.consultDate ? data.consultDate.replace(/-/g, ".") + "까지" : "해당일 전까지"} 완료할 것`,
-      ];
+  // 체크리스트 HTML — 사용자가 체크한 항목 + AI 학생 맞춤 항목
+  const userChecklist = data.checklistItems || [];
   const aiChecklist = page1.actionChecklist.map(item => {
     return item.replace(/^[\s✓✔☑✅☐☑️▶►●○•◆◇■□▪▫∙·※★☆✦✧V√\-–—:,.]+\s*/u, "").trim();
   }).filter(item => item.length > 0);
@@ -508,7 +486,7 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
       <div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>${(data.testScore || data.schoolScore) ? `<div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)">${data.testScore ? `<div class="profile-meta"><span class="meta-label">테스트 점수</span><span class="meta-value">${data.testScore}</span></div>` : ""}${data.schoolScore ? `<div class="profile-meta"${data.testScore ? ' style="text-align:right"' : ""}><span class="meta-label">내신 점수</span><span class="meta-value">${data.schoolScore}</span></div>` : ""}</div>` : ""}
     </div>
   </header>
-  <nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a><a href="#management">관리 전략</a><a href="#roadmap">적응 로드맵</a></div></nav>
+  <nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a><a href="#management">관리 전략</a></div></nav>
   <main class="content-body">
     <section class="sec animate-up" id="info" style="animation-delay:.1s">
       <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><h2>수강 정보 및 안내</h2></div>
@@ -536,10 +514,6 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
     <section class="sec animate-up" id="management" style="animation-delay:.3s">
       <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg><h2>담임 매니지먼트 가이드</h2></div>
       <div class="card"><div class="num-list">${guideHTML}</div></div>
-    </section>
-    <section class="sec animate-up" id="roadmap" style="animation-delay:.4s">
-      <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg><h2>3개월 적응 및 성장 로드맵</h2></div>
-      <div class="timeline">${roadmapHTML}</div>
       <div class="check-card"><div class="check-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>담당 선생님 필수 점검 체크리스트</div><ul class="check-list">${checklistHTML}</ul></div>
     </section>
   </main>

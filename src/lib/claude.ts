@@ -35,7 +35,8 @@ export async function callClaudeAPI(prompt: string, retryCount = 0): Promise<str
   clearTimeout(timeoutId);
 
   if ((res.status === 429 || res.status >= 500) && retryCount < maxRetries) {
-    await new Promise((r) => setTimeout(r, 2000 * (retryCount + 1)));
+    const delay = res.status === 529 ? 5000 * (retryCount + 1) : 2000 * (retryCount + 1);
+    await new Promise((r) => setTimeout(r, delay));
     return callClaudeAPI(prompt, retryCount + 1);
   }
 

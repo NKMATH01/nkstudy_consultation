@@ -35,6 +35,12 @@ function extractGradeFromClassName(name: string): string | null {
   return match ? match[1] : null;
 }
 
+/** 고등학교 특수과목 반 판별 (기하, 미적, 확통 → 고3) */
+const HIGH_SCHOOL_SUBJECTS = ["기하", "확통", "미적"];
+function isHighSchoolSubjectClass(className: string): boolean {
+  return HIGH_SCHOOL_SUBJECTS.some((s) => className.startsWith(s));
+}
+
 /** 학생의 유효 학년: grade 필드가 GRADES에 있으면 그대로, 없으면 배정반에서 추출 */
 function resolveGrade(student?: Student): string {
   if (!student) return "";
@@ -108,7 +114,12 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
   const selectedGrade = form.watch("grade");
   const filteredClasses = useMemo(() => {
     if (!selectedGrade) return classes;
-    return classes.filter((c) => extractGradeFromClassName(c.name) === selectedGrade);
+    return classes.filter((c) => {
+      if (extractGradeFromClassName(c.name) === selectedGrade) return true;
+      // 고3 선택 시 기하/미적/확통 등 특수과목 반도 포함
+      if (selectedGrade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
+      return false;
+    });
   }, [selectedGrade, classes]);
 
   const onSubmit = (values: StudentFormValues) => {

@@ -179,8 +179,9 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
   const filteredClasses = useMemo(() => {
     if (!grade) return classes;
     return classes.filter((c) => {
-      const g = extractGradeFromClassName(c.name);
-      return g === grade;
+      if (extractGradeFromClassName(c.name) === grade) return true;
+      if (grade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
+      return false;
     });
   }, [grade, classes]);
 
@@ -279,7 +280,11 @@ export function StudentList({ students, teachers, classes }: Props) {
   // 학년에 맞는 반 목록 (classes 테이블 + 학생 실제 배정반 합치기)
   const classesForGrade = useMemo(() => {
     if (!filterGrade) return classes;
-    return classes.filter((c) => extractGradeFromClassName(c.name) === filterGrade);
+    return classes.filter((c) => {
+      if (extractGradeFromClassName(c.name) === filterGrade) return true;
+      if (filterGrade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
+      return false;
+    });
   }, [filterGrade, classes]);
 
   // 학생 목록에서 사용되는 고유 배정반 목록

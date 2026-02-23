@@ -734,6 +734,9 @@ export async function deleteStudent(id: string) {
 
     const admin = createAdminClient();
 
+    // 퇴원 기록의 student_id 참조 해제 (FK 제약 방지)
+    await admin.from("withdrawals").update({ student_id: null }).eq("student_id", id);
+
     const { error } = await admin.from("students").delete().eq("id", id);
 
     if (error) {

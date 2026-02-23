@@ -277,6 +277,16 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
   const [filterGrade, setFilterGrade] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterSubject, setFilterSubject] = useState("");
+
+  // 학생의 과목 (배정반 → 담당 선생님 → 과목)
+  const getStudentSubject = (student: Student): string | null => {
+    if (!student.assigned_class) return null;
+    const cls = classes.find((c) => c.name === student.assigned_class);
+    if (!cls?.teacher) return null;
+    const t = teachers.find((tc) => tc.name === cls.teacher);
+    return t?.subject || null;
+  };
 
   // 학년에 맞는 반 목록 (classes 테이블 + 학생 실제 배정반 합치기)
   const classesForGrade = useMemo(() => {
@@ -334,10 +344,14 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
       });
     }
 
-    return result;
-  }, [students, filterGrade, filterClass, filterStatus]);
+    if (filterSubject) {
+      result = result.filter((s) => getStudentSubject(s) === filterSubject);
+    }
 
-  const hasActiveFilter = filterGrade || filterClass || filterStatus;
+    return result;
+  }, [students, filterGrade, filterClass, filterStatus, filterSubject]);
+
+  const hasActiveFilter = filterGrade || filterClass || filterStatus || filterSubject;
 
   const handleEdit = (student: Student) => {
     setEditTarget(student);
@@ -367,6 +381,7 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
     setFilterGrade("");
     setFilterClass("");
     setFilterStatus("");
+    setFilterSubject("");
   };
 
   return (
@@ -405,6 +420,11 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
             <option value="등록">등록</option>
             <option value="등록대기">등록대기</option>
             <option value="미등록">미등록</option>
+          </select>
+          <select className={filterSelectCls} value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}>
+            <option value="">전체 과목</option>
+            <option value="수학">수학</option>
+            <option value="영어">영어</option>
           </select>
           {hasActiveFilter && (
             <button onClick={clearFilters} className="text-xs text-blue-600 hover:text-blue-800 font-medium">

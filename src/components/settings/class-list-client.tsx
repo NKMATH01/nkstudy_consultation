@@ -92,18 +92,36 @@ export function ClassList({ classes, teachers, students }: Props) {
   const [editTarget, setEditTarget] = useState<Class | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Class | undefined>();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [subjectFilter, setSubjectFilter] = useState("");
+
+  // 반의 과목 (담당 선생님의 과목으로 판별)
+  const getClassSubject = (cls: Class): string | null => {
+    if (!cls.teacher) return null;
+    const t = teachers.find((tc) => tc.name === cls.teacher);
+    return t?.subject || null;
+  };
+
+  const filteredBySubject = useMemo(() => {
+    if (!subjectFilter) return classes;
+    return classes.filter((cls) => getClassSubject(cls) === subjectFilter);
+  }, [classes, subjectFilter, teachers]);
+
+  const subjectCounts = useMemo(() => ({
+    math: classes.filter((c) => getClassSubject(c) === "수학").length,
+    eng: classes.filter((c) => getClassSubject(c) === "영어").length,
+  }), [classes, teachers]);
 
   // 학년별 그룹화
   const grouped = useMemo(() => {
     const map: Record<string, Class[]> = {};
-    for (const cls of classes) {
+    for (const cls of filteredBySubject) {
       const grade = cls.target_grade || extractGradeFromName(cls.name) || "기타";
       if (!map[grade]) map[grade] = [];
       map[grade].push(cls);
     }
     const sortedKeys = Object.keys(map).sort(gradeSort);
     return sortedKeys.map((grade) => ({ grade, items: map[grade] }));
-  }, [classes]);
+  }, [filteredBySubject]);
 
   // 학년별 학생 수 합계
   const gradeStudentCount = useMemo(() => {
@@ -161,6 +179,35 @@ export function ClassList({ classes, teachers, students }: Props) {
           >
             <Plus className="h-3 w-3" />
             추가
+          </button>
+        </div>
+
+        {/* 과목 필터 */}
+        <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-2" style={{ background: "#FAFBFD" }}>
+          <span className="text-[11px] text-slate-400 mr-0.5">과목</span>
+          <button
+            onClick={() => setSubjectFilter("")}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+              !subjectFilter ? "bg-slate-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            전체 <span className="text-[10px] opacity-80">{classes.length}</span>
+          </button>
+          <button
+            onClick={() => setSubjectFilter("수학")}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+              subjectFilter === "수학" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            수학 <span className="text-[10px] opacity-80">{subjectCounts.math}</span>
+          </button>
+          <button
+            onClick={() => setSubjectFilter("영어")}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+              subjectFilter === "영어" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            영어 <span className="text-[10px] opacity-80">{subjectCounts.eng}</span>
           </button>
         </div>
 

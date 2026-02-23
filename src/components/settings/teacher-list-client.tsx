@@ -102,11 +102,23 @@ export function TeacherList({ teachers }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Teacher | undefined>();
   const [resetTarget, setResetTarget] = useState<Teacher | undefined>();
   const [activeTab, setActiveTab] = useState<RoleTab>("teacher");
+  const [subjectFilter, setSubjectFilter] = useState("");
 
   const filteredTeachers = teachers.filter((t) => {
-    if (activeTab === "teacher") return t.role !== "clinic";
-    return t.role === "clinic";
+    if (activeTab === "teacher") { if (t.role === "clinic") return false; }
+    else { if (t.role !== "clinic") return false; }
+    if (subjectFilter && t.subject !== subjectFilter) return false;
+    return true;
   });
+
+  // 현재 탭 기준 과목별 인원수
+  const subjectCounts = (() => {
+    const base = teachers.filter((t) => activeTab === "teacher" ? t.role !== "clinic" : t.role === "clinic");
+    return {
+      math: base.filter((t) => t.subject === "수학").length,
+      eng: base.filter((t) => t.subject === "영어").length,
+    };
+  })();
 
   const teacherCount = teachers.filter((t) => t.role !== "clinic").length;
   const clinicCount = teachers.filter((t) => t.role === "clinic").length;
@@ -178,7 +190,7 @@ export function TeacherList({ teachers }: Props) {
         {/* 담임 / 클리닉 탭 */}
         <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-2" style={{ background: "#FAFBFD" }}>
           <button
-            onClick={() => setActiveTab("teacher")}
+            onClick={() => { setActiveTab("teacher"); setSubjectFilter(""); }}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
               activeTab === "teacher"
                 ? "text-white shadow-sm"
@@ -192,7 +204,7 @@ export function TeacherList({ teachers }: Props) {
             </span>
           </button>
           <button
-            onClick={() => setActiveTab("clinic")}
+            onClick={() => { setActiveTab("clinic"); setSubjectFilter(""); }}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
               activeTab === "clinic"
                 ? "text-white shadow-sm"
@@ -208,6 +220,32 @@ export function TeacherList({ teachers }: Props) {
           {activeTab === "clinic" && (
             <span className="text-[11px] text-slate-400 ml-2">※ 클리닉 선생님은 로그인 불가</span>
           )}
+          <div className="h-5 w-px bg-slate-200 mx-1" />
+          <span className="text-[11px] text-slate-400 mr-0.5">과목</span>
+          <button
+            onClick={() => setSubjectFilter("")}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+              !subjectFilter ? "bg-slate-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            전체
+          </button>
+          <button
+            onClick={() => setSubjectFilter("수학")}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+              subjectFilter === "수학" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            수학 <span className="text-[10px] opacity-80">{subjectCounts.math}</span>
+          </button>
+          <button
+            onClick={() => setSubjectFilter("영어")}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+              subjectFilter === "영어" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            영어 <span className="text-[10px] opacity-80">{subjectCounts.eng}</span>
+          </button>
         </div>
 
         {filteredTeachers.length === 0 ? (

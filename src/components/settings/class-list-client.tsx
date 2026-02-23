@@ -166,8 +166,8 @@ export function ClassList({ classes, teachers, students }: Props) {
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
-        <div className="bg-[#f8fafc] border-b px-6 py-4 flex items-center justify-between">
+      <div className="bg-white rounded-2xl border border-slate-200" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
+        <div className="bg-[#f8fafc] border-b px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <h3 className="font-bold text-slate-700 flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
             반 정보 관리

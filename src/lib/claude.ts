@@ -133,11 +133,22 @@ export function buildRegistrationPrompt(
     ? `수학반: ${adminData.assignedClass} (${adminData.teacher} 선생님) / 영어반: ${adminData.assignedClass2 || ""} (${adminData.teacher2 || ""} 선생님)`
     : `${adminData.assignedClass} (${adminData.teacher} 선생님)`;
 
+  // 과목별 지시사항
+  const subjectInstruction = adminData.subject === "영어수학"
+    ? `이 학생은 수학과 영어를 모두 수강합니다. 모든 분석, 가이드, 포인트에서 수학과 영어 두 과목 모두를 포괄하세요. 두 과목 간 학습 시간 배분, 과목별 학습 전략, 통합적 관리 방안을 포함하세요.`
+    : adminData.subject === "영어"
+    ? `이 학생은 영어만 수강합니다. 모든 분석, 가이드, 포인트를 영어 학습에 초점을 맞추세요. 영어 독해력, 어휘력, 문법, 리스닝, 영어 학습 습관 등을 중심으로 작성하세요. 수학 관련 내용은 절대 포함하지 마세요.`
+    : `이 학생은 수학만 수강합니다. 모든 분석, 가이드, 포인트를 수학 학습에 초점을 맞추세요. 수학적 사고력, 문제풀이 전략, 연산력, 개념 이해, 수학 학습 습관 등을 중심으로 작성하세요. 영어 관련 내용은 절대 포함하지 마세요.`;
+
   return `# Role
 
 당신은 'NK EDUCATION'의 입시 분석 전문가이자 수석 행정 관리자입니다.
 
 당신의 목표는 학생의 설문조사 데이터를 분석하고, 행정 정보를 결합하여, 신입생 등록 및 분석 보고서의 내용을 JSON 형식으로 생성하는 것입니다.
+
+# 과목 집중 영역 (매우 중요)
+
+${subjectInstruction}
 
 # Analysis Logic (분석 로직)
 
@@ -210,25 +221,21 @@ ${surveyText}
       {"factor": "심리·자신감", "score": 3.5, "grade": "...", "insight": "... (심리·자신감 점수가 N/A이면 이 항목 생략)"}
     ],
     "managementGuide": [
-      {"title": "가이드 제목 1", "description": "상세 설명 (2문장, 담임이 실행할 구체적 행동)"},
-      {"title": "가이드 제목 2", "description": "상세 설명 (2문장)"},
-      {"title": "가이드 제목 3", "description": "상세 설명 (2문장)"},
-      {"title": "가이드 제목 4", "description": "상세 설명 (2문장)"}
-    ],
-    "actionChecklist": [
-      "학생 성향에 맞는 담임 준비사항 1 (순수 텍스트만, 기호 절대 넣지 말 것)",
-      "학생 성향에 맞는 담임 준비사항 2 (예: 자기주도성이 낮으면 '첫 주 숙제 점검 강화', 수업태도가 좋으면 '심화 문제 별도 준비' 등)"
+      {"title": "가이드 제목 1 (반드시 등록 과목에 맞는 내용)", "description": "상세 설명 (2문장, 담임이 실행할 구체적 행동, 등록 과목 중심)"},
+      {"title": "가이드 제목 2", "description": "상세 설명 (2문장, 등록 과목 학습 전략)"},
+      {"title": "가이드 제목 3", "description": "상세 설명 (2문장, 등록 과목 관련)"},
+      {"title": "가이드 제목 4", "description": "상세 설명 (2문장, 등록 과목 관련)"}
     ]
   },
   "page2": {
-    "welcomeTitle": "환영 문구 제목 (예: 논리적 사고를 통한 <strong>수학적 도약</strong>의 시작)",
+    "welcomeTitle": "환영 문구 제목 (등록 과목에 맞게. 수학이면 수학, 영어면 영어, 영어수학이면 둘 다 언급)",
     "welcomeSubtitle": "환영 부제 (예: NK 교육 입학을 진심으로 축하드립니다.)",
-    "expertDiagnosis": "전문가 진단 종합 의견 (3~4문장, 학생 특성 + 학습 전략 포함, 120자 내외)",
+    "expertDiagnosis": "전문가 진단 종합 의견 (3~4문장, 등록 과목 중심의 학생 특성 + 학습 전략, 120자 내외)",
     "focusPoints": [
-      {"number": "01", "title": "포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"},
-      {"number": "02", "title": "포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"},
-      {"number": "03", "title": "포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"},
-      {"number": "04", "title": "포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"}
+      {"number": "01", "title": "등록 과목에 맞는 포인트 제목", "description": "상세 설명 (2~3문장, 등록 과목 학습 관련, 80자 내외)"},
+      {"number": "02", "title": "등록 과목에 맞는 포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"},
+      {"number": "03", "title": "등록 과목에 맞는 포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"},
+      {"number": "04", "title": "등록 과목에 맞는 포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"}
     ],
     "parentMessage": "학부모님께 드리는 당부 (3~4문장, 가정 학습 지원 + 학원 소통 안내, 120자 내외)",
     "academyRules": [
@@ -269,7 +276,7 @@ export interface ReportTemplateData {
     sixFactorScores?: { factor: string; score: number; grade: string; insight: string }[];
     tendencyAnalysis?: { title: string; score: number; color: string; comment: string }[];
     managementGuide: { title: string; description: string }[];
-    actionChecklist: string[];
+    actionChecklist?: string[];
   };
   page2: {
     welcomeTitle: string;
@@ -386,13 +393,9 @@ export function buildReportHTML(data: ReportTemplateData): string {
   // 매니지먼트 가이드 HTML
   const guideHTML = page1.managementGuide.map((item, idx) => `<div class="num-item"><div class="num-badge">${idx + 1}</div><div class="num-content"><h3>${item.title}</h3><p>${item.description}</p></div></div>`).join("");
 
-  // 체크리스트 HTML — 사용자가 체크한 항목 + AI 학생 맞춤 항목
-  const userChecklist = data.checklistItems || [];
-  const aiChecklist = page1.actionChecklist.map(item => {
-    return item.replace(/^[\s✓✔☑✅☐☑️▶►●○•◆◇■□▪▫∙·※★☆✦✧V√\-–—:,.]+\s*/u, "").trim();
-  }).filter(item => item.length > 0);
-  const allChecklist = [...userChecklist, ...aiChecklist];
-  const checklistHTML = allChecklist.map(item =>
+  // 체크리스트 HTML — 사용자가 체크한 항목만 표시
+  const checklistItems = data.checklistItems || [];
+  const checklistHTML = checklistItems.map(item =>
     `<li class="check-item"><span class="check-bullet">▸</span>${item}</li>`
   ).join("");
 

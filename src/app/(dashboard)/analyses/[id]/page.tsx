@@ -47,6 +47,21 @@ export default async function AnalysisDetailPage({
     .limit(1)
     .maybeSingle();
 
+  // 설문에서 전화번호 조회
+  let studentPhone: string | null = null;
+  let parentPhone: string | null = null;
+  if (analysis.survey_id) {
+    const { data: survey } = await supabase
+      .from("surveys")
+      .select("student_phone, parent_phone")
+      .eq("id", analysis.survey_id)
+      .single();
+    if (survey) {
+      studentPhone = survey.student_phone;
+      parentPhone = survey.parent_phone;
+    }
+  }
+
   return (
     <AnalysisDetailClient
       analysis={analysis}
@@ -54,6 +69,8 @@ export default async function AnalysisDetailPage({
       teachers={teachers}
       consultationResultStatus={consultationResultStatus}
       existingRegistrationId={existingReg?.id || null}
+      studentPhone={studentPhone}
+      parentPhone={parentPhone}
     />
   );
 }

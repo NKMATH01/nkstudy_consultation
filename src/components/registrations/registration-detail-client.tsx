@@ -13,17 +13,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { deleteRegistration, regenerateRegistration, updateRegistrationHtml, aiEditRegistrationHtml } from "@/lib/actions/registration";
+import { deleteRegistration, regenerateRegistration, updateRegistrationHtml, aiEditRegistrationHtml, updateRegistrationFields } from "@/lib/actions/registration";
 import { RefreshCw, PenLine, Wand2, Save, X } from "lucide-react";
-import type { Registration } from "@/types";
+import { Input } from "@/components/ui/input";
+import type { Registration, Class, Teacher } from "@/types";
+import { TUITION_TABLE } from "@/types";
 import Link from "next/link";
 
 interface Props {
   registration: Registration;
   analysisReportHtml?: string | null;
+  classes?: Class[];
+  teachers?: Teacher[];
 }
 
-export function RegistrationDetailClient({ registration, analysisReportHtml }: Props) {
+export function RegistrationDetailClient({ registration, analysisReportHtml, classes = [], teachers = [] }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
@@ -33,6 +37,17 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
   const [isSaving, setIsSaving] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
   const [isAiEditing, setIsAiEditing] = useState(false);
+  const [showEditFields, setShowEditFields] = useState(false);
+  const [editFields, setEditFields] = useState({
+    registration_date: registration.registration_date || "",
+    assigned_class: registration.assigned_class || "",
+    assigned_class_2: registration.assigned_class_2 || "",
+    teacher: registration.teacher || "",
+    teacher_2: registration.teacher_2 || "",
+    subject: registration.subject || "",
+    tuition_fee: registration.tuition_fee || 0,
+  });
+  const [isFieldSaving, setIsFieldSaving] = useState(false);
 
   const handleRegenerate = async () => {
     setIsRegenerating(true);
@@ -219,9 +234,31 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
 
       {/* 수업 정보 */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1.5 h-5 bg-emerald-600 rounded-sm" />
-          <h3 className="text-base font-extrabold text-emerald-900">수업 정보</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-5 bg-emerald-600 rounded-sm" />
+            <h3 className="text-base font-extrabold text-emerald-900">수업 정보</h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditFields({
+                registration_date: registration.registration_date || "",
+                assigned_class: registration.assigned_class || "",
+                assigned_class_2: registration.assigned_class_2 || "",
+                teacher: registration.teacher || "",
+                teacher_2: registration.teacher_2 || "",
+                subject: registration.subject || "",
+                tuition_fee: registration.tuition_fee || 0,
+              });
+              setShowEditFields(true);
+            }}
+            className="rounded-xl text-xs"
+          >
+            <PenLine className="h-3.5 w-3.5 mr-1" />
+            수정
+          </Button>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
@@ -372,6 +409,144 @@ export function RegistrationDetailClient({ registration, analysisReportHtml }: P
               className="rounded-xl"
             >
               {isPending ? "삭제 중..." : "삭제"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 수업 정보 수정 */}
+      <Dialog open={showEditFields} onOpenChange={setShowEditFields}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>수업 정보 수정</DialogTitle>
+            <DialogDescription>
+              수정 후 저장하면 등록 보고서가 자동으로 갱신됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-bold text-slate-600 mb-1 block">등록 예정일</label>
+              <Input
+                type="date"
+                value={editFields.registration_date}
+                onChange={(e) => setEditFields({ ...editFields, registration_date: e.target.value })}
+                className="rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-600 mb-1 block">과목</label>
+              <select
+                value={editFields.subject}
+                onChange={(e) => setEditFields({ ...editFields, subject: e.target.value })}
+                className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+              >
+                <option value="수학">수학</option>
+                <option value="영어">영어</option>
+                <option value="영어수학">영어수학</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">
+                  배정반 {editFields.subject === "영어수학" ? "(수학)" : ""}
+                </label>
+                <select
+                  value={editFields.assigned_class}
+                  onChange={(e) => setEditFields({ ...editFields, assigned_class: e.target.value })}
+                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                >
+                  <option value="">선택</option>
+                  {classes.filter(c => c.active).map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">
+                  담임 {editFields.subject === "영어수학" ? "(수학)" : ""}
+                </label>
+                <select
+                  value={editFields.teacher}
+                  onChange={(e) => setEditFields({ ...editFields, teacher: e.target.value })}
+                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                >
+                  <option value="">선택</option>
+                  {teachers.filter(t => t.active).map((t) => (
+                    <option key={t.id} value={t.name}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {editFields.subject === "영어수학" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">배정반 (영어)</label>
+                  <select
+                    value={editFields.assigned_class_2}
+                    onChange={(e) => setEditFields({ ...editFields, assigned_class_2: e.target.value })}
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                  >
+                    <option value="">선택</option>
+                    {classes.filter(c => c.active).map((c) => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">담임 (영어)</label>
+                  <select
+                    value={editFields.teacher_2}
+                    onChange={(e) => setEditFields({ ...editFields, teacher_2: e.target.value })}
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                  >
+                    <option value="">선택</option>
+                    {teachers.filter(t => t.active).map((t) => (
+                      <option key={t.id} value={t.name}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-bold text-slate-600 mb-1 block">월 수업료 (원)</label>
+              <Input
+                type="number"
+                value={editFields.tuition_fee}
+                onChange={(e) => setEditFields({ ...editFields, tuition_fee: parseInt(e.target.value) || 0 })}
+                className="rounded-lg"
+              />
+              {registration.grade && (
+                <p className="text-xs text-slate-400 mt-1">
+                  기준: {registration.grade} {editFields.subject} = {formatFee(TUITION_TABLE[registration.grade] || null)}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditFields(false)} className="rounded-xl">
+              취소
+            </Button>
+            <Button
+              disabled={isFieldSaving}
+              onClick={async () => {
+                setIsFieldSaving(true);
+                try {
+                  const result = await updateRegistrationFields(registration.id, editFields);
+                  if (result.success) {
+                    toast.success("수업 정보가 수정되었습니다");
+                    setShowEditFields(false);
+                    router.refresh();
+                  } else {
+                    toast.error(result.error || "수정에 실패했습니다");
+                  }
+                } finally {
+                  setIsFieldSaving(false);
+                }
+              }}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Save className={`h-3.5 w-3.5 mr-1 ${isFieldSaving ? "animate-spin" : ""}`} />
+              {isFieldSaving ? "저장 중..." : "저장"}
             </Button>
           </DialogFooter>
         </DialogContent>

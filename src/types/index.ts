@@ -54,6 +54,9 @@ export interface Consultation {
   study_goal: string | null;
   student_consult_note: string | null;
   parent_consult_note: string | null;
+  parent_consult_date: string | null;
+  parent_consult_time: string | null;
+  parent_location: string | null;
   test_fee_paid: boolean;
   test_fee_method: string | null;
   analysis_id: string | null;

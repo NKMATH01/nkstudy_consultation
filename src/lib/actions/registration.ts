@@ -637,6 +637,211 @@ export async function regenerateRegistration(id: string) {
   return { success: true };
 }
 
+// ========== 등록 안내 필드 수정 + 보고서 재생성 (Claude 호출 없이) ==========
+export async function updateRegistrationFields(
+  id: string,
+  fields: {
+    registration_date?: string;
+    assigned_class?: string;
+    assigned_class_2?: string;
+    teacher?: string;
+    teacher_2?: string;
+    subject?: string;
+    tuition_fee?: number;
+  }
+) {
+  const supabase = await createClient();
+
+  // 1. 기존 등록 데이터 조회
+  const { data: reg, error: regError } = await supabase
+    .from("registrations")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (regError || !reg) {
+    return { success: false, error: "등록 안내를 찾을 수 없습니다" };
+  }
+
+  const registration = reg as Registration;
+
+  // 2. 필드 업데이트
+  const updateData: Record<string, unknown> = {};
+  if (fields.registration_date !== undefined) updateData.registration_date = fields.registration_date || null;
+  if (fields.assigned_class !== undefined) updateData.assigned_class = fields.assigned_class || null;
+  if (fields.assigned_class_2 !== undefined) updateData.assigned_class_2 = fields.assigned_class_2 || null;
+  if (fields.teacher !== undefined) updateData.teacher = fields.teacher || null;
+  if (fields.teacher_2 !== undefined) updateData.teacher_2 = fields.teacher_2 || null;
+  if (fields.subject !== undefined) updateData.subject = fields.subject || null;
+  if (fields.tuition_fee !== undefined) updateData.tuition_fee = fields.tuition_fee;
+
+  if (Object.keys(updateData).length === 0) {
+    return { success: false, error: "수정할 항목이 없습니다" };
+  }
+
+  const { error: updateError } = await supabase
+    .from("registrations")
+    .update(updateData)
+    .eq("id", id);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  // 3. 기존 report_data 유지하면서 HTML만 재생성
+  if (!registration.report_data || !registration.analysis_id) {
+    revalidatePath(`/registrations/${id}`);
+    revalidatePath("/registrations");
+    revalidatePath("/onboarding");
+    return { success: true };
+  }
+
+  // 분석 결과 조회 (설문 연결용)
+  const { data: analysis } = await supabase
+    .from("analyses")
+    .select("survey_id")
+    .eq("id", registration.analysis_id)
+    .single();
+
+  // 설문 데이터 조회 (전화번호용)
+  let studentPhone = registration.student_phone || "";
+  let parentPhone = registration.parent_phone || "";
+  if (analysis?.survey_id) {
+    const { data: survey } = await supabase
+      .from("surveys")
+      .select("student_phone, parent_phone")
+      .eq("id", analysis.survey_id)
+      .single();
+    if (survey) {
+      studentPhone = survey.student_phone || studentPhone;
+      parentPhone = survey.parent_phone || parentPhone;
+    }
+  }
+
+  // 머지된 값
+  const merged = {
+    ...registration,
+    ...updateData,
+  };
+
+  // 반 시간표 조회
+  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+
+  const assignedClass = (merged.assigned_class as string) || null;
+  const assignedClass2 = (merged.assigned_class_2 as string) || null;
+  const mergedSubject = (merged.subject as string) || null;
+
+  if (assignedClass) {
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", assignedClass)
+      .single();
+    if (cls) {
+      const raw = cls as Record<string, unknown>;
+      classInfo = { class_days: raw.description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time, weekly_test_time: raw.weekly_test_time as string | null };
+    }
+  }
+
+  if ((mergedSubject === "영어수학") && assignedClass2) {
+    const { data: cls2 } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", assignedClass2)
+      .single();
+    if (cls2) {
+      const raw2 = cls2 as Record<string, unknown>;
+      classInfo2 = { class_days: raw2.description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time, weekly_test_time: raw2.weekly_test_time as string | null };
+    }
+  }
+
+  // 기존 report_data에서 AI 콘텐츠 복원
+  const reportData = registration.report_data as Record<string, unknown>;
+  const page1Data = (reportData.page1 || {}) as ReportTemplateData["page1"];
+  const page2Data = (reportData.page2 || {}) as ReportTemplateData["page2"];
+
+  const templateData: ReportTemplateData = {
+    name: registration.name,
+    school: registration.school || "",
+    grade: registration.grade || "",
+    studentPhone,
+    parentPhone,
+    registrationDate: (merged.registration_date as string) || "",
+    assignedClass: assignedClass || "",
+    teacher: (merged.teacher as string) || "",
+    assignedClass2: assignedClass2 || undefined,
+    teacher2: (merged.teacher_2 as string) || undefined,
+    subject: mergedSubject || "",
+    preferredDays: registration.preferred_days || "",
+    useVehicle: registration.use_vehicle || "미사용",
+    location: registration.location || "",
+    tuitionFee: (merged.tuition_fee as number) || 0,
+    page1: {
+      docNo: page1Data.docNo || "",
+      deptLabel: page1Data.deptLabel || "",
+      profileSummary: page1Data.profileSummary || "",
+      studentBackground: page1Data.studentBackground || undefined,
+      sixFactorScores: page1Data.sixFactorScores || undefined,
+      tendencyAnalysis: page1Data.tendencyAnalysis || [],
+      managementGuide: page1Data.managementGuide || [],
+      actionChecklist: page1Data.actionChecklist || [],
+    },
+    page2: {
+      welcomeTitle: page2Data.welcomeTitle || "",
+      welcomeSubtitle: page2Data.welcomeSubtitle || "",
+      expertDiagnosis: page2Data.expertDiagnosis || "",
+      focusPoints: page2Data.focusPoints || [],
+      parentMessage: page2Data.parentMessage || undefined,
+      academyRules: page2Data.academyRules || undefined,
+    },
+    ...(() => {
+      const classSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.class_time);
+      const clinicSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.clinic_time);
+      const classSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.class_time);
+      const clinicSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.clinic_time);
+      return {
+        classDays: classSchedule?.days || undefined,
+        classTime: classSchedule?.time || undefined,
+        clinicTime: clinicSchedule?.time || undefined,
+        testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
+        testTime: parseFirstTime(classInfo?.weekly_test_time),
+        classDays2: classSchedule2?.days || undefined,
+        classTime2: classSchedule2?.time || undefined,
+        clinicTime2: clinicSchedule2?.time || undefined,
+        testDays2: parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.weekly_test_time),
+        testTime2: parseFirstTime(classInfo2?.weekly_test_time),
+      };
+    })(),
+    additionalNote: registration.additional_note || undefined,
+    consultDate: registration.consult_date || undefined,
+    testScore: registration.test_score || undefined,
+    schoolScore: registration.school_score || undefined,
+  };
+
+  let reportHTML: string;
+  try {
+    reportHTML = buildReportHTML(templateData);
+  } catch (e) {
+    console.error("[Template] HTML 재생성 실패:", e instanceof Error ? e.message : e);
+    revalidatePath(`/registrations/${id}`);
+    revalidatePath("/registrations");
+    revalidatePath("/onboarding");
+    return { success: true };
+  }
+
+  // HTML 업데이트
+  await supabase
+    .from("registrations")
+    .update({ report_html: reportHTML })
+    .eq("id", id);
+
+  revalidatePath(`/registrations/${id}`);
+  revalidatePath("/registrations");
+  revalidatePath("/onboarding");
+  return { success: true };
+}
+
 // ========== 등록 안내 HTML 직접 수정 ==========
 export async function updateRegistrationHtml(id: string, html: string) {
   const supabase = await createClient();

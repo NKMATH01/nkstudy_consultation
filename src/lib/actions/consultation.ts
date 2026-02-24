@@ -184,6 +184,9 @@ export async function createConsultation(formData: FormData) {
       plan_class: formData.get("plan_class") || undefined,
       requests: formData.get("requests") || undefined,
       student_consult_note: formData.get("student_consult_note") || undefined,
+      parent_consult_date: formData.get("parent_consult_date") || undefined,
+      parent_consult_time: formData.get("parent_consult_time") || undefined,
+      parent_location: formData.get("parent_location") || undefined,
     };
 
     const parsed = consultationFormSchema.safeParse(raw);
@@ -215,6 +218,9 @@ export async function createConsultation(formData: FormData) {
         plan_class: parsed.data.plan_class || null,
         requests: parsed.data.requests || null,
         student_consult_note: parsed.data.student_consult_note || null,
+        parent_consult_date: parsed.data.parent_consult_date || null,
+        parent_consult_time: parsed.data.parent_consult_time || null,
+        parent_location: parsed.data.parent_location || null,
       })
       .select()
       .single();
@@ -277,6 +283,9 @@ export async function updateConsultation(id: string, formData: FormData) {
       plan_class: formData.get("plan_class") || undefined,
       requests: formData.get("requests") || undefined,
       student_consult_note: formData.get("student_consult_note") || undefined,
+      parent_consult_date: formData.get("parent_consult_date") || undefined,
+      parent_consult_time: formData.get("parent_consult_time") || undefined,
+      parent_location: formData.get("parent_location") || undefined,
     };
 
     const parsed = consultationFormSchema.safeParse(raw);
@@ -308,6 +317,9 @@ export async function updateConsultation(id: string, formData: FormData) {
         plan_class: parsed.data.plan_class || null,
         requests: parsed.data.requests || null,
         student_consult_note: parsed.data.student_consult_note || null,
+        parent_consult_date: parsed.data.parent_consult_date || null,
+        parent_consult_time: parsed.data.parent_consult_time || null,
+        parent_location: parsed.data.parent_location || null,
       })
       .eq("id", id)
       .select()

@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,6 +29,8 @@ interface Props {
   surveyId?: string | null;
   consultationResultStatus?: ResultStatus | null;
   existingRegistrationId?: string | null;
+  studentPhone?: string | null;
+  parentPhone?: string | null;
 }
 
 function ratingClass(score: number) {
@@ -40,7 +42,7 @@ function ratingClass(score: number) {
 
 const STEP_COLORS = ["bg-blue-500", "bg-violet-500", "bg-amber-500", "bg-emerald-500"];
 
-export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, existingRegistrationId }: Props) {
+export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, existingRegistrationId, studentPhone, parentPhone }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
@@ -119,6 +121,34 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
           <p className="text-xs text-slate-500">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
         </div>
       </div>
+
+      {/* 연락처 */}
+      {(studentPhone || parentPhone) && (
+        <div className="flex gap-3">
+          {studentPhone && (
+            <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                <Phone className="h-3.5 w-3.5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400 font-medium">학생 연락처</p>
+                <p className="text-xs font-bold text-slate-800">{studentPhone}</p>
+              </div>
+            </div>
+          )}
+          {parentPhone && (
+            <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                <Phone className="h-3.5 w-3.5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400 font-medium">학부모 연락처</p>
+                <p className="text-xs font-bold text-slate-800">{parentPhone}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Registration Status Card */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3.5">

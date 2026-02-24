@@ -1,5 +1,6 @@
 import { getRegistration } from "@/lib/actions/registration";
 import { getAnalysis } from "@/lib/actions/analysis";
+import { getClasses, getTeachers } from "@/lib/actions/settings";
 import { RegistrationDetailClient } from "@/components/registrations/registration-detail-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
@@ -11,7 +12,11 @@ export default async function RegistrationDetailPage({
 }) {
   await checkPagePermission("/registrations");
   const { id } = await params;
-  const registration = await getRegistration(id);
+  const [registration, classes, teachers] = await Promise.all([
+    getRegistration(id),
+    getClasses(),
+    getTeachers(),
+  ]);
 
   if (!registration) {
     notFound();
@@ -28,6 +33,8 @@ export default async function RegistrationDetailPage({
     <RegistrationDetailClient
       registration={registration}
       analysisReportHtml={analysisReportHtml}
+      classes={classes}
+      teachers={teachers}
     />
   );
 }

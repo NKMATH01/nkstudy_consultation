@@ -61,6 +61,7 @@ export function ConsultationFormDialog({
     prev_academy: "", prev_complaint: "", school_score: "", test_score: "",
     advance_level: "", study_goal: "", prefer_days: "",
     plan_date: "", plan_class: "", requests: "", student_consult_note: "",
+    parent_consult_date: "", parent_consult_time: "", parent_location: "",
   };
 
   const form = useForm<ConsultationFormValues>({
@@ -69,6 +70,7 @@ export function ConsultationFormDialog({
   });
 
   const [meetingTime, setMeetingTime] = useState("");
+  const [separateParent, setSeparateParent] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -95,6 +97,9 @@ export function ConsultationFormDialog({
         plan_class: consultation.plan_class ?? "",
         requests: consultation.requests ?? "",
         student_consult_note: consultation.student_consult_note ?? "",
+        parent_consult_date: consultation.parent_consult_date ?? "",
+        parent_consult_time: consultation.parent_consult_time?.slice(0, 5) ?? "",
+        parent_location: consultation.parent_location ?? "",
       });
       // 대면 시간 추출
       if (consultation.consult_type?.includes("대면")) {
@@ -103,9 +108,12 @@ export function ConsultationFormDialog({
       } else {
         setMeetingTime("");
       }
+      // 학부모 별도 설정 여부
+      setSeparateParent(!!consultation.parent_consult_date);
     } else {
       form.reset(emptyValues);
       setMeetingTime("");
+      setSeparateParent(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, consultation]);
@@ -256,6 +264,51 @@ export function ConsultationFormDialog({
                   </FormItem>
                 )} />
               </div>
+
+              {/* 학부모 상담 별도 설정 */}
+              <label className="flex items-center gap-2 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={separateParent}
+                  onChange={(e) => {
+                    setSeparateParent(e.target.checked);
+                    if (!e.target.checked) {
+                      form.setValue("parent_consult_date", "");
+                      form.setValue("parent_consult_time", "");
+                      form.setValue("parent_location", "");
+                    }
+                  }}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-xs font-medium text-slate-600">학부모 상담 별도 설정</span>
+              </label>
+              {separateParent && (
+                <div className="grid grid-cols-3 gap-3 pt-1 border-t border-blue-100">
+                  <FormField control={form.control} name="parent_consult_date" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-slate-500">학부모 상담일</FormLabel>
+                      <FormControl><Input type="date" className={inp} {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="parent_consult_time" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-slate-500">학부모 시간</FormLabel>
+                      <FormControl><Input type="time" className={inp} {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="parent_location" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-slate-500">학부모 장소</FormLabel>
+                      <FormControl>
+                        <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
+                          <option value="">선택</option>
+                          {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                </div>
+              )}
             </section>
 
             {/* ── 상담 기록지 ── */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect } from "react";
+import { useState, useTransition, useCallback, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -213,6 +213,16 @@ export function ConsultationListClient({ initialData, initialPagination, classes
       return `${ds}에 진행됩니다.`;
     };
 
+    const parentConsultLine = (): string => {
+      if (c.parent_consult_date) {
+        const pds = fmtDate(c.parent_consult_date);
+        const pts = c.parent_consult_time ? ` ${fmtTime(c.parent_consult_time)}` : "";
+        const ploc = c.parent_location ? ` (${c.parent_location})` : "";
+        return `${pds}${pts}${ploc}에 진행됩니다.`;
+      }
+      return consultLine();
+    };
+
     const lines = [
       "[NK test 안내]",
       `▶이름 : ${c.name}`,
@@ -224,7 +234,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
       "▶계좌 : 신한은행 110-383-883419  노윤희(학생명으로 입금 부탁드립니다.)",
       "▶준비물 : 필기도구",
       c.location ? `▶위치 : ${c.location}` : null,
-      `▶학부모님 상담 : ${consultLine()}`,
+      `▶학부모님 상담 : ${parentConsultLine()}`,
     ].filter(Boolean).join("\n");
 
     navigator.clipboard.writeText(lines);
@@ -373,10 +383,11 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                       const vBorder = "border-r border-slate-100";
                       const vBorderDark = "border-r border-neutral-700";
                       const vb = isUnregistered ? vBorderDark : vBorder;
+                      const hasParentSeparate = !!(item.parent_consult_date || item.parent_consult_time || item.parent_location);
 
                       return (
+                        <Fragment key={item.id}>
                         <tr
-                          key={item.id}
                           className={`border-t border-slate-100 transition-colors ${rowStyleByResult(item.result_status)} ${!isUnregistered ? "hover:bg-slate-50/80" : ""}`}
                         >
                           <td className={`py-2 px-1.5 font-semibold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-700"}`}>
@@ -597,6 +608,39 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                             </div>
                           </td>
                         </tr>
+                        {hasParentSeparate && (
+                          <tr className={`border-t border-dashed border-amber-200 ${rowStyleByResult(item.result_status) || "bg-amber-50/40"}`}>
+                            <td colSpan={11} className="py-1.5 px-2">
+                              <div className="flex items-center gap-2 text-[11px]">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold shrink-0">
+                                  학부모 별도
+                                </span>
+                                {item.parent_consult_date && (
+                                  <span className="text-slate-600">
+                                    <span className="text-slate-400 mr-0.5">날짜</span>
+                                    {(() => {
+                                      const d = new Date(item.parent_consult_date + "T00:00:00");
+                                      return `${d.getMonth() + 1}/${d.getDate()}(${DAY_NAMES[d.getDay()]})`;
+                                    })()}
+                                  </span>
+                                )}
+                                {item.parent_consult_time && (
+                                  <span className="text-slate-600">
+                                    <span className="text-slate-400 mr-0.5">시간</span>
+                                    {item.parent_consult_time.slice(0, 5)}
+                                  </span>
+                                )}
+                                {item.parent_location && (
+                                  <span className="text-slate-600">
+                                    <span className="text-slate-400 mr-0.5">장소</span>
+                                    {item.parent_location}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       );
                     })}
                 </tbody>

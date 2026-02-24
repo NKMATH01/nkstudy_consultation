@@ -329,6 +329,29 @@ export function ConsultationDetailClient({ consultation }: Props) {
         <InfoRow label="상담방식" value={consultation.consult_type} />
         <InfoRow label="과목" value={consultation.subject} />
         <InfoRow label="장소" value={consultation.location} />
+
+        {/* 학부모 별도 상담 일정 */}
+        {(consultation.parent_consult_date || consultation.parent_consult_time || consultation.parent_location) && (
+          <>
+            <div className="flex items-center gap-2 mt-4 mb-2">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                학부모 별도 일정
+              </span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+            <InfoRow
+              label="학부모 날짜"
+              value={
+                consultation.parent_consult_date
+                  ? format(new Date(consultation.parent_consult_date), "yyyy-MM-dd")
+                  : null
+              }
+            />
+            <InfoRow label="학부모 시간" value={consultation.parent_consult_time?.slice(0, 5)} />
+            <InfoRow label="학부모 장소" value={consultation.parent_location} />
+          </>
+        )}
       </div>
 
       {/* 상담 내용 (Consultation Content) */}

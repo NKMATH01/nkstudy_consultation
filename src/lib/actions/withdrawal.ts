@@ -105,22 +105,50 @@ export async function createWithdrawal(formData: FormData) {
       return { success: false, error: error.message };
     }
 
-    // 퇴원 등록 시 학생관리에서 해당 학생 비활성화 (이름+학교 기준 매칭)
+    // 퇴원 등록 시 학생관리에서 해당 학생 비활성화
     if (parsed.data.name) {
-      const matchQuery = supabase
-        .from("students")
-        .update({ is_active: false })
-        .eq("name", parsed.data.name)
-        .eq("is_active", true);
+      // 반 이름 정규화 (퇴원 폼: "고2C1" → DB: "고2-C1" 또는 "고2-C1(화목)")
+      const rawClassName = parsed.data.class_name || "";
+      const normalizedClass = rawClassName.includes("-")
+        ? rawClassName
+        : rawClassName.replace(/([가-힣\d])([A-Z])/, "$1-$2");
 
-      // 학교 정보가 있으면 더 정확하게 매칭
-      if (parsed.data.school) {
-        matchQuery.eq("school", parsed.data.school);
+      let deactivated = false;
+
+      if (normalizedClass) {
+        // 1차: 반 이름 정확 매칭
+        const { data: exact } = await supabase
+          .from("students")
+          .update({ is_active: false })
+          .eq("name", parsed.data.name)
+          .eq("class_name", normalizedClass)
+          .eq("is_active", true)
+          .select("id");
+        if (exact && exact.length > 0) deactivated = true;
+
+        // 2차: 반 이름 부분 매칭 (DB에 괄호 붙은 경우: "고1-C3(화목)" like "고1-C3%")
+        if (!deactivated) {
+          const { data: partial } = await supabase
+            .from("students")
+            .update({ is_active: false })
+            .eq("name", parsed.data.name)
+            .like("class_name", `${normalizedClass}%`)
+            .eq("is_active", true)
+            .select("id");
+          if (partial && partial.length > 0) deactivated = true;
+        }
       }
 
-      const { error: deactivateError } = await matchQuery;
-      if (deactivateError) {
-        console.error("[퇴원] 학생 비활성화 실패:", deactivateError.message);
+      // 3차: 반 매칭 실패 시 이름만으로 비활성화
+      if (!deactivated) {
+        const { error: deactivateError } = await supabase
+          .from("students")
+          .update({ is_active: false })
+          .eq("name", parsed.data.name)
+          .eq("is_active", true);
+        if (deactivateError) {
+          console.error("[퇴원] 학생 비활성화 실패:", deactivateError.message);
+        }
       }
     }
 

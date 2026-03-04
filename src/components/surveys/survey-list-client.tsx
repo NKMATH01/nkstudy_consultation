@@ -26,7 +26,7 @@ import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import { ConsultationRecordDialog } from "@/components/surveys/consultation-record-dialog";
 import type { Survey, Class, Teacher, Consultation } from "@/types";
-import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
+import { RESULT_STATUS_LABELS } from "@/types";
 import type { ResultStatus } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
 import Link from "next/link";
@@ -41,30 +41,34 @@ interface Props {
   };
   analyses: { id: string; survey_id: string | null; report_html: string | null }[];
   registrations: { id: string; analysis_id: string | null }[];
-  consultations: { name: string; result_status: string; test_score: string | null }[];
+  consultations: { name: string; result_status: string; test_score: string | null; subject: string | null }[];
   classes: Class[];
   teachers: Teacher[];
 }
 
+const FACTOR_KEYS = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
 const SHORT_LABELS: Record<string, string> = {
   attitude: "태도",
-  self_directed: "자기주도",
+  self_directed: "자주",
   assignment: "과제",
   willingness: "의지",
-  social: "사회성",
+  social: "사회",
   management: "관리",
 };
 
-function FactorScore({ value, label, factorKey }: { value: number | null; label: string; factorKey: string }) {
-  if (value == null) return null;
+function formatPhone(phone: string | null): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return phone;
+}
+
+function FactorScore({ value }: { value: number | null }) {
+  if (value == null) return <span className="text-[10px] text-slate-200">-</span>;
   const color =
-    value >= 4 ? "text-emerald-600 bg-emerald-50" : value >= 3 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
-  return (
-    <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${color}`} title={label}>
-      <span className="text-[8px] text-slate-400 mr-0.5">{SHORT_LABELS[factorKey] || factorKey}</span>
-      {value.toFixed(1)}
-    </span>
-  );
+    value >= 4 ? "text-emerald-600" : value >= 3 ? "text-amber-600" : "text-red-500";
+  return <span className={`text-[10px] font-bold ${color}`}>{value.toFixed(1)}</span>;
 }
 
 function ResultStatusBadge({ status }: { status: ResultStatus }) {
@@ -203,12 +207,22 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     return map;
   }, [consultations]);
 
-  // 상담 테스트 점수 맵
+  // 상담 테스트 점수 + 과목 맵
   const testScoreMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of consultations) {
       if (!map.has(c.name) && c.test_score) {
         map.set(c.name, c.test_score);
+      }
+    }
+    return map;
+  }, [consultations]);
+
+  const subjectMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of consultations) {
+      if (!map.has(c.name) && c.subject) {
+        map.set(c.name, c.subject);
       }
     }
     return map;
@@ -350,16 +364,20 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         <>
           <div className="bg-white rounded-2xl border border-[#f1f5f9] overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
             {/* Header */}
-            <div className="flex items-center px-4 py-2.5 text-[11px] font-semibold text-slate-400 bg-[#f8fafc] border-b border-slate-100">
-              <div className="w-[70px]">등록일</div>
-              <div className="w-[80px]">이름</div>
-              <div className="w-[100px] hidden sm:block">학교/학년</div>
-              <div className="w-[90px] hidden lg:block">연락처</div>
-              <div className="w-[50px] hidden lg:block text-center">테스트</div>
-              <div className="flex-1 hidden md:block">학습 성향</div>
-              <div className="w-[50px] text-center">분석</div>
-              <div className="w-[80px] text-center">등록</div>
-              <div className="w-[210px] text-center">액션</div>
+            <div className="flex items-center px-3 py-2 text-[10px] font-semibold text-slate-400 bg-[#f8fafc] border-b border-slate-100">
+              <div className="w-[52px]">등록일</div>
+              <div className="w-[60px]">이름</div>
+              <div className="w-[80px] hidden sm:block">학교</div>
+              <div className="w-[42px] hidden lg:block text-center">과목</div>
+              <div className="w-[100px] hidden lg:block">학생연락처</div>
+              <div className="w-[100px] hidden lg:block">학부모연락처</div>
+              <div className="w-[38px] hidden lg:block text-center">테스트</div>
+              {FACTOR_KEYS.map((key) => (
+                <div key={key} className="w-[32px] hidden md:block text-center">{SHORT_LABELS[key]}</div>
+              ))}
+              <div className="w-[40px] text-center">분석</div>
+              <div className="w-[60px] text-center">등록</div>
+              <div className="w-[170px] text-center">액션</div>
             </div>
             {/* Rows */}
             {initialData.map((item) => {
@@ -374,52 +392,50 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               return (
                 <div
                   key={item.id}
-                  className={`flex items-center px-4 py-2.5 border-b border-slate-50 hover:bg-[#F8FAFC] transition-colors ${isPending ? "opacity-50" : ""}`}
+                  className={`flex items-center px-3 py-2 border-b border-slate-50 hover:bg-[#F8FAFC] transition-colors ${isPending ? "opacity-50" : ""}`}
                 >
-                  <div className="w-[70px] text-xs text-slate-500">
+                  <div className="w-[52px] text-[10px] text-slate-500">
                     {format(new Date(item.created_at), "MM-dd")}
                   </div>
-                  <div className="w-[80px]">
-                    <Link href={nameHref} className="text-sm font-semibold text-slate-800 hover:text-blue-600 hover:underline">
+                  <div className="w-[60px]">
+                    <Link href={nameHref} className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 hover:underline">
                       {item.name}
                     </Link>
                   </div>
-                  <div className="w-[100px] hidden sm:block text-xs text-slate-500 truncate">
+                  <div className="w-[80px] hidden sm:block text-[10px] text-slate-500 truncate">
                     {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
                   </div>
-                  <div className="w-[90px] hidden lg:block text-[10px] text-slate-500 truncate">
-                    {item.student_phone || item.parent_phone ? (
-                      <div className="space-y-0.5">
-                        {item.student_phone && <div title="학생">{item.student_phone}</div>}
-                        {item.parent_phone && <div title="학부모" className="text-slate-400">{item.parent_phone}</div>}
-                      </div>
-                    ) : "-"}
+                  <div className="w-[42px] hidden lg:block text-center">
+                    {subjectMap.get(item.name) ? (
+                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-blue-50 text-blue-600">{subjectMap.get(item.name)}</span>
+                    ) : <span className="text-[10px] text-slate-200">-</span>}
                   </div>
-                  <div className="w-[50px] hidden lg:block text-center text-[10px] text-slate-600 font-medium">
-                    {testScoreMap.get(item.name) || "-"}
+                  <div className="w-[100px] hidden lg:block text-[10px] text-slate-600 truncate">
+                    {formatPhone(item.student_phone) || <span className="text-slate-200">-</span>}
                   </div>
-                  <div className="flex-1 hidden md:flex gap-1 items-center">
-                    {(["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const).map((key) => (
-                      <FactorScore
-                        key={key}
-                        value={item[`factor_${key}` as keyof Survey] as number | null}
-                        label={FACTOR_LABELS[key]}
-                        factorKey={key}
-                      />
-                    ))}
+                  <div className="w-[100px] hidden lg:block text-[10px] text-slate-400 truncate">
+                    {formatPhone(item.parent_phone) || <span className="text-slate-200">-</span>}
                   </div>
-                  <div className="w-[50px] text-center">
+                  <div className="w-[38px] hidden lg:block text-center text-[10px] text-slate-600 font-medium">
+                    {testScoreMap.get(item.name) || <span className="text-slate-200">-</span>}
+                  </div>
+                  {FACTOR_KEYS.map((key) => (
+                    <div key={key} className="w-[32px] hidden md:block text-center">
+                      <FactorScore value={item[`factor_${key}` as keyof Survey] as number | null} />
+                    </div>
+                  ))}
+                  <div className="w-[40px] text-center">
                     {hasAnalysis ? (
-                      <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">완료</Badge>
+                      <Badge className="text-[9px] px-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">완료</Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-[10px]">미분석</Badge>
+                      <Badge variant="secondary" className="text-[9px] px-1">대기</Badge>
                     )}
                   </div>
-                  <div className="w-[80px] text-center">
+                  <div className="w-[60px] text-center">
                     <select
                       value={consultStatus}
                       onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)}
-                      className={`text-[10px] font-semibold rounded-md border-0 py-0.5 px-1 cursor-pointer outline-none ${
+                      className={`text-[9px] font-semibold rounded-md border-0 py-0.5 px-1 cursor-pointer outline-none ${
                         consultStatus === "registered" ? "bg-red-500 text-white" :
                         consultStatus === "hold" ? "bg-amber-400 text-white" :
                         consultStatus === "other" ? "bg-neutral-500 text-white" :
@@ -432,7 +448,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                       <option value="other">미등록</option>
                     </select>
                   </div>
-                  <div className="w-[210px] flex items-center justify-end gap-1">
+                  <div className="w-[170px] flex items-center justify-end gap-1">
                     {/* 등록 안내문 생성/보기 */}
                     {hasAnalysis && (
                       <button

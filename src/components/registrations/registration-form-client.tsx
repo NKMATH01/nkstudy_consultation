@@ -312,18 +312,10 @@ export function RegistrationForm({
     return map;
   }, [teachers]);
 
-  // 과목별 반 필터링: 수학반은 영어전용 제외, 영어반은 영어 선생님만
-  const mathFilteredClasses = useMemo(() => {
-    // 영어 전용 반만 제외 (선생님 과목이 "영어"만 포함하고 "수학" 미포함인 경우)
-    const excluded = filteredClasses.filter((c) => {
-      if (!c.teacher) return true; // 선생님 없으면 포함
-      const subj = teacherSubjectMap.get(c.teacher);
-      if (!subj) return true; // 과목 미설정이면 포함
-      return !subj.includes("영어") || subj.includes("수학");
-    });
-    return excluded.length > 0 ? excluded : filteredClasses;
-  }, [filteredClasses, teacherSubjectMap]);
+  // 수학반: 학년 필터만 적용 (모든 반 표시)
+  const mathFilteredClasses = filteredClasses;
 
+  // 영어반: 영어 선생님 반만 필터
   const engFilteredClasses = useMemo(() => {
     const bySubject = filteredClasses.filter((c) => {
       if (!c.teacher) return false;
@@ -333,14 +325,8 @@ export function RegistrationForm({
     return bySubject.length > 0 ? bySubject : filteredClasses;
   }, [filteredClasses, teacherSubjectMap]);
 
-  // 과목별 선생님 필터링: 수학은 영어전용 제외, 영어는 영어 선생님만
-  const mathTeachers = useMemo(() => {
-    const filtered = uniqueTeachers.filter((t) => {
-      if (!t.subject) return true; // 과목 미설정이면 포함
-      return !t.subject.includes("영어") || t.subject.includes("수학");
-    });
-    return filtered.length > 0 ? filtered : uniqueTeachers;
-  }, [uniqueTeachers]);
+  // 수학 선생님: 전체, 영어 선생님: 영어만
+  const mathTeachers = uniqueTeachers;
 
   const engTeachers = useMemo(() => {
     const bySubject = uniqueTeachers.filter((t) => t.subject?.includes("영어"));

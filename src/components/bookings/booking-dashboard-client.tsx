@@ -26,13 +26,24 @@ import { BRANCHES, BOOKING_SUBJECTS, type Booking, type BlockedSlot } from "@/ty
 
 // ========== 유틸 ==========
 
-const ALL_HOURS = [13, 14, 15, 16, 17, 18, 19, 20];
 const HOURS_WEEKDAY = [15, 16, 17, 18, 19, 20];
-const HOURS_SAT = [13, 14, 15, 16];
+const HOURS_SAT = [1, 2, 3, 4];
+const ALL_HOURS = [...HOURS_SAT, ...HOURS_WEEKDAY];
 const DAYS_KR = ["일", "월", "화", "수", "목", "금", "토"];
+
+const SAT_LABELS: Record<number, string> = {
+  1: "1교시 (11:30~13:00)",
+  2: "2교시 (13:00~14:30)",
+  3: "3교시 (14:30~16:00)",
+  4: "4교시 (16:00~17:30)",
+};
 
 function getHoursForDate(d: Date) {
   return d.getDay() === 6 ? HOURS_SAT : HOURS_WEEKDAY;
+}
+
+function formatHourLabel(h: number) {
+  return SAT_LABELS[h] ? SAT_LABELS[h].split(" ")[0] : `${h}:00`;
 }
 
 function getWeekDates(offset = 0) {
@@ -219,9 +230,13 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
     const br = BRANCHES.find((x) => x.id === b.branch);
     const subjectLabel = BOOKING_SUBJECTS.find((s) => s.id === b.subject)?.label || "-";
     const consultLabel = b.consult_type === "inperson" ? "대면상담" : "유선상담";
-    const consultTime = b.consult_type === "inperson" ? `${b.booking_hour + 1}:00~${b.booking_hour + 1}:30` : "별도 안내";
+    const isSatSlot = !!SAT_LABELS[b.booking_hour];
+    const testTimeStr = isSatSlot ? SAT_LABELS[b.booking_hour] : `${b.booking_hour}:00~${b.booking_hour + 1}:00`;
+    const consultTime = b.consult_type === "inperson"
+      ? (isSatSlot ? "테스트 후 30분" : `${b.booking_hour + 1}:00~${b.booking_hour + 1}:30`)
+      : "별도 안내";
 
-    return `[NK Academy 상담 안내문]\n\n안녕하세요, ${b.parent_name} 학부모님.\nNK Academy에 관심을 가져주셔서 감사합니다.\n\n■ 학생 정보\n  학생명: ${b.student_name}\n  학교/학년: ${b.school || ""} ${b.grade || ""}\n  과목: ${subjectLabel}\n  현재 진도: ${b.progress || "미기재"}\n\n■ 테스트 안내\n  일시: ${b.booking_date} ${b.booking_hour}:00~${b.booking_hour + 1}:00\n  장소: NK Academy ${br?.label || ""}\n  테스트 비용: 10,000원\n\n■ 상담 안내\n  상담 유형: ${consultLabel}\n  상담 시간: ${consultTime}\n\n■ 입금 안내\n  테스트 비용 10,000원을 아래 계좌로 입금해주세요.\n  입금자명에 학생 이름을 기재해주세요.\n\n감사합니다.\nNK Academy 드림`;
+    return `[NK Academy 상담 안내문]\n\n안녕하세요, ${b.parent_name} 학부모님.\nNK Academy에 관심을 가져주셔서 감사합니다.\n\n■ 학생 정보\n  학생명: ${b.student_name}\n  학교/학년: ${b.school || ""} ${b.grade || ""}\n  과목: ${subjectLabel}\n  현재 진도: ${b.progress || "미기재"}\n\n■ 테스트 안내\n  일시: ${b.booking_date} ${testTimeStr}\n  장소: NK Academy ${br?.label || ""}\n  테스트 비용: 10,000원\n\n■ 상담 안내\n  상담 유형: ${consultLabel}\n  상담 시간: ${consultTime}\n\n■ 입금 안내\n  테스트 비용 10,000원을 아래 계좌로 입금해주세요.\n  입금자명에 학생 이름을 기재해주세요.\n\n감사합니다.\nNK Academy 드림`;
   };
 
   const handleCopyNotice = (b: Booking) => {
@@ -323,7 +338,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               {ALL_HOURS.map((h) => (
                 <Fragment key={`${br.id}-${h}`}>
                   <div className="text-[10px] font-semibold text-slate-400 flex items-center justify-end pr-1">
-                    {h}:00
+                    {formatHourLabel(h)}
                   </div>
                   {dates.map((d) => {
                     const ds = fmt(d);
@@ -439,7 +454,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                     >
                       {b.consult_type === "inperson" ? "대면" : "유선"}
                     </span>
-                    <span className="text-[11px] text-slate-400">{b.booking_date} {b.booking_hour}:00</span>
+                    <span className="text-[11px] text-slate-400">{b.booking_date} {SAT_LABELS[b.booking_hour] ? SAT_LABELS[b.booking_hour] : `${b.booking_hour}:00`}</span>
                   </div>
                   <div className="flex gap-1.5 items-center">
                     <Button
@@ -491,7 +506,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                     { l: "과목", v: BOOKING_SUBJECTS.find((s) => s.id === b.subject)?.label || "-" },
                     { l: "진도", v: b.progress || "-" },
                     { l: "상담유형", v: b.consult_type === "inperson" ? "대면상담" : "유선상담" },
-                    { l: "테스트", v: `${b.booking_date} ${b.booking_hour}:00~${b.booking_hour + 1}:00` },
+                    { l: "테스트", v: `${b.booking_date} ${SAT_LABELS[b.booking_hour] || `${b.booking_hour}:00~${b.booking_hour + 1}:00`}` },
                     { l: "상태", v: b.paid ? "✓ 예약 확정" : "⏳ 대기 (미입금)" },
                   ].map((item) => (
                     <div key={item.l}>
@@ -537,8 +552,9 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
             const br = BRANCHES.find((x) => x.id === b.branch);
             const subjectLabel = BOOKING_SUBJECTS.find((s) => s.id === b.subject)?.label || "-";
             const consultLabel = b.consult_type === "inperson" ? "대면상담" : "유선상담";
+            const isSatSlot2 = !!SAT_LABELS[b.booking_hour];
             const consultTime = b.consult_type === "inperson"
-              ? `${b.booking_hour + 1}:00~${b.booking_hour + 1}:30`
+              ? (isSatSlot2 ? "테스트 후 30분" : `${b.booking_hour + 1}:00~${b.booking_hour + 1}:30`)
               : "별도 안내";
             return (
               <div className="space-y-4">
@@ -562,7 +578,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                   <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
                     <p className="font-bold text-emerald-700 text-xs mb-1">테스트 & 상담</p>
                     <p className="text-xs leading-loose">
-                      일시: <strong>{b.booking_date} {b.booking_hour}:00~{b.booking_hour + 1}:00</strong><br />
+                      일시: <strong>{b.booking_date} {SAT_LABELS[b.booking_hour] || `${b.booking_hour}:00~${b.booking_hour + 1}:00`}</strong><br />
                       장소: <strong>NK Academy {br?.label}</strong><br />
                       상담: <strong>{consultLabel} ({consultTime})</strong>
                     </p>

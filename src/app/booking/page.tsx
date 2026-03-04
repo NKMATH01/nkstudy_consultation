@@ -10,9 +10,16 @@ import { BRANCHES, BOOKING_SUBJECTS, BOOKING_GRADES } from "@/types";
 // ========== 유틸 ==========
 
 const HOURS_WEEKDAY = [15, 16, 17, 18, 19, 20];
-const HOURS_SAT = [13, 14, 15, 16];
-const ALL_HOURS = [13, 14, 15, 16, 17, 18, 19, 20];
+const HOURS_SAT = [1, 2, 3, 4];
+const ALL_HOURS = [...HOURS_SAT, ...HOURS_WEEKDAY];
 const DAYS_KR = ["일", "월", "화", "수", "목", "금", "토"];
+
+const SAT_LABELS: Record<number, string> = {
+  1: "1교시 (11:30~13:00)",
+  2: "2교시 (13:00~14:30)",
+  3: "3교시 (14:30~16:00)",
+  4: "4교시 (16:00~17:30)",
+};
 
 const CONSULT_TYPES = [
   { id: "phone", label: "유선상담", icon: "📞", desc: "별도 전화 상담 진행" },
@@ -169,9 +176,9 @@ export default function BookingPage() {
         <h2 className="text-xl font-extrabold text-slate-800">예약이 완료되었습니다</h2>
         <p className="text-sm text-slate-500 leading-relaxed">
           {br?.label} &middot; {selectedSlot?.date}<br />
-          테스트 {selectedSlot?.hour}:00~{(selectedSlot?.hour ?? 0) + 1}:00<br />
+          테스트 {selectedSlot?.hour && SAT_LABELS[selectedSlot.hour] ? SAT_LABELS[selectedSlot.hour] : `${selectedSlot?.hour}:00~${(selectedSlot?.hour ?? 0) + 1}:00`}<br />
           {consultType === "inperson"
-            ? `대면상담 ${selectedSlot?.hour}:30~${(selectedSlot?.hour ?? 0) + 1}:30`
+            ? (selectedSlot?.hour && SAT_LABELS[selectedSlot.hour] ? "대면상담 (테스트 후 30분)" : `대면상담 ${selectedSlot?.hour}:30~${(selectedSlot?.hour ?? 0) + 1}:30`)
             : "유선상담 (별도 안내)"}<br />
           <span className="text-slate-400">{studentName} ({school} {grade}) &middot; {subjectLabel}</span>
         </p>
@@ -358,7 +365,7 @@ export default function BookingPage() {
               {ALL_HOURS.map((h) => (
                 <Fragment key={h}>
                   <div className="text-[10px] font-semibold text-slate-400 flex items-center justify-end pr-1">
-                    {h}:00
+                    {SAT_LABELS[h] ? SAT_LABELS[h].split(" ")[0] : `${h}:00`}
                   </div>
                   {dates.map((d) => {
                     const ds = fmt(d);
@@ -398,8 +405,8 @@ export default function BookingPage() {
 
           {selectedSlot && (
             <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm font-semibold text-indigo-600">
-              ✓ 테스트 {selectedSlot.hour}:00~{selectedSlot.hour + 1}:00
-              {consultType === "inperson" && ` → 상담 ${selectedSlot.hour}:30~${selectedSlot.hour + 1}:30`}
+              ✓ 테스트 {SAT_LABELS[selectedSlot.hour] || `${selectedSlot.hour}:00~${selectedSlot.hour + 1}:00`}
+              {consultType === "inperson" && (SAT_LABELS[selectedSlot.hour] ? " → 테스트 후 30분 상담" : ` → 상담 ${selectedSlot.hour}:30~${selectedSlot.hour + 1}:30`)}
             </div>
           )}
 

@@ -158,6 +158,26 @@ export async function getConsultation(
   return data as Consultation;
 }
 
+export async function getConsultationByName(
+  name: string
+): Promise<Consultation | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("consultations")
+    .select("*")
+    .eq("name", name)
+    .order("consult_date", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as Consultation;
+}
+
 export async function createConsultation(formData: FormData) {
   try {
     const supabase = await createClient();

@@ -3,7 +3,7 @@
 import { useState, useTransition, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { Plus, ClipboardList, Search, Sparkles, Brain, Trash2, Loader2, FileCheck } from "lucide-react";
+import { Plus, ClipboardList, Search, Sparkles, Brain, Trash2, Loader2, FileCheck, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +21,11 @@ import { SurveyPreviewDialog } from "@/components/surveys/survey-preview-dialog"
 import { toast } from "sonner";
 import { analyzeSurvey, reAnalyzeSurvey } from "@/lib/actions/analysis";
 import { deleteSurvey } from "@/lib/actions/survey";
-import { updateRegistrationInfo } from "@/lib/actions/consultation";
+import { updateRegistrationInfo, getConsultationByName } from "@/lib/actions/consultation";
 import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
-import type { Survey, Class, Teacher } from "@/types";
+import { ConsultationRecordDialog } from "@/components/surveys/consultation-record-dialog";
+import type { Survey, Class, Teacher, Consultation } from "@/types";
 import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
 import type { ResultStatus } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
@@ -87,8 +88,28 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [regForm, setRegForm] = useState({ plan_date: "", plan_class: "", deposit: false });
   const [isRegistering, setIsRegistering] = useState(false);
 
+  // 상담기록 다이얼로그 상태
+  const [recordTarget, setRecordTarget] = useState<{ survey: Survey; consultation: Consultation } | null>(null);
+  const [recordLoading, setRecordLoading] = useState<string | null>(null);
+
   // 등록 안내문 생성 다이얼로그 상태
   const [regFormTarget, setRegFormTarget] = useState<{ analysisId: string; grade: string | null } | null>(null);
+
+  const handleOpenRecord = async (survey: Survey) => {
+    setRecordLoading(survey.id);
+    try {
+      const consultation = await getConsultationByName(survey.name);
+      if (!consultation) {
+        toast.error("해당 학생의 상담 기록이 없습니다");
+        return;
+      }
+      setRecordTarget({ survey, consultation });
+    } catch {
+      toast.error("상담 정보를 불러오는데 실패했습니다");
+    } finally {
+      setRecordLoading(null);
+    }
+  };
 
   const handleGenerateRegistration = async (data: RegistrationAdminFormData) => {
     if (!regFormTarget) return;
@@ -315,7 +336,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               <div className="flex-1 hidden md:block">6-Factor</div>
               <div className="w-[50px] text-center">분석</div>
               <div className="w-[80px] text-center">등록</div>
-              <div className="w-[180px] text-center">액션</div>
+              <div className="w-[210px] text-center">액션</div>
             </div>
             {/* Rows */}
             {initialData.map((item) => {
@@ -376,7 +397,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                       <option value="other">미등록</option>
                     </select>
                   </div>
-                  <div className="w-[180px] flex items-center justify-end gap-1">
+                  <div className="w-[210px] flex items-center justify-end gap-1">
                     {/* 등록 안내문 생성/보기 */}
                     {hasAnalysis && (
                       <button
@@ -395,6 +416,19 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                         {regId ? "안내문" : "안내문"}
                       </button>
                     )}
+                    {/* 상담기록 */}
+                    <button
+                      onClick={() => handleOpenRecord(item)}
+                      disabled={recordLoading === item.id}
+                      className="px-2 py-1 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                      title="상담기록"
+                    >
+                      {recordLoading === item.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FileEdit className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                     {/* 설문지 보기 */}
                     <button
                       onClick={() => setPreviewSurvey(item)}
@@ -505,6 +539,17 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 상담기록 다이얼로그 */}
+      {recordTarget && (
+        <ConsultationRecordDialog
+          survey={recordTarget.survey}
+          consultation={recordTarget.consultation}
+          open={!!recordTarget}
+          onOpenChange={(open) => { if (!open) setRecordTarget(null); }}
+          classes={classes}
+        />
+      )}
 
       {/* 등록 안내문 생성 다이얼로그 */}
       {regFormTarget && (

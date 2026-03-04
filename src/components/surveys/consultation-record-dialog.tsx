@@ -90,7 +90,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0 gap-0">
+      <DialogContent className="!max-w-[95vw] w-[95vw] max-h-[90vh] overflow-hidden p-0 gap-0">
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-slate-100">
           <DialogTitle className="text-lg font-extrabold" style={{ color: "#0F172A" }}>
             {survey.name} - 상담 기록지

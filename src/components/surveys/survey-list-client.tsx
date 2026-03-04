@@ -364,36 +364,23 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         <>
           <div className="bg-white rounded-2xl border border-[#f1f5f9] overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
             {/* Header */}
-            <div className="hidden lg:grid grid-cols-[60px_70px_90px_50px_110px_110px_40px_50px_minmax(120px,1fr)] items-center px-4 py-2 text-[10px] font-semibold text-slate-400 bg-[#f8fafc] border-b border-slate-100">
-              <div>등록일</div>
-              <div>이름</div>
-              <div>학교</div>
-              <div className="text-center">과목</div>
-              <div>학생연락처</div>
-              <div>학부모연락처</div>
-              <div className="text-center">분석</div>
-              <div className="text-center">등록</div>
-              <div className="text-right pr-2">액션</div>
-            </div>
-            {/* md Header */}
-            <div className="hidden md:grid lg:hidden grid-cols-[60px_70px_90px_50px_40px_50px_minmax(100px,1fr)] items-center px-4 py-2 text-[10px] font-semibold text-slate-400 bg-[#f8fafc] border-b border-slate-100">
-              <div>등록일</div>
-              <div>이름</div>
-              <div>학교</div>
-              <div className="text-center">과목</div>
-              <div className="text-center">분석</div>
-              <div className="text-center">등록</div>
-              <div className="text-right pr-2">액션</div>
-            </div>
-            {/* sm Header */}
-            <div className="grid md:hidden grid-cols-[50px_60px_1fr_40px_50px] items-center px-3 py-2 text-[10px] font-semibold text-slate-400 bg-[#f8fafc] border-b border-slate-100">
-              <div>날짜</div>
-              <div>이름</div>
-              <div>학교</div>
-              <div className="text-center">분석</div>
-              <div className="text-center">등록</div>
+            <div className="flex items-center px-3 py-2 text-[9px] font-semibold text-slate-400 uppercase tracking-wide bg-[#f8fafc] border-b border-slate-100 min-w-[900px]">
+              <div className="w-[50px]">날짜</div>
+              <div className="w-[56px]">이름</div>
+              <div className="w-[76px]">학교</div>
+              <div className="w-[36px] text-center">과목</div>
+              <div className="w-[92px]">학생전화</div>
+              <div className="w-[92px]">학부모전화</div>
+              <div className="w-[34px] text-center">테스트</div>
+              {FACTOR_KEYS.map((key) => (
+                <div key={key} className="w-[30px] text-center">{SHORT_LABELS[key]}</div>
+              ))}
+              <div className="w-[32px] text-center">분석</div>
+              <div className="w-[42px] text-center">등록</div>
+              <div className="flex-1 text-right pr-1">액션</div>
             </div>
             {/* Rows */}
+            <div className="overflow-x-auto">
             {initialData.map((item) => {
               const analysis = analysisMap.get(item.id);
               const hasAnalysis = !!item.analysis_id || !!analysis;
@@ -402,182 +389,86 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               const nameHref = hasAnalysis ? `/analyses/${analysisId}` : `/surveys/${item.id}`;
               const regId = analysisId ? registrationMap.get(analysisId) : undefined;
               const consultStatus = consultationStatusMap.get(item.name) || "none";
-              const hasFactors = FACTOR_KEYS.some((key) => item[`factor_${key}` as keyof Survey] != null);
 
               return (
-                <div key={item.id} className={`border-b border-slate-50 hover:bg-[#F8FAFC] transition-colors ${isPending ? "opacity-50" : ""}`}>
-                  {/* Row 1 - lg */}
-                  <div className="hidden lg:grid grid-cols-[60px_70px_90px_50px_110px_110px_40px_50px_minmax(120px,1fr)] items-center px-4 py-2">
-                    <div className="text-[11px] text-slate-500">
-                      {format(new Date(item.created_at), "MM-dd")}
-                    </div>
-                    <div>
-                      <Link href={nameHref} className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 hover:underline">
-                        {item.name}
-                      </Link>
-                    </div>
-                    <div className="text-[11px] text-slate-500 truncate">
-                      {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
-                    </div>
-                    <div className="text-center">
-                      {subjectMap.get(item.name) ? (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">{subjectMap.get(item.name)}</span>
-                      ) : <span className="text-[10px] text-slate-200">-</span>}
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      {formatPhone(item.student_phone) || <span className="text-slate-200">-</span>}
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      {formatPhone(item.parent_phone) || <span className="text-slate-200">-</span>}
-                    </div>
-                    <div className="text-center">
-                      {hasAnalysis ? (
-                        <Badge className="text-[9px] px-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">완료</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[9px] px-1">대기</Badge>
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <select
-                        value={consultStatus}
-                        onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)}
-                        className={`text-[9px] font-semibold rounded-md border-0 py-0.5 px-1 cursor-pointer outline-none ${
-                          consultStatus === "registered" ? "bg-red-500 text-white" :
-                          consultStatus === "hold" ? "bg-amber-400 text-white" :
-                          consultStatus === "other" ? "bg-neutral-500 text-white" :
-                          "bg-slate-100 text-slate-400"
-                        }`}
-                      >
-                        <option value="none">-</option>
-                        <option value="registered">등록</option>
-                        <option value="hold">고민중</option>
-                        <option value="other">미등록</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      {hasAnalysis && (
-                        <button
-                          onClick={async () => {
-                            if (regId) {
-                              router.push(`/registrations/${regId}`);
-                            } else {
-                              const consultation = await getConsultationByName(item.name);
-                              setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null });
-                            }
-                          }}
-                          className={`px-2 py-1 rounded-md text-[10px] font-semibold transition-colors ${
-                            regId ? "bg-teal-500 text-white hover:bg-teal-600" : "bg-teal-50 text-teal-600 hover:bg-teal-100"
-                          }`}
-                          title={regId ? "등록 안내문 보기" : "등록 안내문 생성"}
-                        >
-                          안내문
-                        </button>
-                      )}
-                      <button onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="px-1.5 py-1 rounded-md text-[10px] bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors disabled:opacity-50" title="상담기록">
-                        {recordLoading === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileEdit className="h-3.5 w-3.5" />}
-                      </button>
-                      <button onClick={() => setPreviewSurvey(item)} className="px-1.5 py-1 rounded-md text-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors" title="설문지 보기">
-                        <ClipboardList className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => handleViewReport(item.id)} disabled={!analysis?.report_html} className="px-1.5 py-1 rounded-md text-[10px] bg-violet-50 text-violet-600 hover:bg-violet-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="분석 결과지">
-                        <Sparkles className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="px-1.5 py-1 rounded-md text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "성향분석"}>
-                        {isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
-                      </button>
-                      <button onClick={() => setDeleteTarget(item)} className="px-1.5 py-1 rounded-md text-[10px] bg-red-50 text-red-500 hover:bg-red-100 transition-colors" title="삭제">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                <div
+                  key={item.id}
+                  className={`flex items-center px-3 py-1.5 border-b border-slate-50 hover:bg-[#F8FAFC] transition-colors min-w-[900px] ${isPending ? "opacity-50" : ""}`}
+                >
+                  <div className="w-[50px] text-[10px] text-slate-400">{format(new Date(item.created_at), "MM-dd")}</div>
+                  <div className="w-[56px]">
+                    <Link href={nameHref} className="text-[11px] font-semibold text-slate-800 hover:text-blue-600 hover:underline">{item.name}</Link>
                   </div>
-
-                  {/* Row 1 - md only */}
-                  <div className="hidden md:grid lg:hidden grid-cols-[60px_70px_90px_50px_40px_50px_minmax(100px,1fr)] items-center px-4 py-2">
-                    <div className="text-[11px] text-slate-500">{format(new Date(item.created_at), "MM-dd")}</div>
-                    <div><Link href={nameHref} className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 hover:underline">{item.name}</Link></div>
-                    <div className="text-[11px] text-slate-500 truncate">{[item.school, item.grade].filter(Boolean).join(" ") || "-"}</div>
-                    <div className="text-center">
-                      {subjectMap.get(item.name) ? (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">{subjectMap.get(item.name)}</span>
-                      ) : <span className="text-[10px] text-slate-200">-</span>}
-                    </div>
-                    <div className="text-center">
-                      {hasAnalysis ? <Badge className="text-[9px] px-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">완료</Badge> : <Badge variant="secondary" className="text-[9px] px-1">대기</Badge>}
-                    </div>
-                    <div className="text-center">
-                      <select value={consultStatus} onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)} className={`text-[9px] font-semibold rounded-md border-0 py-0.5 px-1 cursor-pointer outline-none ${consultStatus === "registered" ? "bg-red-500 text-white" : consultStatus === "hold" ? "bg-amber-400 text-white" : consultStatus === "other" ? "bg-neutral-500 text-white" : "bg-slate-100 text-slate-400"}`}>
-                        <option value="none">-</option>
-                        <option value="registered">등록</option>
-                        <option value="hold">고민중</option>
-                        <option value="other">미등록</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      {hasAnalysis && (
-                        <button onClick={async () => { if (regId) { router.push(`/registrations/${regId}`); } else { const consultation = await getConsultationByName(item.name); setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null }); } }} className={`px-2 py-1 rounded-md text-[10px] font-semibold transition-colors ${regId ? "bg-teal-500 text-white hover:bg-teal-600" : "bg-teal-50 text-teal-600 hover:bg-teal-100"}`} title={regId ? "안내문 보기" : "안내문 생성"}>안내문</button>
-                      )}
-                      <button onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="px-1.5 py-1 rounded-md bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors disabled:opacity-50" title="상담기록">{recordLoading === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileEdit className="h-3.5 w-3.5" />}</button>
-                      <button onClick={() => setPreviewSurvey(item)} className="px-1.5 py-1 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors" title="설문지"><ClipboardList className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => handleViewReport(item.id)} disabled={!analysis?.report_html} className="px-1.5 py-1 rounded-md bg-violet-50 text-violet-600 hover:bg-violet-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지"><Sparkles className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="px-1.5 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "분석"}>{isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}</button>
-                      <button onClick={() => setDeleteTarget(item)} className="px-1.5 py-1 rounded-md bg-red-50 text-red-500 hover:bg-red-100 transition-colors" title="삭제"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
+                  <div className="w-[76px] text-[10px] text-slate-500 truncate">{[item.school, item.grade].filter(Boolean).join(" ") || "-"}</div>
+                  <div className="w-[36px] text-center">
+                    {subjectMap.get(item.name) ? (
+                      <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-50 text-blue-600">{subjectMap.get(item.name)}</span>
+                    ) : <span className="text-[9px] text-slate-200">-</span>}
                   </div>
-
-                  {/* Row 1 - sm only */}
-                  <div className="grid md:hidden grid-cols-[50px_60px_1fr_40px_50px] items-center px-3 py-2">
-                    <div className="text-[10px] text-slate-500">{format(new Date(item.created_at), "MM-dd")}</div>
-                    <div><Link href={nameHref} className="text-[12px] font-semibold text-slate-800 hover:text-blue-600 hover:underline">{item.name}</Link></div>
-                    <div className="text-[10px] text-slate-500 truncate">{[item.school, item.grade].filter(Boolean).join(" ") || "-"}</div>
-                    <div className="text-center">{hasAnalysis ? <Badge className="text-[8px] px-1 bg-emerald-100 text-emerald-700 border-0">완료</Badge> : <Badge variant="secondary" className="text-[8px] px-1">대기</Badge>}</div>
-                    <div className="text-center">
-                      <select value={consultStatus} onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)} className={`text-[8px] font-semibold rounded-md border-0 py-0.5 px-0.5 cursor-pointer outline-none ${consultStatus === "registered" ? "bg-red-500 text-white" : consultStatus === "hold" ? "bg-amber-400 text-white" : consultStatus === "other" ? "bg-neutral-500 text-white" : "bg-slate-100 text-slate-400"}`}>
-                        <option value="none">-</option>
-                        <option value="registered">등록</option>
-                        <option value="hold">고민중</option>
-                        <option value="other">미등록</option>
-                      </select>
-                    </div>
-                  </div>
-                  {/* sm actions */}
-                  <div className="flex md:hidden items-center justify-end gap-1 px-3 pb-2">
-                    {hasAnalysis && (
-                      <button onClick={async () => { if (regId) { router.push(`/registrations/${regId}`); } else { const consultation = await getConsultationByName(item.name); setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null }); } }} className={`px-2 py-1 rounded-md text-[9px] font-semibold transition-colors ${regId ? "bg-teal-500 text-white" : "bg-teal-50 text-teal-600"}`}>안내문</button>
+                  <div className="w-[92px] text-[10px] text-slate-600">{formatPhone(item.student_phone) || <span className="text-slate-200">-</span>}</div>
+                  <div className="w-[92px] text-[10px] text-slate-400">{formatPhone(item.parent_phone) || <span className="text-slate-200">-</span>}</div>
+                  <div className="w-[34px] text-center text-[10px] font-medium text-slate-600">{testScoreMap.get(item.name) || <span className="text-slate-200">-</span>}</div>
+                  {FACTOR_KEYS.map((key) => {
+                    const val = item[`factor_${key}` as keyof Survey] as number | null;
+                    if (val == null) return <div key={key} className="w-[30px] text-center text-[9px] text-slate-200">-</div>;
+                    const color = val >= 4 ? "text-emerald-600" : val >= 3 ? "text-amber-600" : "text-red-500";
+                    return <div key={key} className={`w-[30px] text-center text-[10px] font-bold ${color}`}>{val.toFixed(1)}</div>;
+                  })}
+                  <div className="w-[32px] text-center">
+                    {hasAnalysis ? (
+                      <span className="text-[8px] font-bold text-emerald-600">완료</span>
+                    ) : (
+                      <span className="text-[8px] text-slate-300">대기</span>
                     )}
-                    <button onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="px-1.5 py-1 rounded-md bg-amber-50 text-amber-600 disabled:opacity-50"><FileEdit className="h-3 w-3" /></button>
-                    <button onClick={() => setPreviewSurvey(item)} className="px-1.5 py-1 rounded-md bg-slate-100 text-slate-600"><ClipboardList className="h-3 w-3" /></button>
-                    <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="px-1.5 py-1 rounded-md bg-blue-50 text-blue-600 disabled:opacity-50">{isAnalyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}</button>
-                    <button onClick={() => setDeleteTarget(item)} className="px-1.5 py-1 rounded-md bg-red-50 text-red-500"><Trash2 className="h-3 w-3" /></button>
                   </div>
-
-                  {/* Row 2 - 테스트 + 학습 성향 */}
-                  {(hasFactors || testScoreMap.has(item.name)) && (
-                    <div className="flex items-center gap-3 px-4 pb-2 md:pl-[134px] lg:pl-[134px]">
-                      {testScoreMap.has(item.name) && (
-                        <span className="text-[10px] text-slate-500">
-                          <span className="text-slate-400">테스트</span> <span className="font-semibold text-slate-700">{testScoreMap.get(item.name)}</span>
-                        </span>
-                      )}
-                      {hasFactors && (
-                        <div className="flex items-center gap-2">
-                          {FACTOR_KEYS.map((key) => {
-                            const val = item[`factor_${key}` as keyof Survey] as number | null;
-                            if (val == null) return null;
-                            const color = val >= 4 ? "text-emerald-600" : val >= 3 ? "text-amber-600" : "text-red-500";
-                            return (
-                              <span key={key} className="text-[10px]">
-                                <span className="text-slate-400">{SHORT_LABELS[key]}</span>{" "}
-                                <span className={`font-bold ${color}`}>{val.toFixed(1)}</span>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="w-[42px] text-center">
+                    <select
+                      value={consultStatus}
+                      onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)}
+                      className={`text-[8px] font-semibold rounded border-0 py-0.5 px-0.5 cursor-pointer outline-none ${
+                        consultStatus === "registered" ? "bg-red-500 text-white" :
+                        consultStatus === "hold" ? "bg-amber-400 text-white" :
+                        consultStatus === "other" ? "bg-neutral-500 text-white" :
+                        "bg-slate-100 text-slate-300"
+                      }`}
+                    >
+                      <option value="none">-</option>
+                      <option value="registered">등록</option>
+                      <option value="hold">고민중</option>
+                      <option value="other">미등록</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 flex items-center justify-end gap-0.5">
+                    {hasAnalysis && (
+                      <button
+                        onClick={async () => {
+                          if (regId) { router.push(`/registrations/${regId}`); }
+                          else { const consultation = await getConsultationByName(item.name); setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null }); }
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-semibold transition-colors ${regId ? "bg-teal-500 text-white hover:bg-teal-600" : "bg-teal-50 text-teal-600 hover:bg-teal-100"}`}
+                        title={regId ? "안내문 보기" : "안내문 생성"}
+                      >안내문</button>
+                    )}
+                    <button onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="p-1 rounded text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50" title="상담기록">
+                      {recordLoading === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileEdit className="h-3 w-3" />}
+                    </button>
+                    <button onClick={() => setPreviewSurvey(item)} className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-colors" title="설문지">
+                      <ClipboardList className="h-3 w-3" />
+                    </button>
+                    <button onClick={() => handleViewReport(item.id)} disabled={!analysis?.report_html} className="p-1 rounded text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
+                      <Sparkles className="h-3 w-3" />
+                    </button>
+                    <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="p-1 rounded text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "분석"}>
+                      {isAnalyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
+                    </button>
+                    <button onClick={() => setDeleteTarget(item)} className="p-1 rounded text-red-400 hover:bg-red-50 transition-colors" title="삭제">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
+            </div>
           </div>
 
           {/* Pagination */}

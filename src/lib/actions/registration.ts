@@ -391,6 +391,8 @@ export async function generateRegistration(
     teacher: adminFormData.teacher,
     assigned_class_2: adminFormData.assigned_class_2 || null,
     teacher_2: adminFormData.teacher_2 || null,
+    assigned_class_math2: adminFormData.assigned_class_math2 || null,
+    teacher_math2: adminFormData.teacher_math2 || null,
     subject: adminFormData.subject,
     preferred_days: adminFormData.preferred_days,
     use_vehicle: adminFormData.use_vehicle || null,
@@ -533,6 +535,7 @@ export async function regenerateRegistration(id: string) {
 
   // 4. 반 시간표 정보 조회 (DB 컬럼: description→class_days, is_active→active)
   let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+  let classInfoMath2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
   let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
 
   if (registration.assigned_class) {
@@ -544,6 +547,18 @@ export async function regenerateRegistration(id: string) {
     if (cls) {
       const raw = cls as Record<string, unknown>;
       classInfo = { class_days: raw.description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time, weekly_test_time: raw.weekly_test_time as string | null };
+    }
+  }
+
+  if (registration.assigned_class_math2) {
+    const { data: clsMath2 } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", registration.assigned_class_math2)
+      .single();
+    if (clsMath2) {
+      const rawMath2 = clsMath2 as Record<string, unknown>;
+      classInfoMath2 = { class_days: rawMath2.description as string | null, class_time: clsMath2.class_time, clinic_time: clsMath2.clinic_time, weekly_test_time: rawMath2.weekly_test_time as string | null };
     }
   }
 
@@ -565,6 +580,8 @@ export async function regenerateRegistration(id: string) {
     registrationDate: registration.registration_date || "",
     assignedClass: registration.assigned_class || "",
     teacher: registration.teacher || "",
+    assignedClassMath2: registration.assigned_class_math2 || undefined,
+    teacherMath2: registration.teacher_math2 || undefined,
     assignedClass2: registration.assigned_class_2 || undefined,
     teacher2: registration.teacher_2 || undefined,
     subject: registration.subject || "",
@@ -603,6 +620,8 @@ export async function regenerateRegistration(id: string) {
     registrationDate: registration.registration_date || "",
     assignedClass: registration.assigned_class || "",
     teacher: registration.teacher || "",
+    assignedClassMath2: registration.assigned_class_math2 || undefined,
+    teacherMath2: registration.teacher_math2 || undefined,
     assignedClass2: registration.assigned_class_2 || undefined,
     teacher2: registration.teacher_2 || undefined,
     subject: registration.subject || "",
@@ -618,7 +637,6 @@ export async function regenerateRegistration(id: string) {
       sixFactorScores: page1Data.sixFactorScores || undefined,
       tendencyAnalysis: page1Data.tendencyAnalysis || [],
       managementGuide: page1Data.managementGuide || [],
-
       actionChecklist: page1Data.actionChecklist || [],
     },
     page2: {
@@ -632,6 +650,8 @@ export async function regenerateRegistration(id: string) {
     ...(() => {
       const classSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.class_time);
       const clinicSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.clinic_time);
+      const classScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.class_time);
+      const clinicScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.clinic_time);
       const classSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.class_time);
       const clinicSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.clinic_time);
       return {
@@ -640,6 +660,11 @@ export async function regenerateRegistration(id: string) {
         clinicTime: clinicSchedule?.time || undefined,
         testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
         testTime: parseFirstTime(classInfo?.weekly_test_time),
+        classDaysMath2: classScheduleMath2?.days || undefined,
+        classTimeMath2: classScheduleMath2?.time || undefined,
+        clinicTimeMath2: clinicScheduleMath2?.time || undefined,
+        testDaysMath2: parseTestDaysFromClass(classInfoMath2?.class_days, classInfoMath2?.weekly_test_time),
+        testTimeMath2: parseFirstTime(classInfoMath2?.weekly_test_time),
         classDays2: classSchedule2?.days || undefined,
         classTime2: classSchedule2?.time || undefined,
         clinicTime2: clinicSchedule2?.time || undefined,
@@ -687,8 +712,10 @@ export async function updateRegistrationFields(
     registration_date?: string;
     assigned_class?: string;
     assigned_class_2?: string;
+    assigned_class_math2?: string;
     teacher?: string;
     teacher_2?: string;
+    teacher_math2?: string;
     subject?: string;
     tuition_fee?: number;
   }
@@ -713,8 +740,10 @@ export async function updateRegistrationFields(
   if (fields.registration_date !== undefined) updateData.registration_date = fields.registration_date || null;
   if (fields.assigned_class !== undefined) updateData.assigned_class = fields.assigned_class || null;
   if (fields.assigned_class_2 !== undefined) updateData.assigned_class_2 = fields.assigned_class_2 || null;
+  if (fields.assigned_class_math2 !== undefined) updateData.assigned_class_math2 = fields.assigned_class_math2 || null;
   if (fields.teacher !== undefined) updateData.teacher = fields.teacher || null;
   if (fields.teacher_2 !== undefined) updateData.teacher_2 = fields.teacher_2 || null;
+  if (fields.teacher_math2 !== undefined) updateData.teacher_math2 = fields.teacher_math2 || null;
   if (fields.subject !== undefined) updateData.subject = fields.subject || null;
   if (fields.tuition_fee !== undefined) updateData.tuition_fee = fields.tuition_fee;
 
@@ -769,9 +798,11 @@ export async function updateRegistrationFields(
 
   // 반 시간표 조회
   let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+  let classInfoMath2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
   let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
 
   const assignedClass = (merged.assigned_class as string) || null;
+  const assignedClassMath2 = (merged.assigned_class_math2 as string) || null;
   const assignedClass2 = (merged.assigned_class_2 as string) || null;
   const mergedSubject = (merged.subject as string) || null;
 
@@ -784,6 +815,18 @@ export async function updateRegistrationFields(
     if (cls) {
       const raw = cls as Record<string, unknown>;
       classInfo = { class_days: raw.description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time, weekly_test_time: raw.weekly_test_time as string | null };
+    }
+  }
+
+  if (assignedClassMath2) {
+    const { data: clsMath2 } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", assignedClassMath2)
+      .single();
+    if (clsMath2) {
+      const rawMath2 = clsMath2 as Record<string, unknown>;
+      classInfoMath2 = { class_days: rawMath2.description as string | null, class_time: clsMath2.class_time, clinic_time: clsMath2.clinic_time, weekly_test_time: rawMath2.weekly_test_time as string | null };
     }
   }
 
@@ -813,6 +856,8 @@ export async function updateRegistrationFields(
     registrationDate: (merged.registration_date as string) || "",
     assignedClass: assignedClass || "",
     teacher: (merged.teacher as string) || "",
+    assignedClassMath2: assignedClassMath2 || undefined,
+    teacherMath2: (merged.teacher_math2 as string) || undefined,
     assignedClass2: assignedClass2 || undefined,
     teacher2: (merged.teacher_2 as string) || undefined,
     subject: mergedSubject || "",
@@ -841,6 +886,8 @@ export async function updateRegistrationFields(
     ...(() => {
       const classSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.class_time);
       const clinicSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.clinic_time);
+      const classScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.class_time);
+      const clinicScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.clinic_time);
       const classSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.class_time);
       const clinicSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.clinic_time);
       return {
@@ -849,6 +896,11 @@ export async function updateRegistrationFields(
         clinicTime: clinicSchedule?.time || undefined,
         testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
         testTime: parseFirstTime(classInfo?.weekly_test_time),
+        classDaysMath2: classScheduleMath2?.days || undefined,
+        classTimeMath2: classScheduleMath2?.time || undefined,
+        clinicTimeMath2: clinicScheduleMath2?.time || undefined,
+        testDaysMath2: parseTestDaysFromClass(classInfoMath2?.class_days, classInfoMath2?.weekly_test_time),
+        testTimeMath2: parseFirstTime(classInfoMath2?.weekly_test_time),
         classDays2: classSchedule2?.days || undefined,
         classTime2: classSchedule2?.time || undefined,
         clinicTime2: clinicSchedule2?.time || undefined,

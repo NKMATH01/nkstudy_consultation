@@ -276,6 +276,8 @@ export interface Registration {
   teacher: string | null;
   assigned_class_2: string | null;
   teacher_2: string | null;
+  assigned_class_math2: string | null;
+  teacher_math2: string | null;
   subject: string | null;
   preferred_days: string | null;
   use_vehicle: string | null;

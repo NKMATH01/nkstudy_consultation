@@ -158,6 +158,13 @@ export async function generateRegistration(
     math_class_days?: string;
     math_class_time: string;
     math_clinic_time: string;
+    assigned_class_math2?: string;
+    teacher_math2?: string;
+    math2_class_days?: string;
+    math2_class_time?: string;
+    math2_clinic_time?: string;
+    math2_test_days?: string;
+    math2_test_time?: string;
     assigned_class_2?: string;
     teacher_2?: string;
     eng_class_days?: string;
@@ -216,6 +223,7 @@ export async function generateRegistration(
 
   // 4. 반 시간표 정보 (폼에서 이미 파싱된 데이터 사용, 폴백으로 DB 조회)
   let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null; test_days: string | null; test_time: string | null } | null = null;
+  let classInfoMath2: { class_days: string | null; class_time: string | null; clinic_time: string | null; test_days: string | null; test_time: string | null } | null = null;
   let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null; test_days: string | null; test_time: string | null } | null = null;
 
   if (adminFormData.assigned_class) {
@@ -227,6 +235,18 @@ export async function generateRegistration(
     if (cls) {
       const raw = cls as Record<string, unknown>;
       classInfo = { class_days: raw.description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time, test_days: null, test_time: raw.weekly_test_time as string | null };
+    }
+  }
+
+  if (adminFormData.assigned_class_math2) {
+    const { data: clsMath2 } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", adminFormData.assigned_class_math2)
+      .single();
+    if (clsMath2) {
+      const rawMath2 = clsMath2 as Record<string, unknown>;
+      classInfoMath2 = { class_days: rawMath2.description as string | null, class_time: clsMath2.class_time, clinic_time: clsMath2.clinic_time, test_days: null, test_time: rawMath2.weekly_test_time as string | null };
     }
   }
 
@@ -248,6 +268,8 @@ export async function generateRegistration(
     registrationDate: adminFormData.registration_date,
     assignedClass: adminFormData.assigned_class,
     teacher: adminFormData.teacher,
+    assignedClassMath2: adminFormData.assigned_class_math2 || undefined,
+    teacherMath2: adminFormData.teacher_math2 || undefined,
     assignedClass2: adminFormData.assigned_class_2 || undefined,
     teacher2: adminFormData.teacher_2 || undefined,
     subject: adminFormData.subject,
@@ -286,6 +308,8 @@ export async function generateRegistration(
     registrationDate: adminFormData.registration_date,
     assignedClass: adminFormData.assigned_class,
     teacher: adminFormData.teacher,
+    assignedClassMath2: adminFormData.assigned_class_math2 || undefined,
+    teacherMath2: adminFormData.teacher_math2 || undefined,
     assignedClass2: adminFormData.assigned_class_2 || undefined,
     teacher2: adminFormData.teacher_2 || undefined,
     subject: adminFormData.subject,
@@ -315,6 +339,8 @@ export async function generateRegistration(
     ...(() => {
       const classSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.class_time);
       const clinicSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.clinic_time);
+      const classScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.class_time);
+      const clinicScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.clinic_time);
       const classSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.class_time);
       const clinicSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.clinic_time);
       return {
@@ -323,6 +349,11 @@ export async function generateRegistration(
         clinicTime: adminFormData.math_clinic_time && adminFormData.math_clinic_time !== "N/A" ? adminFormData.math_clinic_time : clinicSchedule?.time || undefined,
         testDays: adminFormData.math_test_days || parseTestDaysFromClass(classInfo?.class_days, classInfo?.test_time) || undefined,
         testTime: adminFormData.math_test_time || parseFirstTime(classInfo?.test_time) || undefined,
+        classDaysMath2: adminFormData.math2_class_days || classScheduleMath2?.days || undefined,
+        classTimeMath2: adminFormData.math2_class_time || classScheduleMath2?.time || undefined,
+        clinicTimeMath2: adminFormData.math2_clinic_time || clinicScheduleMath2?.time || undefined,
+        testDaysMath2: adminFormData.math2_test_days || parseTestDaysFromClass(classInfoMath2?.class_days, classInfoMath2?.test_time) || undefined,
+        testTimeMath2: adminFormData.math2_test_time || parseFirstTime(classInfoMath2?.test_time) || undefined,
         classDays2: adminFormData.eng_class_days || classSchedule2?.days || adminFormData.preferred_days || undefined,
         classTime2: adminFormData.eng_class_time || classSchedule2?.time || undefined,
         clinicTime2: adminFormData.eng_clinic_time || clinicSchedule2?.time || undefined,

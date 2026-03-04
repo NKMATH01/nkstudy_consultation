@@ -241,6 +241,8 @@ export function RegistrationForm({
   const [manualFee, setManualFee] = useState(false);
   const [customEngClass, setCustomEngClass] = useState(false);
   const [customEngTeacher, setCustomEngTeacher] = useState(false);
+  const [showMath2, setShowMath2] = useState(false);
+  const [math2MultiSet, setMath2MultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
   const [mathMultiSet, setMathMultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
   const [engMultiSet, setEngMultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
 
@@ -268,6 +270,13 @@ export function RegistrationForm({
       math_class_days: "",
       math_class_time: "",
       math_clinic_time: "",
+      assigned_class_math2: "",
+      teacher_math2: "",
+      math2_class_days: "",
+      math2_class_time: "",
+      math2_clinic_time: "",
+      math2_test_days: "",
+      math2_test_time: "",
       assigned_class_2: "",
       teacher_2: "",
       eng_class_days: "",
@@ -294,6 +303,7 @@ export function RegistrationForm({
   const hasEnglish = selectedSubject === "영어수학" || selectedSubject === "영어";
   const hasMath = selectedSubject === "영어수학" || selectedSubject === "수학";
   const isDoubleSubject = selectedSubject === "영어수학";
+  const canHaveMath2 = selectedGrade === "고2" || selectedGrade === "고3";
 
   const filteredClasses = useMemo(() => {
     if (!selectedGrade) return classes;
@@ -343,6 +353,9 @@ export function RegistrationForm({
     form.setValue("grade", value);
     form.setValue("assigned_class", "");
     form.setValue("teacher", "");
+    form.setValue("assigned_class_math2", "");
+    form.setValue("teacher_math2", "");
+    setShowMath2(false);
     form.setValue("assigned_class_2", "");
     form.setValue("teacher_2", "");
     autoCalcFee(value, selectedSubject || "");
@@ -391,10 +404,11 @@ export function RegistrationForm({
     };
   };
 
-  const updatePreferredDays = (mathAllDays?: string, engAllDays?: string) => {
+  const updatePreferredDays = (mathAllDays?: string, engAllDays?: string, math2AllDays?: string) => {
     const allDays = new Set<string>();
     for (const d of (mathAllDays || "")) allDays.add(d);
     for (const d of (engAllDays || "")) allDays.add(d);
+    for (const d of (math2AllDays || "")) allDays.add(d);
     const sorted = WEEKDAYS.filter((d) => allDays.has(d));
     form.setValue("preferred_days", sorted.join(""));
   };
@@ -417,8 +431,24 @@ export function RegistrationForm({
       setMathMultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
       form.setValue("math_test_days", sch.testDays);
       form.setValue("math_test_time", sch.testTime);
-      updatePreferredDays(sch.allDays, form.getValues("eng_class_days") || "");
+      updatePreferredDays(sch.allDays, form.getValues("eng_class_days") || "", form.getValues("math2_class_days") || "");
       if (selectedClass.location) form.setValue("location", selectedClass.location);
+    }
+  };
+
+  const handleClassMath2Change = (value: string) => {
+    form.setValue("assigned_class_math2", value);
+    const selectedClass = classes.find((c) => c.name === value);
+    if (selectedClass) {
+      if (selectedClass.teacher) form.setValue("teacher_math2", selectedClass.teacher);
+      const sch = parseClassSchedule(selectedClass);
+      if (sch.classDays) form.setValue("math2_class_days", sch.classDays);
+      form.setValue("math2_class_time", sch.classTime);
+      form.setValue("math2_clinic_time", sch.clinicTime);
+      setMath2MultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
+      form.setValue("math2_test_days", sch.testDays);
+      form.setValue("math2_test_time", sch.testTime);
+      updatePreferredDays(form.getValues("math_class_days") || "", form.getValues("eng_class_days") || "", sch.allDays);
     }
   };
 
@@ -440,7 +470,7 @@ export function RegistrationForm({
       setEngMultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
       form.setValue("eng_test_days", sch.testDays);
       form.setValue("eng_test_time", sch.testTime);
-      updatePreferredDays(form.getValues("math_class_days") || "", sch.allDays);
+      updatePreferredDays(form.getValues("math_class_days") || "", sch.allDays, form.getValues("math2_class_days") || "");
     }
   };
 
@@ -637,7 +667,7 @@ export function RegistrationForm({
                         value={field.value || ""}
                         onChange={(v) => {
                           field.onChange(v);
-                          updatePreferredDays(v, form.getValues("eng_class_days") || "");
+                          updatePreferredDays(v, form.getValues("eng_class_days") || "", form.getValues("math2_class_days") || "");
                         }}
                       />
                       <FormMessage />
@@ -691,6 +721,152 @@ export function RegistrationForm({
                       <span>{form.watch("math_test_time") || "-"}</span>
                     </div>
                   </div>
+                )}
+              </>
+            )}
+
+            {/* 수학 2반 배정 (고2/고3) */}
+            {hasMath && canHaveMath2 && (
+              <>
+                {!showMath2 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowMath2(true)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors py-1"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    수학 2반 추가 (고2/고3 복수 배정)
+                  </button>
+                ) : (
+                  <>
+                    <div className="border-t border-blue-100 pt-3 flex items-center justify-between">
+                      <p className="text-xs font-bold text-blue-500 mb-3">수학 2반</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMath2(false);
+                          form.setValue("assigned_class_math2", "");
+                          form.setValue("teacher_math2", "");
+                          form.setValue("math2_class_days", "");
+                          form.setValue("math2_class_time", "");
+                          form.setValue("math2_clinic_time", "");
+                          form.setValue("math2_test_days", "");
+                          form.setValue("math2_test_time", "");
+                          setMath2MultiSet({ classDisplay: "", clinicDisplay: "" });
+                        }}
+                        className="text-xs text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                      >
+                        <X className="h-3 w-3" />
+                        삭제
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="assigned_class_math2"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>수학 2반 *</FormLabel>
+                            <select
+                              value={form.watch("assigned_class_math2") || ""}
+                              onChange={(e) => handleClassMath2Change(e.target.value)}
+                              className={sel}
+                            >
+                              <option value="">반 선택</option>
+                              {mathFilteredClasses.map((c) => (
+                                <option key={c.id} value={c.name}>{c.name}</option>
+                              ))}
+                            </select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="teacher_math2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>수학 2반 담임</FormLabel>
+                            <select
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className={sel}
+                            >
+                              <option value="">선생님 선택</option>
+                              {mathTeachers.map((t) => (
+                                <option key={t.id} value={t.name}>{t.name}</option>
+                              ))}
+                            </select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="math2_class_days"
+                      render={({ field }) => (
+                        <FormItem>
+                          <DayCheckboxes
+                            label="수학 2반 수업 요일"
+                            color="blue"
+                            value={field.value || ""}
+                            onChange={(v) => {
+                              field.onChange(v);
+                              updatePreferredDays(form.getValues("math_class_days") || "", form.getValues("eng_class_days") || "", v);
+                            }}
+                          />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="math2_class_time"
+                        render={({ field }) => (
+                          <TimeRangeSelect
+                            label="수학 2반 수업 시간"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                          />
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="math2_clinic_time"
+                        render={({ field }) => (
+                          <TimeRangeSelect
+                            label="수학 2반 클리닉 시간"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+                    {(math2MultiSet.classDisplay || math2MultiSet.clinicDisplay) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs font-bold text-blue-700 mb-1.5">요일별 시간 (자동 반영)</p>
+                        {math2MultiSet.classDisplay && (
+                          <div className="text-sm text-blue-900"><span className="font-semibold">수업:</span> {math2MultiSet.classDisplay}</div>
+                        )}
+                        {math2MultiSet.clinicDisplay && (
+                          <div className="text-sm text-blue-900 mt-0.5"><span className="font-semibold">클리닉:</span> {math2MultiSet.clinicDisplay}</div>
+                        )}
+                        <p className="text-[10px] text-blue-500 mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
+                      </div>
+                    )}
+                    {(form.watch("math2_test_days") || form.watch("math2_test_time")) && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <p className="text-xs font-bold text-amber-700 mb-1.5">주간 테스트</p>
+                        <div className="flex items-center gap-3 text-sm text-amber-900">
+                          <span className="font-semibold">{form.watch("math2_test_days") || "-"}</span>
+                          <span className="text-amber-400">|</span>
+                          <span>{form.watch("math2_test_time") || "-"}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -786,7 +962,7 @@ export function RegistrationForm({
                         value={field.value || ""}
                         onChange={(v) => {
                           field.onChange(v);
-                          updatePreferredDays(form.getValues("math_class_days") || "", v);
+                          updatePreferredDays(form.getValues("math_class_days") || "", v, form.getValues("math2_class_days") || "");
                         }}
                       />
                       <FormMessage />

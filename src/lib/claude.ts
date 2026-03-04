@@ -102,6 +102,8 @@ export interface RegistrationAdminData {
   registrationDate: string;
   assignedClass: string;
   teacher: string;
+  assignedClassMath2?: string;
+  teacherMath2?: string;
   assignedClass2?: string;
   teacher2?: string;
   subject: string;
@@ -129,9 +131,13 @@ export function buildRegistrationPrompt(
   const bankInfo = env.NK_ACADEMY_BANK_INFO || "신한은행 110-383-883419";
   const bankOwner = env.NK_ACADEMY_BANK_OWNER || "노윤희";
 
+  const mathClassParts = [
+    `${adminData.assignedClass} (${adminData.teacher} 선생님)`,
+    ...(adminData.assignedClassMath2 ? [`${adminData.assignedClassMath2} (${adminData.teacherMath2 || ""} 선생님)`] : []),
+  ];
   const classInfo = adminData.subject === "영어수학"
-    ? `수학반: ${adminData.assignedClass} (${adminData.teacher} 선생님) / 영어반: ${adminData.assignedClass2 || ""} (${adminData.teacher2 || ""} 선생님)`
-    : `${adminData.assignedClass} (${adminData.teacher} 선생님)`;
+    ? `수학반: ${mathClassParts.join(", ")} / 영어반: ${adminData.assignedClass2 || ""} (${adminData.teacher2 || ""} 선생님)`
+    : `${mathClassParts.join(", ")}`;
 
   // 과목별 지시사항
   const subjectInstruction = adminData.subject === "영어수학"
@@ -260,6 +266,8 @@ export interface ReportTemplateData {
   registrationDate: string;
   assignedClass: string;
   teacher: string;
+  assignedClassMath2?: string;
+  teacherMath2?: string;
   assignedClass2?: string;
   teacher2?: string;
   subject: string;
@@ -292,6 +300,11 @@ export interface ReportTemplateData {
   clinicTime?: string;
   testDays?: string;
   testTime?: string;
+  classDaysMath2?: string;
+  classTimeMath2?: string;
+  clinicTimeMath2?: string;
+  testDaysMath2?: string;
+  testTimeMath2?: string;
   classDays2?: string;
   classTime2?: string;
   clinicTime2?: string;
@@ -341,15 +354,26 @@ export function buildReportHTML(data: ReportTemplateData): string {
     return `${days || fallbackDays || ""} ${time}`;
   }
 
+  // 수학 스케줄 카드 한 블록 생성
+  function mathScheduleCard(label: string, cls: string, tch: string, days?: string, time?: string, clinic?: string, tDays?: string, tTime?: string): string {
+    return `<div class="info-group"><div class="info-header"><div class="info-label">${label}</div><div class="info-value">${cls} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${tch}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(days, time, data.preferredDays)}</span></div>${clinic ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(days, clinic, data.preferredDays)}</span></div>` : ""}${testRow(tDays, tTime)}</div></div>`;
+  }
+
   // 스케줄 카드 HTML
   function buildScheduleCards(): string {
+    const hasMath2 = !!data.assignedClassMath2;
+    const math1Label = hasMath2 ? "배정 반 / 스케줄 (수학 1)" : "배정 반 / 스케줄 (수학)";
+    const math2Block = hasMath2
+      ? `<div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)">${mathScheduleCard("배정 반 / 스케줄 (수학 2)", data.assignedClassMath2!, data.teacherMath2 || "", data.classDaysMath2, data.classTimeMath2, data.clinicTimeMath2, data.testDaysMath2, data.testTimeMath2)}</div>`
+      : "";
+
     if (data.subject === "영어수학") {
-      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays, data.classTime, data.preferredDays)}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays, data.clinicTime, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays, data.testTime)}</div></div><div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || ""} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || ""}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays2, data.classTime2, data.preferredDays)}</span></div>${data.clinicTime2 ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays2, data.clinicTime2, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays2, data.testTime2)}</div></div>`;
+      return `${mathScheduleCard(math1Label, data.assignedClass, data.teacher, data.classDays, data.classTime, data.clinicTime, data.testDays, data.testTime)}${math2Block}<div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || ""} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || ""}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays2, data.classTime2, data.preferredDays)}</span></div>${data.clinicTime2 ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays2, data.clinicTime2, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays2, data.testTime2)}</div></div>`;
     }
     if (data.subject === "영어") {
       return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays2 || data.classDays, data.classTime2 || data.classTime, data.preferredDays)}</span></div>${(data.clinicTime2 || data.clinicTime) ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays2 || data.classDays, data.clinicTime2 || data.clinicTime, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays2 || data.testDays, data.testTime2 || data.testTime)}</div></div>`;
     }
-    return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (수학)</div><div class="info-value">${data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays, data.classTime, data.preferredDays)}</span></div>${data.clinicTime ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays, data.clinicTime, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays, data.testTime)}</div></div>`;
+    return `${mathScheduleCard(math1Label, data.assignedClass, data.teacher, data.classDays, data.classTime, data.clinicTime, data.testDays, data.testTime)}${math2Block}`;
   }
 
   // 7대 핵심 학습 성향 점수 HTML

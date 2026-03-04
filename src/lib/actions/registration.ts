@@ -462,9 +462,21 @@ export async function generateRegistration(
     console.error("[Student] 학생 자동 등록/업데이트 실패:", e instanceof Error ? e.message : e);
   }
 
+  // 9. 상담 result_status → "registered" 자동 변경
+  try {
+    await supabase
+      .from("consultations")
+      .update({ result_status: "registered", registration_id: registration.id })
+      .eq("name", analysisData.name)
+      .neq("result_status", "registered");
+  } catch (e) {
+    console.error("[Consultation] 등록 상태 자동 변경 실패:", e instanceof Error ? e.message : e);
+  }
+
   revalidatePath("/registrations");
   revalidatePath("/analyses");
   revalidatePath("/surveys");
+  revalidatePath("/consultations");
   revalidatePath("/settings/students");
   revalidatePath("/onboarding");
   return { success: true, data: registration };

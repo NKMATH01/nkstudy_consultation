@@ -29,7 +29,7 @@ export default async function SurveysPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("consultations")
-      .select("name, result_status")
+      .select("name, result_status, test_score")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -39,7 +39,7 @@ export default async function SurveysPage({
       initialPagination={result.pagination}
       analyses={(analyses ?? []) as { id: string; survey_id: string | null; report_html: string | null }[]}
       registrations={(registrations ?? []) as { id: string; analysis_id: string | null }[]}
-      consultations={(consultations ?? []) as { name: string; result_status: string }[]}
+      consultations={(consultations ?? []) as { name: string; result_status: string; test_score: string | null }[]}
       classes={classes}
       teachers={teachers}
     />

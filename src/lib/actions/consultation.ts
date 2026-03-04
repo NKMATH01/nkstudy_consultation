@@ -555,14 +555,24 @@ export async function parseAndCreateConsultations(text: string) {
       if (!nameMatch) continue;
       const name = nameMatch[1].trim();
 
-      // 연락처 - "학부모"/"연락처" 필드 우선 확인 (계좌번호 오매칭 방지)
+      // 학생 연락처
+      let studentPhone = "";
+      const studentPhoneMatch = block.match(
+        /(?:학생)\s*[:：]\s*(\d{3}[-\s]?\d{3,4}[-\s]?\d{4})/
+      );
+      if (studentPhoneMatch) {
+        studentPhone = studentPhoneMatch[1].replace(/[-\s]/g, "");
+      }
+
+      // 학부모 연락처 - "학부모"/"연락처"/"전화"/"핸드폰" 필드 우선 확인 (계좌번호 오매칭 방지)
       let parentPhone = "";
       const phoneFieldMatch = block.match(
         /(?:학부모|연락처|전화|핸드폰)\s*[:：]\s*(\d{3}[-\s]?\d{3,4}[-\s]?\d{4})/
       );
       if (phoneFieldMatch) {
         parentPhone = phoneFieldMatch[1].replace(/[-\s]/g, "");
-      } else {
+      } else if (!studentPhone) {
+        // 학생 전화번호도 없으면 아무 전화번호 매칭
         const phoneMatch = block.match(/(\d{3}[-\s]?\d{4}[-\s]?\d{4})/);
         if (phoneMatch) parentPhone = phoneMatch[1].replace(/[-\s]/g, "");
       }
@@ -671,6 +681,14 @@ export async function parseAndCreateConsultations(text: string) {
         }
       }
 
+      // 메모 추출 - ▶ 필드가 아닌 나머지 텍스트 + 학생 연락처
+      const memoParts: string[] = [];
+      if (studentPhone) memoParts.push(`학생연락처: ${studentPhone}`);
+      const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+      const extraLines = lines.filter((l) => !l.startsWith("▶") && !l.startsWith(">") && !l.match(/^(이름|학교|학생|학부모|연락처|전화|핸드폰|일시|테스트|상담비|계좌|준비물|위치|학부모님)\s*[:：]/));
+      if (extraLines.length > 0) memoParts.push(extraLines.join("\n"));
+      const memo = memoParts.join("\n").trim();
+
       // DB 삽입
       const { data, error } = await supabase
         .from("consultations")
@@ -678,12 +696,13 @@ export async function parseAndCreateConsultations(text: string) {
           name,
           school: school || null,
           grade,
-          parent_phone: parentPhone || null,
+          parent_phone: parentPhone || studentPhone || null,
           consult_date: dateStr,
           consult_time: timeStr,
           subject: subject || null,
           location,
           consult_type: consultType,
+          memo: memo || null,
           reserve_text_sent: true,
         })
         .select()

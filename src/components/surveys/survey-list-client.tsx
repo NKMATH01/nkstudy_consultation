@@ -41,17 +41,27 @@ interface Props {
   };
   analyses: { id: string; survey_id: string | null; report_html: string | null }[];
   registrations: { id: string; analysis_id: string | null }[];
-  consultations: { name: string; result_status: string }[];
+  consultations: { name: string; result_status: string; test_score: string | null }[];
   classes: Class[];
   teachers: Teacher[];
 }
 
-function FactorScore({ value, label }: { value: number | null; label: string }) {
+const SHORT_LABELS: Record<string, string> = {
+  attitude: "태도",
+  self_directed: "자기주도",
+  assignment: "과제",
+  willingness: "의지",
+  social: "사회성",
+  management: "관리",
+};
+
+function FactorScore({ value, label, factorKey }: { value: number | null; label: string; factorKey: string }) {
   if (value == null) return null;
   const color =
     value >= 4 ? "text-emerald-600 bg-emerald-50" : value >= 3 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
   return (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${color}`} title={label}>
+    <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${color}`} title={label}>
+      <span className="text-[8px] text-slate-400 mr-0.5">{SHORT_LABELS[factorKey] || factorKey}</span>
       {value.toFixed(1)}
     </span>
   );
@@ -188,6 +198,17 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     for (const c of consultations) {
       if (!map.has(c.name)) {
         map.set(c.name, c.result_status as ResultStatus);
+      }
+    }
+    return map;
+  }, [consultations]);
+
+  // 상담 테스트 점수 맵
+  const testScoreMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of consultations) {
+      if (!map.has(c.name) && c.test_score) {
+        map.set(c.name, c.test_score);
       }
     }
     return map;
@@ -333,7 +354,9 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               <div className="w-[70px]">등록일</div>
               <div className="w-[80px]">이름</div>
               <div className="w-[100px] hidden sm:block">학교/학년</div>
-              <div className="flex-1 hidden md:block">6-Factor</div>
+              <div className="w-[90px] hidden lg:block">연락처</div>
+              <div className="w-[50px] hidden lg:block text-center">테스트</div>
+              <div className="flex-1 hidden md:block">학습 성향</div>
               <div className="w-[50px] text-center">분석</div>
               <div className="w-[80px] text-center">등록</div>
               <div className="w-[210px] text-center">액션</div>
@@ -364,12 +387,24 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                   <div className="w-[100px] hidden sm:block text-xs text-slate-500 truncate">
                     {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
                   </div>
-                  <div className="flex-1 hidden md:flex gap-1">
+                  <div className="w-[90px] hidden lg:block text-[10px] text-slate-500 truncate">
+                    {item.student_phone || item.parent_phone ? (
+                      <div className="space-y-0.5">
+                        {item.student_phone && <div title="학생">{item.student_phone}</div>}
+                        {item.parent_phone && <div title="학부모" className="text-slate-400">{item.parent_phone}</div>}
+                      </div>
+                    ) : "-"}
+                  </div>
+                  <div className="w-[50px] hidden lg:block text-center text-[10px] text-slate-600 font-medium">
+                    {testScoreMap.get(item.name) || "-"}
+                  </div>
+                  <div className="flex-1 hidden md:flex gap-1 items-center">
                     {(["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const).map((key) => (
                       <FactorScore
                         key={key}
                         value={item[`factor_${key}` as keyof Survey] as number | null}
                         label={FACTOR_LABELS[key]}
+                        factorKey={key}
                       />
                     ))}
                   </div>

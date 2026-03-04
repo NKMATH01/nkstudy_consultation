@@ -93,7 +93,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [recordLoading, setRecordLoading] = useState<string | null>(null);
 
   // 등록 안내문 생성 다이얼로그 상태
-  const [regFormTarget, setRegFormTarget] = useState<{ analysisId: string; grade: string | null } | null>(null);
+  const [regFormTarget, setRegFormTarget] = useState<{ analysisId: string; grade: string | null; consultationData?: Record<string, string | null> | null } | null>(null);
 
   const handleOpenRecord = async (survey: Survey) => {
     setRecordLoading(survey.id);
@@ -401,11 +401,12 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     {/* 등록 안내문 생성/보기 */}
                     {hasAnalysis && (
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (regId) {
                             router.push(`/registrations/${regId}`);
                           } else {
-                            setRegFormTarget({ analysisId: analysisId!, grade: item.grade });
+                            const consultation = await getConsultationByName(item.name);
+                            setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null });
                           }
                         }}
                         className={`px-2 py-1 rounded-md text-[10px] font-semibold transition-colors ${
@@ -560,6 +561,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           grade={regFormTarget.grade}
           classes={classes}
           teachers={teachers}
+          consultationData={regFormTarget.consultationData}
         />
       )}
 

@@ -4,10 +4,8 @@ import { DashboardClient } from "@/components/dashboard/dashboard-client";
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [consultRes, surveyRes, analysisRes, regRes] = await Promise.all([
+  const [consultRes, regRes] = await Promise.all([
     supabase.from("consultations").select("*", { count: "exact", head: true }),
-    supabase.from("surveys").select("*", { count: "exact", head: true }),
-    supabase.from("analyses").select("*", { count: "exact", head: true }),
     supabase.from("registrations").select("*", { count: "exact", head: true }),
   ]);
 
@@ -17,23 +15,27 @@ export default async function DashboardPage() {
     .select("id, name, school, grade, consult_date, subject, location, status, result_status")
     .order("consult_date", { ascending: false });
 
-  // Recent surveys with analysis status
-  const { data: recentSurveys } = await supabase
+  // All surveys with date info for monthly filtering
+  const { data: allSurveys } = await supabase
     .from("surveys")
-    .select("id, name, grade, analysis_id")
-    .order("created_at", { ascending: false })
-    .limit(4);
+    .select("id, name, grade, analysis_id, created_at")
+    .order("created_at", { ascending: false });
+
+  // All analyses with date info for monthly filtering
+  const { data: allAnalyses } = await supabase
+    .from("analyses")
+    .select("id, name, created_at")
+    .order("created_at", { ascending: false });
 
   return (
     <DashboardClient
       stats={{
         consultations: consultRes.count ?? 0,
-        surveys: surveyRes.count ?? 0,
-        analyses: analysisRes.count ?? 0,
         registrations: regRes.count ?? 0,
       }}
       consultations={allConsultations ?? []}
-      recentSurveys={recentSurveys ?? []}
+      surveys={allSurveys ?? []}
+      analyses={allAnalyses ?? []}
     />
   );
 }

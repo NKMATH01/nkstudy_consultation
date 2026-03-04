@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap, MessageCircle, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import type { Registration, Class, Teacher } from "@/types";
 import { TUITION_TABLE } from "@/types";
 import Link from "next/link";
+import { createReportToken } from "@/lib/actions/report-token";
+import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 
 interface Props {
   registration: Registration;
@@ -48,6 +50,52 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
     tuition_fee: registration.tuition_fee || 0,
   });
   const [isFieldSaving, setIsFieldSaving] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShareKakao = async () => {
+    if (!registration.report_html) return;
+    setIsSharing(true);
+    try {
+      const result = await createReportToken({
+        reportType: "registration",
+        reportHtml: registration.report_html,
+        name: registration.name,
+      });
+      if (!result.success || !result.token) {
+        toast.error("공유 링크 생성에 실패했습니다");
+        return;
+      }
+      await shareViaKakao({
+        title: `${registration.name} 등록안내문`,
+        description: "NK학원 등록안내문입니다.",
+        pageUrl: `/report/${result.token}`,
+      });
+    } catch {
+      toast.error("카카오톡 공유에 실패했습니다");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!registration.report_html) return;
+    try {
+      toast.info("링크 생성 중...");
+      const result = await createReportToken({
+        reportType: "registration",
+        reportHtml: registration.report_html,
+        name: registration.name,
+      });
+      if (!result.success || !result.token) {
+        toast.error("링크 생성에 실패했습니다");
+        return;
+      }
+      await navigator.clipboard.writeText(`${KAKAO_BASE_URL}/report/${result.token}`);
+      toast.success("링크가 복사되었습니다");
+    } catch {
+      toast.error("링크 복사에 실패했습니다");
+    }
+  };
 
   const handleRegenerate = async () => {
     setIsRegenerating(true);
@@ -125,9 +173,28 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-2 justify-end">
+      <div className="flex gap-2 justify-end flex-wrap">
         {registration.report_html && (
           <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShareKakao}
+              disabled={isSharing}
+              className="rounded-xl"
+            >
+              <MessageCircle className={`h-4 w-4 mr-1.5 ${isSharing ? "animate-pulse" : ""}`} />
+              카카오톡
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyLink}
+              className="rounded-xl"
+            >
+              <Link2 className="h-4 w-4 mr-1.5" />
+              링크복사
+            </Button>
             <Button
               variant="outline"
               size="sm"

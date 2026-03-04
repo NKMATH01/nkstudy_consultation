@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect, Fragment } from "react";
+import { useState, useMemo, useTransition, useCallback, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,8 @@ import {
   Calendar,
   Trash2,
   Search,
+  CalendarDays,
+  Filter,
 } from "lucide-react";
 import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import { TextParseModal } from "@/components/consultations/text-parse-modal";
@@ -92,6 +94,27 @@ function rowStyleByResult(status: string): string {
   return "";
 }
 
+/** "YYYY-MM" 형식 반환 */
+function getYearMonthFromDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  const m = dateStr.match(/(\d{4})[.\-/](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+  return null;
+}
+
+/** "YYYY-MM" → "25년 12월" 형식 표시 */
+function formatYearMonth(ym: string): string {
+  const [year, month] = ym.split("-");
+  return `${year.slice(2)}년 ${parseInt(month)}월`;
+}
+
+const STATUS_FILTER_OPTIONS: { value: ResultStatus | null; label: string; cls: string; activeCls: string }[] = [
+  { value: null, label: "전체", cls: "bg-white text-slate-500 border-slate-200", activeCls: "bg-slate-800 text-white border-slate-800" },
+  { value: "registered", label: "등록", cls: "bg-white text-red-500 border-red-200", activeCls: "bg-red-500 text-white border-red-500" },
+  { value: "hold", label: "고민중", cls: "bg-white text-amber-500 border-amber-200", activeCls: "bg-amber-400 text-white border-amber-400" },
+  { value: "other", label: "미등록", cls: "bg-white text-neutral-500 border-neutral-200", activeCls: "bg-neutral-600 text-white border-neutral-600" },
+];
+
 // 고정 컬럼 너비 (colgroup) — 한 화면에 맞추기
 const COL_WIDTHS = [48, 56, 72, 60, 44, 68, 100, 110, 76, 190, 76];
 
@@ -103,13 +126,37 @@ export function ConsultationListClient({ initialData, initialPagination, classes
   const [showTextParse, setShowTextParse] = useState(false);
   const [localData, setLocalData] = useState(initialData);
   const [searchQuery, setSearchQuery] = useState("");
+  const [monthFilter, setMonthFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ResultStatus | null>(null);
 
   useEffect(() => {
     setLocalData(initialData);
   }, [initialData]);
 
+  // 사용 가능한 월 목록 (최신순)
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    localData.forEach((c) => {
+      const ym = getYearMonthFromDate(c.consult_date);
+      if (ym) months.add(ym);
+    });
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  }, [localData]);
+
+  // 월별 + 등록상태 사전 필터링
+  const preFiltered = useMemo(() => {
+    let data = localData;
+    if (monthFilter) {
+      data = data.filter((c) => getYearMonthFromDate(c.consult_date) === monthFilter);
+    }
+    if (statusFilter) {
+      data = data.filter((c) => c.result_status === statusFilter);
+    }
+    return data;
+  }, [localData, monthFilter, statusFilter]);
+
   const filteredData = searchQuery.trim()
-    ? localData.filter((c) => {
+    ? preFiltered.filter((c) => {
         const q = searchQuery.toLowerCase();
         return (
           c.name.toLowerCase().includes(q) ||
@@ -118,7 +165,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
           (c.grade && c.grade.toLowerCase().includes(q))
         );
       })
-    : localData;
+    : preFiltered;
 
   const grouped = filteredData.reduce<Record<string, Consultation[]>>((acc, item) => {
     const date = item.consult_date || "unknown";
@@ -340,6 +387,53 @@ export function ConsultationListClient({ initialData, initialPagination, classes
             <Plus className="h-4 w-4" />
             일정 추가
           </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="space-y-2">
+        {/* 월별 필터 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <CalendarDays className="h-3.5 w-3.5 text-slate-400 mr-0.5" />
+          <button
+            onClick={() => setMonthFilter(null)}
+            className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
+              monthFilter === null ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            전체
+          </button>
+          {availableMonths.map((ym) => (
+            <button
+              key={ym}
+              onClick={() => setMonthFilter(monthFilter === ym ? null : ym)}
+              className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
+                monthFilter === ym ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              {formatYearMonth(ym)}
+            </button>
+          ))}
+        </div>
+        {/* 등록상태 필터 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Filter className="h-3.5 w-3.5 text-slate-400 mr-0.5" />
+          {STATUS_FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.label}
+              onClick={() => setStatusFilter(statusFilter === opt.value ? null : opt.value)}
+              className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
+                statusFilter === opt.value ? opt.activeCls : opt.cls + " hover:opacity-80"
+              }`}
+            >
+              {opt.label}
+              {statusFilter === opt.value && opt.value !== null && (
+                <span className="ml-1 text-[10px] opacity-80">
+                  {preFiltered.length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink, Phone } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink, Phone, MessageCircle, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,6 +21,8 @@ import type { Analysis, Class, Teacher, ResultStatus } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
 import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
 import Link from "next/link";
+import { createReportToken } from "@/lib/actions/report-token";
+import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 
 interface Props {
   analysis: Analysis;
@@ -47,6 +49,52 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
   const [showRegForm, setShowRegForm] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShareKakao = async () => {
+    if (!analysis.report_html) return;
+    setIsSharing(true);
+    try {
+      const result = await createReportToken({
+        reportType: "analysis",
+        reportHtml: analysis.report_html,
+        name: analysis.name,
+      });
+      if (!result.success || !result.token) {
+        toast.error("공유 링크 생성에 실패했습니다");
+        return;
+      }
+      await shareViaKakao({
+        title: `${analysis.name} 성향분석 결과`,
+        description: "NK학원 학습 성향 분석 결과입니다.",
+        pageUrl: `/report/${result.token}`,
+      });
+    } catch {
+      toast.error("카카오톡 공유에 실패했습니다");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!analysis.report_html) return;
+    try {
+      toast.info("링크 생성 중...");
+      const result = await createReportToken({
+        reportType: "analysis",
+        reportHtml: analysis.report_html,
+        name: analysis.name,
+      });
+      if (!result.success || !result.token) {
+        toast.error("링크 생성에 실패했습니다");
+        return;
+      }
+      await navigator.clipboard.writeText(`${KAKAO_BASE_URL}/report/${result.token}`);
+      toast.success("링크가 복사되었습니다");
+    } catch {
+      toast.error("링크 복사에 실패했습니다");
+    }
+  };
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -121,6 +169,31 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
           <p className="text-xs text-slate-500">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
         </div>
       </div>
+
+      {/* 공유 버튼 */}
+      {analysis.report_html && (
+        <div className="flex gap-2 justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShareKakao}
+            disabled={isSharing}
+            className="rounded-xl text-xs"
+          >
+            <MessageCircle className={`h-3.5 w-3.5 mr-1 ${isSharing ? "animate-pulse" : ""}`} />
+            카카오톡
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyLink}
+            className="rounded-xl text-xs"
+          >
+            <Link2 className="h-3.5 w-3.5 mr-1" />
+            링크복사
+          </Button>
+        </div>
+      )}
 
       {/* 연락처 */}
       {(studentPhone || parentPhone) && (

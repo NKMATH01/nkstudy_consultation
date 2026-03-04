@@ -38,20 +38,28 @@ type Consultation = {
   result_status: string | null;
 };
 
+type SurveyItem = {
+  id: string;
+  name: string;
+  grade: string | null;
+  analysis_id: string | null;
+  created_at: string;
+};
+
+type AnalysisItem = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
 interface Props {
   stats: {
     consultations: number;
-    surveys: number;
-    analyses: number;
     registrations: number;
   };
   consultations: Consultation[];
-  recentSurveys: Array<{
-    id: string;
-    name: string;
-    grade: string | null;
-    analysis_id: string | null;
-  }>;
+  surveys: SurveyItem[];
+  analyses: AnalysisItem[];
 }
 
 const NK_PRIMARY = "#0F2B5B";
@@ -136,7 +144,7 @@ const resultColorMap: Record<string, string> = {
   none: "gray",
 };
 
-export function DashboardClient({ stats, consultations, recentSurveys }: Props) {
+export function DashboardClient({ stats, consultations, surveys, analyses }: Props) {
   // 현재 년-월을 기본값으로
   const now = new Date();
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -167,6 +175,20 @@ export function DashboardClient({ stats, consultations, recentSurveys }: Props) 
     const none = filtered.filter(c => !c.result_status || c.result_status === "none").length;
     return { total: filtered.length, registered, hold, other, none };
   }, [filtered]);
+
+  // 설문/분석 월별 필터링
+  const filteredSurveys = useMemo(() => {
+    if (activeMonth === null) return surveys;
+    return surveys.filter((s) => getYearMonthFromDate(s.created_at) === activeMonth);
+  }, [surveys, activeMonth]);
+
+  const filteredAnalyses = useMemo(() => {
+    if (activeMonth === null) return analyses;
+    return analyses.filter((a) => getYearMonthFromDate(a.created_at) === activeMonth);
+  }, [analyses, activeMonth]);
+
+  // recentSurveys (최신 4개, 필터된 데이터에서)
+  const recentSurveys = useMemo(() => filteredSurveys.slice(0, 4), [filteredSurveys]);
 
   // 년-월 기반 차트 데이터 (시간순 정렬)
   const monthlyData = useMemo(() => {
@@ -202,8 +224,8 @@ export function DashboardClient({ stats, consultations, recentSurveys }: Props) 
   const statCards = [
     { key: "consult", label: "전체 상담", value: activeMonth === null ? stats.consultations : filteredStats.total, icon: Users, bg: "linear-gradient(135deg,#1E40AF,#3B82F6)", shadow: "rgba(30,64,175,0.15)" },
     { key: "registered", label: "등록 완료", value: filteredStats.registered, icon: FileText, bg: "linear-gradient(135deg,#047857,#10B981)", shadow: "rgba(4,120,87,0.15)" },
-    { key: "survey", label: "설문 완료", value: stats.surveys, icon: ClipboardList, bg: "linear-gradient(135deg,#6D28D9,#8B5CF6)", shadow: "rgba(109,40,217,0.15)" },
-    { key: "analysis", label: "성향분석", value: stats.analyses, icon: Sparkles, bg: "linear-gradient(135deg,#B45309,#D4A853)", shadow: "rgba(180,83,9,0.15)" },
+    { key: "survey", label: "설문 완료", value: filteredSurveys.length, icon: ClipboardList, bg: "linear-gradient(135deg,#6D28D9,#8B5CF6)", shadow: "rgba(109,40,217,0.15)" },
+    { key: "analysis", label: "성향분석", value: filteredAnalyses.length, icon: Sparkles, bg: "linear-gradient(135deg,#B45309,#D4A853)", shadow: "rgba(180,83,9,0.15)" },
   ];
 
   // Get students for card popup

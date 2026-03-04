@@ -303,6 +303,45 @@ export function RegistrationForm({
     return matched.length > 0 ? matched : classes;
   }, [classes, selectedGrade]);
 
+  // 선생님 이름 → 과목 매핑 (teacher.subject = DB building 컬럼)
+  const teacherSubjectMap = useMemo(() => {
+    const map = new Map<string, string>();
+    teachers.forEach((t) => {
+      if (t.name && t.subject) map.set(t.name, t.subject);
+    });
+    return map;
+  }, [teachers]);
+
+  // 과목별 반 필터링: 수학반 / 영어반
+  const mathFilteredClasses = useMemo(() => {
+    const bySubject = filteredClasses.filter((c) => {
+      if (!c.teacher) return false;
+      const subj = teacherSubjectMap.get(c.teacher);
+      return subj ? subj.includes("수학") : false;
+    });
+    return bySubject.length > 0 ? bySubject : filteredClasses;
+  }, [filteredClasses, teacherSubjectMap]);
+
+  const engFilteredClasses = useMemo(() => {
+    const bySubject = filteredClasses.filter((c) => {
+      if (!c.teacher) return false;
+      const subj = teacherSubjectMap.get(c.teacher);
+      return subj ? subj.includes("영어") : false;
+    });
+    return bySubject.length > 0 ? bySubject : filteredClasses;
+  }, [filteredClasses, teacherSubjectMap]);
+
+  // 과목별 선생님 필터링
+  const mathTeachers = useMemo(() => {
+    const bySubject = uniqueTeachers.filter((t) => t.subject?.includes("수학"));
+    return bySubject.length > 0 ? bySubject : uniqueTeachers;
+  }, [uniqueTeachers]);
+
+  const engTeachers = useMemo(() => {
+    const bySubject = uniqueTeachers.filter((t) => t.subject?.includes("영어"));
+    return bySubject.length > 0 ? bySubject : uniqueTeachers;
+  }, [uniqueTeachers]);
+
   const autoCalcFee = (g: string, s: string) => {
     if (!manualFee) {
       form.setValue("tuition_fee", getTuitionWithDiscount(g, s));
@@ -567,7 +606,7 @@ export function RegistrationForm({
                           className={sel}
                         >
                           <option value="">반 선택</option>
-                          {filteredClasses.map((c) => (
+                          {mathFilteredClasses.map((c) => (
                             <option key={c.id} value={c.name}>{c.name}</option>
                           ))}
                         </select>
@@ -587,7 +626,7 @@ export function RegistrationForm({
                           className={sel}
                         >
                           <option value="">선생님 선택</option>
-                          {uniqueTeachers.map((t) => (
+                          {mathTeachers.map((t) => (
                             <option key={t.id} value={t.name}>{t.name}</option>
                           ))}
                         </select>
@@ -698,7 +737,7 @@ export function RegistrationForm({
                             className={sel}
                           >
                             <option value="">영어반 선택</option>
-                            {filteredClasses.map((c) => (
+                            {engFilteredClasses.map((c) => (
                               <option key={c.id} value={c.name}>{c.name}</option>
                             ))}
                             <option value="__custom__">직접 입력...</option>
@@ -734,7 +773,7 @@ export function RegistrationForm({
                             className={sel}
                           >
                             <option value="">선생님 선택</option>
-                            {uniqueTeachers.map((t) => (
+                            {engTeachers.map((t) => (
                               <option key={t.id} value={t.name}>{t.name}</option>
                             ))}
                             <option value="__custom__">직접 입력...</option>

@@ -25,11 +25,12 @@ export default async function AnalysisDetailPage({
 
   const supabase = await createClient();
 
-  // 상담의 result_status 조회 (학생 이름으로 매칭)
+  // 상담 데이터 조회 (학생 이름으로 매칭 - 최신)
   let consultationResultStatus: ResultStatus | null = null;
+  let consultationData: Record<string, string | null> | null = null;
   const { data: consultation } = await supabase
     .from("consultations")
-    .select("result_status")
+    .select("result_status, test_score, school_score, student_consult_note, parent_consult_note, consult_date, plan_date, plan_class, prefer_days, advance_level, study_goal, prev_academy, prev_complaint")
     .eq("name", analysis.name)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -37,6 +38,7 @@ export default async function AnalysisDetailPage({
 
   if (consultation) {
     consultationResultStatus = consultation.result_status as ResultStatus;
+    consultationData = consultation as Record<string, string | null>;
   }
 
   // 등록 안내문 존재 여부
@@ -68,6 +70,7 @@ export default async function AnalysisDetailPage({
       classes={classes}
       teachers={teachers}
       consultationResultStatus={consultationResultStatus}
+      consultationData={consultationData}
       existingRegistrationId={existingReg?.id || null}
       studentPhone={studentPhone}
       parentPhone={parentPhone}

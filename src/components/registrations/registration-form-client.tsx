@@ -143,6 +143,7 @@ interface Props {
   grade?: string | null;
   classes: Class[];
   teachers: Teacher[];
+  consultationData?: Record<string, string | null> | null;
 }
 
 function TimeRangeSelect({
@@ -236,6 +237,7 @@ export function RegistrationForm({
   grade,
   classes,
   teachers,
+  consultationData,
 }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualFee, setManualFee] = useState(false);
@@ -258,10 +260,16 @@ export function RegistrationForm({
 
   const defaultTuition = getTuitionWithDiscount(grade || "", "");
 
+  // 상담 데이터에서 특이사항 합치기
+  const consultNotes = [
+    consultationData?.student_consult_note ? `[학생] ${consultationData.student_consult_note}` : "",
+    consultationData?.parent_consult_note ? `[학부모] ${consultationData.parent_consult_note}` : "",
+  ].filter(Boolean).join("\n");
+
   const form = useForm<RegistrationAdminFormData>({
     resolver: zodResolver(registrationAdminSchema) as never,
     defaultValues: {
-      registration_date: new Date().toISOString().slice(0, 10),
+      registration_date: consultationData?.plan_date || new Date().toISOString().slice(0, 10),
       grade: grade || "",
       subject: "",
       preferred_days: "",
@@ -287,12 +295,12 @@ export function RegistrationForm({
       eng_test_days: "",
       eng_test_time: "",
       use_vehicle: "미사용",
-      test_score: "",
+      test_score: consultationData?.test_score || "",
       test_note: "",
-      school_score: "",
+      school_score: consultationData?.school_score || "",
       location: "",
-      consult_date: "",
-      additional_note: "",
+      consult_date: consultationData?.consult_date || "",
+      additional_note: consultNotes,
       checklist_items: DEFAULT_CHECKLIST.filter((i) => i.checked).map((i) => i.text).join("\n"),
       tuition_fee: defaultTuition,
     },

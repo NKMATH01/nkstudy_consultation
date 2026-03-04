@@ -30,6 +30,7 @@ interface Props {
   teachers: Teacher[];
   surveyId?: string | null;
   consultationResultStatus?: ResultStatus | null;
+  consultationData?: Record<string, string | null> | null;
   existingRegistrationId?: string | null;
   studentPhone?: string | null;
   parentPhone?: string | null;
@@ -44,7 +45,7 @@ function ratingClass(score: number) {
 
 const STEP_COLORS = ["bg-blue-500", "bg-violet-500", "bg-amber-500", "bg-emerald-500"];
 
-export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, existingRegistrationId, studentPhone, parentPhone }: Props) {
+export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, consultationData, existingRegistrationId, studentPhone, parentPhone }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
@@ -484,6 +485,7 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
         grade={analysis.grade}
         classes={classes}
         teachers={teachers}
+        consultationData={consultationData}
       />
 
       {/* 삭제 확인 */}

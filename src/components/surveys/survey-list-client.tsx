@@ -364,22 +364,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         <>
           <div className="bg-white rounded-2xl border border-[#f1f5f9] overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm table-fixed" style={{ minWidth: "900px" }}>
-                <colgroup>
-                  <col style={{ width: "50px" }} />
-                  <col style={{ width: "56px" }} />
-                  <col style={{ width: "76px" }} />
-                  <col style={{ width: "40px" }} />
-                  <col style={{ width: "92px" }} />
-                  <col style={{ width: "92px" }} />
-                  <col style={{ width: "34px" }} />
-                  {FACTOR_KEYS.map((key) => (
-                    <col key={key} style={{ width: "30px" }} />
-                  ))}
-                  <col style={{ width: "32px" }} />
-                  <col style={{ width: "42px" }} />
-                  <col style={{ width: "100px" }} />
-                </colgroup>
+              <table className="w-full text-sm" style={{ minWidth: "900px" }}>
                 <thead>
                   <tr className="border-t border-b border-slate-200 bg-[#f8fafc]">
                     {[

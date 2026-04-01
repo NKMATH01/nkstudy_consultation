@@ -434,12 +434,13 @@ export function RegistrationForm({
       const sch = parseClassSchedule(selectedClass);
       if (sch.classDays) form.setValue("math_class_days", sch.classDays);
       // 멀티셋이면 시간 필드 비움 → 서버에서 DB 기반 formatScheduleDisplay 사용
-      form.setValue("math_class_time", sch.classTime);
-      form.setValue("math_clinic_time", sch.clinicTime);
+      // 스케줄 값이 있을 때만 덮어쓰기 (새 반에 스케줄 미입력 시 기존값 유지)
+      if (sch.classTime) form.setValue("math_class_time", sch.classTime);
+      if (sch.clinicTime) form.setValue("math_clinic_time", sch.clinicTime);
       setMathMultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
-      form.setValue("math_test_days", sch.testDays);
-      form.setValue("math_test_time", sch.testTime);
-      updatePreferredDays(sch.allDays, form.getValues("eng_class_days") || "", form.getValues("math2_class_days") || "");
+      if (sch.testDays) form.setValue("math_test_days", sch.testDays);
+      if (sch.testTime) form.setValue("math_test_time", sch.testTime);
+      updatePreferredDays(sch.allDays || form.getValues("math_class_days") || "", form.getValues("eng_class_days") || "", form.getValues("math2_class_days") || "");
       if (selectedClass.location) form.setValue("location", selectedClass.location);
     }
   };
@@ -451,12 +452,12 @@ export function RegistrationForm({
       if (selectedClass.teacher) form.setValue("teacher_math2", selectedClass.teacher);
       const sch = parseClassSchedule(selectedClass);
       if (sch.classDays) form.setValue("math2_class_days", sch.classDays);
-      form.setValue("math2_class_time", sch.classTime);
-      form.setValue("math2_clinic_time", sch.clinicTime);
+      if (sch.classTime) form.setValue("math2_class_time", sch.classTime);
+      if (sch.clinicTime) form.setValue("math2_clinic_time", sch.clinicTime);
       setMath2MultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
-      form.setValue("math2_test_days", sch.testDays);
-      form.setValue("math2_test_time", sch.testTime);
-      updatePreferredDays(form.getValues("math_class_days") || "", form.getValues("eng_class_days") || "", sch.allDays);
+      if (sch.testDays) form.setValue("math2_test_days", sch.testDays);
+      if (sch.testTime) form.setValue("math2_test_time", sch.testTime);
+      updatePreferredDays(form.getValues("math_class_days") || "", form.getValues("eng_class_days") || "", sch.allDays || form.getValues("math2_class_days") || "");
     }
   };
 
@@ -473,12 +474,12 @@ export function RegistrationForm({
       if (selectedClass.teacher) form.setValue("teacher_2", selectedClass.teacher);
       const sch = parseClassSchedule(selectedClass);
       if (sch.classDays) form.setValue("eng_class_days", sch.classDays);
-      form.setValue("eng_class_time", sch.classTime);
-      form.setValue("eng_clinic_time", sch.clinicTime);
+      if (sch.classTime) form.setValue("eng_class_time", sch.classTime);
+      if (sch.clinicTime) form.setValue("eng_clinic_time", sch.clinicTime);
       setEngMultiSet({ classDisplay: sch.multiSetClass, clinicDisplay: sch.multiSetClinic });
-      form.setValue("eng_test_days", sch.testDays);
-      form.setValue("eng_test_time", sch.testTime);
-      updatePreferredDays(form.getValues("math_class_days") || "", sch.allDays, form.getValues("math2_class_days") || "");
+      if (sch.testDays) form.setValue("eng_test_days", sch.testDays);
+      if (sch.testTime) form.setValue("eng_test_time", sch.testTime);
+      updatePreferredDays(form.getValues("math_class_days") || "", sch.allDays || form.getValues("eng_class_days") || "", form.getValues("math2_class_days") || "");
     }
   };
 

@@ -250,7 +250,7 @@ export async function generateRegistration(
     }
   }
 
-  if (adminFormData.subject === "영어수학" && adminFormData.assigned_class_2) {
+  if ((adminFormData.subject === "영어수학" || adminFormData.subject === "영어") && adminFormData.assigned_class_2) {
     const { data: cls2 } = await supabase
       .from("classes")
       .select("description, class_time, clinic_time, weekly_test_time")

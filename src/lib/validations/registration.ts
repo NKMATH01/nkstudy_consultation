@@ -38,45 +38,17 @@ export const registrationAdminSchema = z.object({
 }).refine(
   (data) => {
     const hasMath = data.subject === "영어수학" || data.subject === "수학";
-    if (hasMath) return !!data.assigned_class;
+    if (hasMath) return !!data.assigned_class && !!data.teacher;
     return true;
   },
-  { message: "수학 배정반을 선택하세요", path: ["assigned_class"] }
-).refine(
-  (data) => {
-    const hasMath = data.subject === "영어수학" || data.subject === "수학";
-    if (hasMath) return !!data.teacher;
-    return true;
-  },
-  { message: "수학 담임을 선택하세요", path: ["teacher"] }
-).refine(
-  (data) => {
-    const hasMath = data.subject === "영어수학" || data.subject === "수학";
-    if (hasMath) return !!data.math_class_days;
-    return true;
-  },
-  { message: "수학 수업 요일을 선택하세요", path: ["math_class_days"] }
+  { message: "수학 배정반과 담임을 선택하세요", path: ["assigned_class"] }
 ).refine(
   (data) => {
     const hasEng = data.subject === "영어수학" || data.subject === "영어";
-    if (hasEng) return !!data.assigned_class_2;
+    if (hasEng) return !!data.assigned_class_2 && !!data.teacher_2;
     return true;
   },
-  { message: "영어 배정반을 선택하세요", path: ["assigned_class_2"] }
-).refine(
-  (data) => {
-    const hasEng = data.subject === "영어수학" || data.subject === "영어";
-    if (hasEng) return !!data.teacher_2;
-    return true;
-  },
-  { message: "영어 담임을 선택하세요", path: ["teacher_2"] }
-).refine(
-  (data) => {
-    const hasEng = data.subject === "영어수학" || data.subject === "영어";
-    if (hasEng) return !!data.eng_class_days;
-    return true;
-  },
-  { message: "영어 수업 요일을 선택하세요", path: ["eng_class_days"] }
+  { message: "영어 배정반과 담임을 선택하세요", path: ["assigned_class_2"] }
 );
 
 export type RegistrationAdminFormData = z.infer<typeof registrationAdminSchema>;

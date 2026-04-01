@@ -503,9 +503,15 @@ export function RegistrationForm({
   };
 
   const handleInvalid = (errors: FieldErrors<RegistrationAdminFormData>) => {
-    const firstError = Object.values(errors)[0];
-    const msg = firstError?.message || (firstError?.root as { message?: string } | undefined)?.message || "입력 값을 확인하세요";
-    toast.error(String(msg));
+    console.error("[RegistrationForm] validation errors:", JSON.stringify(
+      Object.entries(errors).map(([k, v]) => ({ field: k, message: v?.message || (v?.root as { message?: string } | undefined)?.message }))
+    ));
+    const messages: string[] = [];
+    for (const [, err] of Object.entries(errors)) {
+      const msg = err?.message || (err?.root as { message?: string } | undefined)?.message;
+      if (msg && !messages.includes(String(msg))) messages.push(String(msg));
+    }
+    toast.error(messages.join("\n") || "입력 값을 확인하세요");
   };
 
   const mathLabel = isDoubleSubject ? "수학 배정반" : "배정반";

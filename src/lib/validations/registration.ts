@@ -38,17 +38,31 @@ export const registrationAdminSchema = z.object({
 }).refine(
   (data) => {
     const hasMath = data.subject === "영어수학" || data.subject === "수학";
-    if (hasMath) return !!data.assigned_class && !!data.teacher;
+    if (hasMath) return !!data.assigned_class;
     return true;
   },
-  { message: "수학 배정반과 담임을 선택하세요", path: ["assigned_class"] }
+  { message: "수학 배정반을 선택하세요", path: ["assigned_class"] }
+).refine(
+  (data) => {
+    const hasMath = data.subject === "영어수학" || data.subject === "수학";
+    if (hasMath) return !!data.teacher;
+    return true;
+  },
+  { message: "수학 담임을 선택하세요", path: ["teacher"] }
 ).refine(
   (data) => {
     const hasEng = data.subject === "영어수학" || data.subject === "영어";
-    if (hasEng) return !!data.assigned_class_2 && !!data.teacher_2;
+    if (hasEng) return !!data.assigned_class_2;
     return true;
   },
-  { message: "영어 배정반과 담임을 선택하세요", path: ["assigned_class_2"] }
+  { message: "영어 배정반을 선택하세요", path: ["assigned_class_2"] }
+).refine(
+  (data) => {
+    const hasEng = data.subject === "영어수학" || data.subject === "영어";
+    if (hasEng) return !!data.teacher_2;
+    return true;
+  },
+  { message: "영어 담임을 선택하세요", path: ["teacher_2"] }
 );
 
 export type RegistrationAdminFormData = z.infer<typeof registrationAdminSchema>;

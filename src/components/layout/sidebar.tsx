@@ -91,16 +91,16 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
         <Link
           key={item.href}
           href={item.href}
-          className="flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-[7px] mb-0.5 transition-all duration-150"
+          className="sidebar-item flex items-center gap-2.5 w-full px-3.5 py-[9px] rounded-lg mb-[3px]"
           style={{
             fontSize: "13px",
-            fontWeight: isActive ? 600 : 500,
-            background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
-            color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
-            borderLeft: isActive ? "2px solid #D4A853" : "2px solid transparent",
+            fontWeight: isActive ? 600 : 450,
+            background: isActive ? "rgba(212,168,83,0.1)" : "transparent",
+            color: isActive ? "#F0D48A" : "rgba(255,255,255,0.4)",
+            borderLeft: isActive ? "2.5px solid #D4A853" : "2.5px solid transparent",
           }}
         >
-          <item.icon className="h-[17px] w-[17px]" />
+          <item.icon className={`h-[17px] w-[17px] ${isActive ? "opacity-100" : "opacity-60"}`} />
           {item.label}
         </Link>
       );
@@ -111,7 +111,7 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
   );
 
   const sectionLabel = (label: string) => (
-    <div className="px-3.5 mb-2" style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.05em" }}>
+    <div className="px-3.5 mb-2 uppercase" style={{ fontSize: "10px", fontWeight: 700, color: "rgba(212,168,83,0.35)", letterSpacing: "0.08em" }}>
       {label}
     </div>
   );

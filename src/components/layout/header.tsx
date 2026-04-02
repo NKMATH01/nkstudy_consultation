@@ -56,11 +56,7 @@ export function Header({ currentTeacher }: HeaderProps) {
 
   return (
     <header
-      className="flex h-12 items-center justify-between px-4 md:px-7 flex-shrink-0"
-      style={{
-        background: "#FFFFFF",
-        borderBottom: "1px solid rgba(0,0,0,0.04)",
-      }}
+      className="flex h-12 items-center justify-between px-4 md:px-7 flex-shrink-0 glass-header sticky top-0 z-10"
     >
       <div className="flex items-center gap-3">
         <Sheet>
@@ -94,7 +90,7 @@ export function Header({ currentTeacher }: HeaderProps) {
             placeholder="검색..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="pl-9 pr-4 py-1.5 rounded-full text-xs"
+            className="pl-9 pr-4 py-1.5 rounded-full text-xs transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 focus:w-[280px]"
             style={{
               width: "220px",
               background: "#F8FAFC",

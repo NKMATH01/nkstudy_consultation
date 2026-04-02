@@ -294,8 +294,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
         {statCards.map((s) => (
           <div
             key={s.key}
-            className="relative overflow-hidden rounded-[14px] p-6 bg-white transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
-            style={{ border: "1px solid rgba(0,0,0,0.04)" }}
+            className="relative overflow-hidden rounded-2xl p-6 bg-white card-elevated cursor-pointer fade-in"
             onClick={() => {
               if (s.key === "consult" || s.key === "registered") {
                 setCardPopup(s.key);
@@ -327,7 +326,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
         {/* Left Column */}
         <div className="flex flex-col gap-[18px]">
           {/* Bar Chart */}
-          <div className="bg-white rounded-[14px]" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
+          <div className="bg-white rounded-2xl card-shadow">
             <div className="flex justify-between items-center px-6 pt-5 pb-4">
               <span className="text-[14.5px] font-bold" style={{ color: "#1E293B", letterSpacing: "-0.01em" }}>
                 월별 상담 및 등록 현황
@@ -356,7 +355,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
           </div>
 
           {/* Recent Consultations */}
-          <div className="bg-white rounded-[14px]" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
+          <div className="bg-white rounded-2xl card-shadow">
             <div className="flex justify-between items-center px-6 pt-5 pb-3.5">
               <span className="text-[14.5px] font-bold" style={{ color: "#1E293B" }}>
                 {activeMonth ? `${formatYearMonth(activeMonth)} 상담 내역` : "최근 상담"}
@@ -431,7 +430,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
         {/* Right Column */}
         <div className="flex flex-col gap-[18px]">
           {/* Pie Chart - Result Status */}
-          <div className="bg-white rounded-[14px] p-6" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
+          <div className="bg-white rounded-2xl p-6 card-shadow">
             <div className="text-[14.5px] font-bold mb-4" style={{ color: "#1E293B" }}>
               {monthLabel} 상담 결과
             </div>
@@ -463,7 +462,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
           </div>
 
           {/* Quick Actions */}
-          <div className="bg-white rounded-[14px] p-6" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
+          <div className="bg-white rounded-2xl p-6 card-shadow">
             <div className="text-[14.5px] font-bold mb-4" style={{ color: "#1E293B" }}>빠른 액션</div>
             {[
               { label: "새 상담 등록", href: "/consultations", icon: Plus, color: "#2563EB" },
@@ -485,7 +484,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
           </div>
 
           {/* Recent Surveys */}
-          <div className="bg-white rounded-[14px]" style={{ border: "1px solid rgba(0,0,0,0.04)" }}>
+          <div className="bg-white rounded-2xl card-shadow">
             <div className="px-6 pt-5 pb-3.5">
               <span className="text-[14.5px] font-bold" style={{ color: "#1E293B" }}>설문 분석</span>
             </div>

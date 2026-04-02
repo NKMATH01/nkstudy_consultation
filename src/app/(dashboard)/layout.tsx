@@ -14,7 +14,7 @@ export default async function DashboardLayout({
       <Sidebar currentTeacher={currentTeacher} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header currentTeacher={currentTeacher} />
-        <main className="flex-1 overflow-y-auto" style={{ padding: "24px 28px" }}>
+        <main className="flex-1 overflow-y-auto page-enter" style={{ padding: "24px 28px" }}>
           {children}
         </main>
       </div>

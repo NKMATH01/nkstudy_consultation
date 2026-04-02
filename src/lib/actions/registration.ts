@@ -562,7 +562,7 @@ export async function regenerateRegistration(id: string) {
     }
   }
 
-  if (registration.subject === "영어수학" && registration.assigned_class_2) {
+  if ((registration.subject === "영어수학" || registration.subject === "영어") && registration.assigned_class_2) {
     const { data: cls2 } = await supabase
       .from("classes")
       .select("description, class_time, clinic_time, weekly_test_time")

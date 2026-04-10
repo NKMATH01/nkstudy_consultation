@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { getCurrentTeacher } from "@/lib/actions/settings";
-import { ChatPopup } from "@/components/chat/chat-client";
+import { ChatWrapper } from "@/components/chat/chat-wrapper";
 
 export default async function DashboardLayout({
   children,
@@ -20,7 +20,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </div>
-      {isExecutive && <ChatPopup userName={currentTeacher?.name ?? "관리자"} />}
+      {isExecutive && <ChatWrapper userName={currentTeacher?.name ?? "관리자"} />}
     </div>
   );
 }

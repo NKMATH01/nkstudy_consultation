@@ -16,7 +16,6 @@ import {
   ExternalLink,
   LogOut,
   Shield,
-  MessageSquare,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { CurrentTeacherInfo } from "@/types";
@@ -47,9 +46,6 @@ const adminOnlyItems = [
   { href: "/settings/permissions", label: "선생님 권한", icon: Shield },
 ];
 
-const executiveItems = [
-  { href: "/chat", label: "AI 어시스턴트", icon: MessageSquare },
-];
 
 type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -72,7 +68,6 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
   const router = useRouter();
 
   const isAdmin = currentTeacher?.role === "admin";
-  const isExecutive = ["director", "principal", "admin"].includes(currentTeacher?.role ?? "");
 
   const visibleConsult = filterMenuItems(consultItems, currentTeacher);
   const visibleAnalysis = filterMenuItems(analysisItems, currentTeacher);
@@ -187,14 +182,6 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
             </>
           )}
 
-          {/* AI 어시스턴트 (대표/원장/관리자 전용) */}
-          {isExecutive && (
-            <>
-              {divider}
-              {sectionLabel("AI")}
-              {renderItems(executiveItems)}
-            </>
-          )}
         </nav>
 
         {/* Footer - 공개 링크 */}

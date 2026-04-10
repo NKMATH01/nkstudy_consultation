@@ -160,7 +160,7 @@ export async function POST(req: Request) {
 
   // 2. Claude Sonnet 스트리밍 호출
   const result = streamText({
-    model: anthropic("claude-sonnet-4-20250514"),
+    model: anthropic("claude-sonnet-4-6-20250725"),
     system: SYSTEM_PROMPT,
     messages,
     maxOutputTokens: 4096,

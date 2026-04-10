@@ -11,9 +11,8 @@ export async function checkPagePermission(pathname: string) {
   // admin은 항상 접근 가능
   if (currentTeacher.role === "admin") return currentTeacher;
 
-  // allowed_menus가 null이면 권한 미설정 → 대시보드만 허용
-  if (!currentTeacher.allowed_menus) {
-    if (pathname !== "/") redirect("/");
+  // allowed_menus가 null이거나 빈 배열이면 권한 미설정 → 전체 허용
+  if (!currentTeacher.allowed_menus || currentTeacher.allowed_menus.length === 0) {
     return currentTeacher;
   }
 

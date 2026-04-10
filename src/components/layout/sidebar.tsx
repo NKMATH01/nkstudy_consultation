@@ -54,7 +54,7 @@ function filterMenuItems(
 ): MenuItem[] {
   if (!currentTeacher) return items; // 정보 없으면 전체 표시 (레거시)
   if (currentTeacher.role === "admin") return items;
-  if (!currentTeacher.allowed_menus) return [];
+  if (!currentTeacher.allowed_menus || currentTeacher.allowed_menus.length === 0) return items; // 권한 미설정 시 전체 표시
   return items.filter((item) => currentTeacher.allowed_menus!.includes(item.href));
 }
 

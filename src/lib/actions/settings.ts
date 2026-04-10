@@ -833,6 +833,7 @@ export async function updateTeacherPermissions(
     }
 
     revalidatePath("/settings/permissions");
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "권한 수정 실패";

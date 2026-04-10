@@ -162,7 +162,7 @@ export async function POST(req: Request) {
 
   // 2. Claude Sonnet 스트리밍 호출
   const result = streamText({
-    model: google("gemini-3.1-flash"),
+    model: google("gemini-3.1-flash-preview"),
     system: SYSTEM_PROMPT,
     messages,
     maxOutputTokens: 4096,

@@ -9,7 +9,9 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const currentTeacher = await getCurrentTeacher();
-  const isExecutive = ["director", "principal", "admin"].includes(currentTeacher?.role ?? "");
+  const role = currentTeacher?.role ?? "";
+  const isExecutive = ["director", "principal", "admin"].includes(role);
+  console.log("[Layout] currentTeacher:", JSON.stringify(currentTeacher), "role:", role, "isExecutive:", isExecutive);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "#F8F9FC" }}>

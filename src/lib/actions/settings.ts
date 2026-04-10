@@ -787,37 +787,30 @@ export async function getCurrentTeacher(): Promise<CurrentTeacherInfo | null> {
       }
     }
 
-    // 이메일 로그인 (admin@nk.com 등) → profiles 테이블 확인
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("name, role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role === "admin") {
-      return {
-        name: profile.name,
-        role: "admin",
-        phone: null,
-        allowed_menus: null,
-      };
+    // 이메일 로그인 (admin@nk.com 등)
+    // admin@nk.com은 시스템 관리자 계정
+    if (user.email === "admin@nk.com") {
+      return { name: "관리자", role: "admin", phone: null, allowed_menus: null };
     }
 
-    // profiles에 없으면 teachers 테이블에서 auth_user_id로 검색
-    const { data: teacher } = await supabase
-      .from("teachers")
-      .select("name, role, phone, allowed_menus")
-      .eq("auth_user_id", user.id)
-      .limit(1)
-      .single();
+    // profiles 테이블 확인 (있는 경우)
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, role")
+        .eq("id", user.id)
+        .single();
 
-    if (teacher) {
-      return {
-        name: teacher.name,
-        role: teacher.role ?? null,
-        phone: teacher.phone ?? null,
-        allowed_menus: Array.isArray(teacher.allowed_menus) ? (teacher.allowed_menus as string[]) : null,
-      };
+      if (profile?.role === "admin") {
+        return {
+          name: profile.name,
+          role: "admin",
+          phone: null,
+          allowed_menus: null,
+        };
+      }
+    } catch {
+      // profiles 테이블이 없을 수 있음
     }
 
     return { name: user.email ?? "사용자", role: null, phone: null, allowed_menus: null };

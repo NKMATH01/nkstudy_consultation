@@ -1,23 +1,20 @@
 // @ts-nocheck
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { streamText, tool } from "ai";
+import { streamText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { z } from "zod";
 import { env } from "@/lib/env";
 
 const google = createGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY });
 
-// 대표/원장 역할 확인을 위한 헬퍼
-async function getCallerRole(): Promise<{
-  name: string;
-  role: string | null;
-} | null> {
+async function getCallerRole() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return null;
+
+  if (user.email === "admin@nk.com") {
+    return { name: "관리자", role: "admin" };
+  }
 
   if (user.email.endsWith("@nk.local")) {
     const digits = user.email.replace("@nk.local", "").replace(/\D/g, "");
@@ -34,17 +31,9 @@ async function getCallerRole(): Promise<{
     return data ? { name: data.name, role: data.role } : null;
   }
 
-  // profiles 기반 (admin@nk.com 등)
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role === "admin") return { name: profile.name, role: "admin" };
   return null;
 }
 
-// Service Role 클라이언트 (RLS 우회)
 function getAdminSupabase() {
   return createSupabaseClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -53,293 +42,111 @@ function getAdminSupabase() {
   );
 }
 
-const SYSTEM_PROMPT = `당신은 NK EDUCATION 학원의 상담관리 시스템 AI 어시스턴트입니다.
-대표와 원장만 사용할 수 있는 전용 도구입니다.
+// 모든 핵심 데이터를 미리 조회해서 system prompt에 삽입
+async function buildDataContext() {
+  const db = getAdminSupabase();
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
 
-## 시스템 개요
-NK EDUCATION은 수학/영어 학원으로, 이 시스템은 상담, 설문, AI분석, 등록안내, 학생/강사/반 관리를 통합 관리합니다.
+  const [students, teachers, classes, consultations, surveys, analyses, registrations, bookings, withdrawals] = await Promise.all([
+    db.from("students").select("*").eq("is_active", true).order("class_name").order("name"),
+    db.from("teachers").select("*").eq("is_active", true).order("name"),
+    db.from("classes").select("*").eq("is_active", true).order("name"),
+    db.from("consultations").select("*").order("consult_date", { ascending: false }).limit(100),
+    db.from("surveys").select("id, name, school, grade, factor_attitude, factor_self_directed, factor_assignment, factor_willingness, factor_social, factor_management, factor_emotion, created_at").order("created_at", { ascending: false }).limit(50),
+    db.from("analyses").select("id, survey_id, name, student_type, summary, score_attitude, score_self_directed, score_assignment, score_willingness, score_social, score_management, created_at").order("created_at", { ascending: false }).limit(30),
+    db.from("registrations").select("id, name, assigned_class, teacher, subject, tuition_fee, created_at").order("created_at", { ascending: false }).limit(30),
+    db.from("bookings").select("*").gte("booking_date", monthStart).order("booking_date"),
+    db.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(30),
+  ]);
 
-## 테이블 구조
+  const thisMonthConsults = (consultations.data || []).filter(c => c.consult_date >= monthStart && c.consult_date <= monthEnd);
 
-### consultations (상담)
-- id, name(학생명), school, grade, parent_phone
-- consult_date(상담일), consult_time, consult_type(유선상담/대면상담)
-- subject(과목), location(지점)
-- status: pending(대기) → active(진행중) → completed(완료) / cancelled(취소)
-- result_status: none(미결정) → registered(등록) / hold(보류) / other(기타)
-- attitude, willingness, parent_level, student_level (상담 평가)
-- plan_date(등록예정일), plan_class(배정반)
-- memo, requests, analysis_id, registration_id
-- created_at, updated_at
+  return `
+## 실시간 데이터 (${today} 기준)
 
-### students (재원생)
-- id, name, school, grade, phone, parent_phone
-- class_name(소속반), teacher_id, clinic_teacher_id
-- teacher_name, is_active, memo, registration_date
-- created_at, updated_at
+### 재원생 (${students.data?.length || 0}명)
+${JSON.stringify((students.data || []).map(s => ({ 이름: s.name, 반: s.class_name, 학교: s.school, 학년: s.grade, 전화: s.phone, 학부모전화: s.parent_phone, 담임: s.teacher_name, 메모: s.memo })), null, 0)}
 
-### teachers (강사)
-- id, name, phone, building(과목), role(teacher/clinic/admin/director/principal/manager/staff)
-- is_active, allowed_menus, created_at
+### 강사 (${teachers.data?.length || 0}명)
+${JSON.stringify((teachers.data || []).map(t => ({ 이름: t.name, 역할: t.role, 과목: t.building, 전화: t.phone })), null, 0)}
 
-### classes (반)
-- id, name, teacher_id, description(수업요일), class_time, clinic_time
-- target_grade, location, weekly_test_time, is_active
+### 반 (${classes.data?.length || 0}개)
+${JSON.stringify((classes.data || []).map(c => ({ 이름: c.name, 요일: c.description, 수업시간: c.class_time, 클리닉시간: c.clinic_time, 대상학년: c.target_grade })), null, 0)}
 
-### surveys (설문 - 35문항)
-- id, name, school, grade, student_phone, parent_phone
-- q1~q35 (1~5점 척도)
-- factor_attitude, factor_self_directed, factor_assignment, factor_willingness, factor_social, factor_management, factor_emotion (7-Factor 점수)
-- study_core, problem_self, dream (주관식)
-- analysis_id, created_at
+### 이번달 상담 (${thisMonthConsults.length}건)
+${JSON.stringify(thisMonthConsults.map(c => ({ 이름: c.name, 날짜: c.consult_date, 과목: c.subject, 상태: c.status, 결과: c.result_status, 학교: c.school, 학년: c.grade, 메모: c.memo })), null, 0)}
 
-### analyses (AI 성향분석)
-- id, survey_id, name, school, grade
-- score_attitude~score_management (AI 재채점)
-- comment_attitude~comment_emotion (AI 코멘트)
-- student_type(학생유형), summary, strengths, weaknesses, solutions
-- report_html, created_at
+### 전체 상담 최근 100건
+${JSON.stringify((consultations.data || []).map(c => ({ 이름: c.name, 날짜: c.consult_date, 과목: c.subject, 상태: c.status, 결과: c.result_status, 학교: c.school, 학년: c.grade })), null, 0)}
 
-### registrations (등록안내)
-- id, analysis_id, name, school, grade
-- assigned_class, teacher, subject
-- tuition_fee, report_html, created_at
+### 설문 최근 50건
+${JSON.stringify((surveys.data || []).map(s => ({ 이름: s.name, 학교: s.school, 학년: s.grade, 수업태도: s.factor_attitude, 자기주도: s.factor_self_directed, 과제수행: s.factor_assignment, 학업의지: s.factor_willingness, 사회성: s.factor_social, 관리선호: s.factor_management, 심리자신감: s.factor_emotion, 날짜: s.created_at?.split("T")[0] })), null, 0)}
 
-### bookings (상담예약)
-- id, branch(gojan-math/gojan-eng/zai-both), consult_type(phone/inperson)
-- booking_date, booking_hour(13~20), student_name, parent_name, phone
-- paid, created_at
+### AI 성향분석 최근 30건
+${JSON.stringify((analyses.data || []).map(a => ({ 이름: a.name, 유형: a.student_type, 요약: a.summary?.slice(0, 100), 수업태도: a.score_attitude, 자기주도: a.score_self_directed, 과제수행: a.score_assignment, 학업의지: a.score_willingness, 사회성: a.score_social, 관리선호: a.score_management, 날짜: a.created_at?.split("T")[0] })), null, 0)}
 
-### withdrawals (퇴원생)
-- id, name, school, grade, subject, class_name, teacher
-- enrollment_start, enrollment_end, duration_months
-- reason_category, comeback_possibility
-- student_opinion, parent_opinion, teacher_opinion
-- created_at
+### 등록안내 최근 30건
+${JSON.stringify((registrations.data || []).map(r => ({ 이름: r.name, 배정반: r.assigned_class, 담임: r.teacher, 과목: r.subject, 수강료: r.tuition_fee, 날짜: r.created_at?.split("T")[0] })), null, 0)}
 
-## 7-Factor 설문 모델
-- 수업태도(attitude): Q6~Q10
-- 자기주도성(self_directed): Q11,14,15,18,19,29
-- 과제수행력(assignment): Q12,13,16,17,34,35
-- 학업의지(willingness): Q21~Q25
-- 사회성(social): Q1,2,4,5
-- 관리선호(management): Q3,20,28,30
-- 심리·자신감(emotion): Q26,27,31,32,33
+### 이번달 예약
+${JSON.stringify((bookings.data || []).map(b => ({ 학생: b.student_name, 날짜: b.booking_date, 시간: b.booking_hour, 지점: b.branch, 유형: b.consult_type, 결제: b.paid })), null, 0)}
 
-## 응답 규칙
-1. 한국어로 답변하세요.
-2. 데이터를 조회할 때는 반드시 도구를 사용하세요. 추측하지 마세요.
-3. 숫자나 통계를 말할 때는 정확한 데이터를 기반으로 하세요.
-4. 표 형식이 적절하면 마크다운 표를 사용하세요.
-5. 데이터 수정/생성 요청 시 변경 내용을 먼저 확인받고 실행하세요.
-6. 오늘 날짜: ${new Date().toISOString().split("T")[0]}`;
-
-const ALLOWED_TABLES = [
-  "consultations",
-  "students",
-  "teachers",
-  "classes",
-  "surveys",
-  "analyses",
-  "registrations",
-  "bookings",
-  "blocked_slots",
-  "withdrawals",
-];
+### 퇴원생 최근 30건
+${JSON.stringify((withdrawals.data || []).map(w => ({ 이름: w.name, 과목: w.subject, 반: w.class_name, 담임: w.teacher, 사유: w.reason_category, 복귀가능: w.comeback_possibility, 퇴원일: w.enrollment_end })), null, 0)}
+`;
+}
 
 export async function POST(req: Request) {
-  // 1. 인증 + 역할 확인
-  const caller = await getCallerRole();
-  if (!caller) {
-    return new Response("Unauthorized", { status: 401 });
+  try {
+    const caller = await getCallerRole();
+    if (!caller) return new Response("Unauthorized", { status: 401 });
+    if (!["director", "principal", "admin"].includes(caller.role ?? "")) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const { messages } = await req.json();
+
+    // DB 데이터 조회
+    const dataContext = await buildDataContext();
+
+    const systemPrompt = `당신은 NK EDUCATION 학원의 상담관리 시스템 AI 어시스턴트입니다.
+대표와 원장만 사용할 수 있는 전용 도구입니다.
+한국어로 답변하세요.
+
+## 시스템 개요
+NK EDUCATION은 수학/영어 학원으로, 상담, 설문, AI분석, 등록안내, 학생/강사/반 관리를 통합 관리합니다.
+
+## 상담 워크플로우
+status: pending(대기) → active(진행중) → completed(완료) / cancelled(취소)
+result_status: none(미결정) → registered(등록) / hold(보류) / other(기타)
+
+## 7-Factor 설문 모델 (1~5점)
+수업태도, 자기주도성, 과제수행력, 학업의지, 사회성, 관리선호, 심리·자신감
+
+## 응답 규칙
+1. 아래 실시간 데이터를 기반으로 정확하게 답변하세요.
+2. 표 형식이 적절하면 마크다운 표를 사용하세요.
+3. 데이터에 없는 내용은 "해당 데이터가 없습니다"라고 답하세요.
+4. 오늘 날짜: ${new Date().toISOString().split("T")[0]}
+
+${dataContext}`;
+
+    const result = streamText({
+      model: google("gemini-2.5-flash"),
+      system: systemPrompt,
+      messages,
+      maxOutputTokens: 4096,
+    });
+
+    return result.toDataStreamResponse();
+  } catch (err) {
+    console.error("[chat API error]", err);
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
-  if (!["director", "principal", "admin"].includes(caller.role ?? "")) {
-    return new Response("Forbidden", { status: 403 });
-  }
-
-  const { messages } = await req.json();
-  const db = getAdminSupabase();
-
-  // 2. Claude Sonnet 스트리밍 호출
-  const result = streamText({
-    model: google("gemini-3.1-flash-preview"),
-    system: SYSTEM_PROMPT,
-    messages,
-    maxOutputTokens: 4096,
-    tools: {
-      // ── 범용 조회 도구 ──
-      query_table: tool({
-        description:
-          "Supabase 테이블에서 데이터를 조회합니다. select로 컬럼을 지정하고, filters로 조건을 걸고, order로 정렬합니다.",
-        parameters: z.object({
-          table: z
-            .enum(ALLOWED_TABLES as [string, ...string[]])
-            .describe("조회할 테이블명"),
-          select: z
-            .string()
-            .optional()
-            .describe("선택할 컬럼 (Supabase select 문법, 예: 'name, phone, class_name'). 생략 시 전체 컬럼"),
-          filters: z
-            .array(
-              z.object({
-                column: z.string(),
-                operator: z
-                  .enum(["eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "is", "in"])
-                  .describe("비교 연산자"),
-                value: z.string().describe("비교값 (문자열로 전달)"),
-              })
-            )
-            .optional()
-            .describe("필터 조건 배열"),
-          order_column: z.string().optional().describe("정렬 기준 컬럼"),
-          order_ascending: z.boolean().optional().describe("오름차순 여부 (기본: false)"),
-          limit: z.number().optional().describe("최대 결과 수 (기본: 50)"),
-        }),
-        execute: async ({ table, select, filters, order_column, order_ascending, limit }) => {
-          let query = db.from(table).select(select ?? "*", { count: "exact" });
-          for (const f of filters ?? []) {
-            if (f.operator === "in") {
-              query = query.in(f.column, JSON.parse(f.value));
-            } else if (f.operator === "is") {
-              query = query.is(f.column, f.value === "null" ? null : f.value);
-            } else {
-              query = query.filter(f.column, f.operator, f.value);
-            }
-          }
-          if (order_column) query = query.order(order_column, { ascending: order_ascending ?? false });
-          query = query.limit(limit ?? 50);
-          const { data, error, count } = await query;
-          if (error) return { error: error.message };
-          return { data, total: count };
-        },
-      }),
-
-      // ── 레코드 수정 ──
-      update_record: tool({
-        description:
-          "테이블의 특정 레코드를 수정합니다. 반드시 사용자에게 변경 내용을 확인받은 후 실행하세요.",
-        parameters: z.object({
-          table: z
-            .enum(ALLOWED_TABLES as [string, ...string[]])
-            .describe("수정할 테이블"),
-          id: z.string().describe("수정할 레코드의 UUID"),
-          updates: z
-            .record(z.string(), z.unknown())
-            .describe("수정할 필드와 값의 객체"),
-        }),
-        execute: async ({ table, id, updates }) => {
-          const { data, error } = await db
-            .from(table)
-            .update(updates)
-            .eq("id", id)
-            .select()
-            .single();
-          if (error) return { error: error.message };
-          return { success: true, data };
-        },
-      }),
-
-      // ── 레코드 생성 ──
-      create_record: tool({
-        description:
-          "테이블에 새 레코드를 생성합니다. 반드시 사용자에게 생성 내용을 확인받은 후 실행하세요.",
-        parameters: z.object({
-          table: z
-            .enum(ALLOWED_TABLES as [string, ...string[]])
-            .describe("생성할 테이블"),
-          record: z
-            .record(z.string(), z.unknown())
-            .describe("생성할 레코드 데이터"),
-        }),
-        execute: async ({ table, record }) => {
-          const { data, error } = await db
-            .from(table)
-            .insert(record)
-            .select()
-            .single();
-          if (error) return { error: error.message };
-          return { success: true, data };
-        },
-      }),
-
-      // ── 레코드 삭제 ──
-      delete_record: tool({
-        description:
-          "테이블의 특정 레코드를 삭제합니다. 반드시 사용자에게 삭제를 확인받은 후 실행하세요. 되돌릴 수 없습니다.",
-        parameters: z.object({
-          table: z
-            .enum(ALLOWED_TABLES as [string, ...string[]])
-            .describe("삭제할 테이블"),
-          id: z.string().describe("삭제할 레코드의 UUID"),
-        }),
-        execute: async ({ table, id }) => {
-          const { error } = await db.from(table).delete().eq("id", id);
-          if (error) return { error: error.message };
-          return { success: true };
-        },
-      }),
-
-      // ── 오늘/이번달 요약 ──
-      get_dashboard_summary: tool({
-        description:
-          "대시보드 요약 정보를 조회합니다: 이번달 상담 현황, 재원생 수, 최근 등록자, 퇴원자 등",
-        parameters: z.object({}),
-        execute: async () => {
-          const now = new Date();
-          const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-          const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
-
-          const [consultations, students, recentRegistrations, withdrawals] =
-            await Promise.all([
-              db
-                .from("consultations")
-                .select("id, name, consult_date, status, result_status, subject", { count: "exact" })
-                .gte("consult_date", monthStart)
-                .lte("consult_date", monthEnd)
-                .order("consult_date", { ascending: true }),
-              db
-                .from("students")
-                .select("id", { count: "exact" })
-                .eq("is_active", true),
-              db
-                .from("registrations")
-                .select("id, name, assigned_class, created_at")
-                .gte("created_at", monthStart)
-                .order("created_at", { ascending: false })
-                .limit(10),
-              db
-                .from("withdrawals")
-                .select("id, name, reason_category, created_at")
-                .gte("created_at", monthStart)
-                .order("created_at", { ascending: false })
-                .limit(10),
-            ]);
-
-          return {
-            month: `${now.getFullYear()}년 ${now.getMonth() + 1}월`,
-            consultations: {
-              total: consultations.count ?? 0,
-              data: consultations.data,
-              byStatus: {
-                pending: consultations.data?.filter((c) => c.status === "pending").length ?? 0,
-                active: consultations.data?.filter((c) => c.status === "active").length ?? 0,
-                completed: consultations.data?.filter((c) => c.status === "completed").length ?? 0,
-              },
-              byResult: {
-                registered: consultations.data?.filter((c) => c.result_status === "registered").length ?? 0,
-                hold: consultations.data?.filter((c) => c.result_status === "hold").length ?? 0,
-                none: consultations.data?.filter((c) => c.result_status === "none").length ?? 0,
-              },
-            },
-            activeStudents: students.count ?? 0,
-            recentRegistrations: recentRegistrations.data,
-            recentWithdrawals: withdrawals.data,
-          };
-        },
-      }),
-    },
-    maxSteps: 10,
-  });
-
-  return result.toDataStreamResponse();
 }

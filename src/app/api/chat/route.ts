@@ -141,7 +141,7 @@ ${dataContext}`;
       maxOutputTokens: 4096,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (err) {
     console.error("[chat API error]", err);
     return new Response(

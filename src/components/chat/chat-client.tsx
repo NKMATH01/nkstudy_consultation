@@ -86,24 +86,10 @@ export function ChatPopup({ userName }: Props) {
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        // AI SDK data stream 프로토콜 파싱
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          // 텍스트 청크: 0:"text"
-          if (line.startsWith("0:")) {
-            try {
-              const text = JSON.parse(line.slice(2));
-              assistantText += text;
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, content: assistantText } : m))
-              );
-            } catch {
-              // 파싱 실패 무시
-            }
-          }
-          // tool result 등 다른 타입은 무시 (9:, a:, e: 등)
-        }
+        assistantText += chunk;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: assistantText } : m))
+        );
       }
 
       // 응답이 비어있으면 에러 표시

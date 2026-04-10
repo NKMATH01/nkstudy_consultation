@@ -14,11 +14,11 @@ const WELCOME_MSG = (name: string) =>
 
 export function ChatPopup({ userName }: Props) {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } =
-    useChat({
-      api: "/api/chat",
-    });
+  const { messages, isLoading, setMessages, append } = useChat({
+    api: "/api/chat",
+  });
 
   // 웰컴 메시지 초기화
   useEffect(() => {
@@ -49,16 +49,22 @@ export function ChatPopup({ userName }: Props) {
     }
   }, [open]);
 
+  const handleSend = useCallback(() => {
+    const text = inputValue.trim();
+    if (!text || isLoading) return;
+    setInputValue("");
+    append({ role: "user", content: text });
+  }, [inputValue, isLoading, append]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (input && input.trim() && !isLoading) {
-        handleSubmit(e as any);
-      }
+      handleSend();
     }
   };
 
   const handleReset = useCallback(() => {
+    setInputValue("");
     setMessages([
       {
         id: "welcome",
@@ -85,11 +91,13 @@ export function ChatPopup({ userName }: Props) {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col w-[420px] h-[600px] rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
+    <div
+      className="fixed bottom-6 right-6 z-50 flex flex-col w-[420px] h-[600px] rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
       style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.15)" }}
     >
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 text-white"
+      <div
+        className="flex items-center justify-between px-4 py-3 text-white"
         style={{ background: "linear-gradient(135deg, #7C3AED, #6D28D9)" }}
       >
         <div className="flex items-center gap-2.5">
@@ -117,16 +125,20 @@ export function ChatPopup({ userName }: Props) {
           const content = msg.content || "";
           return (
             <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-              <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${
-                msg.role === "user" ? "bg-blue-100 text-blue-600" : "bg-violet-100 text-violet-600"
-              }`}>
+              <div
+                className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${
+                  msg.role === "user" ? "bg-blue-100 text-blue-600" : "bg-violet-100 text-violet-600"
+                }`}
+              >
                 {msg.role === "user" ? userName[0] : <Bot className="w-3.5 h-3.5" />}
               </div>
-              <div className={`max-w-[85%] rounded-xl px-3 py-2.5 text-[13px] leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-tr-sm"
-                  : "bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-sm"
-              }`}>
+              <div
+                className={`max-w-[85%] rounded-xl px-3 py-2.5 text-[13px] leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-blue-600 text-white rounded-tr-sm"
+                    : "bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-sm"
+                }`}
+              >
                 {msg.role === "assistant" ? (
                   <div
                     className="prose prose-sm prose-slate max-w-none [&_table]:text-xs [&_table]:w-full [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_th]:text-left [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:border-slate-300 [&_td]:border-slate-200 [&_p]:my-1 [&_li]:my-0.5"
@@ -156,12 +168,12 @@ export function ChatPopup({ userName }: Props) {
       </div>
 
       {/* 입력 */}
-      <form onSubmit={handleSubmit} className="px-3 py-2.5 border-t bg-white">
+      <div className="px-3 py-2.5 border-t bg-white">
         <div className="flex gap-2 items-end">
           <textarea
             ref={inputRef}
-            value={input || ""}
-            onChange={handleInputChange}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="메시지 입력... (Enter 전송)"
             rows={1}
@@ -174,15 +186,16 @@ export function ChatPopup({ userName }: Props) {
             }}
           />
           <button
-            type="submit"
-            disabled={!input || !input.trim() || isLoading}
+            type="button"
+            onClick={handleSend}
+            disabled={!inputValue.trim() || isLoading}
             className="h-[38px] w-[38px] rounded-lg flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition"
             style={{ background: "#7C3AED", color: "white" }}
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

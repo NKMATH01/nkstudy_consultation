@@ -2,9 +2,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { streamText, tool } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { env } from "@/lib/env";
+
+const google = createGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY });
 
 // 대표/원장 역할 확인을 위한 헬퍼
 async function getCallerRole(): Promise<{
@@ -160,7 +162,7 @@ export async function POST(req: Request) {
 
   // 2. Claude Sonnet 스트리밍 호출
   const result = streamText({
-    model: anthropic("claude-sonnet-4-6-20250725"),
+    model: google("gemini-2.0-flash"),
     system: SYSTEM_PROMPT,
     messages,
     maxOutputTokens: 4096,

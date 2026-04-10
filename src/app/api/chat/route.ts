@@ -160,7 +160,7 @@ export async function POST(req: Request) {
 
   // 2. Claude Sonnet 스트리밍 호출
   const result = streamText({
-    model: anthropic("claude-sonnet-4-5-20241022"),
+    model: anthropic("claude-sonnet-4-20250514"),
     system: SYSTEM_PROMPT,
     messages,
     maxOutputTokens: 4096,
@@ -209,49 +209,6 @@ export async function POST(req: Request) {
           const { data, error, count } = await query;
           if (error) return { error: error.message };
           return { data, total: count };
-        },
-      }),
-
-      // ── 통계/집계 쿼리 (SQL) ──
-      run_sql: tool({
-        description:
-          "복잡한 통계, 집계, JOIN이 필요한 경우 직접 SQL을 실행합니다. SELECT 쿼리만 허용됩니다.",
-        parameters: z.object({
-          sql: z.string().describe("실행할 SELECT SQL 쿼리"),
-        }),
-        execute: async ({ sql }) => {
-          // SELECT만 허용
-          const normalized = sql.trim().toUpperCase();
-          if (
-            !normalized.startsWith("SELECT") ||
-            /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE)\b/.test(
-              normalized
-            )
-          ) {
-            return { error: "SELECT 쿼리만 허용됩니다." };
-          }
-          const { data, error } = await db.rpc("exec_sql", { query: sql }).single();
-          // rpc 없으면 직접 실행
-          if (error) {
-            // Supabase JS에서 raw SQL 실행 대안
-            const resp = await fetch(
-              `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/`,
-              {
-                method: "POST",
-                headers: {
-                  apikey: env.SUPABASE_SERVICE_ROLE_KEY!,
-                  Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-                  "Content-Type": "application/json",
-                },
-              }
-            );
-            return {
-              error:
-                "직접 SQL 실행이 불가합니다. query_table 도구를 사용하세요.",
-              hint: error.message,
-            };
-          }
-          return { data };
         },
       }),
 

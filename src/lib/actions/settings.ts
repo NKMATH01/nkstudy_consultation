@@ -794,16 +794,33 @@ export async function getCurrentTeacher(): Promise<CurrentTeacherInfo | null> {
       .eq("id", user.id)
       .single();
 
-    if (profile) {
+    if (profile?.role === "admin") {
       return {
         name: profile.name,
-        role: profile.role === "admin" ? "admin" : null,
+        role: "admin",
         phone: null,
         allowed_menus: null,
       };
     }
 
-    return { name: user.email, role: null, phone: null, allowed_menus: null };
+    // profiles에 없으면 teachers 테이블에서 auth_user_id로 검색
+    const { data: teacher } = await supabase
+      .from("teachers")
+      .select("name, role, phone, allowed_menus")
+      .eq("auth_user_id", user.id)
+      .limit(1)
+      .single();
+
+    if (teacher) {
+      return {
+        name: teacher.name,
+        role: teacher.role ?? null,
+        phone: teacher.phone ?? null,
+        allowed_menus: Array.isArray(teacher.allowed_menus) ? (teacher.allowed_menus as string[]) : null,
+      };
+    }
+
+    return { name: user.email ?? "사용자", role: null, phone: null, allowed_menus: null };
   } catch {
     return null;
   }

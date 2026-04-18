@@ -16,6 +16,16 @@ function isColumnNotFoundError(error: { code?: string; message?: string }): bool
   return false;
 }
 
+function normalizeClassName(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    .replace(/[-‐‑‒–—―]/g, "")
+    .replace(/[（(]?\s*2관\s*[)）]?/gi, "")
+    .trim()
+    .toUpperCase();
+}
+
 // =============================================
 // ========== 반 관리 (classes) ==========
 // =============================================
@@ -61,7 +71,7 @@ export async function getClasses(): Promise<Class[]> {
 
 export async function createClass(formData: FormData) {
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
     const raw = {
       name: formData.get("name"),
@@ -82,7 +92,7 @@ export async function createClass(formData: FormData) {
     // 선생님 이름 → teacher_id 조회
     let teacherId: string | null = null;
     if (parsed.data.teacher) {
-      const { data: tData } = await supabase
+      const { data: tData } = await admin
         .from("teachers")
         .select("id")
         .eq("name", parsed.data.teacher)
@@ -91,7 +101,7 @@ export async function createClass(formData: FormData) {
       if (tData) teacherId = tData.id;
     }
 
-    const { error } = await supabase.from("classes").insert({
+    const { error } = await admin.from("classes").insert({
       name: parsed.data.name,
       description: parsed.data.class_days || null,
       target_grade: parsed.data.target_grade || null,
@@ -113,10 +123,9 @@ export async function createClass(formData: FormData) {
     return { success: false, error: msg };
   }
 }
-
 export async function updateClass(id: string, formData: FormData) {
   try {
-    const supabase = await createClient();
+    const admin = createAdminClient();
 
     const raw = {
       name: formData.get("name"),
@@ -134,10 +143,23 @@ export async function updateClass(id: string, formData: FormData) {
       return { success: false, error: parsed.error.issues[0].message };
     }
 
+    const { data: existingClass, error: existingClassError } = await admin
+      .from("classes")
+      .select("id, name, description, target_grade, class_time, clinic_time, weekly_test_time, location, teacher_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (existingClassError) {
+      return { success: false, error: existingClassError.message };
+    }
+    if (!existingClass) {
+      return { success: false, error: "Class not found." };
+    }
+
     // 선생님 이름 → teacher_id 조회
     let teacherId: string | null = null;
     if (parsed.data.teacher) {
-      const { data: tData } = await supabase
+      const { data: tData } = await admin
         .from("teachers")
         .select("id")
         .eq("name", parsed.data.teacher)
@@ -146,7 +168,94 @@ export async function updateClass(id: string, formData: FormData) {
       if (tData) teacherId = tData.id;
     }
 
-    const { error } = await supabase
+    const previousClassName = existingClass.name ? String(existingClass.name) : "";
+    const previousClassKey = normalizeClassName(previousClassName);
+    const nextClassName = parsed.data.name;
+    const nextClassKey = normalizeClassName(nextClassName);
+
+    type SyncStudentRow = {
+      id: string;
+      name: string | null;
+      class_name: string | null;
+      teacher_id: string | null;
+    };
+
+    const rollbackClassUpdate = async (reason: string) => {
+      const { error: rollbackError } = await admin
+        .from("classes")
+        .update({
+          name: existingClass.name,
+          description: existingClass.description ?? null,
+          target_grade: existingClass.target_grade ?? null,
+          class_time: existingClass.class_time ?? null,
+          clinic_time: existingClass.clinic_time ?? null,
+          weekly_test_time: existingClass.weekly_test_time ?? null,
+          location: existingClass.location ?? null,
+          teacher_id: existingClass.teacher_id ?? null,
+        })
+        .eq("id", id);
+
+      if (rollbackError) {
+        console.error("[updateClass] class rollback failed", {
+          classId: id,
+          reason,
+          rollbackError: rollbackError.message,
+        });
+        return rollbackError.message;
+      }
+
+      console.warn("[updateClass] class rollback completed", {
+        classId: id,
+        reason,
+        restoredClassName: existingClass.name ?? null,
+        restoredTeacherId: existingClass.teacher_id ?? null,
+      });
+      return null;
+    };
+
+    let matchedStudents: SyncStudentRow[] = [];
+
+    if (previousClassKey) {
+      const { data: studentRows, error: studentReadError } = await admin
+        .from("students")
+        .select("id, name, class_name, teacher_id");
+
+      if (studentReadError) {
+        return {
+          success: false,
+          error: `students sync target read failed before class update: ${studentReadError.message}`,
+        };
+      }
+
+      matchedStudents = (studentRows ?? [])
+        .map((row) => ({
+          id: String(row.id ?? ""),
+          name: row.name != null ? String(row.name) : null,
+          class_name: row.class_name != null ? String(row.class_name) : null,
+          teacher_id: row.teacher_id != null ? String(row.teacher_id) : null,
+        }))
+        .filter((row) => normalizeClassName(row.class_name) === previousClassKey);
+
+      console.log("[updateClass] student sync targets resolved", {
+        classId: id,
+        previousClassName,
+        previousClassKey,
+        nextClassName,
+        nextClassKey,
+        matchedStudentCount: matchedStudents.length,
+        matchedStudents,
+      });
+
+      if (matchedStudents.length === 0) {
+        console.warn("[updateClass] no students matched normalized class key", {
+          classId: id,
+          previousClassName,
+          previousClassKey,
+        });
+      }
+    }
+
+    const { error } = await admin
       .from("classes")
       .update({
         name: parsed.data.name,
@@ -164,14 +273,100 @@ export async function updateClass(id: string, formData: FormData) {
       return { success: false, error: error.message };
     }
 
+    let syncedStudents: SyncStudentRow[] = [];
+
+    if (matchedStudents.length > 0) {
+      const studentPatch: {
+        teacher_id: string | null;
+        class_name?: string | null;
+      } = {
+        teacher_id: teacherId,
+      };
+
+      if (previousClassName !== nextClassName) {
+        studentPatch.class_name = nextClassName;
+      }
+
+      const { data: syncedRows, error: studentSyncError } = await admin
+        .from("students")
+        .update(studentPatch)
+        .in(
+          "id",
+          matchedStudents.map((row) => row.id)
+        )
+        .select("id, name, class_name, teacher_id");
+
+      if (studentSyncError) {
+        const rollbackErrorMessage = await rollbackClassUpdate("student sync query failed");
+        return {
+          success: false,
+          error: rollbackErrorMessage
+            ? `students.teacher_id sync failed after class update: ${studentSyncError.message} / rollback failed: ${rollbackErrorMessage}`
+            : `students.teacher_id sync failed after class update and class update was rolled back: ${studentSyncError.message}`,
+        };
+      }
+
+      syncedStudents = (syncedRows ?? []).map((row) => ({
+        id: String(row.id ?? ""),
+        name: row.name != null ? String(row.name) : null,
+        class_name: row.class_name != null ? String(row.class_name) : null,
+        teacher_id: row.teacher_id != null ? String(row.teacher_id) : null,
+      }));
+
+      if (syncedStudents.length !== matchedStudents.length) {
+        const rollbackErrorMessage = await rollbackClassUpdate("student sync count mismatch");
+        return {
+          success: false,
+          error: rollbackErrorMessage
+            ? `students.teacher_id sync count mismatch after class update: expected ${matchedStudents.length}, got ${syncedStudents.length} / rollback failed: ${rollbackErrorMessage}`
+            : `students.teacher_id sync count mismatch after class update and class update was rolled back: expected ${matchedStudents.length}, got ${syncedStudents.length}`,
+        };
+      }
+    }
+
+    const { data: verifiedClass, error: verifyClassError } = await admin
+      .from("classes")
+      .select("id, name, teacher_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (verifyClassError) {
+      console.error("[updateClass] class verify read failed", {
+        classId: id,
+        error: verifyClassError.message,
+      });
+    } else {
+      console.log("[updateClass] class save verified", {
+        classId: id,
+        previousClassName,
+        previousClassKey,
+        nextClassName,
+        nextClassKey,
+        previousTeacherId: existingClass.teacher_id ?? null,
+        nextTeacherId: teacherId,
+        verifiedClass,
+      });
+    }
+
+    console.log("[updateClass] student teacher sync verified", {
+      classId: id,
+      previousClassName,
+      previousClassKey,
+      nextClassName,
+      nextClassKey,
+      nextTeacherId: teacherId,
+      syncedStudentCount: syncedStudents.length,
+      syncedStudents,
+    });
+
     revalidatePath("/settings/classes");
+    revalidatePath("/settings/students");
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "반 수정 실패";
     return { success: false, error: msg };
   }
 }
-
 export async function deleteClass(id: string) {
   try {
     const supabase = await createClient();
@@ -431,9 +626,9 @@ export async function resetTeacherPassword(id: string) {
       }
     }
 
+    // 비번 "1234" 복귀 + custom_password NULL (학습관리앱이 requires_password_change=true 감지)
     const { error } = await admin
       .from("teachers")
-      // 비번 "1234" 복귀 + custom_password NULL (학습관리앱이 requires_password_change=true 감지)
       .update({ password: "1234", custom_password: null })
       .eq("id", id);
 
@@ -475,11 +670,10 @@ export async function changeTeacherPassword(phone: string, newPassword: string) 
 
     const teacherId = teacher.id;
 
-    // teachers 테이블에는 변경 마커만 저장 (실제 비밀번호는 Supabase Auth에만 보관)
+    // teachers 테이블: 변경 마커 + 학습관리앱/설문조사앱 공유용 custom_password 동시 업데이트
+    // (3앱 통합 비번 정책: 상담관리앱이 단일 소스)
     const { error } = await supabase
       .from("teachers")
-      // teachers 테이블: 변경 마커 + 학습관리앱/설문조사앱 공유용 custom_password 동시 업데이트
-      // (3앱 통합 비번 정책: 상담관리앱이 단일 소스)
       .update({ password: "changed", custom_password: newPassword })
       .eq("id", teacherId);
 
@@ -746,6 +940,7 @@ export async function deleteStudent(id: string) {
     const admin = createAdminClient();
 
     // 퇴원 기록의 student_id 참조 해제 (FK 제약 방지)
+    await admin.from("consultations").update({ student_id: null }).eq("student_id", id);
     await admin.from("withdrawals").update({ student_id: null }).eq("student_id", id);
 
     const { error } = await admin.from("students").delete().eq("id", id);

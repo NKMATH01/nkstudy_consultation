@@ -214,8 +214,8 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
   // Pie data (from filtered)
   const pieData = [
     { name: "등록", value: filteredStats.registered, color: "#059669" },
-    { name: "보류", value: filteredStats.hold, color: "#D4A853" },
-    { name: "기타", value: filteredStats.other, color: "#E11D48" },
+    { name: "고민중", value: filteredStats.hold, color: "#D4A853" },
+    { name: "미등록", value: filteredStats.other, color: "#E11D48" },
     { name: "미정", value: filteredStats.none, color: "#94A3B8" },
   ];
   const pieTotal = pieData.reduce((a, b) => a + b.value, 0) || 1;

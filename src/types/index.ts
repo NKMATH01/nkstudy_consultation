@@ -454,8 +454,8 @@ export const STATUS_LABELS: Record<ConsultationStatus, string> = {
 export const RESULT_STATUS_LABELS: Record<ResultStatus, string> = {
   none: "-",
   registered: "등록",
-  hold: "보류",
-  other: "기타",
+  hold: "고민중",
+  other: "미등록",
 };
 
 // ==================== Booking Types ====================

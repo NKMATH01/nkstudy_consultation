@@ -278,6 +278,11 @@ export async function createTeacher(formData: FormData) {
       password,
     };
     if (authUserId) insertData.auth_user_id = authUserId;
+    // 3앱 통합 비번: 명시적 비번 지정 시에만 custom_password 저장.
+    // 기본 "1234"로 생성되면 custom_password=NULL 유지 → 학습관리앱 requires_password_change 트리거
+    if (parsed.data.password && parsed.data.password !== "1234") {
+      insertData.custom_password = parsed.data.password;
+    }
 
     const { error } = await admin.from("teachers").insert(insertData);
 
@@ -380,7 +385,10 @@ export async function updateTeacher(id: string, formData: FormData) {
       building: parsed.data.subject || null,
     };
     if (parsed.data.role) updateData.role = parsed.data.role;
-    if (newPassword) updateData.password = "changed";
+    if (newPassword) {
+      updateData.password = "changed";
+      updateData.custom_password = newPassword; // 3앱 통합 비번: 학습관리앱/설문조사앱 공유
+    }
 
     const { error } = await admin
       .from("teachers")
@@ -425,7 +433,8 @@ export async function resetTeacherPassword(id: string) {
 
     const { error } = await admin
       .from("teachers")
-      .update({ password: "1234" })
+      // 비번 "1234" 복귀 + custom_password NULL (학습관리앱이 requires_password_change=true 감지)
+      .update({ password: "1234", custom_password: null })
       .eq("id", id);
 
     if (error) {
@@ -469,7 +478,9 @@ export async function changeTeacherPassword(phone: string, newPassword: string) 
     // teachers 테이블에는 변경 마커만 저장 (실제 비밀번호는 Supabase Auth에만 보관)
     const { error } = await supabase
       .from("teachers")
-      .update({ password: "changed" })
+      // teachers 테이블: 변경 마커 + 학습관리앱/설문조사앱 공유용 custom_password 동시 업데이트
+      // (3앱 통합 비번 정책: 상담관리앱이 단일 소스)
+      .update({ password: "changed", custom_password: newPassword })
       .eq("id", teacherId);
 
     if (error) {

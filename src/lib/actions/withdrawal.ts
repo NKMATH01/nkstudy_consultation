@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { withdrawalFormSchema } from "@/lib/validations/withdrawal";
 import type { Withdrawal } from "@/types";
 import { revalidatePath } from "next/cache";
@@ -105,9 +106,9 @@ export async function createWithdrawal(formData: FormData) {
       return { success: false, error: error.message };
     }
 
-    // 퇴원 등록 시 학생관리에서 해당 학생 비활성화
+    // 퇴원 등록 시 학생관리에서 해당 학생 비활성화 (admin 클라이언트로 RLS 우회)
     if (parsed.data.name) {
-      // 반 이름 정규화 (퇴원 폼: "고2C1" → DB: "고2-C1" 또는 "고2-C1(화목)")
+      const admin = createAdminClient();
       const rawClassName = parsed.data.class_name || "";
       const normalizedClass = rawClassName.includes("-")
         ? rawClassName
@@ -117,7 +118,7 @@ export async function createWithdrawal(formData: FormData) {
 
       if (normalizedClass) {
         // 1차: 반 이름 정확 매칭
-        const { data: exact } = await supabase
+        const { data: exact } = await admin
           .from("students")
           .update({ is_active: false })
           .eq("name", parsed.data.name)
@@ -128,7 +129,7 @@ export async function createWithdrawal(formData: FormData) {
 
         // 2차: 반 이름 부분 매칭 (DB에 괄호 붙은 경우: "고1-C3(화목)" like "고1-C3%")
         if (!deactivated) {
-          const { data: partial } = await supabase
+          const { data: partial } = await admin
             .from("students")
             .update({ is_active: false })
             .eq("name", parsed.data.name)
@@ -141,7 +142,7 @@ export async function createWithdrawal(formData: FormData) {
 
       // 3차: 반 매칭 실패 시 이름만으로 비활성화
       if (!deactivated) {
-        const { error: deactivateError } = await supabase
+        const { error: deactivateError } = await admin
           .from("students")
           .update({ is_active: false })
           .eq("name", parsed.data.name)

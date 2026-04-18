@@ -2,11 +2,23 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Bot, Send, X, Loader2, RotateCcw, MessageSquare } from "lucide-react";
+import { ConfirmationCard } from "./confirmation-card";
+import type { Proposal } from "@/lib/chat-tools";
+
+interface ToolResult {
+  status: string;
+  proposal?: Proposal;
+  entityLabel?: string;
+  operationLabel?: string;
+  summary?: string;
+  message?: string;
+}
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  toolResults?: ToolResult[];
 }
 
 interface Props {
@@ -14,7 +26,31 @@ interface Props {
 }
 
 const WELCOME_MSG = (name: string) =>
-  `안녕하세요, ${name}님! NK AI 어시스턴트입니다.\n\n무엇이든 물어보세요:\n- "이번달 상담 현황 알려줘"\n- "재원생 몇 명이야?"\n- "홍길동 학생 설문 분석해줘"\n- "최근 퇴원생 목록 보여줘"`;
+  `안녕하세요, ${name}님! NK AI 어시스턴트입니다.\n\n무엇이든 물어보세요:\n- "이번달 상담 현황 알려줘"\n- "재원생 몇 명이야?"\n- "홍길동 학생 상담 메모 수정해줘"\n- "새 상담 등록해줘"`;
+
+const TOOL_RESULT_REGEX = /<!--TOOL_RESULT:(.*?)-->/g;
+
+/** 텍스트에서 도구 결과 마커를 추출하고 제거 */
+function extractToolResults(text: string): { cleanText: string; toolResults: ToolResult[] } {
+  const toolResults: ToolResult[] = [];
+  let match;
+  while ((match = TOOL_RESULT_REGEX.exec(text)) !== null) {
+    try {
+      toolResults.push(JSON.parse(match[1]));
+    } catch { /* ignore parse errors */ }
+  }
+  const cleanText = text.replace(TOOL_RESULT_REGEX, "").trim();
+  return { cleanText, toolResults };
+}
+
+async function executeProposal(proposal: Proposal): Promise<{ success: boolean; message: string }> {
+  const res = await fetch("/api/chat/execute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ proposal }),
+  });
+  return res.json();
+}
 
 export function ChatPopup({ userName }: Props) {
   const [open, setOpen] = useState(false);
@@ -70,38 +106,22 @@ export function ChatPopup({ userName }: Props) {
         throw new Error(`${res.status}: ${errText}`);
       }
 
-      // 스트리밍 응답 파싱
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
+      // 전체 응답 텍스트 수신
+      const rawText = await res.text();
       const assistantId = (Date.now() + 1).toString();
-      let assistantText = "";
 
-      // 빈 어시스턴트 메시지 추가
-      setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+      // 도구 결과 추출
+      const { cleanText, toolResults } = extractToolResults(rawText);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        assistantText += chunk;
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, content: assistantText } : m))
-        );
-      }
-
-      // 응답이 비어있으면 에러 표시
-      if (!assistantText) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: "죄송합니다. 응답을 생성하지 못했습니다. 다시 시도해주세요." }
-              : m
-          )
-        );
-      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantId,
+          role: "assistant",
+          content: cleanText || (toolResults.length > 0 ? "" : "응답을 생성하지 못했습니다. 다시 시도해주세요."),
+          toolResults: toolResults.length > 0 ? toolResults : undefined,
+        },
+      ]);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       const errMsg = err instanceof Error ? err.message : "알 수 없는 오류";
@@ -184,21 +204,51 @@ export function ChatPopup({ userName }: Props) {
             >
               {msg.role === "user" ? userName[0] : <Bot className="w-3.5 h-3.5" />}
             </div>
-            <div
-              className={`max-w-[85%] rounded-xl px-3 py-2.5 text-[13px] leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-tr-sm"
-                  : "bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-sm"
-              }`}
-            >
-              {msg.role === "assistant" ? (
+            <div className="max-w-[85%] space-y-1">
+              {/* 텍스트 내용 */}
+              {msg.content && (
                 <div
-                  className="prose prose-sm prose-slate max-w-none [&_table]:text-xs [&_table]:w-full [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_th]:text-left [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:border-slate-300 [&_td]:border-slate-200 [&_p]:my-1 [&_li]:my-0.5"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
-                />
-              ) : (
-                <span className="whitespace-pre-wrap">{msg.content}</span>
+                  className={`rounded-xl px-3 py-2.5 text-[13px] leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white rounded-tr-sm"
+                      : "bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-sm"
+                  }`}
+                >
+                  {msg.role === "assistant" ? (
+                    <div
+                      className="prose prose-sm prose-slate max-w-none [&_table]:text-xs [&_table]:w-full [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_th]:text-left [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:border-slate-300 [&_td]:border-slate-200 [&_p]:my-1 [&_li]:my-0.5"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                    />
+                  ) : (
+                    <span className="whitespace-pre-wrap">{msg.content}</span>
+                  )}
+                </div>
               )}
+
+              {/* 도구 결과: 확인 카드 렌더링 */}
+              {msg.toolResults?.map((tr, idx) => {
+                if (tr.status === "pending_confirmation" && tr.proposal) {
+                  return (
+                    <ConfirmationCard
+                      key={`tool-${msg.id}-${idx}`}
+                      proposal={tr.proposal}
+                      entityLabel={tr.entityLabel || ""}
+                      operationLabel={tr.operationLabel || ""}
+                      summary={tr.summary || ""}
+                      onConfirm={executeProposal}
+                      onCancel={() => {}}
+                    />
+                  );
+                }
+                if (tr.status === "error") {
+                  return (
+                    <div key={`tool-${msg.id}-${idx}`} className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+                      {tr.message}
+                    </div>
+                  );
+                }
+                return null;
+              })}
             </div>
           </div>
         ))}

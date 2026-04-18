@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,11 @@ const BASE_FACTOR_KEYS = ["attitude", "self_directed", "assignment", "willingnes
 const sel = "w-full h-9 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 const inp = "rounded-lg border-slate-200 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 
+function withCurrentOption(options: readonly string[], current?: string | null) {
+  if (!current) return [...options];
+  return options.includes(current) ? [...options] : [current, ...options];
+}
+
 interface Props {
   survey: Survey;
   consultation: Consultation;
@@ -56,6 +61,24 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
     parent_consult_note: consultation.parent_consult_note ?? "",
   }));
   const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      prev_academy: consultation.prev_academy ?? "",
+      prev_complaint: consultation.prev_complaint ?? "",
+      school_score: consultation.school_score ?? "",
+      test_score: consultation.test_score ?? "",
+      advance_level: consultation.advance_level ?? "",
+      study_goal: consultation.study_goal ?? "",
+      prefer_days: consultation.prefer_days ?? "",
+      plan_date: consultation.plan_date ?? "",
+      plan_class: consultation.plan_class ?? "",
+      requests: consultation.requests ?? "",
+      student_consult_note: consultation.student_consult_note ?? "",
+      parent_consult_note: consultation.parent_consult_note ?? "",
+    });
+  }, [consultation, open]);
 
   const saveField = useCallback(async (field: string, value: string) => {
     setSaving(field);
@@ -254,7 +277,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                     className={sel}
                   >
                     <option value="">선택</option>
-                    {ADVANCE_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                    {withCurrentOption(ADVANCE_LEVELS, form.advance_level).map((l) => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
               </div>
@@ -268,7 +291,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                     className={sel}
                   >
                     <option value="">선택</option>
-                    {STUDY_GOALS.map((g) => <option key={g} value={g}>{g}</option>)}
+                    {withCurrentOption(STUDY_GOALS, form.study_goal).map((g) => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div>
@@ -279,7 +302,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                     className={sel}
                   >
                     <option value="">선택</option>
-                    {PREFERRED_DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                    {withCurrentOption(PREFERRED_DAYS, form.prefer_days).map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
               </div>
@@ -303,7 +326,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                     className={sel}
                   >
                     <option value="">선택</option>
-                    {classes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {withCurrentOption(classes.map((c) => c.name), form.plan_class).map((name) => <option key={name} value={name}>{name}</option>)}
                   </select>
                 </div>
               </div>

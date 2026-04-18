@@ -26,6 +26,7 @@ export const consultationFormSchema = z.object({
   plan_class: z.string().optional(),
   requests: z.string().optional(),
   student_consult_note: z.string().optional(),
+  parent_consult_note: z.string().optional(),
   parent_consult_date: z.string().optional(),
   parent_consult_time: z.string().optional(),
   parent_location: z.string().optional(),

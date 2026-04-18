@@ -37,6 +37,11 @@ const STUDY_GOALS = ["내신 향상", "선행 학습", "기초 보강", "상위�
 const sel = "w-full h-9 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 const inp = "rounded-lg border-slate-200 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 
+function withCurrentOption(options: readonly string[], current?: string | null) {
+  if (!current) return [...options];
+  return options.includes(current) ? [...options] : [current, ...options];
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -60,7 +65,7 @@ export function ConsultationFormDialog({
     consult_type: "유선 상담", memo: "",
     prev_academy: "", prev_complaint: "", school_score: "", test_score: "",
     advance_level: "", study_goal: "", prefer_days: "",
-    plan_date: "", plan_class: "", requests: "", student_consult_note: "",
+    plan_date: "", plan_class: "", requests: "", student_consult_note: "", parent_consult_note: "",
     parent_consult_date: "", parent_consult_time: "", parent_location: "",
   };
 
@@ -97,6 +102,7 @@ export function ConsultationFormDialog({
         plan_class: consultation.plan_class ?? "",
         requests: consultation.requests ?? "",
         student_consult_note: consultation.student_consult_note ?? "",
+        parent_consult_note: consultation.parent_consult_note ?? "",
         parent_consult_date: consultation.parent_consult_date ?? "",
         parent_consult_time: consultation.parent_consult_time?.slice(0, 5) ?? "",
         parent_location: consultation.parent_location ?? "",
@@ -352,7 +358,7 @@ export function ConsultationFormDialog({
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
-                        {ADVANCE_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                        {withCurrentOption(ADVANCE_LEVELS, field.value).map((l) => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </FormControl>
                   </FormItem>
@@ -366,7 +372,7 @@ export function ConsultationFormDialog({
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
-                        {STUDY_GOALS.map((g) => <option key={g} value={g}>{g}</option>)}
+                        {withCurrentOption(STUDY_GOALS, field.value).map((g) => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </FormControl>
                   </FormItem>
@@ -377,7 +383,7 @@ export function ConsultationFormDialog({
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
-                        {PREFERRED_DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                        {withCurrentOption(PREFERRED_DAYS, field.value).map((d) => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </FormControl>
                   </FormItem>
@@ -397,7 +403,7 @@ export function ConsultationFormDialog({
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
-                        {classes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {withCurrentOption(classes.map((c) => c.name), field.value).map((name) => <option key={name} value={name}>{name}</option>)}
                       </select>
                     </FormControl>
                   </FormItem>
@@ -424,6 +430,14 @@ export function ConsultationFormDialog({
                   <FormLabel className="text-xs text-slate-500">특이사항</FormLabel>
                   <FormControl>
                     <Textarea className={`resize-none ${inp}`} rows={2} placeholder="학생 관련 특이사항" {...field} />
+                  </FormControl>
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="parent_consult_note" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs text-slate-500">학부모 상담 메모</FormLabel>
+                  <FormControl>
+                    <Textarea className={`resize-none ${inp}`} rows={2} placeholder="학부모 상담 내용" {...field} />
                   </FormControl>
                 </FormItem>
               )} />

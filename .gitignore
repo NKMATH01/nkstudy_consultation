@@ -29,6 +29,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+dev*.log
+dev*.err.log
+dev*.out.log
+
+# local dev tooling
+.claude/
+.deploy-clean-src/
+.mcp.json
+
+# bkit internal state
+docs/.bkit-memory.json
+docs/.pdca-status.json
 
 # env files (can opt-in for committing if needed)
 .env*

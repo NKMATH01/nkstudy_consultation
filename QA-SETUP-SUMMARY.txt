@@ -1,0 +1,254 @@
+================================================================================
+Zero Script QA - NK Consultation System
+Setup Complete: 2026-04-19
+================================================================================
+
+INFRASTRUCTURE CREATED:
+
+1. Core Logging System
+   - src/lib/logger.ts (JSON structured logging utility)
+   - src/lib/api-client.ts (API client with automatic logging)
+
+2. Docker Configuration
+   - docker-compose.yml (service orchestration)
+   - Dockerfile.dev (development image)
+
+3. Documentation
+   - ZERO-SCRIPT-QA-SETUP.md (this setup guide)
+   - docs/ZERO-SCRIPT-QA.md (comprehensive monitoring guide)
+   - docs/QA-QUICK-START.md (quick reference for daily use)
+   - docs/INTEGRATION-GUIDE.md (how to add logging to code)
+   - docs/qa-issues/ISSUE-TEMPLATE.md (issue reporting format)
+
+================================================================================
+QUICK START:
+
+Terminal 1 - Start Development:
+  npm run dev
+
+Terminal 2 - Monitor Logs (Option A - Direct):
+  # Logs will appear as JSON in the npm run dev output
+
+Terminal 2 - Monitor Logs (Option B - Docker):
+  docker compose logs -f
+
+Browser:
+  http://localhost:3000
+
+Expected Output (JSON logs):
+  {"timestamp":"2026-04-19T10:30:00.000Z","level":"INFO","service":"web",
+   "request_id":"req_abc12345","message":"API Request completed",
+   "data":{"method":"POST","endpoint":"/api/consultations","status":200,
+   "duration_ms":125}}
+
+================================================================================
+KEY FEATURES:
+
+✓ Automatic JSON logging for all console.log calls
+✓ Request ID generation and tracking across requests
+✓ Structured log format (timestamp, level, service, request_id, message, data)
+✓ API client that automatically logs all calls
+✓ Real-time log filtering for error detection
+✓ Complete request flow tracing via Request ID
+✓ Performance monitoring (duration_ms)
+✓ Development-friendly colored console output
+
+================================================================================
+MONITORING PATTERNS:
+
+Find errors:
+  docker compose logs -f | grep '"level":"ERROR"'
+
+Find slow responses (>1000ms):
+  docker compose logs -f | grep -E '"duration_ms":[0-9]{4,}'
+
+Track specific request:
+  docker compose logs | grep 'req_abc12345'
+
+Find status codes:
+  docker compose logs | grep '"status":5'  # 5xx errors
+  docker compose logs | grep '"status":4'  # 4xx errors
+
+Save logs:
+  docker compose logs > logs_$(date +%Y%m%d_%H%M%S).txt
+
+================================================================================
+INTEGRATION NEEDED (Optional but Recommended):
+
+To get full logging coverage, you can integrate logger calls into:
+
+1. Server Actions (src/lib/actions/)
+   - consultation.ts
+   - survey.ts
+   - analysis.ts
+   - registration.ts
+   - settings.ts
+   - booking.ts
+   - withdrawal.ts
+
+2. Client Components (src/components/)
+   - All list components
+   - All form components
+   - All detail components
+
+See docs/INTEGRATION-GUIDE.md for code patterns and examples.
+
+================================================================================
+FILE STRUCTURE:
+
+NK Consultation/
+├── src/
+│   ├── lib/
+│   │   ├── logger.ts (NEW - Logging utility)
+│   │   └── api-client.ts (NEW - API client with logging)
+│   ├── app/
+│   └── components/
+├── docs/
+│   ├── ZERO-SCRIPT-QA.md (NEW - Complete guide)
+│   ├── QA-QUICK-START.md (NEW - Quick reference)
+│   ├── INTEGRATION-GUIDE.md (NEW - Code patterns)
+│   └── qa-issues/ (NEW - Issue documentation)
+│       └── ISSUE-TEMPLATE.md
+├── docker-compose.yml (NEW - Service orchestration)
+├── Dockerfile.dev (NEW - Development image)
+├── ZERO-SCRIPT-QA-SETUP.md (THIS FILE)
+└── QA-SETUP-SUMMARY.txt (THIS SUMMARY)
+
+================================================================================
+NEXT STEPS:
+
+1. Read docs/QA-QUICK-START.md (5 minutes)
+2. Start development: npm run dev
+3. Monitor logs in another terminal
+4. Test a feature (e.g., create consultation)
+5. Watch logs appear in real-time
+6. Document any issues in docs/qa-issues/
+
+Optional:
+7. Integrate logging into server actions (docs/INTEGRATION-GUIDE.md)
+8. Test more features
+9. Build comprehensive log baseline
+
+================================================================================
+DOCUMENTATION:
+
+Quick Reference:
+  docs/QA-QUICK-START.md - Start here (5 min)
+
+Complete Guide:
+  docs/ZERO-SCRIPT-QA.md - Full documentation (20 min)
+
+Code Integration:
+  docs/INTEGRATION-GUIDE.md - How to add logging (15 min)
+
+Issue Template:
+  docs/qa-issues/ISSUE-TEMPLATE.md - How to document bugs
+
+Setup Instructions:
+  ZERO-SCRIPT-QA-SETUP.md - Detailed setup guide
+
+================================================================================
+ENVIRONMENT SETUP REQUIRED:
+
+Create .env.local (if not exists):
+
+  NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=xxxxx
+  GEMINI_API_KEY=xxxxx
+  ANTHROPIC_API_KEY=sk-xxxxx
+
+Get these from:
+- Supabase: Dashboard > Settings > API
+- Gemini: https://ai.google.dev
+- Anthropic: https://console.anthropic.com
+
+================================================================================
+TROUBLESHOOTING:
+
+Q: Where are logs?
+A: Browser console (F12 > Console tab) when using npm run dev
+   Or terminal when using docker compose logs -f
+
+Q: Logs not JSON format?
+A: Check NODE_ENV is "development"
+   Verify browser console is open
+
+Q: No logs appearing?
+A: npm run dev must be running
+   Open browser to http://localhost:3000
+   Perform an action in app
+
+Q: Docker error?
+A: Docker is optional - npm run dev works without it
+   Install Docker from https://docker.com if you want docker compose logs
+
+Q: Can't find request ID?
+A: Look for "req_" prefix in logs
+   Format: req_abc12345
+
+================================================================================
+LOGGING API REFERENCE:
+
+Basic Usage:
+  import { logger } from '@/lib/logger';
+
+  logger.info('Message', { request_id: 'req_xxx', key: 'value' });
+  logger.warning('Message', { request_id: 'req_xxx', key: 'value' });
+  logger.error('Message', { request_id: 'req_xxx', key: 'value' });
+  logger.debug('Message', { request_id: 'req_xxx', key: 'value' });
+
+API Client:
+  import { apiPost, apiGet, apiPatch, apiDelete } from '@/lib/api-client';
+
+  // Automatic logging
+  const result = await apiPost('/consultations', data);
+  const list = await apiGet('/consultations');
+
+Generate Request ID:
+  import { generateRequestId } from '@/lib/logger';
+
+  const id = generateRequestId(); // Returns "req_abc12345"
+
+================================================================================
+PERFORMANCE BASELINE:
+
+Monitor these endpoints:
+
+  List Consultations:     GET /api/consultations     Target: <100ms
+  Create Consultation:    POST /api/consultations    Target: <500ms
+  AI Analysis:            POST /api/analyses         Target: <5000ms
+  Generate Guidance:      POST /api/registrations    Target: <3000ms
+  List Surveys:           GET /api/surveys           Target: <100ms
+
+Alert thresholds:
+  - Endpoint > 1000ms: Check for bottleneck
+  - Endpoint > 3000ms: Urgent optimization needed
+  - Any 5xx error: Critical issue
+
+================================================================================
+VERSION INFORMATION:
+
+Setup Version: 1.0
+Created: 2026-04-19
+Status: Ready to Use
+
+Tested with:
+- Node.js 20+
+- Next.js 16.1
+- React 19
+- TypeScript 5
+
+================================================================================
+SUPPORT:
+
+For detailed information, see:
+1. docs/QA-QUICK-START.md (daily reference)
+2. docs/ZERO-SCRIPT-QA.md (comprehensive guide)
+3. ZERO-SCRIPT-QA-SETUP.md (complete setup)
+4. docs/INTEGRATION-GUIDE.md (code examples)
+
+================================================================================
+Ready to start Zero Script QA monitoring!
+Next step: npm run dev
+
+================================================================================

@@ -2,18 +2,32 @@ import { z } from "zod";
 
 const scoreField = z.coerce.number().min(1).max(5).optional();
 
+const phoneField = z
+  .string()
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => {
+    if (!v) return "";
+    let digits = v.replace(/\D/g, "");
+    if (digits.startsWith("82")) digits = "0" + digits.slice(2);
+    if (/^01[016789]\d{7,8}$/.test(digits)) {
+      const mid = digits.length === 11 ? digits.slice(3, 7) : digits.slice(3, 6);
+      const last = digits.slice(-4);
+      return `${digits.slice(0, 3)}-${mid}-${last}`;
+    }
+    return digits;
+  })
+  .refine(
+    (v) => v === "" || /^01[016789]-\d{3,4}-\d{4}$/.test(v),
+    "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)"
+  );
+
 export const surveyFormSchema = z.object({
   name: z.string().min(1, "이름을 입력해주세요"),
   school: z.string().optional(),
   grade: z.string().optional(),
-  student_phone: z.string()
-    .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)")
-    .optional()
-    .or(z.literal("")),
-  parent_phone: z.string()
-    .regex(/^01[016789]-?\d{3,4}-?\d{4}$/, "올바른 전화번호 형식이 아닙니다 (예: 010-1234-5678)")
-    .optional()
-    .or(z.literal("")),
+  student_phone: phoneField,
+  parent_phone: phoneField,
   referral: z.string().optional(),
   prev_academy: z.string().optional(),
   prev_complaint: z.string().optional(),

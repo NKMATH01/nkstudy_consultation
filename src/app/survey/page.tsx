@@ -260,6 +260,16 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 
 const fieldClass = "w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors bg-slate-50/50";
 
+function formatPhone(v: string) {
+  let digits = v.replace(/\D/g, "");
+  if (digits.startsWith("82")) digits = "0" + digits.slice(2);
+  digits = digits.slice(0, 11);
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  const midLen = digits.length === 11 ? 4 : 3;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 3 + midLen)}-${digits.slice(3 + midLen)}`;
+}
+
 function StepInfo({
   info,
   onChange,
@@ -323,8 +333,10 @@ function StepInfo({
           <div>
             <FieldLabel required>학생 연락처</FieldLabel>
             <Input
+              type="tel"
+              inputMode="numeric"
               value={info.student_phone}
-              onChange={(e) => update("student_phone", e.target.value)}
+              onChange={(e) => update("student_phone", formatPhone(e.target.value))}
               placeholder="010-0000-0000"
               className={fieldClass}
             />
@@ -332,8 +344,10 @@ function StepInfo({
           <div>
             <FieldLabel required>학부모 연락처</FieldLabel>
             <Input
+              type="tel"
+              inputMode="numeric"
               value={info.parent_phone}
-              onChange={(e) => update("parent_phone", e.target.value)}
+              onChange={(e) => update("parent_phone", formatPhone(e.target.value))}
               placeholder="010-0000-0000"
               className={fieldClass}
             />

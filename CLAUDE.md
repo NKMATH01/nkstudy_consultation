@@ -8,7 +8,7 @@ Google Apps Script 기반에서 Next.js + Supabase로 마이그레이션한 프�
 - **프레임워크**: Next.js 16.1 (App Router) + React 19 + TypeScript
 - **스타일**: Tailwind CSS v4 + shadcn/ui (radix-ui)
 - **DB/Auth**: Supabase (PostgreSQL + Auth + RLS)
-- **AI**: Google Gemini 2.0 Flash (설문 분석) + Claude Haiku (등록 안내문 생성)
+- **AI**: Google Gemini 2.5 Flash (설문 분석) + Claude Haiku (등록 안내문 생성)
 - **차트**: recharts
 - **폼 관리**: react-hook-form + zod
 - **상태 관리**: @tanstack/react-query (서버 상태)
@@ -86,7 +86,7 @@ supabase/
 NEXT_PUBLIC_SUPABASE_URL=       # Supabase 프로젝트 URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase 익명 키
 GEMINI_API_KEY=                 # Google Gemini API 키 (서버 전용)
-GEMINI_MODEL=                   # Gemini 모델명 (기본: gemini-2.0-flash)
+GEMINI_MODEL=                   # Gemini 모델명 (기본: gemini-2.5-flash)
 ANTHROPIC_API_KEY=              # Claude API 키 (등록 안내문 생성용)
 CLAUDE_MODEL=                   # Claude 모델명 (기본: claude-haiku-4-5-20251001)
 NK_ACADEMY_VEHICLE_FEE=         # 차량비 (선택, 기본: 2만원)

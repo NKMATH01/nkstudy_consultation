@@ -27,9 +27,13 @@ export default async function SurveysPage({
       .from("registrations")
       .select("id, analysis_id")
       .order("created_at", { ascending: false }),
+    // 상담관리 페이지와 동일한 정렬 기준 적용 (consult_date → consult_time → created_at).
+      // 그렇지 않으면 한 학생의 여러 상담 중 "고민중"으로 마크된 건을 놓쳐 설문분석에서 상태 미표시됨.
     supabase
       .from("consultations")
       .select("name, result_status, test_score, subject")
+      .order("consult_date", { ascending: false, nullsFirst: false })
+      .order("consult_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
   ]);
 

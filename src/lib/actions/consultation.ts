@@ -501,11 +501,13 @@ export async function updateRegistrationInfo(
   try {
     const supabase = await createClient();
 
-    // 가장 최근 상담 찾기
+    // 가장 최근 상담 찾기 — 상담관리/설문분석 표시 기준과 동일하게 consult_date 우선 정렬
     const { data: consultation, error: findErr } = await supabase
       .from("consultations")
       .select("id")
       .eq("name", studentName)
+      .order("consult_date", { ascending: false, nullsFirst: false })
+      .order("consult_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

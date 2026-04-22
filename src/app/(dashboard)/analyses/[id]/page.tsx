@@ -26,12 +26,16 @@ export default async function AnalysisDetailPage({
   const supabase = await createClient();
 
   // 상담 데이터 조회 (학생 이름으로 매칭 - 최신)
+  // 상담관리/설문분석과 동일한 정렬 기준(consult_date 우선)으로 통일 — 그렇지 않으면
+  // 한 학생의 여러 상담 중 result_status가 마크된 건을 놓쳐 분석 상세에도 미반영됨.
   let consultationResultStatus: ResultStatus | null = null;
   let consultationData: Record<string, string | null> | null = null;
   const { data: consultation } = await supabase
     .from("consultations")
     .select("result_status, test_score, school_score, student_consult_note, parent_consult_note, consult_date, plan_date, plan_class, prefer_days, advance_level, study_goal, prev_academy, prev_complaint")
     .eq("name", analysis.name)
+    .order("consult_date", { ascending: false, nullsFirst: false })
+    .order("consult_time", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

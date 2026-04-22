@@ -197,22 +197,25 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   }, [registrations]);
 
   // 상담 result_status 맵 (이름 → result_status) - 가장 최근 상담 기준
+  // 이름은 trim()으로 정규화 — 설문/상담 입력 시 공백 유입 케이스(예: "김혜원 ")를 방어
   const consultationStatusMap = useMemo(() => {
     const map = new Map<string, ResultStatus>();
     for (const c of consultations) {
-      if (!map.has(c.name)) {
-        map.set(c.name, c.result_status as ResultStatus);
+      const key = (c.name ?? "").trim();
+      if (key && !map.has(key)) {
+        map.set(key, c.result_status as ResultStatus);
       }
     }
     return map;
   }, [consultations]);
 
-  // 상담 테스트 점수 + 과목 맵
+  // 상담 테스트 점수 + 과목 맵 (이름 trim 정규화 동일 적용)
   const testScoreMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of consultations) {
-      if (!map.has(c.name) && c.test_score) {
-        map.set(c.name, c.test_score);
+      const key = (c.name ?? "").trim();
+      if (key && !map.has(key) && c.test_score) {
+        map.set(key, c.test_score);
       }
     }
     return map;
@@ -221,8 +224,9 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const subjectMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of consultations) {
-      if (!map.has(c.name) && c.subject) {
-        map.set(c.name, c.subject);
+      const key = (c.name ?? "").trim();
+      if (key && !map.has(key) && c.subject) {
+        map.set(key, c.subject);
       }
     }
     return map;
@@ -397,7 +401,9 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     const isAnalyzing = analyzingId === item.id;
                     const nameHref = hasAnalysis ? `/analyses/${analysisId}` : `/surveys/${item.id}`;
                     const regId = analysisId ? registrationMap.get(analysisId) : undefined;
-                    const consultStatus = consultationStatusMap.get(item.name) || "none";
+                    // 맵 조회 키도 trim으로 정규화 (설문 name에 트레일링 공백이 들어간 케이스 대응)
+                    const normalizedName = (item.name ?? "").trim();
+                    const consultStatus = consultationStatusMap.get(normalizedName) || "none";
                     const vb = "border-r border-slate-100";
 
                     return (
@@ -415,8 +421,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                           {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
                         </td>
                         <td className={`py-2 px-1.5 text-center whitespace-nowrap ${vb}`}>
-                          {subjectMap.get(item.name) ? (
-                            <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-50 text-blue-600">{subjectMap.get(item.name)}</span>
+                          {subjectMap.get(normalizedName) ? (
+                            <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-50 text-blue-600">{subjectMap.get(normalizedName)}</span>
                           ) : <span className="text-[9px] text-slate-200">-</span>}
                         </td>
                         <td className={`py-2 px-1.5 text-[10px] text-slate-600 whitespace-nowrap ${vb}`}>
@@ -426,7 +432,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                           {formatPhone(item.parent_phone) || <span className="text-slate-200">-</span>}
                         </td>
                         <td className={`py-2 px-1.5 text-center text-[10px] font-medium text-slate-600 whitespace-nowrap ${vb}`}>
-                          {testScoreMap.get(item.name) || <span className="text-slate-200">-</span>}
+                          {testScoreMap.get(normalizedName) || <span className="text-slate-200">-</span>}
                         </td>
                         {FACTOR_KEYS.map((key) => {
                           const val = item[`factor_${key}` as keyof Survey] as number | null;

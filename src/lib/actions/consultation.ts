@@ -163,13 +163,23 @@ export async function getConsultationByName(
 ): Promise<Consultation | null> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("consultations")
-    .select("*")
-    .eq("name", name)
-    .order("consult_date", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+  // 이름 공백 차이("김혜원" vs "김혜원 ") 방어: exact match 실패 시 trim 기준으로 재시도
+  const trimmed = (name ?? "").trim();
+  const tryFetch = async (nameValue: string) =>
+    supabase
+      .from("consultations")
+      .select("*")
+      .eq("name", nameValue)
+      .order("consult_date", { ascending: false, nullsFirst: false })
+      .order("consult_time", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+  let { data, error } = await tryFetch(name);
+  if ((!data || error) && trimmed !== name) {
+    ({ data, error } = await tryFetch(trimmed));
+  }
 
   if (error || !data) {
     return null;
@@ -502,15 +512,23 @@ export async function updateRegistrationInfo(
     const supabase = await createClient();
 
     // 가장 최근 상담 찾기 — 상담관리/설문분석 표시 기준과 동일하게 consult_date 우선 정렬
-    const { data: consultation, error: findErr } = await supabase
-      .from("consultations")
-      .select("id")
-      .eq("name", studentName)
-      .order("consult_date", { ascending: false, nullsFirst: false })
-      .order("consult_time", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // 이름 공백 차이(예: "김혜원 " vs "김혜원") 방어: exact 실패 시 trim 으로 재시도
+    const trimmedName = (studentName ?? "").trim();
+    const findOne = (nameValue: string) =>
+      supabase
+        .from("consultations")
+        .select("id")
+        .eq("name", nameValue)
+        .order("consult_date", { ascending: false, nullsFirst: false })
+        .order("consult_time", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    let { data: consultation, error: findErr } = await findOne(studentName);
+    if ((!consultation || findErr) && trimmedName !== studentName) {
+      ({ data: consultation, error: findErr } = await findOne(trimmedName));
+    }
 
     if (findErr || !consultation) {
       return { success: false, error: "해당 학생의 상담 정보를 찾을 수 없습니다" };

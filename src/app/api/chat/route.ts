@@ -277,7 +277,7 @@ NK EDUCATION은 수학/영어 학원입니다.
 - class (반): 등록/수정/삭제 가능 — 필수: name
 
 ### changes 필드 작성 가이드 (이 목록에 없는 필드는 사용하지 마세요):
-- consultation: name, school, grade, parent_phone, consult_date(YYYY-MM-DD), consult_time(HH:MM), subject, location, consult_type, memo, status(pending/active/completed/cancelled), result_status(none=미결정/registered=등록/hold=고민중/other=미등록), prev_academy, prev_complaint, school_score, test_score, advance_level, study_goal, prefer_days, plan_date(YYYY-MM-DD), plan_class, requests, student_consult_note, parent_consult_note, parent_consult_date(YYYY-MM-DD), parent_consult_time(HH:MM), parent_location, test_fee_paid(true/false), test_fee_method
+- consultation: name, school, grade, parent_phone, consult_date(YYYY-MM-DD), consult_time(HH:MM), subject, location, consult_type, memo, status(pending/active/completed/cancelled), result_status(none=미결정/registered=등록/hold=고민중/other=미등록), prev_academy, prev_complaint, school_score, test_score, advance_level, study_goal, prefer_days, plan_date(YYYY-MM-DD), plan_class, requests, student_consult_note, parent_consult_note, parent_consult_date(YYYY-MM-DD), parent_consult_time(HH:MM), parent_location, test_fee_paid(true/false), test_fee_method(transfer=입금/card=카드/exempt=면제)
 - student: name, school, grade, phone, parent_phone, class_name, teacher_name, subject, memo
 - booking: student_name, phone, booking_date(YYYY-MM-DD), booking_hour(정수 13~20), branch, consult_type, paid(true/false), memo
 - withdrawal: name, school, subject, class_name, teacher, grade, reason_category, withdrawal_date(YYYY-MM-DD)

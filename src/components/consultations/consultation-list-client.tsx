@@ -597,7 +597,10 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                                 {item.test_fee_paid && (
                                   <button
                                     onClick={() => {
-                                      const next = item.test_fee_method === "transfer" ? "card" : "transfer";
+                                      const next =
+                                        item.test_fee_method === "transfer" ? "card" :
+                                        item.test_fee_method === "card" ? "exempt" :
+                                        "transfer";
                                       setLocalData((prev) =>
                                         prev.map((c) => c.id === item.id ? { ...c, test_fee_method: next } : c)
                                       );
@@ -608,10 +611,16 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                                     className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                       item.test_fee_method === "card"
                                         ? "bg-blue-100 text-blue-700"
-                                        : "bg-amber-100 text-amber-700"
+                                        : item.test_fee_method === "exempt"
+                                          ? "bg-slate-200 text-slate-700"
+                                          : "bg-amber-100 text-amber-700"
                                     }`}
                                   >
-                                    {item.test_fee_method === "card" ? "카드" : "입금"}
+                                    {item.test_fee_method === "card"
+                                      ? "카드"
+                                      : item.test_fee_method === "exempt"
+                                        ? "면제"
+                                        : "입금"}
                                   </button>
                                 )}
                               </div>

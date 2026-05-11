@@ -49,6 +49,8 @@ export default function PublicSurveyPage() {
     referral_friend: "",
     prev_academy: "",
     prev_complaint: "",
+    school_score: "",
+    advance_level: "",
   });
   const [scores, setScores] = useState<Record<string, number>>({});
   const [openEnded, setOpenEnded] = useState({
@@ -274,7 +276,7 @@ function StepInfo({
   info,
   onChange,
 }: {
-  info: { name: string; school: string; grade: string; student_phone: string; parent_phone: string; referral: string; referral_friend: string; prev_academy: string; prev_complaint: string };
+  info: { name: string; school: string; grade: string; student_phone: string; parent_phone: string; referral: string; referral_friend: string; prev_academy: string; prev_complaint: string; school_score: string; advance_level: string };
   onChange: (v: typeof info) => void;
 }) {
   const update = (key: string, value: string) => onChange({ ...info, [key]: value });
@@ -409,6 +411,26 @@ function StepInfo({
               rows={3}
               className={`${fieldClass} resize-none`}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>내신점수</FieldLabel>
+              <Input
+                value={info.school_score}
+                onChange={(e) => update("school_score", e.target.value)}
+                placeholder="예: 85점 / 3등급"
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <FieldLabel>현재 진도 / 선행 정도</FieldLabel>
+              <Input
+                value={info.advance_level}
+                onChange={(e) => update("advance_level", e.target.value)}
+                placeholder="예: 중2-1 일차함수"
+                className={fieldClass}
+              />
+            </div>
           </div>
         </div>
       </div>

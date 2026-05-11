@@ -12,11 +12,11 @@ export default async function DashboardLayout({
   const isExecutive = ["director", "principal", "admin"].includes(currentTeacher?.role ?? "");
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F8F9FC" }}>
+    <div className="flex h-screen overflow-hidden app-chrome">
       <Sidebar currentTeacher={currentTeacher} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header currentTeacher={currentTeacher} />
-        <main className="flex-1 overflow-y-auto page-enter" style={{ padding: "24px 28px" }}>
+        <main className="flex-1 overflow-y-auto page-enter page-shell">
           {children}
         </main>
       </div>

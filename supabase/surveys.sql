@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS surveys (
   referral TEXT,
   prev_academy TEXT,
   prev_complaint TEXT,
+  school_score TEXT,
+  advance_level TEXT,
   -- 30문항 점수 (1~5)
   q1 SMALLINT, q2 SMALLINT, q3 SMALLINT, q4 SMALLINT, q5 SMALLINT,
   q6 SMALLINT, q7 SMALLINT, q8 SMALLINT, q9 SMALLINT, q10 SMALLINT,

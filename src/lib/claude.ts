@@ -69,7 +69,9 @@ export function surveyToText(survey: Survey): string {
   text += `학부모 연락처: ${survey.parent_phone || ""}\n`;
   text += `유입 경로: ${survey.referral || ""}\n`;
   text += `기존 학원: ${survey.prev_academy || ""}\n`;
-  text += `기존 학원 아쉬운점: ${survey.prev_complaint || ""}\n\n`;
+  text += `기존 학원 아쉬운점: ${survey.prev_complaint || ""}\n`;
+  text += `내신점수: ${survey.school_score || ""}\n`;
+  text += `현재 진도/선행 정도: ${survey.advance_level || ""}\n\n`;
 
   text += "=== 설문 응답 (1-5점) ===\n";
   for (let i = 0; i < SURVEY_QUESTIONS.length; i++) {

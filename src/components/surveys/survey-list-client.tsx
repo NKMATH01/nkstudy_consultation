@@ -67,22 +67,50 @@ function formatPhone(phone: string | null): string {
 function FactorScore({ value }: { value: number | null }) {
   if (value == null) return <span className="text-[10px] text-slate-200">-</span>;
   const color =
-    value >= 4 ? "text-emerald-600" : value >= 3 ? "text-amber-600" : "text-red-500";
-  return <span className={`text-[10px] font-bold ${color}`}>{value.toFixed(1)}</span>;
+    value >= 4 ? "bg-teal-50 text-teal-700 border-teal-100" : value >= 3 ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-rose-50 text-rose-700 border-rose-100";
+  return <span className={`inline-flex min-w-8 justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-black ${color}`}>{value.toFixed(1)}</span>;
 }
 
 function ResultStatusBadge({ status }: { status: ResultStatus }) {
   if (status === "none") return <span className="text-[10px] text-slate-300">-</span>;
   const styles: Record<string, string> = {
-    registered: "bg-red-500 text-white",
-    hold: "bg-amber-400 text-white",
-    other: "bg-neutral-500 text-white line-through",
+    registered: "bg-teal-600 text-white",
+    hold: "bg-[#B88A44] text-white",
+    other: "bg-slate-600 text-white line-through",
   };
   return (
     <Badge className={`text-[10px] border-0 ${styles[status] || "bg-slate-100 text-slate-500"}`}>
       {RESULT_STATUS_LABELS[status]}
     </Badge>
   );
+}
+
+function getRowTone(status: ResultStatus): string {
+  if (status === "registered") return "bg-teal-50/45 hover:bg-teal-50/80";
+  if (status === "hold") return "bg-amber-50/45 hover:bg-amber-50/80";
+  if (status === "other") return "bg-slate-100/55 hover:bg-slate-100/85";
+  return "hover:bg-slate-50/90";
+}
+
+function getRowStripe(status: ResultStatus): string {
+  if (status === "registered") return "bg-teal-600";
+  if (status === "hold") return "bg-[#B88A44]";
+  if (status === "other") return "bg-slate-500";
+  return "bg-slate-200";
+}
+
+function getSubjectBadgeClass(subject?: string): string {
+  const normalized = subject ?? "";
+  if (normalized.includes("영어수학") || normalized.includes("영수")) {
+    return "border-violet-200 bg-violet-50 text-violet-700";
+  }
+  if (normalized.includes("영어")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (normalized.includes("수학")) {
+    return "border-blue-200 bg-blue-50 text-blue-700";
+  }
+  return "border-slate-200 bg-slate-50 text-slate-500";
 }
 
 export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations, classes, teachers }: Props) {
@@ -310,40 +338,65 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     }
   };
 
+  const summary = useMemo(() => {
+    const analyzed = initialData.filter((item) => !!item.analysis_id || analysisMap.has(item.id)).length;
+    const registered = initialData.filter((item) => consultationStatusMap.get((item.name ?? "").trim()) === "registered").length;
+    const waiting = initialData.length - analyzed;
+    return { analyzed, registered, waiting };
+  }, [initialData, analysisMap, consultationStatusMap]);
+
   return (
     <div className="space-y-5">
       {/* Section Header */}
-      <div className="flex justify-between items-end mb-1">
+      <div className="overflow-hidden rounded-[14px] border border-slate-200/90 bg-white shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(17,24,39,0.075)]">
+        <div className="flex flex-col gap-4 bg-gradient-to-r from-[#111827] via-[#16213E] to-[#2F3E5F] px-6 py-5 text-white md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-[#E9C46A]">
+            <ClipboardList className="h-3.5 w-3.5" />
+            Survey Analysis
+          </div>
+          <h1 className="text-2xl font-black" style={{ letterSpacing: "-0.035em", marginBottom: "4px" }}>
             설문/분석 관리
           </h1>
-          <p className="text-[12.5px]" style={{ color: "#64748B" }}>
+          <p className="text-[12.5px] font-medium text-slate-300">
             총 {initialPagination.total}건
           </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[7px] text-white text-[12.5px] font-semibold transition-all"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black text-[#111827] shadow-lg transition-all hover:-translate-y-px"
           style={{
-            background: "linear-gradient(135deg, #D4A853, #C49B3D)",
-            boxShadow: "0 2px 8px rgba(212,168,83,0.3)",
+            background: "linear-gradient(135deg, #E9C46A, #B88A44)",
+            boxShadow: "0 12px 28px rgba(184,138,68,0.25)",
           }}
         >
           <Plus className="h-3.5 w-3.5" />
           설문 입력
         </button>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-slate-100 bg-white">
+          {[
+            { label: "분석완료", value: summary.analyzed, color: "text-teal-700" },
+            { label: "등록", value: summary.registered, color: "text-[#B88A44]" },
+            { label: "분석대기", value: summary.waiting, color: "text-slate-700" },
+          ].map((item) => (
+            <div key={item.label} className="px-5 py-3">
+              <p className="text-[11px] font-bold text-slate-400">{item.label}</p>
+              <p className={`mt-1 text-xl font-black ${item.color}`}>{item.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      <div className="relative max-w-md rounded-[14px] border border-slate-200/90 bg-white p-2 shadow-sm">
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input
           placeholder="이름, 학교 검색..."
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
-          className="pl-9 rounded-xl border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className="border-0 bg-slate-50 pl-9 font-medium shadow-none focus-visible:ring-2 focus-visible:ring-[#16213E]/10"
         />
       </div>
 
@@ -356,8 +409,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           action={
             <button
               onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[7px] text-white text-[12.5px] font-semibold"
-              style={{ background: "linear-gradient(135deg, #D4A853, #C49B3D)", boxShadow: "0 2px 8px rgba(212,168,83,0.3)" }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black text-[#111827]"
+              style={{ background: "linear-gradient(135deg, #E9C46A, #B88A44)", boxShadow: "0 12px 28px rgba(184,138,68,0.25)" }}
             >
               <Plus className="h-4 w-4" />
               설문 입력
@@ -366,11 +419,12 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         />
       ) : (
         <>
-          <div className="bg-white rounded-2xl border border-[#f1f5f9] overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
+          <div className="overflow-hidden rounded-[14px] border border-slate-200/90 bg-white shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(17,24,39,0.075)]">
             <div className="overflow-x-auto">
               <table className="w-full text-sm" style={{ minWidth: "900px" }}>
                 <thead>
-                  <tr className="border-t border-b border-slate-200 bg-[#f8fafc]">
+                  <tr className="border-y border-slate-200 bg-gradient-to-b from-slate-50 to-slate-100">
+                    <th className="w-1 p-0" />
                     {[
                       { label: "날짜", align: "left" },
                       { label: "이름", align: "left" },
@@ -386,7 +440,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     ].map((col, i, arr) => (
                       <th
                         key={i}
-                        className={`py-2 px-1.5 text-[11px] font-semibold text-slate-400 whitespace-nowrap ${i < arr.length - 1 ? "border-r border-slate-100" : ""} ${col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left"}`}
+                        className={`px-2 py-3 text-[10.5px] font-black uppercase text-slate-500 whitespace-nowrap ${i < arr.length - 1 ? "border-r border-slate-200/80" : ""} ${col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left"}`}
                       >
                         {col.label}
                       </th>
@@ -404,58 +458,60 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     // 맵 조회 키도 trim으로 정규화 (설문 name에 트레일링 공백이 들어간 케이스 대응)
                     const normalizedName = (item.name ?? "").trim();
                     const consultStatus = consultationStatusMap.get(normalizedName) || "none";
+                    const subject = subjectMap.get(normalizedName) || "";
                     const vb = "border-r border-slate-100";
 
                     return (
                       <tr
                         key={item.id}
-                        className={`border-t border-slate-100 hover:bg-slate-50/80 transition-colors ${isPending ? "opacity-50" : ""}`}
+                        className={`relative border-t border-slate-100 transition-colors ${getRowTone(consultStatus)} ${isPending ? "opacity-50" : ""}`}
                       >
-                        <td className={`py-2 px-1.5 text-[10px] text-slate-400 whitespace-nowrap ${vb}`}>
+                        <td className="w-1 p-0">
+                          <div className={`h-9 w-1 rounded-r-full ${getRowStripe(consultStatus)}`} />
+                        </td>
+                        <td className={`px-2 py-2.5 text-[10px] font-semibold text-slate-400 whitespace-nowrap ${vb}`}>
                           {format(new Date(item.created_at), "MM-dd")}
                         </td>
-                        <td className={`py-2 px-1.5 whitespace-nowrap ${vb}`}>
-                          <Link href={nameHref} className="text-[11px] font-bold text-slate-800 hover:text-blue-600 hover:underline">{item.name}</Link>
+                        <td className={`px-2 py-2.5 whitespace-nowrap ${vb}`}>
+                          <Link href={nameHref} className="text-[12px] font-black text-slate-800 hover:text-[#16213E] hover:underline">{item.name}</Link>
                         </td>
-                        <td className={`py-2 px-1.5 text-[10px] text-slate-500 whitespace-nowrap truncate ${vb}`}>
+                        <td className={`px-2 py-2.5 text-[10px] font-medium text-slate-500 whitespace-nowrap truncate ${vb}`}>
                           {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
                         </td>
-                        <td className={`py-2 px-1.5 text-center whitespace-nowrap ${vb}`}>
-                          {subjectMap.get(normalizedName) ? (
-                            <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-50 text-blue-600">{subjectMap.get(normalizedName)}</span>
+                        <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
+                          {subject ? (
+                            <span className={`rounded-md border px-1.5 py-0.5 text-[9px] font-black ${getSubjectBadgeClass(subject)}`}>{subject}</span>
                           ) : <span className="text-[9px] text-slate-200">-</span>}
                         </td>
-                        <td className={`py-2 px-1.5 text-[10px] text-slate-600 whitespace-nowrap ${vb}`}>
+                        <td className={`px-2 py-2.5 text-[10px] font-medium text-slate-600 whitespace-nowrap ${vb}`}>
                           {formatPhone(item.student_phone) || <span className="text-slate-200">-</span>}
                         </td>
-                        <td className={`py-2 px-1.5 text-[10px] text-slate-400 whitespace-nowrap ${vb}`}>
+                        <td className={`px-2 py-2.5 text-[10px] font-black text-slate-700 whitespace-nowrap ${vb}`}>
                           {formatPhone(item.parent_phone) || <span className="text-slate-200">-</span>}
                         </td>
-                        <td className={`py-2 px-1.5 text-center text-[10px] font-medium text-slate-600 whitespace-nowrap ${vb}`}>
+                        <td className={`px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 whitespace-nowrap ${vb}`}>
                           {testScoreMap.get(normalizedName) || <span className="text-slate-200">-</span>}
                         </td>
                         {FACTOR_KEYS.map((key) => {
                           const val = item[`factor_${key}` as keyof Survey] as number | null;
-                          if (val == null) return <td key={key} className={`py-2 px-0.5 text-center text-[9px] text-slate-200 ${vb}`}>-</td>;
-                          const color = val >= 4 ? "text-emerald-600" : val >= 3 ? "text-amber-600" : "text-red-500";
-                          return <td key={key} className={`py-2 px-0.5 text-center text-[10px] font-bold ${color} ${vb}`}>{val.toFixed(1)}</td>;
+                          return <td key={key} className={`px-1 py-2.5 text-center ${vb}`}><FactorScore value={val} /></td>;
                         })}
-                        <td className={`py-2 px-1.5 text-center whitespace-nowrap ${vb}`}>
+                        <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           {hasAnalysis ? (
-                            <span className="text-[8px] font-bold text-emerald-600">완료</span>
+                            <span className="rounded-md border border-teal-100 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-700">완료</span>
                           ) : (
-                            <span className="text-[8px] text-slate-300">대기</span>
+                            <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-400">대기</span>
                           )}
                         </td>
-                        <td className={`py-2 px-1.5 text-center whitespace-nowrap ${vb}`}>
+                        <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           <select
                             value={consultStatus}
                             onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)}
-                            className={`text-[8px] font-semibold rounded border-0 py-0.5 px-0.5 cursor-pointer outline-none ${
-                              consultStatus === "registered" ? "bg-red-500 text-white" :
-                              consultStatus === "hold" ? "bg-amber-400 text-white" :
-                              consultStatus === "other" ? "bg-neutral-500 text-white" :
-                              "bg-slate-100 text-slate-300"
+                            className={`cursor-pointer rounded-md border-0 px-1.5 py-0.5 text-[9px] font-black outline-none ${
+                              consultStatus === "registered" ? "bg-teal-600 text-white" :
+                              consultStatus === "hold" ? "bg-[#B88A44] text-white" :
+                              consultStatus === "other" ? "bg-slate-600 text-white" :
+                              "bg-slate-100 text-slate-400"
                             }`}
                           >
                             <option value="none">-</option>
@@ -464,7 +520,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             <option value="other">미등록</option>
                           </select>
                         </td>
-                        <td className="py-2 px-1.5 whitespace-nowrap">
+                        <td className="px-2 py-2.5 whitespace-nowrap">
                           <div className="flex items-center justify-end gap-0.5">
                             {hasAnalysis && (
                               <button
@@ -472,7 +528,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                                   if (regId) { router.push(`/registrations/${regId}`); }
                                   else { const consultation = await getConsultationByName(item.name); setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null }); }
                                 }}
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold transition-colors ${regId ? "bg-teal-500 text-white hover:bg-teal-600" : "bg-teal-50 text-teal-600 hover:bg-teal-100"}`}
+                                className={`rounded-md px-2 py-1 text-[9px] font-black transition-colors ${regId ? "bg-teal-600 text-white hover:bg-teal-700" : "bg-teal-50 text-teal-700 hover:bg-teal-100"}`}
                                 title={regId ? "안내문 보기" : "안내문 생성"}
                               >안내문</button>
                             )}

@@ -92,27 +92,34 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
         <Link
           key={item.href}
           href={item.href}
-          className="sidebar-item flex items-center gap-2.5 w-full px-3.5 py-[9px] rounded-lg mb-[3px]"
+          className="sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5"
           style={{
             fontSize: "13px",
-            fontWeight: isActive ? 600 : 450,
-            background: isActive ? "rgba(212,168,83,0.1)" : "transparent",
-            color: isActive ? "#F0D48A" : "rgba(255,255,255,0.4)",
-            borderLeft: isActive ? "2.5px solid #D4A853" : "2.5px solid transparent",
+            fontWeight: isActive ? 800 : 550,
+            background: isActive ? "linear-gradient(135deg, rgba(184,138,68,0.24), rgba(255,255,255,0.065))" : "transparent",
+            color: isActive ? "#F8E7BD" : "rgba(226,232,240,0.66)",
+            boxShadow: isActive ? "inset 0 0 0 1px rgba(184,138,68,0.22), 0 10px 28px rgba(0,0,0,0.18)" : "none",
           }}
         >
-          <item.icon className={`h-[17px] w-[17px] ${isActive ? "opacity-100" : "opacity-60"}`} />
-          {item.label}
+          {isActive && <span className="absolute left-0 top-2 h-6 w-1 rounded-r-full bg-[#B88A44]" />}
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${
+              isActive ? "bg-[#B88A44] text-[#0B1020]" : "bg-white/[0.04] text-slate-300 group-hover:bg-white/[0.08]"
+            }`}
+          >
+            <item.icon className="h-[15px] w-[15px]" />
+          </span>
+          <span className="truncate">{item.label}</span>
         </Link>
       );
     });
 
   const divider = (
-    <div className="my-3 mx-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
+    <div className="mx-3 my-4" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }} />
   );
 
   const sectionLabel = (label: string) => (
-    <div className="px-3.5 mb-2 uppercase" style={{ fontSize: "10px", fontWeight: 700, color: "rgba(212,168,83,0.35)", letterSpacing: "0.08em" }}>
+    <div className="mb-2 px-3.5 uppercase" style={{ fontSize: "10px", fontWeight: 800, color: "rgba(212,168,83,0.48)", letterSpacing: "0.12em" }}>
       {label}
     </div>
   );
@@ -125,32 +132,35 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
   return (
     <>
       <aside
-        className="hidden md:flex w-[224px] flex-col min-h-screen flex-shrink-0"
-        style={{ background: "#0A0F1E" }}
+        className="hidden min-h-screen w-[246px] flex-shrink-0 flex-col border-r md:flex"
+        style={{
+          background: "radial-gradient(circle at 22% 0%, rgba(184,138,68,0.15), transparent 30%), linear-gradient(180deg, #111827 0%, #0E1524 48%, #090E18 100%)",
+          borderColor: "rgba(255,255,255,0.08)",
+        }}
       >
         {/* Logo */}
-        <div className="px-5 py-6 pb-7 flex items-center gap-2.5">
+        <div className="flex items-center gap-3 px-5 pb-7 pt-6">
           <div
-            className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-sm font-extrabold text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-[#08111F]"
             style={{
-              background: "linear-gradient(135deg, #D4A853, #B8892E)",
-              boxShadow: "0 2px 8px rgba(212,168,83,0.3)",
+              background: "linear-gradient(135deg, #E9C46A, #A97832)",
+              boxShadow: "0 12px 28px rgba(184,138,68,0.28)",
             }}
           >
             NK
           </div>
           <div>
-            <div className="text-sm font-bold text-white" style={{ letterSpacing: "-0.02em" }}>
+            <div className="text-[15px] font-black text-white" style={{ letterSpacing: "-0.02em" }}>
               NK Academy
             </div>
-            <div className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+            <div className="text-[10.5px] font-semibold" style={{ color: "rgba(226,232,240,0.46)" }}>
               상담관리 시스템
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-2.5">
+        <nav className="flex-1 px-3">
           {/* 상담 관리 */}
           {visibleConsult.length > 0 && renderItems(visibleConsult)}
 
@@ -185,16 +195,17 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
         </nav>
 
         {/* Footer - 공개 링크 */}
-        <div className="px-2.5 pb-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <Link
             href="/survey"
             target="_blank"
-            className="flex items-center gap-2 w-full px-3.5 py-2 rounded-[7px] mt-2.5 transition-all"
+            className="mt-2.5 flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
             style={{
               fontSize: "11.5px",
-              fontWeight: 500,
-              background: "rgba(212,168,83,0.08)",
-              color: "#F0D48A",
+              fontWeight: 800,
+              background: "rgba(184,138,68,0.13)",
+              color: "#E9C46A",
+              boxShadow: "inset 0 0 0 1px rgba(184,138,68,0.16)",
             }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
@@ -203,12 +214,13 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
           <Link
             href="/booking"
             target="_blank"
-            className="flex items-center gap-2 w-full px-3.5 py-2 rounded-[7px] mt-1 transition-all"
+            className="mt-1.5 flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
             style={{
               fontSize: "11.5px",
-              fontWeight: 500,
-              background: "rgba(99,102,241,0.08)",
-              color: "#A5B4FC",
+              fontWeight: 800,
+              background: "rgba(20,184,166,0.11)",
+              color: "#8DDAD0",
+              boxShadow: "inset 0 0 0 1px rgba(45,212,191,0.13)",
             }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
@@ -218,14 +230,14 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
 
         {/* User Info */}
         <div
-          className="px-4 py-3.5 flex items-center gap-2.5"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+          className="mx-3 mb-3 flex items-center gap-2.5 rounded-2xl px-3 py-3"
+          style={{ background: "rgba(255,255,255,0.055)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }}
         >
           <div
-            className="w-8 h-8 rounded-[10px] flex items-center justify-center text-xs font-bold"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black"
             style={{
-              background: "rgba(212,168,83,0.12)",
-              color: "#D4A853",
+              background: "rgba(184,138,68,0.17)",
+              color: "#E9C46A",
             }}
           >
             {avatarInitial}

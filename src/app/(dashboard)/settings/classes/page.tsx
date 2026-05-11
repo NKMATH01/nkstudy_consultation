@@ -8,13 +8,15 @@ export default async function ClassesPage() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <div className="flex items-end justify-between border-b border-slate-200/70 pb-4">
+        <div>
         <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
           반 관리
         </h1>
         <p className="text-[12.5px]" style={{ color: "#64748B" }}>
           {classes.length}개
         </p>
+        </div>
       </div>
       <ClassList classes={classes} teachers={teachers} students={students} />
     </div>

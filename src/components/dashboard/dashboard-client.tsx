@@ -62,8 +62,10 @@ interface Props {
   analyses: AnalysisItem[];
 }
 
-const NK_PRIMARY = "#0F2B5B";
-const NK_GOLD = "#D4A853";
+const NK_PRIMARY = "#16213E";
+const NK_GOLD = "#B88A44";
+const NK_TEAL = "#0F766E";
+const GRID = "#E5EAF1";
 
 // ── Helper ──
 /** "YYYY-MM" 형식 반환 (년+월 기반 정렬용) */
@@ -213,19 +215,19 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
 
   // Pie data (from filtered)
   const pieData = [
-    { name: "등록", value: filteredStats.registered, color: "#059669" },
-    { name: "고민중", value: filteredStats.hold, color: "#D4A853" },
-    { name: "미등록", value: filteredStats.other, color: "#E11D48" },
+    { name: "등록", value: filteredStats.registered, color: NK_TEAL },
+    { name: "고민중", value: filteredStats.hold, color: NK_GOLD },
+    { name: "미등록", value: filteredStats.other, color: "#BE123C" },
     { name: "미정", value: filteredStats.none, color: "#94A3B8" },
   ];
   const pieTotal = pieData.reduce((a, b) => a + b.value, 0) || 1;
 
   // Stat cards with filtered values
   const statCards = [
-    { key: "consult", label: "전체 상담", value: activeMonth === null ? stats.consultations : filteredStats.total, icon: Users, bg: "linear-gradient(135deg,#1E40AF,#3B82F6)", shadow: "rgba(30,64,175,0.15)" },
-    { key: "registered", label: "등록 완료", value: filteredStats.registered, icon: FileText, bg: "linear-gradient(135deg,#047857,#10B981)", shadow: "rgba(4,120,87,0.15)" },
-    { key: "survey", label: "설문 완료", value: filteredSurveys.length, icon: ClipboardList, bg: "linear-gradient(135deg,#6D28D9,#8B5CF6)", shadow: "rgba(109,40,217,0.15)" },
-    { key: "analysis", label: "성향분석", value: filteredAnalyses.length, icon: Sparkles, bg: "linear-gradient(135deg,#B45309,#D4A853)", shadow: "rgba(180,83,9,0.15)" },
+    { key: "consult", label: "전체 상담", value: activeMonth === null ? stats.consultations : filteredStats.total, icon: Users, bg: "linear-gradient(135deg,#16213E,#31456F)", shadow: "rgba(22,33,62,0.18)" },
+    { key: "registered", label: "등록 완료", value: filteredStats.registered, icon: FileText, bg: "linear-gradient(135deg,#0F766E,#2DD4BF)", shadow: "rgba(15,118,110,0.16)" },
+    { key: "survey", label: "설문 완료", value: filteredSurveys.length, icon: ClipboardList, bg: "linear-gradient(135deg,#4F46E5,#8B8CF6)", shadow: "rgba(79,70,229,0.15)" },
+    { key: "analysis", label: "성향분석", value: filteredAnalyses.length, icon: Sparkles, bg: "linear-gradient(135deg,#B88A44,#E9C46A)", shadow: "rgba(184,138,68,0.16)" },
   ];
 
   // Get students for card popup
@@ -249,12 +251,14 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
   return (
     <div className="fade-in">
       {/* ── Monthly Tabs ── */}
-      <div className="mb-5 flex items-center gap-2 flex-wrap">
-        <CalendarDays className="h-4 w-4 text-slate-400 mr-1" />
+      <div className="mb-5 flex items-center gap-2 flex-wrap rounded-xl border border-slate-200/80 bg-white/70 p-2 shadow-sm">
+        <span className="mr-1 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
+          <CalendarDays className="h-4 w-4" />
+        </span>
         <button
           onClick={() => setActiveMonth(null)}
-          className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full font-semibold transition-all ${
-            activeMonth === null ? "text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
+            activeMonth === null ? "border-[#16213E] text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
           }`}
           style={activeMonth === null ? { background: NK_PRIMARY } : undefined}
         >
@@ -272,8 +276,8 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
             <button
               key={ym}
               onClick={() => setActiveMonth(isActive ? null : ym)}
-              className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full font-semibold transition-all ${
-                isActive ? "text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
+                isActive ? "border-[#16213E] text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
               }`}
               style={isActive ? { background: NK_PRIMARY } : undefined}
             >
@@ -326,29 +330,51 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
         {/* Left Column */}
         <div className="flex flex-col gap-[18px]">
           {/* Bar Chart */}
-          <div className="bg-white rounded-2xl card-shadow">
-            <div className="flex justify-between items-center px-6 pt-5 pb-4">
-              <span className="text-[14.5px] font-bold" style={{ color: "#1E293B", letterSpacing: "-0.01em" }}>
-                월별 상담 및 등록 현황
-              </span>
-              <div className="flex gap-3.5">
+          <div className="overflow-hidden rounded-[14px] border border-slate-200/90 bg-white shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(17,24,39,0.075)]">
+            <div className="flex justify-between items-center border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 pt-5 pb-4">
+              <div>
+                <span className="text-[15px] font-black" style={{ color: "#111827", letterSpacing: "-0.02em" }}>
+                  월별 상담 및 등록 현황
+                </span>
+                <p className="mt-1 text-[11px] font-semibold text-slate-400">상담 대비 등록 흐름</p>
+              </div>
+              <div className="flex gap-2.5">
                 {[{ l: "상담", c: NK_PRIMARY }, { l: "등록", c: NK_GOLD }].map((x) => (
-                  <span key={x.l} className="flex items-center gap-1.5 text-[11px]" style={{ color: "#64748B" }}>
-                    <span className="w-2 h-2 rounded-sm" style={{ background: x.c }} />
+                  <span key={x.l} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold" style={{ color: "#64748B" }}>
+                    <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: x.c }} />
                     {x.l}
                   </span>
                 ))}
               </div>
             </div>
-            <div className="px-6 pb-5">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyData} barCategoryGap="28%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                  <XAxis dataKey="m" fontSize={10} stroke="#94A3B8" tickLine={false} axisLine={false} />
-                  <YAxis fontSize={10} stroke="#94A3B8" tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-                  <Bar dataKey="상담" fill={NK_PRIMARY} radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="등록" fill={NK_GOLD} radius={[3, 3, 0, 0]} />
+            <div className="px-6 pb-5 pt-4">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={monthlyData} barCategoryGap="32%" margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="consultGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#31456F" />
+                      <stop offset="100%" stopColor="#16213E" />
+                    </linearGradient>
+                    <linearGradient id="registerGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#E9C46A" />
+                      <stop offset="100%" stopColor="#B88A44" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 6" stroke={GRID} vertical={false} />
+                  <XAxis dataKey="m" fontSize={11} fontWeight={700} stroke="#7C8797" tickLine={false} axisLine={false} dy={8} />
+                  <YAxis fontSize={11} fontWeight={700} stroke="#94A3B8" tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(22,33,62,0.045)", radius: 8 }}
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid #CBD5E1",
+                      fontSize: 12,
+                      boxShadow: "0 18px 42px rgba(17,24,39,0.14)",
+                      fontWeight: 700,
+                    }}
+                  />
+                  <Bar dataKey="상담" fill="url(#consultGradient)" radius={[7, 7, 2, 2]} maxBarSize={34} />
+                  <Bar dataKey="등록" fill="url(#registerGradient)" radius={[7, 7, 2, 2]} maxBarSize={34} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

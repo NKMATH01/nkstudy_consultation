@@ -146,6 +146,8 @@ export interface Survey {
   referral: string | null;
   prev_academy: string | null;
   prev_complaint: string | null;
+  school_score: string | null;
+  advance_level: string | null;
   q1: number | null; q2: number | null; q3: number | null; q4: number | null; q5: number | null;
   q6: number | null; q7: number | null; q8: number | null; q9: number | null; q10: number | null;
   q11: number | null; q12: number | null; q13: number | null; q14: number | null; q15: number | null;

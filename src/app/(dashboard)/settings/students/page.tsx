@@ -12,13 +12,15 @@ export default async function StudentsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <div className="flex items-end justify-between border-b border-slate-200/70 pb-4">
+        <div>
         <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
           학생 관리
         </h1>
         <p className="text-[12.5px]" style={{ color: "#64748B" }}>
           {students.length}명
         </p>
+        </div>
       </div>
       <StudentList students={students} teachers={teachers} classes={classes} canDelete={canDelete} />
     </div>

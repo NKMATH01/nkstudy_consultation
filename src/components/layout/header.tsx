@@ -53,10 +53,17 @@ export function Header({ currentTeacher }: HeaderProps) {
     ([path]) => pathname === path || (path !== "/" && pathname.startsWith(path))
   );
   const title = titleEntry?.[1].label || "대시보드";
+  const TitleIcon = titleEntry?.[1].icon || Home;
 
   return (
     <header
-      className="flex h-12 items-center justify-between px-4 md:px-7 flex-shrink-0 glass-header sticky top-0 z-10"
+      className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b px-4 md:px-7"
+      style={{
+        background: "rgba(246,248,251,0.86)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        borderColor: "rgba(126,137,154,0.22)",
+      }}
     >
       <div className="flex items-center gap-3">
         <Sheet>
@@ -70,12 +77,20 @@ export function Header({ currentTeacher }: HeaderProps) {
             <Sidebar currentTeacher={currentTeacher} />
           </SheetContent>
         </Sheet>
-        <h2
-          className="text-base font-bold"
-          style={{ color: "#0F172A", letterSpacing: "-0.02em" }}
-        >
-          {title}
-        </h2>
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300/70 bg-white shadow-sm">
+            <TitleIcon className="h-4.5 w-4.5 text-[#16213E]" />
+          </span>
+          <div>
+            <h2
+              className="text-[17px] font-black"
+              style={{ color: "#0F172A", letterSpacing: "-0.025em" }}
+            >
+              {title}
+            </h2>
+            <p className="text-[11px] font-semibold text-slate-400">NK Academy Operations</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
@@ -90,21 +105,21 @@ export function Header({ currentTeacher }: HeaderProps) {
             placeholder="검색..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="pl-9 pr-4 py-1.5 rounded-full text-xs transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 focus:w-[280px]"
+            className="rounded-lg py-2 pl-9 pr-4 text-xs font-medium shadow-sm transition-all duration-200 focus:w-[300px] focus:border-[#16213E] focus:ring-2 focus:ring-[#16213E]/10"
             style={{
-              width: "220px",
-              background: "#F8FAFC",
-              border: "1.5px solid #E2E8F0",
+              width: "240px",
+              background: "#FFFFFF",
+              border: "1px solid #CBD5E1",
               color: "#1E293B",
               outline: "none",
             }}
           />
         </div>
         {/* Bell */}
-        <div className="relative cursor-pointer" style={{ color: "#64748B" }}>
+        <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-slate-300/70 bg-white shadow-sm" style={{ color: "#64748B" }}>
           <Bell className="h-[18px] w-[18px]" />
           <div
-            className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full"
+            className="absolute right-2 top-2 h-2 w-2 rounded-full"
             style={{ background: "#E11D48", border: "2px solid #FFFFFF" }}
           />
         </div>

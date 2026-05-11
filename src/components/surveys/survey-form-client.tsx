@@ -86,6 +86,8 @@ export function SurveyFormDialog({ open, onOpenChange }: Props) {
       referral: "",
       prev_academy: "",
       prev_complaint: "",
+      school_score: "",
+      advance_level: "",
       study_core: "",
       problem_self: "",
       dream: "",
@@ -237,6 +239,32 @@ export function SurveyFormDialog({ open, onOpenChange }: Props) {
                       <FormLabel>기존 학원 아쉬운점</FormLabel>
                       <FormControl>
                         <Input placeholder="" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="school_score"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>내신점수</FormLabel>
+                      <FormControl>
+                        <Input placeholder="예: 85점 / 3등급" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="advance_level"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>현재 진도 / 선행 정도</FormLabel>
+                      <FormControl>
+                        <Input placeholder="예: 중2-1 일차함수, 고1 수학 상 선행" {...field} />
                       </FormControl>
                     </FormItem>
                   )}

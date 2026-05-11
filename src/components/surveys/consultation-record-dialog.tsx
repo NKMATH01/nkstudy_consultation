@@ -32,9 +32,48 @@ const BASE_FACTOR_KEYS = ["attitude", "self_directed", "assignment", "willingnes
 const sel = "w-full h-9 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 const inp = "rounded-lg border-slate-200 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 
+const AUTOFILL_FIELDS = [
+  "prev_academy",
+  "prev_complaint",
+  "school_score",
+  "advance_level",
+  "prefer_days",
+  "requests",
+] as const;
+
 function withCurrentOption(options: readonly string[], current?: string | null) {
   if (!current) return [...options];
   return options.includes(current) ? [...options] : [current, ...options];
+}
+
+function firstValue(...values: Array<string | null | undefined>): string {
+  for (const value of values) {
+    const normalized = value?.trim();
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+function surveyAutofillValue(survey: Survey, field: (typeof AUTOFILL_FIELDS)[number]): string {
+  const value = survey[field];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function buildInitialForm(survey: Survey, consultation: Consultation) {
+  return {
+    prev_academy: firstValue(consultation.prev_academy, survey.prev_academy),
+    prev_complaint: firstValue(consultation.prev_complaint, survey.prev_complaint),
+    school_score: firstValue(consultation.school_score, survey.school_score),
+    test_score: consultation.test_score ?? "",
+    advance_level: firstValue(consultation.advance_level, survey.advance_level),
+    study_goal: consultation.study_goal ?? "",
+    prefer_days: firstValue(consultation.prefer_days, survey.prefer_days),
+    plan_date: consultation.plan_date ?? "",
+    plan_class: consultation.plan_class ?? "",
+    requests: firstValue(consultation.requests, survey.requests),
+    student_consult_note: consultation.student_consult_note ?? "",
+    parent_consult_note: consultation.parent_consult_note ?? "",
+  };
 }
 
 interface Props {
@@ -46,39 +85,13 @@ interface Props {
 }
 
 export function ConsultationRecordDialog({ survey, consultation, open, onOpenChange, classes = [] }: Props) {
-  const [form, setForm] = useState(() => ({
-    prev_academy: consultation.prev_academy ?? "",
-    prev_complaint: consultation.prev_complaint ?? "",
-    school_score: consultation.school_score ?? "",
-    test_score: consultation.test_score ?? "",
-    advance_level: consultation.advance_level ?? "",
-    study_goal: consultation.study_goal ?? "",
-    prefer_days: consultation.prefer_days ?? "",
-    plan_date: consultation.plan_date ?? "",
-    plan_class: consultation.plan_class ?? "",
-    requests: consultation.requests ?? "",
-    student_consult_note: consultation.student_consult_note ?? "",
-    parent_consult_note: consultation.parent_consult_note ?? "",
-  }));
+  const [form, setForm] = useState(() => buildInitialForm(survey, consultation));
   const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setForm({
-      prev_academy: consultation.prev_academy ?? "",
-      prev_complaint: consultation.prev_complaint ?? "",
-      school_score: consultation.school_score ?? "",
-      test_score: consultation.test_score ?? "",
-      advance_level: consultation.advance_level ?? "",
-      study_goal: consultation.study_goal ?? "",
-      prefer_days: consultation.prefer_days ?? "",
-      plan_date: consultation.plan_date ?? "",
-      plan_class: consultation.plan_class ?? "",
-      requests: consultation.requests ?? "",
-      student_consult_note: consultation.student_consult_note ?? "",
-      parent_consult_note: consultation.parent_consult_note ?? "",
-    });
-  }, [consultation, open]);
+    setForm(buildInitialForm(survey, consultation));
+  }, [consultation, open, survey]);
 
   const saveField = useCallback(async (field: string, value: string) => {
     setSaving(field);
@@ -93,6 +106,19 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
       setSaving(null);
     }
   }, [consultation.id]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    AUTOFILL_FIELDS.forEach((field) => {
+      const current = (consultation[field as keyof Consultation] as string | null) ?? "";
+      const surveyValue = surveyAutofillValue(survey, field);
+
+      if (!current.trim() && surveyValue) {
+        saveField(field, surveyValue);
+      }
+    });
+  }, [consultation, open, saveField, survey]);
 
   const handleBlur = (field: string) => {
     const value = form[field as keyof typeof form];
@@ -200,6 +226,8 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                   { label: "본인의 학습 문제점", value: survey.problem_self },
                   { label: "희망 직업", value: survey.dream },
                   { label: "선호 요일", value: survey.prefer_days },
+                  { label: "내신점수", value: survey.school_score },
+                  { label: "현재 진도/선행 정도", value: survey.advance_level },
                   { label: "NK학원에 바라는 점", value: survey.requests },
                   { label: "수학 어려운 영역", value: survey.math_difficulty },
                   { label: "영어 어려운 영역", value: survey.english_difficulty },

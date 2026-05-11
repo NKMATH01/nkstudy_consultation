@@ -31,6 +31,8 @@ export const surveyFormSchema = z.object({
   referral: z.string().optional(),
   prev_academy: z.string().optional(),
   prev_complaint: z.string().optional(),
+  school_score: z.string().optional(),
+  advance_level: z.string().optional(),
   // 35문항
   q1: scoreField, q2: scoreField, q3: scoreField, q4: scoreField, q5: scoreField,
   q6: scoreField, q7: scoreField, q8: scoreField, q9: scoreField, q10: scoreField,

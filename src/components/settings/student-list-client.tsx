@@ -76,7 +76,7 @@ interface Props {
 // ── 등록 상태 ──
 function getRegistrationStatus(registrationDate: string | null): { label: string; className: string } {
   if (!registrationDate) {
-    return { label: "-", className: "text-slate-400" };
+    return { label: "-", className: "inline-flex min-w-12 justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-400" };
   }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -86,12 +86,12 @@ function getRegistrationStatus(registrationDate: string | null): { label: string
   if (regDate <= today) {
     return {
       label: "등록",
-      className: "bg-emerald-100 text-emerald-700 font-bold text-xs px-2 py-0.5 rounded-full",
+      className: "inline-flex min-w-12 justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700",
     };
   }
   return {
     label: "등록대기",
-    className: "bg-amber-100 text-amber-700 font-bold text-xs px-2 py-0.5 rounded-full",
+    className: "inline-flex min-w-16 justify-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700",
   };
 }
 
@@ -143,7 +143,7 @@ function InlineDateInput({ student }: { student: Student }) {
       type="date"
       value={value}
       onChange={(e) => handleChange(e.target.value)}
-      className="h-7 w-[120px] rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      className="h-8 w-[124px] rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10"
     />
   );
 }
@@ -186,8 +186,8 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
     });
   }, [grade, classes]);
 
-  const inputCls = "h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
-  const selectCls = "h-7 w-full rounded-md border border-slate-200 bg-white px-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+  const inputCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition placeholder:text-slate-400 focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10";
+  const selectCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-1.5 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10";
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -224,37 +224,37 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
   };
 
   return (
-    <TableRow className="bg-blue-50/40 border-b border-blue-100">
-      <TableCell className="px-4 py-2">
+    <TableRow className="border-b border-blue-100 bg-gradient-to-r from-blue-50/70 via-white to-white hover:bg-blue-50/60">
+      <TableCell className="px-4 py-2.5">
         <input type="date" className={inputCls + " w-[120px]"} value={regDate} onChange={(e) => setRegDate(e.target.value)} />
       </TableCell>
-      <TableCell className="px-4 py-2" />
-      <TableCell className="px-4 py-2">
+      <TableCell className="px-4 py-2.5" />
+      <TableCell className="px-4 py-2.5">
         <input className={inputCls} placeholder="이름 *" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={handleKeyDown} />
       </TableCell>
-      <TableCell className="px-4 py-2">
+      <TableCell className="px-4 py-2.5">
         <input className={inputCls} placeholder="학교" value={school} onChange={(e) => setSchool(e.target.value)} onKeyDown={handleKeyDown} />
       </TableCell>
-      <TableCell className="hidden sm:table-cell px-4 py-2">
+      <TableCell className="hidden sm:table-cell px-4 py-2.5">
         <select className={selectCls} value={grade} onChange={(e) => { setGrade(e.target.value); setAssignedClass(""); }}>
           <option value="">학년</option>
           {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
       </TableCell>
-      <TableCell className="hidden md:table-cell px-4 py-2">
+      <TableCell className="hidden md:table-cell px-4 py-2.5">
         <select className={selectCls} value={assignedClass} onChange={(e) => setAssignedClass(e.target.value)}>
           <option value="">배정반</option>
           {filteredClasses.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
         </select>
       </TableCell>
-      <TableCell className="hidden md:table-cell px-4 py-2">
+      <TableCell className="hidden md:table-cell px-4 py-2.5">
         <input className={inputCls} placeholder="학생 연락처" value={studentPhone} onChange={(e) => setStudentPhone(formatPhone(e.target.value))} onKeyDown={handleKeyDown} />
       </TableCell>
-      <TableCell className="hidden lg:table-cell px-4 py-2">
+      <TableCell className="hidden lg:table-cell px-4 py-2.5">
         <input className={inputCls} placeholder="학부모 연락처" value={parentPhone} onChange={(e) => setParentPhone(formatPhone(e.target.value))} onKeyDown={handleKeyDown} />
       </TableCell>
-      <TableCell className="px-4 py-2">
-        <Button size="sm" className="h-7 px-2 rounded-lg text-white text-xs" style={{ background: "#0F2B5B" }} onClick={handleSave} disabled={isPending}>
+      <TableCell className="px-4 py-2.5">
+        <Button size="sm" className="h-8 rounded-md px-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-px" style={{ background: "#0F2B5B" }} onClick={handleSave} disabled={isPending}>
           {isPending ? "..." : "저장"}
         </Button>
       </TableCell>
@@ -263,7 +263,7 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
 }
 
 // ── 필터 드롭다운 스타일 ──
-const filterSelectCls = "h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+const filterSelectCls = "h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-sm transition focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10";
 
 // ── 메인 컴포넌트 ──
 export function StudentList({ students, teachers, classes, canDelete = false }: Props) {
@@ -393,15 +393,17 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
-        <div className="bg-[#f8fafc] border-b px-6 py-4 flex items-center justify-between">
-          <h3 className="font-bold text-slate-700 flex items-center gap-2">
-            <GraduationCap className="h-5 w-5" />
+      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_48px_rgba(15,23,42,0.06)]">
+        <div className="flex items-center justify-between border-b border-slate-200/70 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-4">
+          <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-800">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm">
+              <GraduationCap className="h-4 w-4 text-[#0F2B5B]" />
+            </span>
             학생 정보 관리
           </h3>
           <button
             onClick={handleAdd}
-            className="h-7 px-3 rounded-lg text-white text-xs font-bold flex items-center gap-1 transition-all hover:-translate-y-px"
+            className="flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
             style={{ background: "#0F2B5B" }}
           >
             <Plus className="h-3 w-3" />
@@ -410,15 +412,15 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
         </div>
 
         {/* 필터 영역 */}
-        <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-100 bg-[#FBFCFE] px-6 py-3">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="이름 검색"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              className="h-8 w-[130px] rounded-lg border border-slate-200 bg-white pl-7 pr-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="h-8 w-[140px] rounded-md border border-slate-200 bg-white pl-8 pr-2 text-xs font-medium text-slate-700 shadow-sm transition placeholder:text-slate-400 focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10"
             />
           </div>
           <Filter className="h-4 w-4 text-slate-400" />
@@ -444,12 +446,12 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
             <option value="영어">영어</option>
           </select>
           {hasActiveFilter && (
-            <button onClick={clearFilters} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            <button onClick={clearFilters} className="rounded-md px-2 py-1 text-xs font-bold text-blue-600 transition hover:bg-blue-50 hover:text-blue-800">
               필터 초기화
             </button>
           )}
           {hasActiveFilter && (
-            <span className="text-xs text-slate-400 ml-auto">
+            <span className="ml-auto rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-sm">
               {filteredStudents.length}명 / {students.length}명
             </span>
           )}
@@ -472,15 +474,15 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#f8fafc] hover:bg-[#f8fafc]">
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">등록일</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">상태</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">학교</TableHead>
-                <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학년</TableHead>
-                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">배정반</TableHead>
-                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학생 연락처</TableHead>
-                <TableHead className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학부모 연락처</TableHead>
+              <TableRow className="border-b border-slate-200 bg-slate-50/80 hover:bg-slate-50/80">
+                <TableHead className="px-4 py-3 text-[11px] font-bold uppercase text-slate-500">등록일</TableHead>
+                <TableHead className="px-4 py-3 text-[11px] font-bold uppercase text-slate-500">상태</TableHead>
+                <TableHead className="px-4 py-3 text-[11px] font-bold uppercase text-slate-500">이름</TableHead>
+                <TableHead className="px-4 py-3 text-[11px] font-bold uppercase text-slate-500">학교</TableHead>
+                <TableHead className="hidden px-4 py-3 text-[11px] font-bold uppercase text-slate-500 sm:table-cell">학년</TableHead>
+                <TableHead className="hidden px-4 py-3 text-[11px] font-bold uppercase text-slate-500 md:table-cell">배정반</TableHead>
+                <TableHead className="hidden px-4 py-3 text-[11px] font-bold uppercase text-slate-500 md:table-cell">학생 연락처</TableHead>
+                <TableHead className="hidden px-4 py-3 text-[11px] font-bold uppercase text-slate-500 lg:table-cell">학부모 연락처</TableHead>
                 <TableHead className="w-[60px] px-4 py-3"></TableHead>
               </TableRow>
             </TableHeader>
@@ -488,25 +490,25 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
               {/* 빈 입력행 - 바로 학생 등록 */}
               <InlineAddRow classes={classes} onAdded={() => router.refresh()} />
               {filteredStudents.map((student) => (
-                <TableRow key={student.id} className="hover:bg-[#F8FAFC] border-b border-[#f1f5f9] last:border-0">
-                  <TableCell className="px-4 py-2">
+                <TableRow key={student.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70">
+                  <TableCell className="px-4 py-2.5">
                     <InlineDateInput student={student} />
                   </TableCell>
-                  <TableCell className="px-4 py-2">
+                  <TableCell className="px-4 py-2.5">
                     <StatusBadge student={student} />
                   </TableCell>
-                  <TableCell className="px-4 py-3.5 font-medium text-sm text-slate-800">{student.name}</TableCell>
+                  <TableCell className="px-4 py-3.5 text-sm font-bold text-slate-800">{student.name}</TableCell>
                   <TableCell className="px-4 py-3.5 text-sm text-slate-600">{student.school || "-"}</TableCell>
-                  <TableCell className="hidden sm:table-cell px-4 py-3.5 text-sm text-slate-600">
+                  <TableCell className="hidden px-4 py-3.5 text-sm text-slate-600 sm:table-cell">
                     {resolveStudentGrade(student) || student.grade || "-"}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell px-4 py-3.5 text-sm text-slate-600">
+                  <TableCell className="hidden px-4 py-3.5 text-sm font-medium text-slate-700 md:table-cell">
                     {student.assigned_class || "-"}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell px-4 py-3.5 text-sm text-slate-600">
+                  <TableCell className="hidden px-4 py-3.5 text-sm text-slate-600 md:table-cell">
                     {student.student_phone || "-"}
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell px-4 py-3.5 text-sm text-slate-600">
+                  <TableCell className="hidden px-4 py-3.5 text-sm text-slate-600 lg:table-cell">
                     {student.parent_phone || "-"}
                   </TableCell>
                   <TableCell className="px-4 py-3.5">

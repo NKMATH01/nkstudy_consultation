@@ -78,6 +78,8 @@ export async function createSurvey(formData: FormData) {
     raw.referral = formData.get("referral") || undefined;
     raw.prev_academy = formData.get("prev_academy") || undefined;
     raw.prev_complaint = formData.get("prev_complaint") || undefined;
+    raw.school_score = formData.get("school_score") || undefined;
+    raw.advance_level = formData.get("advance_level") || undefined;
 
     for (let i = 1; i <= 35; i++) {
       const val = formData.get(`q${i}`);
@@ -111,6 +113,8 @@ export async function createSurvey(formData: FormData) {
       referral: parsed.data.referral || null,
       prev_academy: parsed.data.prev_academy || null,
       prev_complaint: parsed.data.prev_complaint || null,
+      school_score: parsed.data.school_score || null,
+      advance_level: parsed.data.advance_level || null,
       study_core: parsed.data.study_core || null,
       problem_self: parsed.data.problem_self || null,
       dream: parsed.data.dream || null,

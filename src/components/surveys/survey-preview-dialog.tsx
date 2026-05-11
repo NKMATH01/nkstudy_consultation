@@ -157,6 +157,8 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
             { label: "학부모 연락처", value: survey.parent_phone },
             { label: "유입경로", value: survey.referral },
             { label: "기존 학원", value: survey.prev_academy },
+            { label: "내신점수", value: survey.school_score },
+            { label: "현재 진도/선행 정도", value: survey.advance_level },
           ].map(({ label, value }) => (
             <div key={label}>
               <span className="text-[10px] font-semibold text-slate-400 uppercase">{label}</span>

@@ -41,11 +41,27 @@ function gradeSort(a: string, b: string): number {
   return ia - ib;
 }
 
+function normalizeClassName(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    .replace(/[-‐‑‒–—―−]/g, "")
+    .replace(/[()（）]?\s*2관\s*[)）]?/gi, "")
+    .trim()
+    .toUpperCase();
+}
+
+function isSameClassName(a: string | null | undefined, b: string | null | undefined): boolean {
+  const left = normalizeClassName(a);
+  const right = normalizeClassName(b);
+  return left.length > 0 && left === right;
+}
+
 /** 반별 학생 수 클릭 시 학생 이름 표시 */
 function StudentCountBadge({ className, students }: { className: string; students: Student[] }) {
   const [showNames, setShowNames] = useState(false);
   const matched = useMemo(
-    () => students.filter((s) => s.assigned_class === className),
+    () => students.filter((s) => isSameClassName(s.assigned_class, className)),
     [className, students]
   );
 
@@ -129,7 +145,7 @@ export function ClassList({ classes, teachers, students }: Props) {
     for (const { grade, items } of grouped) {
       let count = 0;
       for (const cls of items) {
-        count += students.filter((s) => s.assigned_class === cls.name).length;
+        count += students.filter((s) => isSameClassName(s.assigned_class, cls.name)).length;
       }
       map[grade] = count;
     }

@@ -54,7 +54,7 @@ function mapDbToClass(row: Record<string, unknown>): Class {
 }
 
 export async function getClasses(): Promise<Class[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("classes")
@@ -410,7 +410,7 @@ function mapDbToTeacher(row: Record<string, unknown>): Teacher {
 }
 
 export async function getTeachers(): Promise<Teacher[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("teachers")
@@ -785,7 +785,7 @@ function mapStudentToDb(parsed: Record<string, unknown>, teacherId?: string | nu
 }
 
 export async function getStudents(): Promise<Student[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("students")

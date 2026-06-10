@@ -1,6 +1,7 @@
 import { getAnalysis } from "@/lib/actions/analysis";
 import { getClasses, getTeachers } from "@/lib/actions/settings";
 import { AnalysisDetailClient } from "@/components/analyses/analysis-detail-client";
+import { ClassRecommendationSection } from "@/components/analyses/class-recommendation-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
 import { createClient } from "@/lib/supabase/server";
@@ -69,15 +70,23 @@ export default async function AnalysisDetailPage({
   }
 
   return (
-    <AnalysisDetailClient
-      analysis={analysis}
-      classes={classes}
-      teachers={teachers}
-      consultationResultStatus={consultationResultStatus}
-      consultationData={consultationData}
-      existingRegistrationId={existingReg?.id || null}
-      studentPhone={studentPhone}
-      parentPhone={parentPhone}
-    />
+    <div className="space-y-6">
+      <AnalysisDetailClient
+        analysis={analysis}
+        classes={classes}
+        teachers={teachers}
+        consultationResultStatus={consultationResultStatus}
+        consultationData={consultationData}
+        existingRegistrationId={existingReg?.id || null}
+        studentPhone={studentPhone}
+        parentPhone={parentPhone}
+      />
+      <ClassRecommendationSection
+        analysisId={analysis.id}
+        studentName={analysis.name}
+        studentGrade={analysis.grade}
+        initialTestScore={consultationData?.test_score ?? null}
+      />
+    </div>
   );
 }

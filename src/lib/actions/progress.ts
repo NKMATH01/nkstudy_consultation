@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentPageSchema, progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
-import type { ClassProgress, ClassProgressLog, Teacher } from "@/types";
+import type { ClassProgress, ClassProgressLog, Teacher, TextbookHistory } from "@/types";
+import type { TextbookHistoryFormValues } from "@/lib/validations/progress";
+import { textbookHistorySchema } from "@/lib/validations/progress";
 
 type DbRow = Record<string, unknown>;
 
@@ -23,6 +25,7 @@ export interface ProgressBoardRow {
   student_count: number;
   student_names: string[];
   progress: ClassProgress | null;
+  textbook_history: TextbookHistory[];
   recent_logs: ClassProgressLog[];
   weekly_progress: number | null;
 }
@@ -64,10 +67,27 @@ function mapProgress(row: DbRow): ClassProgress {
     next_start_plan: nullableString(row.next_start_plan),
     current_plan: nullableString(row.current_plan),
     note: nullableString(row.note),
+    ability_level: nullableString(row.ability_level),
+    study_intensity: nullableString(row.study_intensity),
+    homework_volume: nullableString(row.homework_volume),
+    class_pace: nullableString(row.class_pace),
+    next_start_date: nullableString(row.next_start_date),
     updated_by: nullableString(row.updated_by),
     progress_updated_at: nullableString(row.progress_updated_at),
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
+  };
+}
+
+function mapTextbookHistory(row: DbRow): TextbookHistory {
+  return {
+    id: String(row.id ?? ""),
+    class_id: String(row.class_id ?? ""),
+    textbook: String(row.textbook ?? ""),
+    started_on: nullableString(row.started_on),
+    finished_on: nullableString(row.finished_on),
+    note: nullableString(row.note),
+    created_at: String(row.created_at ?? ""),
   };
 }
 
@@ -109,15 +129,18 @@ function cleanText(value: string | undefined): string | null {
 function toProgressPayload(classId: string, data: ProgressFormValues, updatedBy: string): DbRow {
   return {
     class_id: classId,
-    student_count: data.student_count ?? null,
     main_textbook: cleanText(data.main_textbook),
     main_total_pages: data.main_total_pages ?? null,
     current_page: data.current_page ?? null,
     sub_textbook: cleanText(data.sub_textbook),
     next_textbook: cleanText(data.next_textbook),
-    next_start_plan: cleanText(data.next_start_plan),
+    next_start_date: cleanText(data.next_start_date),
     current_plan: cleanText(data.current_plan),
     note: cleanText(data.note),
+    ability_level: data.ability_level ?? null,
+    study_intensity: data.study_intensity ?? null,
+    homework_volume: data.homework_volume ?? null,
+    class_pace: data.class_pace ?? null,
     updated_by: updatedBy,
     progress_updated_at: data.current_page != null ? new Date().toISOString() : null,
   };
@@ -282,13 +305,38 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
       teacher_name: getTeacherName(classRow.teachers),
       target_grade: nullableString(classRow.target_grade),
       actual_student_count: actualStudentCount,
-      student_count: progress?.student_count ?? actualStudentCount,
+      student_count: actualStudentCount,
       student_names: classStudentNames.get(className) ?? [],
       progress,
+      textbook_history: [] as TextbookHistory[],
       recent_logs: [] as ClassProgressLog[],
       weekly_progress: null as number | null,
     };
   });
+
+  // 교재 이력 일괄 조회 (반별 누적, 최신순)
+  const classIds = baseRows.map((row) => row.class_id);
+  if (classIds.length > 0) {
+    const { data: histories, error: historyError } = await supabase
+      .from("class_textbook_history")
+      .select("*")
+      .in("class_id", classIds)
+      .order("finished_on", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    if (historyError) {
+      console.error("[Progress] textbook history query failed:", historyError.message);
+    } else {
+      const historyMap = new Map<string, TextbookHistory[]>();
+      for (const h of histories ?? []) {
+        const mapped = mapTextbookHistory(h as DbRow);
+        historyMap.set(mapped.class_id, [...(historyMap.get(mapped.class_id) ?? []), mapped]);
+      }
+      for (const row of baseRows) {
+        row.textbook_history = historyMap.get(row.class_id) ?? [];
+      }
+    }
+  }
 
   const progressIds = baseRows
     .map((row) => row.progress?.id)
@@ -429,5 +477,68 @@ export async function updateCurrentPage(classId: string, page: number) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "현재 페이지 저장 실패";
     return { success: false, error: msg };
+  }
+}
+
+// ========== 교재 이력 (과거 교재 누적) ==========
+
+export async function addTextbookHistory(classId: string, data: TextbookHistoryFormValues) {
+  try {
+    const parsed = textbookHistorySchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false as const, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = await createClient();
+    const permission = await assertCanEditClass(supabase, classId);
+    if (!permission.ok) return { success: false as const, error: permission.error };
+
+    const { data: inserted, error } = await supabase
+      .from("class_textbook_history")
+      .insert({
+        class_id: classId,
+        textbook: parsed.data.textbook.trim(),
+        started_on: cleanText(parsed.data.started_on),
+        finished_on: cleanText(parsed.data.finished_on),
+        note: cleanText(parsed.data.note),
+      })
+      .select("*")
+      .single();
+
+    if (error) return { success: false as const, error: error.message };
+
+    revalidatePath("/progress");
+    return { success: true as const, history: mapTextbookHistory(inserted as DbRow) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "교재 이력 추가 실패";
+    return { success: false as const, error: msg };
+  }
+}
+
+export async function deleteTextbookHistory(historyId: string) {
+  try {
+    const supabase = await createClient();
+
+    const { data: history, error: fetchError } = await supabase
+      .from("class_textbook_history")
+      .select("id, class_id")
+      .eq("id", historyId)
+      .single();
+
+    if (fetchError || !history) {
+      return { success: false as const, error: "교재 이력을 찾을 수 없습니다" };
+    }
+
+    const permission = await assertCanEditClass(supabase, String(history.class_id));
+    if (!permission.ok) return { success: false as const, error: permission.error };
+
+    const { error } = await supabase.from("class_textbook_history").delete().eq("id", historyId);
+    if (error) return { success: false as const, error: error.message };
+
+    revalidatePath("/progress");
+    return { success: true as const };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "교재 이력 삭제 실패";
+    return { success: false as const, error: msg };
   }
 }

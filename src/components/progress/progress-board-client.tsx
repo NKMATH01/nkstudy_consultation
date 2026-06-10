@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users } from "lucide-react";
+import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users, Plus, Trash2, History } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,8 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
-import { updateCurrentPage, upsertProgress } from "@/lib/actions/progress";
-import { GRADES } from "@/types";
+import { addTextbookHistory, deleteTextbookHistory, updateCurrentPage, upsertProgress } from "@/lib/actions/progress";
+import { GRADES, CLASS_LEVELS, CLASS_PACES, type TextbookHistory } from "@/types";
 import type { ProgressBoardRow, ProgressTeacherInfo } from "@/lib/actions/progress";
 
 interface Props {
@@ -73,7 +73,7 @@ function rowWithProgress(
   return {
     ...row,
     progress,
-    student_count: progress?.student_count ?? row.actual_student_count,
+    student_count: row.actual_student_count,
     recent_logs: result.recent_logs ?? row.recent_logs,
     weekly_progress: result.weekly_progress ?? row.weekly_progress,
   };
@@ -86,16 +86,48 @@ function numberValue(value: number | null | undefined) {
 function defaultValues(row: ProgressBoardRow): ProgressFormValues {
   const progress = row.progress;
   return {
-    student_count: progress?.student_count ?? undefined,
     main_textbook: progress?.main_textbook ?? "",
     main_total_pages: progress?.main_total_pages ?? undefined,
     current_page: progress?.current_page ?? undefined,
     sub_textbook: progress?.sub_textbook ?? "",
     next_textbook: progress?.next_textbook ?? "",
-    next_start_plan: progress?.next_start_plan ?? "",
+    next_start_date: progress?.next_start_date ?? "",
     current_plan: progress?.current_plan ?? "",
     note: progress?.note ?? "",
+    ability_level: (progress?.ability_level as ProgressFormValues["ability_level"]) ?? undefined,
+    study_intensity: (progress?.study_intensity as ProgressFormValues["study_intensity"]) ?? undefined,
+    homework_volume: (progress?.homework_volume as ProgressFormValues["homework_volume"]) ?? undefined,
+    class_pace: (progress?.class_pace as ProgressFormValues["class_pace"]) ?? undefined,
   };
+}
+
+const TRAIT_LABELS: Array<{ key: "ability_level" | "study_intensity" | "homework_volume" | "class_pace"; label: string }> = [
+  { key: "ability_level", label: "능력" },
+  { key: "study_intensity", label: "강도" },
+  { key: "homework_volume", label: "숙제량" },
+  { key: "class_pace", label: "속도" },
+];
+
+function TraitBadges({ progress }: { progress: ProgressBoardRow["progress"] }) {
+  if (!progress) return null;
+  const badges = TRAIT_LABELS.filter(({ key }) => progress[key]);
+  if (badges.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {badges.map(({ key, label }) => (
+        <span
+          key={key}
+          className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold"
+          style={{
+            background: "color-mix(in srgb, var(--primary) 8%, white)",
+            color: "var(--primary)",
+          }}
+        >
+          {label} {progress[key]}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function gradeFromClassName(className: string): string {
@@ -158,20 +190,72 @@ function ProgressDialog({
   open,
   onClose,
   onSaved,
+  onHistoryChange,
 }: {
   row: ProgressBoardRow | null;
   open: boolean;
   onClose: () => void;
   onSaved: (row: ProgressBoardRow) => void;
+  onHistoryChange: (classId: string, history: TextbookHistory[]) => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [history, setHistory] = useState<TextbookHistory[]>(row?.textbook_history ?? []);
+  const [newTextbook, setNewTextbook] = useState("");
+  const [newStartedOn, setNewStartedOn] = useState("");
+  const [newFinishedOn, setNewFinishedOn] = useState("");
+  const [historyPending, setHistoryPending] = useState(false);
   const form = useForm<ProgressFormValues>({
     resolver: zodResolver(progressFormSchema) as never,
     defaultValues: row ? defaultValues(row) : {},
   });
 
   if (!row) return null;
+
+  const handleAddHistory = async () => {
+    if (!newTextbook.trim()) {
+      toast.error("지난 교재명을 입력해주세요");
+      return;
+    }
+    setHistoryPending(true);
+    const result = await addTextbookHistory(row.class_id, {
+      textbook: newTextbook,
+      started_on: newStartedOn || undefined,
+      finished_on: newFinishedOn || undefined,
+    });
+    setHistoryPending(false);
+    if (result.success && result.history) {
+      const next = [result.history, ...history];
+      setHistory(next);
+      onHistoryChange(row.class_id, next);
+      setNewTextbook("");
+      setNewStartedOn("");
+      setNewFinishedOn("");
+      toast.success("지난 교재가 추가되었습니다");
+    } else {
+      toast.error(("error" in result && result.error) || "교재 이력 추가 실패");
+    }
+  };
+
+  const handleDeleteHistory = async (historyId: string) => {
+    setHistoryPending(true);
+    const result = await deleteTextbookHistory(historyId);
+    setHistoryPending(false);
+    if (result.success) {
+      const next = history.filter((h) => h.id !== historyId);
+      setHistory(next);
+      onHistoryChange(row.class_id, next);
+    } else {
+      toast.error(result.error || "교재 이력 삭제 실패");
+    }
+  };
+
+  const formatPeriod = (h: TextbookHistory) => {
+    if (h.started_on && h.finished_on) return `${h.started_on} ~ ${h.finished_on}`;
+    if (h.finished_on) return `~ ${h.finished_on}`;
+    if (h.started_on) return `${h.started_on} ~`;
+    return "";
+  };
 
   const numberRegister = {
     setValueAs: (value: string) => (value === "" ? undefined : Number(value)),
@@ -199,19 +283,57 @@ function ProgressDialog({
           <DialogDescription>교재, 페이지, 진행 계획을 한 번에 관리합니다.</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">인원</span>
-              <Input type="number" inputMode="numeric" {...form.register("student_count", numberRegister)} />
-              {form.formState.errors.student_count && (
-                <span className="text-[11px] font-semibold text-red-500">{form.formState.errors.student_count.message}</span>
-              )}
-            </label>
-            <label className="space-y-1.5 sm:col-span-2">
-              <span className="text-xs font-bold text-slate-500">메인교재</span>
-              <Input {...form.register("main_textbook")} />
-            </label>
+          {/* 반 특성 — 신입생 배정 판단 기준 */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <p className="mb-2 text-xs font-extrabold text-slate-600">반 특성 (배정 기준)</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <label className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-500">학습능력</span>
+                <select
+                  {...form.register("ability_level")}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                >
+                  <option value="">선택</option>
+                  {CLASS_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-500">학습강도</span>
+                <select
+                  {...form.register("study_intensity")}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                >
+                  <option value="">선택</option>
+                  {CLASS_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-500">학습량(숙제)</span>
+                <select
+                  {...form.register("homework_volume")}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                >
+                  <option value="">선택</option>
+                  {CLASS_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-500">진도속도</span>
+                <select
+                  {...form.register("class_pace")}
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                >
+                  <option value="">선택</option>
+                  {CLASS_PACES.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </label>
+            </div>
           </div>
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-bold text-slate-500">메인교재</span>
+            <Input {...form.register("main_textbook")} />
+          </label>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="space-y-1.5">
@@ -242,9 +364,73 @@ function ProgressDialog({
           </div>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-slate-500">다음 교재 시작</span>
-            <Input {...form.register("next_start_plan")} placeholder="예: 7월 2주차 / 시험 종료 후" />
+            <span className="text-xs font-bold text-slate-500">다음 교재 시작 예정일</span>
+            <Input type="date" {...form.register("next_start_date")} className="w-fit" />
           </label>
+
+          {/* 지난 교재 이력 — 계속 누적 */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+              <History className="h-3.5 w-3.5" />
+              지난 교재 ({history.length})
+            </p>
+            {history.length > 0 && (
+              <ul className="mb-3 space-y-1.5">
+                {history.map((h) => (
+                  <li
+                    key={h.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-700">{h.textbook}</p>
+                      {formatPeriod(h) && (
+                        <p className="text-[11px] text-slate-400">{formatPeriod(h)}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteHistory(h.id)}
+                      disabled={historyPending}
+                      className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                      title="이력 삭제"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="min-w-[160px] flex-1 space-y-1">
+                <span className="text-[11px] font-bold text-slate-500">교재명</span>
+                <Input
+                  value={newTextbook}
+                  onChange={(e) => setNewTextbook(e.target.value)}
+                  placeholder="예: 쎈 수학(상)"
+                  className="h-9"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11px] font-bold text-slate-500">시작일</span>
+                <Input type="date" value={newStartedOn} onChange={(e) => setNewStartedOn(e.target.value)} className="h-9" />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11px] font-bold text-slate-500">종료일</span>
+                <Input type="date" value={newFinishedOn} onChange={(e) => setNewFinishedOn(e.target.value)} className="h-9" />
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={historyPending}
+                onClick={handleAddHistory}
+                className="h-9 gap-1"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                추가
+              </Button>
+            </div>
+          </div>
 
           <label className="block space-y-1.5">
             <span className="text-xs font-bold text-slate-500">진행 계획</span>
@@ -395,8 +581,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   <TableHead className="min-w-[120px] px-4 text-xs font-bold text-slate-500">반명</TableHead>
                   <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">강사명</TableHead>
                   <TableHead className="min-w-[68px] text-xs font-bold text-slate-500">인원</TableHead>
-                  <TableHead className="min-w-[260px] text-xs font-bold text-slate-500">메인교재 · 진도율</TableHead>
-                  <TableHead className="min-w-[88px] text-xs font-bold text-slate-500">주간 진도</TableHead>
+                  <TableHead className="min-w-[280px] text-xs font-bold text-slate-500">메인교재 · 진도율</TableHead>
                   <TableHead className="min-w-[160px] text-xs font-bold text-slate-500">현재 페이지</TableHead>
                   <TableHead className="min-w-[130px] text-xs font-bold text-slate-500">최신화</TableHead>
                   <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">입력</TableHead>
@@ -414,6 +599,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           {!editable && <Lock className="h-3.5 w-3.5 text-slate-300" />}
                           {row.class_name}
                         </div>
+                        <TraitBadges progress={progress} />
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
                       <TableCell>
@@ -431,13 +617,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         <div className="space-y-1.5">
                           <p className="max-w-[240px] whitespace-normal text-sm font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
                           <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
-                          {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_plan) && (
-                            <p className="max-w-[240px] whitespace-normal text-[11px] font-medium leading-relaxed text-slate-500">
+                          {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date) && (
+                            <p className="max-w-[260px] whitespace-normal text-[11px] font-medium leading-relaxed text-slate-500">
                               {progress?.sub_textbook && <>부교재 {progress.sub_textbook}</>}
-                              {progress?.sub_textbook && (progress?.next_textbook || progress?.next_start_plan) && " · "}
+                              {progress?.sub_textbook && (progress?.next_textbook || progress?.next_start_date) && " · "}
                               {progress?.next_textbook && <>예정 {progress.next_textbook}</>}
-                              {progress?.next_textbook && progress?.next_start_plan && " "}
-                              {progress?.next_start_plan && <>({progress.next_start_plan})</>}
+                              {progress?.next_textbook && progress?.next_start_date && " "}
+                              {progress?.next_start_date && <>({progress.next_start_date.slice(5).replace("-", "/")} 시작)</>}
                             </p>
                           )}
                           {progress?.current_plan && (
@@ -446,18 +632,6 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                             </p>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {row.weekly_progress == null ? (
-                          <span className="text-xs text-slate-400">-</span>
-                        ) : (
-                          <span
-                            className="inline-flex rounded-full px-2 py-0.5 text-xs font-black"
-                            style={{ background: "color-mix(in srgb, var(--accent-warm) 22%, white)", color: "var(--primary)" }}
-                          >
-                            {row.weekly_progress >= 0 ? `+${row.weekly_progress}p` : `${row.weekly_progress}p`}
-                          </span>
-                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -514,6 +688,9 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         open={Boolean(editingRow)}
         onClose={() => setEditingRow(null)}
         onSaved={updateRow}
+        onHistoryChange={(classId, history) =>
+          setRows((prev) => prev.map((r) => (r.class_id === classId ? { ...r, textbook_history: history } : r)))
+        }
       />
       <StudentListDialog row={studentListRow} onClose={() => setStudentListRow(null)} />
     </div>

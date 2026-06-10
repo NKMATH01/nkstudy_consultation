@@ -100,11 +100,29 @@ export interface ClassProgress {
   next_start_plan: string | null;
   current_plan: string | null;
   note: string | null;
+  ability_level: string | null;
+  study_intensity: string | null;
+  homework_volume: string | null;
+  class_pace: string | null;
+  next_start_date: string | null;
   updated_by: string | null;
   progress_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface TextbookHistory {
+  id: string;
+  class_id: string;
+  textbook: string;
+  started_on: string | null;
+  finished_on: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export const CLASS_LEVELS = ["상", "중", "하"] as const;
+export const CLASS_PACES = ["빠름", "보통", "느림"] as const;
 
 export interface ClassProgressLog {
   id: string;

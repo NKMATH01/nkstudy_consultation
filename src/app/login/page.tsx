@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 import { phoneToEmail, toAuthPassword } from "@/lib/auth";
 import { getTeacherByPhone, changeTeacherPassword } from "@/lib/actions/settings";
-import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
@@ -140,21 +139,24 @@ export default function LoginPage() {
   // 비밀번호 변경 모달
   if (showPasswordChange) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 text-foreground">
-        <div className="w-full max-w-[400px] rounded-2xl border border-border bg-card p-8 shadow-[0_22px_60px_rgba(94,147,172,0.16)]">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0A0F1E" }}>
+        <div className="w-[400px] bg-white rounded-2xl p-8 shadow-2xl">
           <div className="text-center mb-6">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-primary text-lg font-extrabold text-primary-foreground shadow-[0_10px_28px_rgba(94,147,172,0.24)]">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-extrabold text-white"
+              style={{ background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))" }}
+            >
               NK
             </div>
-            <h2 className="text-lg font-bold text-foreground">비밀번호 변경</h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h2 className="text-lg font-bold text-slate-900">비밀번호 변경</h2>
+            <p className="text-sm text-slate-500 mt-1">
               {teacherName} 선생님, 새로운 비밀번호를 설정해주세요
             </p>
           </div>
 
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
-              <label className="block mb-1.5 text-xs font-semibold text-muted-foreground">
+              <label className="block mb-1.5 text-xs font-semibold text-slate-500">
                 새 비밀번호 (4자리 숫자)
               </label>
               <input
@@ -165,12 +167,13 @@ export default function LoginPage() {
                 onChange={(e) => setNewPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
                 placeholder="4자리 숫자"
                 required
-                className="w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-center text-sm font-bold tracking-[0.5em] text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm text-center tracking-[0.5em] font-bold outline-none"
+                style={{ border: "1.5px solid #E2E8F0" }}
                 autoFocus
               />
             </div>
             <div>
-              <label className="block mb-1.5 text-xs font-semibold text-muted-foreground">
+              <label className="block mb-1.5 text-xs font-semibold text-slate-500">
                 비밀번호 확인
               </label>
               <input
@@ -181,24 +184,26 @@ export default function LoginPage() {
                 onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
                 placeholder="다시 입력"
                 required
-                className="w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-center text-sm font-bold tracking-[0.5em] text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm text-center tracking-[0.5em] font-bold outline-none"
+                style={{ border: "1.5px solid #E2E8F0" }}
               />
             </div>
 
             {error && (
-              <div className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              <div className="text-xs font-medium px-3 py-2 rounded-lg" style={{ background: "#FFF1F2", color: "#E11D48" }}>
                 {error}
               </div>
             )}
 
-            <Button
+            <button
               type="submit"
               disabled={changingPassword}
-              className="h-11 w-full rounded-xl font-semibold"
+              className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))" }}
             >
               {changingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
               {changingPassword ? "변경 중..." : "비밀번호 변경"}
-            </Button>
+            </button>
           </form>
         </div>
       </div>
@@ -206,29 +211,51 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
+    <div className="min-h-screen flex" style={{ background: "#0A0F1E" }}>
       {/* Left - Branding */}
-      <div className="relative hidden flex-1 items-center justify-center overflow-hidden bg-[linear-gradient(135deg,var(--primary-soft)_0%,var(--secondary)_100%)] lg:flex">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_26%_24%,rgba(255,255,255,0.52),transparent_34%),radial-gradient(circle_at_72%_76%,rgba(255,224,178,0.34),transparent_36%)]" />
+      <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+        <div
+          className="absolute w-full h-full"
+          style={{
+            background:
+              "radial-gradient(ellipse at 30% 20%, rgba(37,99,235,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(212,168,83,0.06) 0%, transparent 50%)",
+          }}
+        />
         <div className="relative text-center max-w-[360px]">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 bg-primary text-2xl font-extrabold text-primary-foreground shadow-[0_14px_38px_rgba(94,147,172,0.26)]">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-extrabold text-white"
+            style={{
+              background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))",
+              boxShadow: "0 8px 32px color-mix(in srgb, var(--accent-warm) 30%, transparent)",
+              letterSpacing: "-0.03em",
+            }}
+          >
             NK
           </div>
-          <h1 className="mb-2.5 text-[26px] font-extrabold text-foreground">
+          <h1
+            className="text-[26px] font-extrabold text-white mb-2.5"
+            style={{ letterSpacing: "-0.03em" }}
+          >
             NK Academy
           </h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
+          <p className="text-sm" style={{ color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
             학원 상담 관리 시스템
           </p>
         </div>
       </div>
 
       {/* Right - Login Form */}
-      <div className="flex w-full flex-col justify-center border-l border-border bg-card px-7 py-12 shadow-[0_0_60px_rgba(94,147,172,0.10)] sm:px-11 lg:w-[440px] lg:rounded-l-[24px]">
-        <h2 className="mb-1 text-[22px] font-bold text-foreground">
+      <div
+        className="w-[440px] flex flex-col justify-center px-11 py-12 bg-white"
+        style={{ borderRadius: "24px 0 0 24px" }}
+      >
+        <h2
+          className="text-[22px] font-bold mb-1"
+          style={{ color: "#0F172A", letterSpacing: "-0.02em" }}
+        >
           로그인
         </h2>
-        <p className="mb-8 text-[13px] text-muted-foreground">
+        <p className="text-[13px] mb-8" style={{ color: "#64748B" }}>
           {showEmailLogin ? "관리자 이메일로 로그인" : "전화번호와 비밀번호를 입력하세요"}
         </p>
 
@@ -236,7 +263,7 @@ export default function LoginPage() {
           // 이메일 로그인 (관리자)
           <form onSubmit={handleEmailLogin} className="space-y-3.5">
             <div>
-              <label className="block mb-1.5 text-xs font-semibold text-muted-foreground">
+              <label className="block mb-1.5 text-xs font-semibold" style={{ color: "#64748B" }}>
                 이메일
               </label>
               <input
@@ -245,11 +272,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@nk.com"
                 required
-                className="w-full rounded-[7px] border border-border bg-card px-3.5 py-2.5 text-[13.5px] text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+                className="w-full px-3.5 py-2.5 rounded-[7px] text-[13.5px] outline-none transition-all"
+                style={{ border: "1.5px solid #E2E8F0", color: "#1E293B" }}
               />
             </div>
             <div>
-              <label className="block mb-1.5 text-xs font-semibold text-muted-foreground">
+              <label className="block mb-1.5 text-xs font-semibold" style={{ color: "#64748B" }}>
                 비밀번호
               </label>
               <input
@@ -258,30 +286,32 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="비밀번호"
                 required
-                className="w-full rounded-[7px] border border-border bg-card px-3.5 py-2.5 text-[13.5px] text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+                className="w-full px-3.5 py-2.5 rounded-[7px] text-[13.5px] outline-none transition-all"
+                style={{ border: "1.5px solid #E2E8F0", color: "#1E293B" }}
               />
             </div>
 
             {error && (
-              <div className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              <div className="text-xs font-medium px-3 py-2 rounded-lg" style={{ background: "#FFF1F2", color: "#E11D48" }}>
                 {error}
               </div>
             )}
 
-            <Button
+            <button
               type="submit"
               disabled={loading}
-              className="mt-1.5 h-11 w-full rounded-[10px] font-semibold"
+              className="w-full py-3 rounded-[10px] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-1.5"
+              style={{ background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))", boxShadow: "0 2px 8px color-mix(in srgb, var(--accent-warm) 30%, transparent)" }}
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? "로그인 중..." : "관리자 로그인"}
-            </Button>
+            </button>
 
             <div className="text-center mt-3">
               <button
                 type="button"
                 onClick={() => { setShowEmailLogin(false); setError(""); }}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className="text-xs text-slate-400 hover:text-slate-600"
               >
                 전화번호로 로그인
               </button>
@@ -291,7 +321,7 @@ export default function LoginPage() {
           // 전화번호 로그인 (선생님)
           <form onSubmit={handlePhoneLogin} className="space-y-3.5">
             <div>
-              <label className="block mb-1.5 text-xs font-semibold text-muted-foreground">
+              <label className="block mb-1.5 text-xs font-semibold" style={{ color: "#64748B", letterSpacing: "0.03em" }}>
                 전화번호
               </label>
               <input
@@ -300,11 +330,12 @@ export default function LoginPage() {
                 onChange={(e) => setPhone(formatPhone(e.target.value))}
                 placeholder="010-0000-0000"
                 required
-                className="w-full rounded-[7px] border border-border bg-card px-3.5 py-2.5 text-[13.5px] text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+                className="w-full px-3.5 py-2.5 rounded-[7px] text-[13.5px] outline-none transition-all"
+                style={{ border: "1.5px solid #E2E8F0", color: "#1E293B", background: "#FFFFFF" }}
               />
             </div>
             <div>
-              <label className="block mb-1.5 text-xs font-semibold text-muted-foreground">
+              <label className="block mb-1.5 text-xs font-semibold" style={{ color: "#64748B", letterSpacing: "0.03em" }}>
                 비밀번호
               </label>
               <input
@@ -315,30 +346,35 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
                 placeholder="4자리 숫자"
                 required
-                className="w-full rounded-[7px] border border-border bg-card px-3.5 py-2.5 text-center text-[13.5px] tracking-[0.3em] text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+                className="w-full px-3.5 py-2.5 rounded-[7px] text-[13.5px] outline-none transition-all text-center tracking-[0.3em]"
+                style={{ border: "1.5px solid #E2E8F0", color: "#1E293B", background: "#FFFFFF" }}
               />
             </div>
 
             {error && (
-              <div className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              <div className="text-xs font-medium px-3 py-2 rounded-lg" style={{ background: "#FFF1F2", color: "#E11D48" }}>
                 {error}
               </div>
             )}
 
-            <Button
+            <button
               type="submit"
               disabled={loading}
-              className="mt-1.5 h-11 w-full rounded-[10px] font-semibold"
+              className="w-full py-3 rounded-[10px] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-1.5"
+              style={{
+                background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))",
+                boxShadow: "0 2px 8px color-mix(in srgb, var(--accent-warm) 30%, transparent)",
+              }}
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? "로그인 중..." : "로그인"}
-            </Button>
+            </button>
 
             <div className="text-center mt-3 space-y-2">
               <button
                 type="button"
                 onClick={() => { setShowEmailLogin(true); setError(""); setPassword(""); }}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className="text-xs text-slate-400 hover:text-slate-600"
               >
                 관리자 이메일로 로그인
               </button>
@@ -351,7 +387,8 @@ export default function LoginPage() {
                   type="button"
                   disabled={loading}
                   onClick={handleQuickLogin}
-                  className="rounded-[10px] border border-border bg-transparent px-5 py-2.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  className="py-2.5 px-5 rounded-[10px] text-[12.5px] font-medium transition-all disabled:opacity-50"
+                  style={{ background: "none", border: "1.5px solid #E2E8F0", color: "#475569" }}
                 >
                   테스트 계정으로 로그인
                 </button>

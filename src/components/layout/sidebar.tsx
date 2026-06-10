@@ -51,6 +51,9 @@ const adminOnlyItems = [
 
 type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
+// 권한 설정과 무관하게 모든 강사에게 항상 표시되는 메뉴 (진도현황)
+const ALWAYS_VISIBLE_MENUS = new Set(["/progress"]);
+
 function filterMenuItems(
   items: MenuItem[],
   currentTeacher: CurrentTeacherInfo | null | undefined,
@@ -58,7 +61,9 @@ function filterMenuItems(
   if (!currentTeacher) return items; // 정보 없으면 전체 표시 (레거시)
   if (currentTeacher.role === "admin") return items;
   if (!currentTeacher.allowed_menus || currentTeacher.allowed_menus.length === 0) return items; // 권한 미설정 시 전체 표시
-  return items.filter((item) => currentTeacher.allowed_menus!.includes(item.href));
+  return items.filter(
+    (item) => ALWAYS_VISIBLE_MENUS.has(item.href) || currentTeacher.allowed_menus!.includes(item.href),
+  );
 }
 
 interface SidebarProps {

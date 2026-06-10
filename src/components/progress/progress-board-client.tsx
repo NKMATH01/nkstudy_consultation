@@ -108,20 +108,24 @@ const TRAIT_LABELS: Array<{ key: "ability_level" | "study_intensity" | "homework
   { key: "class_pace", label: "속도" },
 ];
 
+const TRAIT_COLORS: Record<string, { bg: string; color: string }> = {
+  ability_level: { bg: "color-mix(in srgb, var(--accent-warm) 28%, white)", color: "var(--accent-warm-foreground)" },
+  study_intensity: { bg: "color-mix(in srgb, var(--primary) 10%, white)", color: "var(--primary)" },
+  homework_volume: { bg: "#CCFBF1", color: "#0F766E" },
+  class_pace: { bg: "#EDE9FE", color: "#6D28D9" },
+};
+
 function TraitBadges({ progress }: { progress: ProgressBoardRow["progress"] }) {
   if (!progress) return null;
   const badges = TRAIT_LABELS.filter(({ key }) => progress[key]);
   if (badges.length === 0) return null;
   return (
-    <div className="mt-1 flex flex-wrap gap-1">
+    <div className="mt-1.5 flex flex-wrap gap-1">
       {badges.map(({ key, label }) => (
         <span
           key={key}
-          className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold"
-          style={{
-            background: "color-mix(in srgb, var(--primary) 8%, white)",
-            color: "var(--primary)",
-          }}
+          className="inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-extrabold"
+          style={TRAIT_COLORS[key]}
         >
           {label} {progress[key]}
         </span>
@@ -141,21 +145,37 @@ function gradeFromClassName(className: string): string {
 
 function SectionHeader({ grade, count }: { grade: string; count: number }) {
   return (
-    <div className="flex items-center justify-between rounded-t-2xl border border-b-0 border-slate-200 bg-white px-5 py-3">
-      <div className="flex items-center gap-2">
+    <div
+      className="flex items-center justify-between rounded-t-2xl px-5 py-3.5"
+      style={{
+        background:
+          "radial-gradient(circle at 12% 0%, rgba(233,196,106,0.18), transparent 38%), linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)",
+      }}
+    >
+      <div className="flex items-center gap-2.5">
         <span
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-white shadow-sm"
-          style={{ background: "linear-gradient(135deg, var(--primary), var(--primary-soft))" }}
+          className="flex h-8 w-8 items-center justify-center rounded-lg"
+          style={{ background: "rgba(255,255,255,0.14)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)" }}
         >
-          <BookOpenCheck className="h-4 w-4" />
+          <BookOpenCheck className="h-4 w-4 text-white" />
         </span>
-        <div>
-          <h2 className="text-sm font-extrabold text-slate-900">{grade}</h2>
-          <p className="text-[11px] font-semibold text-slate-400">{count}개 반</p>
-        </div>
+        <h2 className="text-[15px] font-black tracking-tight text-white">{grade}</h2>
       </div>
+      <span
+        className="rounded-full px-2.5 py-1 text-[11px] font-black"
+        style={{ background: "rgba(233,196,106,0.22)", color: "#F8E7BD", boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.28)" }}
+      >
+        {count}개 반
+      </span>
     </div>
   );
+}
+
+/** 진도율 구간별 색상: 초반(로즈) → 중반(골드) → 마무리(에메랄드) */
+function meterColors(percent: number): { bar: string; text: string } {
+  if (percent >= 80) return { bar: "linear-gradient(90deg, #34D399, #059669)", text: "#047857" };
+  if (percent >= 40) return { bar: "linear-gradient(90deg, var(--accent-warm), var(--chart-4))", text: "var(--accent-warm-foreground)" };
+  return { bar: "linear-gradient(90deg, #FDA4AF, #F43F5E)", text: "#BE123C" };
 }
 
 function ProgressMeter({ current, total }: { current: number | null | undefined; total: number | null | undefined }) {
@@ -163,27 +183,22 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
   if (percent == null) {
     return <span className="text-xs text-slate-400">페이지 미입력</span>;
   }
+  const colors = meterColors(percent);
 
   return (
-    <div className="flex min-w-[200px] items-center gap-2">
+    <div className="flex min-w-[200px] items-center gap-2.5">
       <div className="flex-1 space-y-1">
-        <div className="text-[11px] font-bold text-slate-600">
-          {current}p / {total}p
+        <div className="text-[11px] font-bold text-slate-500">
+          {current}p <span className="font-medium text-slate-400">/ {total}p</span>
         </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+        <div className="h-2.5 overflow-hidden rounded-full" style={{ background: "#EEF1F6", boxShadow: "inset 0 1px 2px rgba(15,23,42,0.06)" }}>
           <div
             className="h-full rounded-full transition-all"
-            style={{
-              width: `${percent}%`,
-              background: "linear-gradient(90deg, var(--accent-warm), var(--chart-4))",
-            }}
+            style={{ width: `${percent}%`, background: colors.bar }}
           />
         </div>
       </div>
-      <span
-        className="shrink-0 text-base font-black tabular-nums"
-        style={{ color: "var(--accent-warm-foreground)" }}
-      >
+      <span className="shrink-0 text-base font-black tabular-nums" style={{ color: colors.text }}>
         {percent}%
       </span>
     </div>
@@ -722,39 +737,38 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
     <div className="space-y-6">
       {/* 학년별 필터 버튼 */}
       <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          onClick={() => setGradeFilter(null)}
-          className="rounded-full px-3.5 py-1.5 text-xs font-extrabold transition"
-          style={
-            gradeFilter === null
-              ? { background: "var(--primary)", color: "#fff" }
-              : { background: "#fff", color: "var(--muted-foreground)", boxShadow: "inset 0 0 0 1px var(--border)" }
-          }
-        >
-          전체 ({rows.length})
-        </button>
-        {grouped.map(({ grade, items }) => (
-          <button
-            key={grade}
-            type="button"
-            onClick={() => setGradeFilter(gradeFilter === grade ? null : grade)}
-            className="rounded-full px-3.5 py-1.5 text-xs font-extrabold transition"
-            style={
-              gradeFilter === grade
-                ? { background: "var(--primary)", color: "#fff" }
-                : { background: "#fff", color: "var(--muted-foreground)", boxShadow: "inset 0 0 0 1px var(--border)" }
-            }
-          >
-            {grade} ({items.length})
-          </button>
-        ))}
+        {[{ grade: null as string | null, label: `전체 (${rows.length})` }, ...grouped.map(({ grade, items }) => ({ grade: grade as string | null, label: `${grade} (${items.length})` }))].map(({ grade, label }) => {
+          const active = gradeFilter === grade;
+          return (
+            <button
+              key={grade ?? "__all__"}
+              type="button"
+              onClick={() => setGradeFilter(active && grade !== null ? null : grade)}
+              className="rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-all hover:-translate-y-px"
+              style={
+                active
+                  ? {
+                      background: "linear-gradient(135deg, var(--primary), var(--primary-soft))",
+                      color: "#fff",
+                      boxShadow: "0 6px 16px color-mix(in srgb, var(--primary) 28%, transparent), inset 0 0 0 1px rgba(233,196,106,0.35)",
+                    }
+                  : {
+                      background: "#fff",
+                      color: "var(--muted-foreground)",
+                      boxShadow: "inset 0 0 0 1px var(--border), 0 1px 2px rgba(15,23,42,0.04)",
+                    }
+              }
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {visibleGroups.map(({ grade, items }) => (
-        <section key={grade} className="overflow-hidden rounded-2xl shadow-sm">
+        <section key={grade} className="card-elevated overflow-hidden rounded-2xl">
           <SectionHeader grade={grade} count={items.length} />
-          <div className="overflow-x-auto border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-b-2xl border border-t-0 border-slate-200 bg-white">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/90">
@@ -773,7 +787,10 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   const editable = canEditRow(row, currentTeacher);
                   const isSaving = pendingClassId === row.class_id;
                   return (
-                    <TableRow key={row.class_id}>
+                    <TableRow
+                      key={row.class_id}
+                      className="transition-colors odd:bg-white even:bg-slate-50/45 hover:bg-[#F6F2E7]/60"
+                    >
                       <TableCell className="px-4 font-bold text-slate-900">
                         <button
                           type="button"

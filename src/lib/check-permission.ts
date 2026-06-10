@@ -1,6 +1,9 @@
 import { getCurrentTeacher } from "@/lib/actions/settings";
 import { redirect } from "next/navigation";
 
+/** 권한 설정(allowed_menus)과 무관하게 모든 로그인 사용자에게 열린 페이지 */
+const ALWAYS_ALLOWED_PATHS = new Set(["/progress"]);
+
 /** 서버 컴포넌트에서 페이지 접근 권한 확인. admin은 항상 통과. */
 export async function checkPagePermission(pathname: string) {
   const currentTeacher = await getCurrentTeacher();
@@ -10,6 +13,9 @@ export async function checkPagePermission(pathname: string) {
 
   // admin은 항상 접근 가능
   if (currentTeacher.role === "admin") return currentTeacher;
+
+  // 전원 공개 페이지 (진도현황 — 모든 강사 조회 가능, 편집은 서버 액션에서 별도 제한)
+  if (ALWAYS_ALLOWED_PATHS.has(pathname)) return currentTeacher;
 
   // allowed_menus가 null이거나 빈 배열이면 권한 미설정 → 전체 허용
   if (!currentTeacher.allowed_menus || currentTeacher.allowed_menus.length === 0) {

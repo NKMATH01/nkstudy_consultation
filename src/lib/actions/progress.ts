@@ -11,7 +11,6 @@ export interface ProgressTeacherInfo {
   id: string | null;
   name: string;
   role: Teacher["role"];
-  auth_user_id: string | null;
 }
 
 export interface ProgressBoardRow {
@@ -145,25 +144,51 @@ async function getCurrentProgressTeacherWithClient(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user?.email) return null;
 
-  const { data } = await supabase
-    .from("teachers")
-    .select("id, name, role, auth_user_id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
+  if (user.email.endsWith("@nk.local")) {
+    const digits = user.email.replace("@nk.local", "").replace(/\D/g, "");
+    let formatted = digits;
+    if (digits.length === 11) {
+      formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+    }
 
-  if (data) {
-    return {
-      id: String(data.id ?? ""),
-      name: String(data.name ?? "선생님"),
-      role: (data.role ?? null) as Teacher["role"],
-      auth_user_id: nullableString(data.auth_user_id),
-    };
+    const { data } = await supabase
+      .from("teachers")
+      .select("id, name, role")
+      .or(`phone.eq.${digits},phone.eq.${formatted}`)
+      .limit(1)
+      .single();
+
+    if (data) {
+      return {
+        id: String(data.id ?? ""),
+        name: String(data.name ?? "선생님"),
+        role: (data.role ?? null) as Teacher["role"],
+      };
+    }
   }
 
   if (user.email === "admin@nk.com") {
-    return { id: null, name: "관리자", role: "admin", auth_user_id: user.id };
+    return { id: null, name: "관리자", role: "admin" };
+  }
+
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name, role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role === "admin") {
+      return {
+        id: null,
+        name: String(profile.name ?? "관리자"),
+        role: "admin",
+      };
+    }
+  } catch {
+    // profiles 테이블이 없는 배포 환경도 허용한다.
   }
 
   return null;

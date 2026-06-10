@@ -98,6 +98,15 @@ function defaultValues(row: ProgressBoardRow): ProgressFormValues {
   };
 }
 
+function gradeFromClassName(className: string): string {
+  const match = className.trimStart().match(/^(초|중|고)\s*([1-6])/);
+  if (!match) return "고3";
+
+  const school = match[1];
+  const grade = match[2];
+  return school && grade ? `${school}${grade}` : "고3";
+}
+
 function SectionHeader({ grade, count }: { grade: string; count: number }) {
   return (
     <div className="flex items-center justify-between rounded-t-2xl border border-b-0 border-slate-200 bg-white px-5 py-3">
@@ -278,15 +287,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
   const grouped = useMemo(() => {
     const map = new Map<string, ProgressBoardRow[]>();
     for (const row of rows) {
-      const grade = row.target_grade || "기타";
+      const grade = gradeFromClassName(row.class_name);
       map.set(grade, [...(map.get(grade) ?? []), row]);
     }
 
     const gradeOrder = new Map(GRADES.map((grade, index) => [grade, index]));
     return Array.from(map.entries())
       .sort(([a], [b]) => {
-        if (a === "기타") return 1;
-        if (b === "기타") return -1;
         return (gradeOrder.get(a as (typeof GRADES)[number]) ?? 999) - (gradeOrder.get(b as (typeof GRADES)[number]) ?? 999);
       })
       .map(([grade, items]) => ({

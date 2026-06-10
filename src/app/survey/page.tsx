@@ -33,6 +33,41 @@ const STEP_NAMES = [
   "완료",
 ];
 
+type SurveyInfoState = {
+  name: string;
+  school: string;
+  grade: string;
+  student_phone: string;
+  parent_phone: string;
+  referral: string;
+  referral_friend: string;
+  prev_academy: string;
+  prev_complaint_reason: string;
+  prev_complaint: string;
+  school_score: string;
+  mock_exam_score: string;
+  advance_level: string;
+  commute_method: string;
+  commute_distance: string;
+  sibling_enrolled: string;
+};
+
+type SurveyOpenEndedState = {
+  study_core: string;
+  problem_self: string;
+  target_university: string;
+  dream: string;
+  weekly_study_hours: string;
+  available_time: string;
+  prefer_days: string;
+  parent_expectation: string;
+  requests: string;
+  math_difficulty: string;
+  english_difficulty: string;
+  mbti: string;
+  health_note: string;
+};
+
 export default function PublicSurveyPage() {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -48,19 +83,30 @@ export default function PublicSurveyPage() {
     referral: "",
     referral_friend: "",
     prev_academy: "",
+    prev_complaint_reason: "",
     prev_complaint: "",
     school_score: "",
+    mock_exam_score: "",
     advance_level: "",
+    commute_method: "",
+    commute_distance: "",
+    sibling_enrolled: "",
   });
   const [scores, setScores] = useState<Record<string, number>>({});
   const [openEnded, setOpenEnded] = useState({
     study_core: "",
     problem_self: "",
+    target_university: "",
     dream: "",
+    weekly_study_hours: "",
+    available_time: "",
     prefer_days: "",
+    parent_expectation: "",
     requests: "",
     math_difficulty: "",
     english_difficulty: "",
+    mbti: "",
+    health_note: "",
   });
 
   const progressPercent = Math.round((step / (TOTAL_STEPS - 1)) * 100);
@@ -240,6 +286,12 @@ const REFERRAL_OPTIONS = [
   "기타",
 ];
 
+const PREV_COMPLAINT_REASONS = ["수업 수준", "관리 부족", "거리", "비용", "강사", "기타"];
+const COMMUTE_METHODS = ["도보", "자차", "학원차량", "대중교통", "기타"];
+const SIBLING_OPTIONS = ["재원중", "타학원", "없음"];
+const WEEKLY_STUDY_HOURS = ["1h 미만", "1-2h", "2-3h", "3h+"];
+const AVAILABLE_TIME_OPTIONS = ["평일 오후", "평일 저녁", "주말", "평일+주말", "상담 후 조정"];
+
 function SectionHeader({ icon: Icon, title, color }: { icon: React.ElementType; title: string; color: string }) {
   return (
     <div className="flex items-center gap-2.5 pb-3 mb-4 border-b border-slate-100">
@@ -276,7 +328,7 @@ function StepInfo({
   info,
   onChange,
 }: {
-  info: { name: string; school: string; grade: string; student_phone: string; parent_phone: string; referral: string; referral_friend: string; prev_academy: string; prev_complaint: string; school_score: string; advance_level: string };
+  info: SurveyInfoState;
   onChange: (v: typeof info) => void;
 }) {
   const update = (key: string, value: string) => onChange({ ...info, [key]: value });
@@ -403,6 +455,19 @@ function StepInfo({
             <p className="text-[11px] text-slate-400 mt-1">학원 이름과 다닌 기간을 알려주세요.</p>
           </div>
           <div>
+            <FieldLabel>기존 학원을 그만둔 결정적 이유</FieldLabel>
+            <select
+              value={info.prev_complaint_reason}
+              onChange={(e) => update("prev_complaint_reason", e.target.value)}
+              className={fieldClass}
+            >
+              <option value="">선택해주세요</option>
+              {PREV_COMPLAINT_REASONS.map((reason) => (
+                <option key={reason} value={reason}>{reason}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <FieldLabel required>기존 학원에서 아쉬웠던 점</FieldLabel>
             <textarea
               value={info.prev_complaint}
@@ -423,6 +488,15 @@ function StepInfo({
               />
             </div>
             <div>
+              <FieldLabel>최근 모의고사/전국단위 성적</FieldLabel>
+              <Input
+                value={info.mock_exam_score}
+                onChange={(e) => update("mock_exam_score", e.target.value)}
+                placeholder="예: 3월 모의고사 수학 2등급"
+                className={fieldClass}
+              />
+            </div>
+            <div>
               <FieldLabel>현재 진도 / 선행 정도</FieldLabel>
               <Input
                 value={info.advance_level}
@@ -431,6 +505,43 @@ function StepInfo({
                 className={fieldClass}
               />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>통학 수단</FieldLabel>
+              <select
+                value={info.commute_method}
+                onChange={(e) => update("commute_method", e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">선택</option>
+                {COMMUTE_METHODS.map((method) => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>통원 소요 시간/거리</FieldLabel>
+              <Input
+                value={info.commute_distance}
+                onChange={(e) => update("commute_distance", e.target.value)}
+                placeholder="예: 차량 20분 / 도보 10분"
+                className={fieldClass}
+              />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>형제·자매 재원/타학원 여부</FieldLabel>
+            <select
+              value={info.sibling_enrolled}
+              onChange={(e) => update("sibling_enrolled", e.target.value)}
+              className={fieldClass}
+            >
+              <option value="">선택</option>
+              {SIBLING_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -513,7 +624,7 @@ function StepOpenEnded({
   openEnded,
   onChange,
 }: {
-  openEnded: { study_core: string; problem_self: string; dream: string; prefer_days: string; requests: string; math_difficulty: string; english_difficulty: string };
+  openEnded: SurveyOpenEndedState;
   onChange: (v: typeof openEnded) => void;
 }) {
   const update = (key: string, value: string) => onChange({ ...openEnded, [key]: value });
@@ -582,6 +693,15 @@ function StepOpenEnded({
             <span className="text-xs font-bold text-slate-500">목표 및 희망</span>
           </div>
           <div>
+            <FieldLabel>목표 대학/계열</FieldLabel>
+            <Input
+              value={openEnded.target_university}
+              onChange={(e) => update("target_university", e.target.value)}
+              placeholder="예: 의예과, SKY 공대, 경찰대"
+              className={fieldClass}
+            />
+          </div>
+          <div>
             <FieldLabel>장래 희망이나 목표는?</FieldLabel>
             <textarea
               value={openEnded.dream}
@@ -590,6 +710,34 @@ function StepOpenEnded({
               rows={2}
               className={`${fieldClass} resize-none`}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>주중 자습 가능 시간</FieldLabel>
+              <select
+                value={openEnded.weekly_study_hours}
+                onChange={(e) => update("weekly_study_hours", e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">선택해주세요</option>
+                {WEEKLY_STUDY_HOURS.map((hours) => (
+                  <option key={hours} value={hours}>{hours}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>등원 가능 시간대</FieldLabel>
+              <select
+                value={openEnded.available_time}
+                onChange={(e) => update("available_time", e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">선택해주세요</option>
+                {AVAILABLE_TIME_OPTIONS.map((time) => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <FieldLabel>선호하는 수업 요일</FieldLabel>
@@ -603,6 +751,37 @@ function StepOpenEnded({
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <FieldLabel>학부모 기대치/요청</FieldLabel>
+            <textarea
+              value={openEnded.parent_expectation}
+              onChange={(e) => update("parent_expectation", e.target.value)}
+              placeholder="예: 숙제 관리, 시험 대비, 생활 습관 관리 등"
+              rows={3}
+              className={`${fieldClass} resize-none`}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>MBTI</FieldLabel>
+              <Input
+                value={openEnded.mbti}
+                onChange={(e) => update("mbti", e.target.value.toUpperCase().slice(0, 4))}
+                placeholder="예: ENFP"
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <FieldLabel>건강·특이사항</FieldLabel>
+              <textarea
+                value={openEnded.health_note}
+                onChange={(e) => update("health_note", e.target.value)}
+                placeholder="예: 알레르기, 집중 관련 특이사항"
+                rows={2}
+                className={`${fieldClass} resize-none`}
+              />
+            </div>
           </div>
           <div>
             <FieldLabel>학원에 바라는 점이 있나요?</FieldLabel>

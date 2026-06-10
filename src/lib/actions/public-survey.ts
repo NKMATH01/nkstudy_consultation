@@ -41,8 +41,19 @@ const publicSurveySchema = z.object({
   referral_friend: z.string().optional(),
   prev_academy: z.string().optional(),
   prev_complaint: z.string().min(1, "기존 학원에서 아쉬웠던 점을 입력해주세요").optional().or(z.literal("")),
+  prev_complaint_reason: z.string().optional(),
   school_score: z.string().optional(),
+  mock_exam_score: z.string().optional(),
   advance_level: z.string().optional(),
+  target_university: z.string().optional(),
+  weekly_study_hours: z.string().optional(),
+  available_time: z.string().optional(),
+  commute_method: z.string().optional(),
+  commute_distance: z.string().optional(),
+  sibling_enrolled: z.string().optional(),
+  parent_expectation: z.string().optional(),
+  mbti: z.string().optional(),
+  health_note: z.string().optional(),
   q1: scoreField, q2: scoreField, q3: scoreField, q4: scoreField, q5: scoreField,
   q6: scoreField, q7: scoreField, q8: scoreField, q9: scoreField, q10: scoreField,
   q11: scoreField, q12: scoreField, q13: scoreField, q14: scoreField, q15: scoreField,
@@ -77,6 +88,13 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
     qValues[`q${i}`] = parsed.data[`q${i}` as keyof typeof parsed.data] as number | undefined | null;
   }
   const factors = calculateFactors(qValues);
+  const prevComplaint = [
+    parsed.data.prev_complaint_reason,
+    parsed.data.prev_complaint,
+  ]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(" / ");
 
   const insertData: Record<string, unknown> = {
     name: parsed.data.name,
@@ -88,7 +106,7 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
       ? `${parsed.data.referral} (${parsed.data.referral_friend})`
       : parsed.data.referral || null,
     prev_academy: parsed.data.prev_academy || null,
-    prev_complaint: parsed.data.prev_complaint || null,
+    prev_complaint: prevComplaint || null,
     school_score: parsed.data.school_score || null,
     advance_level: parsed.data.advance_level || null,
     study_core: parsed.data.study_core || null,
@@ -100,6 +118,26 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
     english_difficulty: parsed.data.english_difficulty || null,
     ...factors,
   };
+
+  const optionalNewFields = [
+    "mock_exam_score",
+    "target_university",
+    "weekly_study_hours",
+    "available_time",
+    "commute_method",
+    "commute_distance",
+    "sibling_enrolled",
+    "parent_expectation",
+    "mbti",
+    "health_note",
+  ] as const;
+
+  for (const field of optionalNewFields) {
+    const value = parsed.data[field]?.trim();
+    if (value) {
+      insertData[field] = value;
+    }
+  }
 
   for (let i = 1; i <= 35; i++) {
     const key = `q${i}` as keyof typeof parsed.data;

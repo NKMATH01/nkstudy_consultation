@@ -61,6 +61,12 @@ export interface Consultation {
   test_fee_method: string | null;
   analysis_id: string | null;
   registration_id: string | null;
+  student_id: string | null;
+  decision_maker: string | null;
+  follow_up_date: string | null;
+  mock_exam_score: string | null;
+  sibling_enrolled: string | null;
+  parent_expectation: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -147,7 +153,17 @@ export interface Survey {
   prev_academy: string | null;
   prev_complaint: string | null;
   school_score: string | null;
+  mock_exam_score: string | null;
   advance_level: string | null;
+  target_university: string | null;
+  weekly_study_hours: string | null;
+  available_time: string | null;
+  commute_method: string | null;
+  commute_distance: string | null;
+  sibling_enrolled: string | null;
+  parent_expectation: string | null;
+  mbti: string | null;
+  health_note: string | null;
   q1: number | null; q2: number | null; q3: number | null; q4: number | null; q5: number | null;
   q6: number | null; q7: number | null; q8: number | null; q9: number | null; q10: number | null;
   q11: number | null; q12: number | null; q13: number | null; q14: number | null; q15: number | null;
@@ -436,7 +452,7 @@ export const GRADES = [
 ] as const;
 
 export const SUBJECTS = ["수학", "영어", "영어수학"] as const;
-export const PREFERRED_DAYS = ["월수금", "화목금", "화목토"] as const;
+export const PREFERRED_DAYS = ["월수금", "화목금", "화목토", "상관없음"] as const;
 
 export const CONSULT_TYPES = ["유선 상담", "대면 상담"] as const;
 

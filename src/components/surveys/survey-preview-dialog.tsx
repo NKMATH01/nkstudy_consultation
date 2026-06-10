@@ -199,7 +199,7 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
           </div>
         </div>
 
-        {/* 30문항 응답 */}
+        {/* 35문항 응답 */}
         <div className="mt-3">
           <h4 className="text-xs font-bold text-slate-700 mb-2">설문 응답 ({SURVEY_QUESTIONS.length}문항)</h4>
           <div className="space-y-0.5 max-h-[300px] overflow-y-auto pr-1">

@@ -179,7 +179,11 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
             { label: "유입경로", value: survey.referral },
             { label: "기존 학원", value: survey.prev_academy },
             { label: "내신점수", value: survey.school_score },
+            { label: "모의고사/전국단위 성적", value: survey.mock_exam_score },
             { label: "현재 진도/선행 정도", value: survey.advance_level },
+            { label: "통학 수단", value: survey.commute_method },
+            { label: "통원 소요 시간/거리", value: survey.commute_distance },
+            { label: "형제·자매", value: survey.sibling_enrolled },
           ].map(({ label, value }) => (
             <div key={label}>
               <span className="text-[10.5px] font-medium uppercase" style={{ color: "#94A3B8", letterSpacing: "0.04em" }}>
@@ -310,11 +314,17 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
           {[
             { label: "공부의 핵심", value: survey.study_core },
             { label: "본인의 학습 문제점", value: survey.problem_self },
+            { label: "목표 대학/계열", value: survey.target_university },
             { label: "희망 직업", value: survey.dream },
+            { label: "주중 자습 가능 시간", value: survey.weekly_study_hours },
+            { label: "등원 가능 시간대", value: survey.available_time },
             { label: "선호 요일", value: survey.prefer_days },
+            { label: "학부모 기대치/요청", value: survey.parent_expectation },
             { label: "NK학원에 바라는 점", value: survey.requests },
             { label: "수학 어려운 영역", value: survey.math_difficulty },
             { label: "영어 어려운 영역", value: survey.english_difficulty },
+            { label: "MBTI", value: survey.mbti },
+            { label: "건강·특이사항", value: survey.health_note },
           ].map(({ label, value }) => (
             <div
               key={label}

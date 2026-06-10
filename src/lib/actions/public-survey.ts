@@ -1,10 +1,8 @@
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { calculateFactors } from "@/lib/factors";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { env } from "@/lib/env";
 import { z } from "zod";
 
 const scoreField = z.coerce.number().min(1).max(5);
@@ -109,10 +107,7 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
   }
 
   try {
-    // Service role key가 있으면 admin client (RLS 우회), 없으면 일반 client
-    const supabase = env.SUPABASE_SERVICE_ROLE_KEY
-      ? createAdminClient()
-      : await createClient();
+    const supabase = await createClient();
     const { error } = await supabase.from("surveys").insert(insertData);
 
     if (error) {

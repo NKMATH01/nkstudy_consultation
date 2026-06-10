@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useCallback, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, GraduationCap, Filter, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -281,13 +281,13 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
   const [searchName, setSearchName] = useState("");
 
   // 학생의 과목 (배정반 → 담당 선생님 → 과목)
-  const getStudentSubject = (student: Student): string | null => {
+  const getStudentSubject = useCallback((student: Student): string | null => {
     if (!student.assigned_class) return null;
     const cls = classes.find((c) => c.name === student.assigned_class);
     if (!cls?.teacher) return null;
     const t = teachers.find((tc) => tc.name === cls.teacher);
     return t?.subject || null;
-  };
+  }, [classes, teachers]);
 
   // 학년에 맞는 반 목록 (classes 테이블 + 학생 실제 배정반 합치기)
   const classesForGrade = useMemo(() => {
@@ -355,7 +355,7 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
     }
 
     return result;
-  }, [students, filterGrade, filterClass, filterStatus, filterSubject, searchName]);
+  }, [students, filterGrade, filterClass, filterStatus, filterSubject, searchName, getStudentSubject]);
 
   const hasActiveFilter = filterGrade || filterClass || filterStatus || filterSubject || searchName;
 

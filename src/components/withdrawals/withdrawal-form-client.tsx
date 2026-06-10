@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileText, Wand2 } from "lucide-react";
@@ -181,52 +181,74 @@ const ATTITUDES = ["상", "중상", "중", "중하", "하"];
 const GRADE_CHANGES = ["상승", "유지", "하락"];
 const COMEBACKS = ["상", "중상", "중", "중하", "하", "최하"];
 
+type WithdrawalFields = Record<string, string>;
+type WithdrawalFieldsUpdater = WithdrawalFields | ((prev: WithdrawalFields) => WithdrawalFields);
+type StringUpdater = string | ((prev: string) => string);
+
+function buildWithdrawalFields(withdrawal?: Withdrawal): WithdrawalFields {
+  if (!withdrawal) return {};
+
+  const prefill: WithdrawalFields = {};
+  if (withdrawal.name) prefill.name = withdrawal.name;
+  if (withdrawal.school) prefill.school = withdrawal.school;
+  if (withdrawal.subject) prefill.subject = withdrawal.subject;
+  if (withdrawal.class_name) prefill.class_name = withdrawal.class_name;
+  if (withdrawal.teacher) prefill.teacher = withdrawal.teacher;
+  if (withdrawal.grade) prefill.grade = withdrawal.grade;
+  if (withdrawal.withdrawal_date) prefill.withdrawal_date = withdrawal.withdrawal_date;
+  if (withdrawal.enrollment_start) prefill.enrollment_start = withdrawal.enrollment_start;
+  if (withdrawal.enrollment_end) prefill.enrollment_end = withdrawal.enrollment_end;
+  if (withdrawal.duration_months != null) prefill.duration_months = String(withdrawal.duration_months);
+  if (withdrawal.class_attitude) prefill.class_attitude = withdrawal.class_attitude;
+  if (withdrawal.homework_submission) prefill.homework_submission = withdrawal.homework_submission;
+  if (withdrawal.attendance) prefill.attendance = withdrawal.attendance;
+  if (withdrawal.grade_change) prefill.grade_change = withdrawal.grade_change;
+  if (withdrawal.recent_grade) prefill.recent_grade = withdrawal.recent_grade;
+  if (withdrawal.reason_category) prefill.reason_category = withdrawal.reason_category;
+  if (withdrawal.student_opinion) prefill.student_opinion = withdrawal.student_opinion;
+  if (withdrawal.parent_opinion) prefill.parent_opinion = withdrawal.parent_opinion;
+  if (withdrawal.teacher_opinion) prefill.teacher_opinion = withdrawal.teacher_opinion;
+  if (withdrawal.final_consult_date) prefill.final_consult_date = withdrawal.final_consult_date;
+  if (withdrawal.final_counselor) prefill.final_counselor = withdrawal.final_counselor;
+  if (withdrawal.final_consult_summary) prefill.final_consult_summary = withdrawal.final_consult_summary;
+  prefill.parent_thanks = withdrawal.parent_thanks ? "true" : "false";
+  if (withdrawal.comeback_possibility) prefill.comeback_possibility = withdrawal.comeback_possibility;
+  if (withdrawal.expected_comeback_date) prefill.expected_comeback_date = withdrawal.expected_comeback_date;
+  if (withdrawal.special_notes) prefill.special_notes = withdrawal.special_notes;
+  return prefill;
+}
+
 export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [rawText, setRawText] = useState("");
-  const [fields, setFields] = useState<Record<string, string>>({});
   const isEditMode = !!withdrawal;
-
-  // Reset form when dialog opens, pre-fill for edit mode
-  useEffect(() => {
-    if (open) {
-      if (withdrawal) {
-        const prefill: Record<string, string> = {};
-        if (withdrawal.name) prefill.name = withdrawal.name;
-        if (withdrawal.school) prefill.school = withdrawal.school;
-        if (withdrawal.subject) prefill.subject = withdrawal.subject;
-        if (withdrawal.class_name) prefill.class_name = withdrawal.class_name;
-        if (withdrawal.teacher) prefill.teacher = withdrawal.teacher;
-        if (withdrawal.grade) prefill.grade = withdrawal.grade;
-        if (withdrawal.withdrawal_date) prefill.withdrawal_date = withdrawal.withdrawal_date;
-        if (withdrawal.enrollment_start) prefill.enrollment_start = withdrawal.enrollment_start;
-        if (withdrawal.enrollment_end) prefill.enrollment_end = withdrawal.enrollment_end;
-        if (withdrawal.duration_months != null) prefill.duration_months = String(withdrawal.duration_months);
-        if (withdrawal.class_attitude) prefill.class_attitude = withdrawal.class_attitude;
-        if (withdrawal.homework_submission) prefill.homework_submission = withdrawal.homework_submission;
-        if (withdrawal.attendance) prefill.attendance = withdrawal.attendance;
-        if (withdrawal.grade_change) prefill.grade_change = withdrawal.grade_change;
-        if (withdrawal.recent_grade) prefill.recent_grade = withdrawal.recent_grade;
-        if (withdrawal.reason_category) prefill.reason_category = withdrawal.reason_category;
-        if (withdrawal.student_opinion) prefill.student_opinion = withdrawal.student_opinion;
-        if (withdrawal.parent_opinion) prefill.parent_opinion = withdrawal.parent_opinion;
-        if (withdrawal.teacher_opinion) prefill.teacher_opinion = withdrawal.teacher_opinion;
-        if (withdrawal.final_consult_date) prefill.final_consult_date = withdrawal.final_consult_date;
-        if (withdrawal.final_counselor) prefill.final_counselor = withdrawal.final_counselor;
-        if (withdrawal.final_consult_summary) prefill.final_consult_summary = withdrawal.final_consult_summary;
-        prefill.parent_thanks = withdrawal.parent_thanks ? "true" : "false";
-        if (withdrawal.comeback_possibility) prefill.comeback_possibility = withdrawal.comeback_possibility;
-        if (withdrawal.expected_comeback_date) prefill.expected_comeback_date = withdrawal.expected_comeback_date;
-        if (withdrawal.special_notes) prefill.special_notes = withdrawal.special_notes;
-        setFields(prefill);
-        setRawText(withdrawal.raw_text || "");
-      } else {
-        setRawText("");
-        setFields({});
-      }
-    }
-  }, [open, withdrawal]);
+  const formKey = `${open ? "open" : "closed"}:${withdrawal?.id ?? "new"}`;
+  const initialFields = buildWithdrawalFields(withdrawal);
+  const initialRawText = withdrawal?.raw_text || "";
+  const [rawTextState, setRawTextState] = useState<{ key: string; value: string }>(() => ({
+    key: formKey,
+    value: initialRawText,
+  }));
+  const [fieldsState, setFieldsState] = useState<{ key: string; value: WithdrawalFields }>(() => ({
+    key: formKey,
+    value: initialFields,
+  }));
+  const rawText = rawTextState.key === formKey ? rawTextState.value : initialRawText;
+  const fields = fieldsState.key === formKey ? fieldsState.value : initialFields;
+  const setRawText = (updater: StringUpdater) => {
+    setRawTextState((current) => {
+      const currentValue = current.key === formKey ? current.value : initialRawText;
+      const nextValue = typeof updater === "function" ? updater(currentValue) : updater;
+      return { key: formKey, value: nextValue };
+    });
+  };
+  const setFields = (updater: WithdrawalFieldsUpdater) => {
+    setFieldsState((current) => {
+      const currentValue = current.key === formKey ? current.value : initialFields;
+      const nextValue = typeof updater === "function" ? updater(currentValue) : updater;
+      return { key: formKey, value: nextValue };
+    });
+  };
 
   const handleParse = () => {
     if (!rawText.trim()) {

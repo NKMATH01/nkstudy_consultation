@@ -2,12 +2,16 @@ import { createClient } from "@/lib/supabase/server";
 import { OnboardingList } from "@/components/onboarding/onboarding-list-client";
 import { checkPagePermission } from "@/lib/check-permission";
 
+type OnboardingListProps = Parameters<typeof OnboardingList>[0];
+type OnboardingRegistration = OnboardingListProps["registrations"][number];
+type OnboardingAnalysis = OnboardingListProps["analyses"][number];
+
 export default async function OnboardingPage() {
   await checkPagePermission("/onboarding");
   const supabase = await createClient();
 
   // Fetch all registrations (newest first) - with fallback if onboarding_status column doesn't exist
-  let registrations: any[] = [];
+  let registrations: OnboardingRegistration[] = [];
   const { data: regData, error: regError } = await supabase
     .from("registrations")
     .select("id, analysis_id, name, school, grade, student_phone, parent_phone, registration_date, assigned_class, assigned_class_2, subject, teacher, teacher_2, report_html, onboarding_status")
@@ -19,9 +23,9 @@ export default async function OnboardingPage() {
       .from("registrations")
       .select("id, analysis_id, name, school, grade, student_phone, parent_phone, registration_date, assigned_class, assigned_class_2, subject, teacher, teacher_2, report_html")
       .order("registration_date", { ascending: false });
-    registrations = (fallbackData ?? []).map(r => ({ ...r, onboarding_status: {} }));
+    registrations = ((fallbackData ?? []) as Omit<OnboardingRegistration, "onboarding_status">[]).map(r => ({ ...r, onboarding_status: {} }));
   } else {
-    registrations = (regData ?? []).map(r => ({ ...r, onboarding_status: r.onboarding_status || {} }));
+    registrations = ((regData ?? []) as OnboardingRegistration[]).map(r => ({ ...r, onboarding_status: r.onboarding_status || {} }));
   }
 
   // Fetch analyses for linking (report_html 포함 - 팝업 표시용)
@@ -33,7 +37,7 @@ export default async function OnboardingPage() {
   return (
     <OnboardingList
       registrations={registrations}
-      analyses={(analyses ?? []) as any[]}
+      analyses={(analyses ?? []) as OnboardingAnalysis[]}
     />
   );
 }

@@ -303,7 +303,7 @@ export function ChatPopup({ userName }: Props) {
 
 function renderMarkdown(text: string): string {
   if (!text) return "";
-  let html = text
+  const html = text
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-slate-100 rounded-lg p-2 overflow-x-auto text-xs my-1"><code>$2</code></pre>')
     .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 py-0.5 rounded text-xs">$1</code>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")

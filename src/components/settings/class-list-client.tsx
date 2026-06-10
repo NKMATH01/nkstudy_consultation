@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useCallback, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, BookOpen, ChevronDown, ChevronRight, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -111,21 +111,21 @@ export function ClassList({ classes, teachers, students }: Props) {
   const [subjectFilter, setSubjectFilter] = useState("");
 
   // 반의 과목 (담당 선생님의 과목으로 판별)
-  const getClassSubject = (cls: Class): string | null => {
+  const getClassSubject = useCallback((cls: Class): string | null => {
     if (!cls.teacher) return null;
     const t = teachers.find((tc) => tc.name === cls.teacher);
     return t?.subject || null;
-  };
+  }, [teachers]);
 
   const filteredBySubject = useMemo(() => {
     if (!subjectFilter) return classes;
     return classes.filter((cls) => getClassSubject(cls) === subjectFilter);
-  }, [classes, subjectFilter, teachers]);
+  }, [classes, subjectFilter, getClassSubject]);
 
   const subjectCounts = useMemo(() => ({
     math: classes.filter((c) => getClassSubject(c) === "수학").length,
     eng: classes.filter((c) => getClassSubject(c) === "영어").length,
-  }), [classes, teachers]);
+  }), [classes, getClassSubject]);
 
   // 학년별 그룹화
   const grouped = useMemo(() => {

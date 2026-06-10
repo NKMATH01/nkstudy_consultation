@@ -7,7 +7,7 @@ type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 
 interface LogData {
   request_id?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface LogEntry {
@@ -16,7 +16,7 @@ interface LogEntry {
   service: string;
   request_id: string;
   message: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 const LOG_LEVELS: Record<LogLevel, number> = {

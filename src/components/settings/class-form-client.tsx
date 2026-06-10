@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState, useEffect } from "react";
+import { useCallback, useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,6 +66,8 @@ interface ScheduleSet {
   testStart: string;
   testEnd: string;
 }
+
+type ScheduleSetUpdater = ScheduleSet[] | ((prev: ScheduleSet[]) => ScheduleSet[]);
 
 function emptySet(): ScheduleSet {
   return {
@@ -141,13 +143,26 @@ export function ClassFormDialog({ open, onOpenChange, classData, teachers = [] }
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const isEdit = !!classData;
-  const [sets, setSets] = useState<ScheduleSet[]>(() => parseSets(classData));
-
-  useEffect(() => {
-    if (open) {
-      setSets(parseSets(classData));
-    }
-  }, [open, classData]);
+  const setsKey = [
+    open ? "open" : "closed",
+    classData?.id ?? "new",
+    classData?.class_days ?? "",
+    classData?.class_time ?? "",
+    classData?.clinic_time ?? "",
+    classData?.weekly_test_time ?? "",
+  ].join(":");
+  const [setsState, setSetsState] = useState<{ key: string; value: ScheduleSet[] }>(() => ({
+    key: setsKey,
+    value: parseSets(classData),
+  }));
+  const sets = setsState.key === setsKey ? setsState.value : parseSets(classData);
+  const setSets = useCallback((updater: ScheduleSetUpdater) => {
+    setSetsState((current) => {
+      const currentValue = current.key === setsKey ? current.value : parseSets(classData);
+      const nextValue = typeof updater === "function" ? updater(currentValue) : updater;
+      return { key: setsKey, value: nextValue };
+    });
+  }, [classData, setsKey]);
 
   const form = useForm<ClassFormValues>({
     resolver: zodResolver(classFormSchema) as never,

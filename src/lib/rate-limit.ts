@@ -1,4 +1,7 @@
-/** 간단한 in-memory rate limiter (서버 액션용) */
+/**
+ * 간단한 in-memory rate limiter (서버 액션용).
+ * 인메모리 방식이라 서버리스 다중 인스턴스에서 우회 가능, 필요 시 DB 기반 보완 검토.
+ */
 
 const store = new Map<string, { count: number; resetAt: number }>();
 

@@ -69,15 +69,15 @@ src/
   middleware.ts           # Supabase Auth 미들웨어 (로그인 리다이렉트)
   types/index.ts          # DB 타입, 상수 (SURVEY_QUESTIONS, FACTOR_MAPPING 등)
 supabase/
-  schema.sql              # 메인 DB 스키마 (consultations, classes, teachers, profiles)
-  surveys.sql             # 설문 테이블
-  analyses.sql            # 분석 테이블
-  registrations.sql       # 등록 안내 테이블
-  bookings.sql            # 예약/차단슬롯 테이블
-  students.sql            # 학생 테이블
-  withdrawals.sql         # 퇴원생 테이블
-  rls_update.sql          # RLS 정책 업데이트 스크립트
-  onboarding_migration.sql # 온보딩 마이그레이션
+  migrations/             # 적용 대상 timestamped 마이그레이션 SQL
+  legacy/                 # 과거 loose SQL 보관본 (직접 적용 전 검토 필요)
+    README.md             # legacy 파일 역할 및 운영 드리프트 기록
+    schema.sql            # 메인 DB 스키마 보관본
+    surveys.sql           # 설문 테이블 보관본
+    analyses.sql          # 분석 테이블 보관본
+    registrations.sql     # 등록 안내 테이블 보관본
+    bookings.sql          # 예약/차단슬롯 테이블 보관본
+    rls_update.sql        # 과거 RLS 정책 업데이트 보관본
 ```
 
 ## 환경변수 (.env.local)

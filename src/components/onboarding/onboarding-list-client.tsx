@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { Fragment, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -46,10 +46,29 @@ interface CustomCheckItem {
   done: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractCustomItems(status: Record<string, any>): CustomCheckItem[] {
-  if (Array.isArray(status._custom)) return status._custom;
-  return [];
+type OnboardingStatus = Record<string, unknown>;
+
+function isCustomCheckItem(value: unknown): value is CustomCheckItem {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.id === "string" && typeof item.label === "string" && typeof item.done === "boolean";
+}
+
+function extractCustomItems(status: OnboardingStatus): CustomCheckItem[] {
+  if (!Array.isArray(status._custom)) return [];
+  return status._custom.filter(isCustomCheckItem);
+}
+
+function getProgressFromStatus(status: OnboardingStatus) {
+  const customs = extractCustomItems(status);
+  const fixedDone = ONBOARDING_STEPS.filter((s) => Boolean(status[s.key])).length;
+  const customDone = customs.filter((c) => c.done).length;
+  return { done: fixedDone + customDone, total: ONBOARDING_STEPS.length + customs.length };
+}
+
+function isOnboardingComplete(status: OnboardingStatus) {
+  const progress = getProgressFromStatus(status);
+  return progress.total > 0 && progress.done === progress.total;
 }
 
 type Registration = {
@@ -67,8 +86,7 @@ type Registration = {
   teacher: string | null;
   teacher_2: string | null;
   report_html: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onboarding_status: Record<string, any> | null;
+  onboarding_status: OnboardingStatus | null;
 };
 
 type DisplayRow = Registration & {
@@ -77,6 +95,8 @@ type DisplayRow = Registration & {
   _displayTeacher: string | null;
   _isFirstRow: boolean;
   _rowKey: string;
+  _isOnboardingComplete: boolean;
+  _showCompletionHeader: boolean;
 };
 
 type Analysis = {
@@ -101,22 +121,28 @@ export function OnboardingList({ registrations, analyses }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Use local state for onboarding status (will save to DB)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [statusMap, setStatusMap] = useState<Record<string, Record<string, any>>>(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const map: Record<string, Record<string, any>> = {};
+  const [statusMap, setStatusMap] = useState<Record<string, OnboardingStatus>>(() => {
+    const map: Record<string, OnboardingStatus> = {};
     registrations.forEach((r) => {
       map[r.id] = r.onboarding_status || {};
     });
     return map;
   });
 
+  const initialCompletionMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    registrations.forEach((r) => {
+      map[r.id] = isOnboardingComplete(r.onboarding_status || {});
+    });
+    return map;
+  }, [registrations]);
+
   // 커스텀 항목 추가 입력 상태
   const [addingCustomFor, setAddingCustomFor] = useState<string | null>(null);
   const [customInput, setCustomInput] = useState("");
 
   const displayRows = useMemo(() => {
-    const base = searchQuery.trim()
+    const filtered = searchQuery.trim()
       ? registrations.filter((r) => {
           const q = searchQuery.toLowerCase();
           return (
@@ -127,8 +153,19 @@ export function OnboardingList({ registrations, analyses }: Props) {
         })
       : registrations;
 
+    const base = filtered
+      .map((reg, index) => ({ reg, index, complete: initialCompletionMap[reg.id] === true }))
+      .sort((a, b) => {
+        if (a.complete !== b.complete) return a.complete ? 1 : -1;
+        return a.index - b.index;
+      });
+
     const rows: DisplayRow[] = [];
-    for (const reg of base) {
+    let completionHeaderShown = false;
+    for (const { reg, complete } of base) {
+      const showCompletionHeader = complete && !completionHeaderShown;
+      if (showCompletionHeader) completionHeaderShown = true;
+
       if (reg.subject === "영어수학") {
         rows.push({
           ...reg,
@@ -137,6 +174,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
           _displayTeacher: reg.teacher,
           _isFirstRow: true,
           _rowKey: `${reg.id}_math`,
+          _isOnboardingComplete: complete,
+          _showCompletionHeader: showCompletionHeader,
         });
         rows.push({
           ...reg,
@@ -145,6 +184,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
           _displayTeacher: reg.teacher_2,
           _isFirstRow: false,
           _rowKey: `${reg.id}_eng`,
+          _isOnboardingComplete: complete,
+          _showCompletionHeader: false,
         });
       } else {
         rows.push({
@@ -154,15 +195,16 @@ export function OnboardingList({ registrations, analyses }: Props) {
           _displayTeacher: reg.teacher,
           _isFirstRow: true,
           _rowKey: reg.id,
+          _isOnboardingComplete: complete,
+          _showCompletionHeader: showCompletionHeader,
         });
       }
     }
     return rows;
-  }, [registrations, searchQuery]);
+  }, [initialCompletionMap, registrations, searchQuery]);
 
   // DB에 상태 저장
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const saveStatus = async (regId: string, newStatus: Record<string, any>, rollback: Record<string, any>) => {
+  const saveStatus = async (regId: string, newStatus: OnboardingStatus, rollback: OnboardingStatus) => {
     try {
       const res = await fetch("/api/onboarding-status", {
         method: "PATCH",
@@ -224,10 +266,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
   // 진행률 (고정 + 커스텀)
   const getProgress = (regId: string) => {
     const status = statusMap[regId] || {};
-    const customs = extractCustomItems(status);
-    const fixedDone = ONBOARDING_STEPS.filter((s) => status[s.key]).length;
-    const customDone = customs.filter((c) => c.done).length;
-    return { done: fixedDone + customDone, total: ONBOARDING_STEPS.length + customs.length };
+    return getProgressFromStatus(status);
   };
 
   // Find analysis for registration
@@ -326,7 +365,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
         ) : (
           <div className="overflow-x-auto">
             {/* Column Headers */}
-            <div className="px-4 py-2.5 flex items-center gap-0 border-b border-slate-100 bg-slate-50/50 min-w-[1250px]">
+            <div className="px-4 py-2.5 flex items-center gap-0 border-b border-slate-100 bg-slate-50/50 min-w-[1500px]">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[80px] flex-shrink-0 px-2">등록일</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">이름</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">학교</span>
@@ -335,7 +374,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[60px] flex-shrink-0 px-2">담당</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-2">학생연락처</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-1">학부모연락처</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-1 px-1 text-center">진행 현황</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-1 min-w-[510px] px-1 text-center">진행 현황</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[160px] flex-shrink-0 px-2 text-center">문서</span>
             </div>
 
@@ -353,10 +392,15 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   : { bg: "#F1F5F9", text: "#64748B", ring: "#E2E8F0" };
 
               return (
-                <div
-                  key={row._rowKey}
-                  className={`px-4 flex items-center gap-0 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-[1250px] ${isSub ? "py-2 bg-slate-50/30" : "py-3"}`}
-                >
+                <Fragment key={row._rowKey}>
+                  {row._showCompletionHeader && (
+                    <div className="min-w-[1500px] border-y border-emerald-100 bg-emerald-50/70 px-6 py-2 text-xs font-extrabold text-emerald-700">
+                      온보딩 완료
+                    </div>
+                  )}
+                  <div
+                    className={`px-4 flex items-center gap-0 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-[1500px] ${isSub ? "py-2 bg-slate-50/30" : "py-3"}`}
+                  >
                   {/* 등록일 - 두 번째 행은 비움 */}
                   <span className="text-xs text-slate-500 w-[80px] flex-shrink-0 px-2 tabular-nums">
                     {isSub ? "" : (row.registration_date || "-")}
@@ -417,117 +461,121 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   </span>
 
                   {/* 진행 현황 */}
-                  <div className="flex-1 px-1 flex items-center gap-1 justify-center flex-wrap">
-                    {/* 고정 항목 */}
-                    {ONBOARDING_STEPS.map((step) => {
-                      const done = status[step.key] || false;
-                      return (
-                        <button
-                          key={step.key}
-                          onClick={() => toggleStep(row.id, step.key)}
-                          className="group relative flex flex-col items-center gap-0.5"
-                          title={step.label}
+                  <div className="flex-1 min-w-[510px] px-2">
+                    <div className="flex items-start gap-3">
+                      <div className="flex w-[54px] flex-shrink-0 flex-col items-center gap-1 pt-0.5">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-black ${
+                            progressPct === 100 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                          }`}
                         >
-                          <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                              done
-                                ? "bg-emerald-500 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-300 hover:bg-slate-200 hover:text-slate-400"
-                            }`}
-                          >
-                            {done ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <Circle className="h-3 w-3" />
-                            )}
-                          </div>
-                          <span className={`text-[9px] leading-tight ${done ? "text-emerald-600 font-bold" : "text-slate-400"}`}>
-                            {step.shortLabel}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {/* 커스텀 항목 */}
-                    {extractCustomItems(status).map((item) => (
-                      <div key={item.id} className="group relative flex flex-col items-center gap-0.5">
-                        <button
-                          onClick={() => toggleCustomItem(row.id, item.id)}
-                          title={item.label}
-                          className="relative"
-                        >
-                          <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                              item.done
-                                ? "bg-blue-500 text-white shadow-sm"
-                                : "bg-amber-50 text-amber-400 border border-amber-200 hover:bg-amber-100"
-                            }`}
-                          >
-                            {item.done ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <Circle className="h-3 w-3" />
-                            )}
-                          </div>
-                        </button>
-                        <span className={`text-[9px] leading-tight max-w-[48px] truncate ${item.done ? "text-blue-600 font-bold" : "text-amber-600"}`}>
-                          {item.label}
+                          {progress.done}/{progress.total}
                         </span>
-                        <button
-                          onClick={() => deleteCustomItem(row.id, item.id)}
-                          className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-400 text-white items-center justify-center text-[8px] hidden group-hover:flex"
-                          title="삭제"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    ))}
-                    {/* 추가 버튼 / 입력 */}
-                    {row._isFirstRow && (
-                      addingCustomFor === row.id ? (
-                        <form
-                          onSubmit={(e) => { e.preventDefault(); addCustomItem(row.id, customInput); }}
-                          className="flex items-center gap-1"
-                        >
-                          <input
-                            autoFocus
-                            type="text"
-                            value={customInput}
-                            onChange={(e) => setCustomInput(e.target.value)}
-                            onBlur={() => { if (!customInput.trim()) { setAddingCustomFor(null); setCustomInput(""); } }}
-                            placeholder="항목 입력"
-                            className="h-7 w-24 rounded-md border border-slate-200 px-2 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        <div className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${progressPct}%`,
+                              background: progressPct === 100 ? "#059669" : NK_GOLD,
+                            }}
                           />
-                          <button type="submit" className="h-7 px-1.5 rounded-md bg-blue-500 text-white text-[10px] font-bold">
-                            <Check className="h-3 w-3" />
-                          </button>
-                        </form>
-                      ) : (
-                        <button
-                          onClick={() => { setAddingCustomFor(row.id); setCustomInput(""); }}
-                          className="flex flex-col items-center gap-0.5"
-                          title="항목 추가"
-                        >
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-50 text-slate-300 border border-dashed border-slate-200 hover:bg-blue-50 hover:text-blue-400 hover:border-blue-300 transition-all">
-                            <Plus className="h-3.5 w-3.5" />
-                          </div>
-                          <span className="text-[9px] text-slate-300">추가</span>
-                        </button>
-                      )
-                    )}
-                    {/* 진행률 */}
-                    <div className="ml-2 flex flex-col items-center gap-0.5">
-                      <div className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{
-                            width: `${progressPct}%`,
-                            background: progressPct === 100 ? "#059669" : NK_GOLD,
-                          }}
-                        />
+                        </div>
                       </div>
-                      <span className={`text-[9px] font-bold ${progressPct === 100 ? "text-emerald-600" : "text-slate-400"}`}>
-                        {progress.done}/{progress.total}
-                      </span>
+
+                      <div className="grid min-w-0 flex-1 grid-cols-1 gap-1.5 xl:grid-cols-2">
+                        {ONBOARDING_STEPS.map((step) => {
+                          const done = Boolean(status[step.key]);
+                          return (
+                            <button
+                              key={step.key}
+                              onClick={() => toggleStep(row.id, step.key)}
+                              className={`flex min-h-[34px] w-full items-start gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${
+                                done
+                                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                                  : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                              }`}
+                              title={step.label}
+                            >
+                              <span
+                                className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
+                                  done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 bg-white text-transparent"
+                                }`}
+                              >
+                                <Check className="h-3 w-3" />
+                              </span>
+                              <span className={`text-[12px] font-bold leading-snug whitespace-normal ${done ? "text-emerald-700 line-through decoration-emerald-400/70" : "text-slate-800"}`}>
+                                {step.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+
+                        {extractCustomItems(status).map((item) => (
+                          <div
+                            key={item.id}
+                            className={`group flex min-h-[34px] items-start gap-2 rounded-lg border px-2.5 py-1.5 transition ${
+                              item.done
+                                ? "border-blue-100 bg-blue-50 text-blue-700"
+                                : "border-amber-200 bg-amber-50 text-amber-800"
+                            }`}
+                          >
+                            <button
+                              onClick={() => toggleCustomItem(row.id, item.id)}
+                              title={item.label}
+                              className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                            >
+                              <span
+                                className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
+                                  item.done ? "border-blue-500 bg-blue-500 text-white" : "border-amber-300 bg-white text-transparent"
+                                }`}
+                              >
+                                <Check className="h-3 w-3" />
+                              </span>
+                              <span className={`text-[12px] font-bold leading-snug whitespace-normal ${item.done ? "text-blue-700 line-through decoration-blue-400/70" : "text-amber-800"}`}>
+                                {item.label}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => deleteCustomItem(row.id, item.id)}
+                              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                              title="삭제"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+
+                        {row._isFirstRow && (
+                          addingCustomFor === row.id ? (
+                            <form
+                              onSubmit={(e) => { e.preventDefault(); addCustomItem(row.id, customInput); }}
+                              className="flex min-h-[34px] items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5"
+                            >
+                              <input
+                                autoFocus
+                                type="text"
+                                value={customInput}
+                                onChange={(e) => setCustomInput(e.target.value)}
+                                onBlur={() => { if (!customInput.trim()) { setAddingCustomFor(null); setCustomInput(""); } }}
+                                placeholder="항목 입력"
+                                className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              />
+                              <button type="submit" className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-500 text-white">
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                            </form>
+                          ) : (
+                            <button
+                              onClick={() => { setAddingCustomFor(row.id); setCustomInput(""); }}
+                              className="flex min-h-[34px] items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1.5 text-left text-[12px] font-bold text-slate-400 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500"
+                              title="항목 추가"
+                            >
+                              <Plus className="h-3.5 w-3.5 flex-shrink-0" />
+                              항목 추가
+                            </button>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -580,7 +628,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
                       </>
                     )}
                   </div>
-                </div>
+                  </div>
+                </Fragment>
               );
             })}
           </div>

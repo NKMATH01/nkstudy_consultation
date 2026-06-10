@@ -177,24 +177,26 @@ export async function getConsultationByName(
   const tryFetch = async (nameValue: string) =>
     supabase
       .from("consultations")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("name", nameValue)
       .order("consult_date", { ascending: false, nullsFirst: false })
       .order("consult_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(2);
 
-  let { data, error } = await tryFetch(name);
+  let { data, error, count } = await tryFetch(name);
   if ((!data || error) && trimmed !== name) {
-    ({ data, error } = await tryFetch(trimmed));
+    ({ data, error, count } = await tryFetch(trimmed));
   }
 
-  if (error || !data) {
+  if (error || !data?.length) {
     return null;
   }
+  if ((count ?? data.length) > 1) {
+    throw new Error(`동명이인 상담이 ${count ?? data.length}건 있어 자동 조회할 수 없습니다`);
+  }
 
-  return data as Consultation;
+  return data[0] as Consultation;
 }
 
 export async function createConsultation(formData: FormData): Promise<ConsultationMutationResult> {
@@ -522,32 +524,45 @@ export async function updateRegistrationInfo(
     plan_date?: string;
     plan_class?: string;
     reserve_deposit?: boolean;
-  }
+  },
+  consultationId?: string
 ) {
   try {
     const supabase = await createClient();
+    let targetConsultationId = consultationId;
 
+    if (!targetConsultationId) {
     // 가장 최근 상담 찾기 — 상담관리/설문분석 표시 기준과 동일하게 consult_date 우선 정렬
     // 이름 공백 차이(예: "김혜원 " vs "김혜원") 방어: exact 실패 시 trim 으로 재시도
     const trimmedName = (studentName ?? "").trim();
-    const findOne = (nameValue: string) =>
+    const findMatches = (nameValue: string) =>
       supabase
         .from("consultations")
-        .select("id")
+        .select("id", { count: "exact" })
         .eq("name", nameValue)
         .order("consult_date", { ascending: false, nullsFirst: false })
         .order("consult_time", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(2);
 
-    let { data: consultation, error: findErr } = await findOne(studentName);
-    if ((!consultation || findErr) && trimmedName !== studentName) {
-      ({ data: consultation, error: findErr } = await findOne(trimmedName));
+    let { data: consultations, error: findErr, count } = await findMatches(studentName);
+    if ((!consultations?.length || findErr) && trimmedName !== studentName) {
+      ({ data: consultations, error: findErr, count } = await findMatches(trimmedName));
     }
 
-    if (findErr || !consultation) {
+    if (findErr || !consultations?.length) {
       return { success: false, error: "해당 학생의 상담 정보를 찾을 수 없습니다" };
+    }
+
+      const duplicateCount = count ?? consultations.length;
+      if (duplicateCount > 1) {
+        return {
+          success: false,
+          error: `동명이인 상담이 ${duplicateCount}건 있어 자동 갱신할 수 없습니다`,
+        };
+      }
+
+      targetConsultationId = consultations[0].id;
     }
 
     const updateData: Record<string, unknown> = {
@@ -560,7 +575,7 @@ export async function updateRegistrationInfo(
     const { error } = await supabase
       .from("consultations")
       .update(updateData)
-      .eq("id", consultation.id);
+      .eq("id", targetConsultationId);
 
     if (error) {
       return { success: false, error: error.message };

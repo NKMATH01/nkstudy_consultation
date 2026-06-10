@@ -41,7 +41,7 @@ interface Props {
   };
   analyses: { id: string; survey_id: string | null; report_html: string | null }[];
   registrations: { id: string; analysis_id: string | null }[];
-  consultations: { name: string; result_status: string; test_score: string | null; subject: string | null }[];
+  consultations: { id: string; name: string; result_status: string; test_score: string | null; subject: string | null }[];
   classes: Class[];
   teachers: Teacher[];
 }
@@ -126,7 +126,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
   // 등록 다이얼로그 상태
-  const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus } | null>(null);
+  const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId?: string } | null>(null);
   const [regForm, setRegForm] = useState({ plan_date: "", plan_class: "", deposit: false });
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -146,7 +146,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         return;
       }
       setRecordTarget({ survey, consultation });
-    } catch {
+    } catch (e) {
+      if (e instanceof Error) {
+        toast.error(e.message);
+        return;
+      }
       toast.error("상담 정보를 불러오는데 실패했습니다");
     } finally {
       setRecordLoading(null);
@@ -174,7 +178,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         plan_date: regForm.plan_date || undefined,
         plan_class: regForm.plan_class || undefined,
         reserve_deposit: regForm.deposit,
-      });
+      }, regTarget.consultationId);
       if (result.success) {
         toast.success(`${regTarget.name} 학생이 등록 처리되었습니다`);
         setRegTarget(null);
@@ -188,12 +192,12 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     }
   };
 
-  const handleStatusChange = async (name: string, status: ResultStatus) => {
+  const handleStatusChange = async (name: string, status: ResultStatus, consultationId?: string) => {
     if (status === "registered") {
-      setRegTarget({ name, currentStatus: status });
+      setRegTarget({ name, currentStatus: status, consultationId });
       return;
     }
-    const result = await updateRegistrationInfo(name, { result_status: status });
+    const result = await updateRegistrationInfo(name, { result_status: status }, consultationId);
     if (result.success) {
       toast.success("상태가 변경되었습니다");
       router.refresh();
@@ -238,6 +242,17 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   }, [consultations]);
 
   // 상담 테스트 점수 + 과목 맵 (이름 trim 정규화 동일 적용)
+  const consultationIdMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of consultations) {
+      const key = (c.name ?? "").trim();
+      if (key && !map.has(key)) {
+        map.set(key, c.id);
+      }
+    }
+    return map;
+  }, [consultations]);
+
   const testScoreMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of consultations) {
@@ -501,7 +516,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           <select
                             value={consultStatus}
-                            onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)}
+                            onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus, consultationIdMap.get(normalizedName))}
                             className={`cursor-pointer rounded-md border-0 px-1.5 py-0.5 text-[9px] font-black outline-none ${
                               consultStatus === "registered" ? "bg-teal-600 text-white" :
                               consultStatus === "hold" ? "bg-accent-warm text-accent-warm-foreground" :
@@ -521,7 +536,14 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                               <button
                                 onClick={async () => {
                                   if (regId) { router.push(`/registrations/${regId}`); }
-                                  else { const consultation = await getConsultationByName(item.name); setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null }); }
+                                  else {
+                                    try {
+                                      const consultation = await getConsultationByName(item.name);
+                                      setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null });
+                                    } catch (e) {
+                                      toast.error(e instanceof Error ? e.message : "?곷떞 ?뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎");
+                                    }
+                                  }
                                 }}
                                 className={`rounded-md px-2 py-1 text-[9px] font-black transition-colors ${regId ? "bg-teal-600 text-white hover:bg-teal-700" : "bg-teal-50 text-teal-700 hover:bg-teal-100"}`}
                                 title={regId ? "안내문 보기" : "안내문 생성"}

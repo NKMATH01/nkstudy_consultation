@@ -216,6 +216,46 @@ export async function generateRegistration(
   }
 
   // 3. 수업료 계산
+  const { data: studentMatches, error: studentLookupError, count: studentCount } = await supabase
+    .from("students")
+    .select("id", { count: "exact" })
+    .eq("name", analysisData.name)
+    .limit(2);
+
+  if (studentLookupError) {
+    return { success: false, error: studentLookupError.message };
+  }
+
+  const duplicateStudentCount = studentCount ?? studentMatches?.length ?? 0;
+  if (duplicateStudentCount > 1) {
+    return {
+      success: false,
+      error: `동명이인 학생이 ${duplicateStudentCount}건 있어 자동 갱신할 수 없습니다`,
+    };
+  }
+
+  const { data: consultationMatches, error: consultationLookupError, count: consultationCount } = await supabase
+    .from("consultations")
+    .select("id", { count: "exact" })
+    .eq("name", analysisData.name)
+    .neq("result_status", "registered")
+    .order("consult_date", { ascending: false, nullsFirst: false })
+    .order("consult_time", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(2);
+
+  if (consultationLookupError) {
+    return { success: false, error: consultationLookupError.message };
+  }
+
+  const duplicateConsultationCount = consultationCount ?? consultationMatches?.length ?? 0;
+  if (duplicateConsultationCount > 1) {
+    return {
+      success: false,
+      error: `동명이인 상담이 ${duplicateConsultationCount}건 있어 자동 갱신할 수 없습니다`,
+    };
+  }
+
   const tuitionFee =
     adminFormData.tuition_fee ||
     TUITION_TABLE[adminFormData.grade || analysisData.grade || ""] ||
@@ -433,12 +473,7 @@ export async function generateRegistration(
     }
 
     // 기존 학생 확인 (이름 기준)
-    const { data: existingStudent } = await supabase
-      .from("students")
-      .select("id")
-      .eq("name", analysisData.name)
-      .limit(1)
-      .maybeSingle();
+    const existingStudent = studentMatches?.[0] ?? null;
 
     const studentData: Record<string, unknown> = {
       name: analysisData.name,
@@ -466,11 +501,17 @@ export async function generateRegistration(
 
   // 9. 상담 result_status → "registered" 자동 변경
   try {
-    await supabase
-      .from("consultations")
-      .update({ result_status: "registered", registration_id: registration.id })
-      .eq("name", analysisData.name)
-      .neq("result_status", "registered");
+    const targetConsultation = consultationMatches?.[0] ?? null;
+    if (targetConsultation) {
+      const { error: consultationUpdateError } = await supabase
+        .from("consultations")
+        .update({ result_status: "registered", registration_id: registration.id })
+        .eq("id", targetConsultation.id);
+
+      if (consultationUpdateError) {
+        throw consultationUpdateError;
+      }
+    }
   } catch (e) {
     console.error("[Consultation] 등록 상태 자동 변경 실패:", e instanceof Error ? e.message : e);
   }

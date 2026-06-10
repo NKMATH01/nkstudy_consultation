@@ -21,6 +21,7 @@ export interface ProgressBoardRow {
   target_grade: string | null;
   actual_student_count: number;
   student_count: number;
+  student_names: string[];
   progress: ClassProgress | null;
   recent_logs: ClassProgressLog[];
   weekly_progress: number | null;
@@ -247,7 +248,7 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
 
   const { data: students, error: studentError } = await supabase
     .from("students")
-    .select("id, class_name, is_active")
+    .select("id, name, class_name, is_active")
     .eq("is_active", true);
 
   if (studentError) {
@@ -255,10 +256,18 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
   }
 
   const classCounts = new Map<string, number>();
+  const classStudentNames = new Map<string, string[]>();
   for (const student of students ?? []) {
     const className = nullableString((student as DbRow).class_name);
     if (!className) continue;
     classCounts.set(className, (classCounts.get(className) ?? 0) + 1);
+    const studentName = nullableString((student as DbRow).name);
+    if (studentName) {
+      classStudentNames.set(className, [...(classStudentNames.get(className) ?? []), studentName]);
+    }
+  }
+  for (const names of classStudentNames.values()) {
+    names.sort((a, b) => a.localeCompare(b, "ko"));
   }
 
   const baseRows = (classes ?? []).map((row) => {
@@ -274,6 +283,7 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
       target_grade: nullableString(classRow.target_grade),
       actual_student_count: actualStudentCount,
       student_count: progress?.student_count ?? actualStudentCount,
+      student_names: classStudentNames.get(className) ?? [],
       progress,
       recent_logs: [] as ClassProgressLog[],
       weekly_progress: null as number | null,

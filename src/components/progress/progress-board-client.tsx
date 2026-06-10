@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle } from "lucide-react";
+import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -271,10 +271,51 @@ function ProgressDialog({
   );
 }
 
+function StudentListDialog({
+  row,
+  onClose,
+}: {
+  row: ProgressBoardRow | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={Boolean(row)} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="max-h-[80vh] max-w-[420px] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            {row?.class_name} 학생 명단
+          </DialogTitle>
+          <DialogDescription>
+            재원생 {row?.student_names.length ?? 0}명 (학생 관리 기준)
+          </DialogDescription>
+        </DialogHeader>
+        {row && row.student_names.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">
+            이 반으로 배정된 재원생이 없습니다
+          </p>
+        ) : (
+          <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {row?.student_names.map((name, idx) => (
+              <li
+                key={`${name}-${idx}`}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-center text-sm font-semibold text-slate-700"
+              >
+                {name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ProgressBoardClient({ initialRows, currentTeacher, initialError }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<ProgressBoardRow[]>(initialRows);
   const [editingRow, setEditingRow] = useState<ProgressBoardRow | null>(null);
+  const [studentListRow, setStudentListRow] = useState<ProgressBoardRow | null>(null);
   const [pageInputs, setPageInputs] = useState<Record<string, string>>(() =>
     Object.fromEntries(initialRows.map((row) => [row.class_id, numberValue(row.progress?.current_page)]))
   );
@@ -347,22 +388,18 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       {grouped.map(({ grade, items }) => (
         <section key={grade} className="overflow-hidden rounded-2xl shadow-sm">
           <SectionHeader grade={grade} count={items.length} />
-          <div className="border border-slate-200 bg-white">
+          <div className="overflow-x-auto border border-slate-200 bg-white">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/90">
-                  <TableHead className="min-w-[130px] px-4 text-xs font-bold text-slate-500">반명</TableHead>
-                  <TableHead className="min-w-[92px] text-xs font-bold text-slate-500">강사명</TableHead>
-                  <TableHead className="min-w-[70px] text-xs font-bold text-slate-500">인원</TableHead>
-                  <TableHead className="min-w-[240px] text-xs font-bold text-slate-500">메인교재</TableHead>
-                  <TableHead className="min-w-[96px] text-xs font-bold text-slate-500">주간 진도</TableHead>
-                  <TableHead className="min-w-[130px] text-xs font-bold text-slate-500">부교재</TableHead>
-                  <TableHead className="min-w-[130px] text-xs font-bold text-slate-500">예정교재</TableHead>
-                  <TableHead className="min-w-[150px] text-xs font-bold text-slate-500">다음 교재 시작</TableHead>
-                  <TableHead className="min-w-[190px] text-xs font-bold text-slate-500">진행 계획</TableHead>
-                  <TableHead className="min-w-[110px] text-xs font-bold text-slate-500">최신화 일시</TableHead>
-                  <TableHead className="min-w-[168px] text-xs font-bold text-slate-500">현재 페이지</TableHead>
-                  <TableHead className="min-w-[84px] text-xs font-bold text-slate-500">입력</TableHead>
+                  <TableHead className="min-w-[120px] px-4 text-xs font-bold text-slate-500">반명</TableHead>
+                  <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">강사명</TableHead>
+                  <TableHead className="min-w-[68px] text-xs font-bold text-slate-500">인원</TableHead>
+                  <TableHead className="min-w-[260px] text-xs font-bold text-slate-500">메인교재 · 진도율</TableHead>
+                  <TableHead className="min-w-[88px] text-xs font-bold text-slate-500">주간 진도</TableHead>
+                  <TableHead className="min-w-[160px] text-xs font-bold text-slate-500">현재 페이지</TableHead>
+                  <TableHead className="min-w-[130px] text-xs font-bold text-slate-500">최신화</TableHead>
+                  <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">입력</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -380,14 +417,34 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
                       <TableCell>
-                        <span className="inline-flex min-w-12 justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-600">
+                        <button
+                          type="button"
+                          onClick={() => setStudentListRow(row)}
+                          title="학생 명단 보기"
+                          className="inline-flex min-w-12 cursor-pointer items-center justify-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100"
+                        >
+                          <Users className="h-3 w-3 text-slate-400" />
                           {row.student_count}명
-                        </span>
+                        </button>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-2">
-                          <p className="max-w-[220px] whitespace-normal text-sm font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
+                        <div className="space-y-1.5">
+                          <p className="max-w-[240px] whitespace-normal text-sm font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
                           <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
+                          {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_plan) && (
+                            <p className="max-w-[240px] whitespace-normal text-[11px] font-medium leading-relaxed text-slate-500">
+                              {progress?.sub_textbook && <>부교재 {progress.sub_textbook}</>}
+                              {progress?.sub_textbook && (progress?.next_textbook || progress?.next_start_plan) && " · "}
+                              {progress?.next_textbook && <>예정 {progress.next_textbook}</>}
+                              {progress?.next_textbook && progress?.next_start_plan && " "}
+                              {progress?.next_start_plan && <>({progress.next_start_plan})</>}
+                            </p>
+                          )}
+                          {progress?.current_plan && (
+                            <p className="max-w-[240px] truncate text-[11px] text-slate-400" title={progress.current_plan}>
+                              계획: {progress.current_plan}
+                            </p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -402,11 +459,6 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[180px] whitespace-normal text-sm text-slate-600">{progress?.sub_textbook || "-"}</TableCell>
-                      <TableCell className="max-w-[180px] whitespace-normal text-sm text-slate-600">{progress?.next_textbook || "-"}</TableCell>
-                      <TableCell className="max-w-[190px] whitespace-normal text-sm text-slate-600">{progress?.next_start_plan || "-"}</TableCell>
-                      <TableCell className="max-w-[240px] whitespace-normal text-sm text-slate-600">{progress?.current_plan || "-"}</TableCell>
-                      <TableCell className="text-xs font-semibold text-slate-500">{formatDate(progress?.progress_updated_at)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Input
@@ -426,6 +478,14 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                             <Save className="h-3.5 w-3.5" />
                             저장
                           </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-slate-600">{formatDate(progress?.progress_updated_at)}</p>
+                          {progress?.updated_by && (
+                            <p className="text-[11px] font-medium text-slate-400">{progress.updated_by}</p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -455,6 +515,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         onClose={() => setEditingRow(null)}
         onSaved={updateRow}
       />
+      <StudentListDialog row={studentListRow} onClose={() => setStudentListRow(null)} />
     </div>
   );
 }

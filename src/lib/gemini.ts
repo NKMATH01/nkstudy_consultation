@@ -130,7 +130,17 @@ export function surveyToText(survey: Survey): string {
   text += `기존 학원: ${survey.prev_academy || ""}\n`;
   text += `기존 학원 아쉬운점: ${survey.prev_complaint || ""}\n`;
   text += `내신점수: ${survey.school_score || ""}\n`;
-  text += `현재 진도/선행 정도: ${survey.advance_level || ""}\n\n`;
+  text += `모의고사/전국단위 성적: ${survey.mock_exam_score || ""}\n`;
+  text += `현재 진도/선행 정도: ${survey.advance_level || ""}\n`;
+  text += `목표 대학/계열: ${survey.target_university || ""}\n`;
+  text += `주당 자습 가능 시간: ${survey.weekly_study_hours || ""}\n`;
+  text += `등원 가능 시간대: ${survey.available_time || ""}\n`;
+  text += `통학 수단: ${survey.commute_method || ""}\n`;
+  text += `통학 소요/거리: ${survey.commute_distance || ""}\n`;
+  text += `형제·자매 재원 여부: ${survey.sibling_enrolled || ""}\n`;
+  text += `MBTI: ${survey.mbti || ""}\n`;
+  text += `건강·특이사항: ${survey.health_note || ""}\n`;
+  text += `학부모 기대치/요청: ${survey.parent_expectation || ""}\n\n`;
 
   text += "=== 설문 응답 (1-5점) ===\n";
   for (let i = 0; i < SURVEY_QUESTIONS.length; i++) {
@@ -162,6 +172,15 @@ export function surveyToText(survey: Survey): string {
 export function buildAnalysisPrompt(surveyText: string): string {
   return `당신은 15년 경력의 학습 심리 전문가이자 입시 컨설턴트입니다.
 아래 학생 설문조사 데이터를 심리·행동학적 관점에서 심층 분석하여 JSON 형식으로 결과를 반환하세요.
+
+[배경 정보 활용 지침 — 값이 비어 있으면 무시하고, 있으면 반드시 분석에 반영]
+- 내신 vs 모의고사 성적 격차: 내신만 높으면 단기 암기형/내신 최적화형, 모의고사만 높으면 응용력은 있으나 성실성 부족 가능. Q26(시험 긴장), Q33(실수)과 교차 분석
+- 학부모 기대치/요청 vs 학생의 학업의지(Q21~25): 괴리가 크면 paradox 항목의 핵심 후보. 학부모 주도 등록인지 학생 자발 등록인지 판단 근거
+- 주당 자습 가능 시간 vs 자기주도성(Q11, Q14): 시간이 많은데 자기주도가 낮으면 관리형 지도 필요, 시간이 적으면 효율 중심 전략 제안
+- 목표 대학/계열: 현재 성적과의 격차를 솔루션 로드맵의 목표 설정에 반영
+- 통학 소요/거리: 길면 체력·지각 리스크를 지도 유의점에 언급
+- MBTI: 보조 참고만 (과잉 해석 금지, 설문 응답과 일치할 때만 언급)
+- 건강·특이사항: 값이 있으면 finalAssessment의 지도 유의점에 반드시 포함
 
 [설문 문항 심리학적 해석 가이드 - 각 문항이 측정하는 심리 요인]
 

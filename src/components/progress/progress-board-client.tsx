@@ -165,22 +165,27 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
   }
 
   return (
-    <div className="min-w-[180px] space-y-1.5">
-      <div className="flex items-center justify-between text-[11px] font-bold">
-        <span className="text-slate-600">
+    <div className="flex min-w-[200px] items-center gap-2">
+      <div className="flex-1 space-y-1">
+        <div className="text-[11px] font-bold text-slate-600">
           {current}p / {total}p
-        </span>
-        <span style={{ color: "var(--accent-warm-foreground)" }}>{percent}%</span>
+        </div>
+        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${percent}%`,
+              background: "linear-gradient(90deg, var(--accent-warm), var(--chart-4))",
+            }}
+          />
+        </div>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{
-            width: `${percent}%`,
-            background: "linear-gradient(90deg, var(--accent-warm), var(--chart-4))",
-          }}
-        />
-      </div>
+      <span
+        className="shrink-0 text-base font-black tabular-nums"
+        style={{ color: "var(--accent-warm-foreground)" }}
+      >
+        {percent}%
+      </span>
     </div>
   );
 }
@@ -457,6 +462,146 @@ function ProgressDialog({
   );
 }
 
+function ClassDetailDialog({
+  row,
+  onClose,
+  onEdit,
+  editable,
+}: {
+  row: ProgressBoardRow | null;
+  onClose: () => void;
+  onEdit: (row: ProgressBoardRow) => void;
+  editable: boolean;
+}) {
+  if (!row) return null;
+  const progress = row.progress;
+  const percent = progressPercent(progress?.current_page, progress?.main_total_pages);
+
+  const infoRow = (label: string, value: string | null | undefined) => (
+    <div className="flex gap-2 text-sm">
+      <span className="w-28 shrink-0 font-bold text-slate-400">{label}</span>
+      <span className="font-semibold text-slate-700">{value || "-"}</span>
+    </div>
+  );
+
+  const formatPeriod = (h: TextbookHistory) => {
+    if (h.started_on && h.finished_on) return `${h.started_on} ~ ${h.finished_on}`;
+    if (h.finished_on) return `~ ${h.finished_on}`;
+    if (h.started_on) return `${h.started_on} ~`;
+    return "기간 미입력";
+  };
+
+  return (
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="max-h-[90vh] max-w-[640px] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BookOpenCheck className="h-4.5 w-4.5" style={{ color: "var(--primary)" }} />
+            {row.class_name} 상세 정보
+          </DialogTitle>
+          <DialogDescription>
+            {row.teacher_name || "담당 미정"} · 재원 {row.actual_student_count}명
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* 반 특성 */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <p className="mb-2 text-xs font-extrabold text-slate-600">반 특성</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {TRAIT_LABELS.map(({ key, label }) => (
+                <div key={key} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center">
+                  <p className="text-[10px] font-bold text-slate-400">{label}</p>
+                  <p className="text-sm font-black" style={{ color: "var(--primary)" }}>
+                    {progress?.[key] || "-"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 교재·진도 */}
+          <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+            <p className="text-xs font-extrabold text-slate-600">교재 · 진도</p>
+            {infoRow("메인교재", progress?.main_textbook)}
+            {percent != null && (
+              <div className="flex gap-2">
+                <span className="w-28 shrink-0 text-sm font-bold text-slate-400">진도율</span>
+                <div className="flex-1">
+                  <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
+                </div>
+              </div>
+            )}
+            {infoRow("부교재", progress?.sub_textbook)}
+            {infoRow("예정교재", progress?.next_textbook)}
+            {infoRow("다음 시작 예정", progress?.next_start_date)}
+            {infoRow("진행 계획", progress?.current_plan)}
+            {infoRow("비고", progress?.note)}
+            {infoRow(
+              "최신화",
+              progress?.progress_updated_at
+                ? `${formatDate(progress.progress_updated_at)}${progress.updated_by ? ` (${progress.updated_by})` : ""}`
+                : null
+            )}
+          </div>
+
+          {/* 지난 교재 이력 */}
+          <div className="rounded-xl border border-slate-200 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+              <History className="h-3.5 w-3.5" />
+              지난 교재 ({row.textbook_history.length})
+            </p>
+            {row.textbook_history.length === 0 ? (
+              <p className="text-xs text-slate-400">기록된 지난 교재가 없습니다</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {row.textbook_history.map((h) => (
+                  <li key={h.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5">
+                    <span className="text-sm font-semibold text-slate-700">{h.textbook}</span>
+                    <span className="text-[11px] text-slate-400">{formatPeriod(h)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* 학생 명단 */}
+          <div className="rounded-xl border border-slate-200 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+              <Users className="h-3.5 w-3.5" />
+              학생 명단 ({row.student_names.length})
+            </p>
+            {row.student_names.length === 0 ? (
+              <p className="text-xs text-slate-400">이 반으로 배정된 재원생이 없습니다</p>
+            ) : (
+              <ul className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+                {row.student_names.map((name, idx) => (
+                  <li
+                    key={`${name}-${idx}`}
+                    className="rounded-lg bg-slate-50 px-2 py-1 text-center text-sm font-semibold text-slate-700"
+                  >
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+            <Button variant="outline" onClick={onClose}>닫기</Button>
+            {editable && (
+              <Button onClick={() => { onClose(); onEdit(row); }} className="gap-1">
+                <Pencil className="h-3.5 w-3.5" />
+                수정
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function StudentListDialog({
   row,
   onClose,
@@ -502,6 +647,8 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
   const [rows, setRows] = useState<ProgressBoardRow[]>(initialRows);
   const [editingRow, setEditingRow] = useState<ProgressBoardRow | null>(null);
   const [studentListRow, setStudentListRow] = useState<ProgressBoardRow | null>(null);
+  const [detailRow, setDetailRow] = useState<ProgressBoardRow | null>(null);
+  const [gradeFilter, setGradeFilter] = useState<string | null>(null);
   const [pageInputs, setPageInputs] = useState<Record<string, string>>(() =>
     Object.fromEntries(initialRows.map((row) => [row.class_id, numberValue(row.progress?.current_page)]))
   );
@@ -569,9 +716,42 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
     );
   }
 
+  const visibleGroups = gradeFilter ? grouped.filter(({ grade }) => grade === gradeFilter) : grouped;
+
   return (
     <div className="space-y-6">
-      {grouped.map(({ grade, items }) => (
+      {/* 학년별 필터 버튼 */}
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => setGradeFilter(null)}
+          className="rounded-full px-3.5 py-1.5 text-xs font-extrabold transition"
+          style={
+            gradeFilter === null
+              ? { background: "var(--primary)", color: "#fff" }
+              : { background: "#fff", color: "var(--muted-foreground)", boxShadow: "inset 0 0 0 1px var(--border)" }
+          }
+        >
+          전체 ({rows.length})
+        </button>
+        {grouped.map(({ grade, items }) => (
+          <button
+            key={grade}
+            type="button"
+            onClick={() => setGradeFilter(gradeFilter === grade ? null : grade)}
+            className="rounded-full px-3.5 py-1.5 text-xs font-extrabold transition"
+            style={
+              gradeFilter === grade
+                ? { background: "var(--primary)", color: "#fff" }
+                : { background: "#fff", color: "var(--muted-foreground)", boxShadow: "inset 0 0 0 1px var(--border)" }
+            }
+          >
+            {grade} ({items.length})
+          </button>
+        ))}
+      </div>
+
+      {visibleGroups.map(({ grade, items }) => (
         <section key={grade} className="overflow-hidden rounded-2xl shadow-sm">
           <SectionHeader grade={grade} count={items.length} />
           <div className="overflow-x-auto border border-slate-200 bg-white">
@@ -595,10 +775,16 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   return (
                     <TableRow key={row.class_id}>
                       <TableCell className="px-4 font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setDetailRow(row)}
+                          title="반 상세 정보 보기"
+                          className="flex cursor-pointer items-center gap-2 text-left underline-offset-4 transition hover:underline"
+                          style={{ color: "var(--primary)" }}
+                        >
                           {!editable && <Lock className="h-3.5 w-3.5 text-slate-300" />}
                           {row.class_name}
-                        </div>
+                        </button>
                         <TraitBadges progress={progress} />
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
@@ -693,6 +879,12 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         }
       />
       <StudentListDialog row={studentListRow} onClose={() => setStudentListRow(null)} />
+      <ClassDetailDialog
+        row={detailRow}
+        onClose={() => setDetailRow(null)}
+        onEdit={(row) => setEditingRow(row)}
+        editable={detailRow ? canEditRow(detailRow, currentTeacher) : false}
+      />
     </div>
   );
 }

@@ -244,8 +244,10 @@ export async function reAnalyzeSurvey(surveyId: string) {
     .single();
 
   // 2. 기존 분석이 있으면 삭제 (analysis_id 또는 survey_id로 조회)
+  const previousAnalysisIds = new Set<string>();
+  // Delete these only after a new analysis is created and linked to the survey.
   if (survey?.analysis_id) {
-    await deleteAnalysis(survey.analysis_id);
+    previousAnalysisIds.add(survey.analysis_id);
   } else {
     // analysis_id가 없어도 survey_id로 연결된 분석이 있을 수 있음
     const { data: orphanedAnalyses } = await supabase
@@ -255,13 +257,25 @@ export async function reAnalyzeSurvey(surveyId: string) {
 
     if (orphanedAnalyses && orphanedAnalyses.length > 0) {
       for (const a of orphanedAnalyses) {
-        await deleteAnalysis(a.id);
+        previousAnalysisIds.add(a.id);
       }
     }
   }
 
   // 3. 새 분석 실행
-  return analyzeSurvey(surveyId);
+  const result = await analyzeSurvey(surveyId);
+  if (!result.success || result.warning) {
+    return result;
+  }
+
+  const newAnalysisId = result.data?.id;
+  for (const id of previousAnalysisIds) {
+    if (id !== newAnalysisId) {
+      await deleteAnalysis(id);
+    }
+  }
+
+  return result;
 }
 
 // ========== 분석 삭제 ==========

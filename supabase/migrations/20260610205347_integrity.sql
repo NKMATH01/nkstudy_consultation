@@ -43,7 +43,7 @@ begin
   ) then
     alter table public.bookings
       add constraint bookings_pay_method_check
-      check (pay_method in ('done', 'will'))
+      check (pay_method in ('done', 'later', 'will'))
       not valid;
   end if;
 

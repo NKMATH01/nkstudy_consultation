@@ -33,31 +33,32 @@ const NK_PRIMARY = "var(--primary)";
 const NK_GOLD = "var(--accent-warm)";
 const NK_PRIMARY_LIGHT = "#1A3F7A";
 const NK_BLUE_50 = "#EFF4FB";
-const CHART_GRID = "var(--border)";
-const CHART_AXIS = "var(--muted-foreground)";
-const CHART_LINE = "var(--chart-1)";
-const CHART_ACCENT = "var(--chart-4)";
-const CHART_TOOLTIP_BORDER = "var(--border)";
 
 const SUBJECT_TABS = ["전체", "수학", "영어"] as const;
 type SubjectTab = (typeof SUBJECT_TABS)[number];
 
 const REASON_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
+  "var(--primary)",
+  "var(--accent-warm)",
+  "#3B82F6",
+  "#EF4444",
+  "#10B981",
+  "#8B5CF6",
+  "#F97316",
+  "#EC4899",
+  "#06B6D4",
+  "#6366F1",
+  "#F43F5E",
 ];
 
 const COMEBACK_ORDER = ["상", "중상", "중", "중하", "하"] as const;
 
 const COMEBACK_COLORS: Record<string, string> = {
-  "상": "var(--chart-2)",
-  "중상": "var(--chart-1)",
-  "중": "var(--chart-4)",
-  "중하": "var(--chart-5)",
-  "하": "var(--chart-3)",
+  "상": "#059669",
+  "중상": "#10B981",
+  "중": "#F59E0B",
+  "중하": "#F97316",
+  "하": "#EF4444",
 };
 
 const MONTH_LABELS = [
@@ -96,7 +97,7 @@ function getSubjectBadgeStyle(subject: string): { bg: string; color: string } {
 }
 
 function getComebackBadgeStyle(possibility: string): { bg: string; color: string } {
-  const color = COMEBACK_COLORS[possibility] || "var(--chart-5)";
+  const color = COMEBACK_COLORS[possibility] || "#94A3B8";
   return { bg: `${color}15`, color };
 }
 
@@ -141,7 +142,7 @@ function CustomTooltipContent({
   return (
     <div
       className="rounded-lg px-3 py-2 text-xs shadow-lg border"
-      style={{ background: "white", borderColor: CHART_TOOLTIP_BORDER }}
+      style={{ background: "white", borderColor: "#E2E8F0" }}
     >
       {label && (
         <div className="font-semibold mb-1" style={{ color: NK_PRIMARY }}>
@@ -724,7 +725,7 @@ export function WithdrawalDashboard({
       .map((name) => ({
         name,
         value: byCb[name],
-        color: COMEBACK_COLORS[name] || "var(--chart-5)",
+        color: COMEBACK_COLORS[name] || "#94A3B8",
         pct: filtered.length > 0 ? ((byCb[name] / filtered.length) * 100).toFixed(1) : "0",
       }));
   }, [filtered]);
@@ -1354,13 +1355,13 @@ export function WithdrawalDashboard({
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke={CHART_GRID}
+                    stroke="#E8ECF1"
                     horizontal={false}
                   />
                   <XAxis
                     type="number"
                     fontSize={11}
-                    stroke={CHART_AXIS}
+                    stroke="#94A3B8"
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
@@ -1369,7 +1370,7 @@ export function WithdrawalDashboard({
                     type="category"
                     dataKey="name"
                     fontSize={11}
-                    stroke={CHART_AXIS}
+                    stroke="#64748B"
                     tickLine={false}
                     axisLine={false}
                     width={120}
@@ -1381,7 +1382,7 @@ export function WithdrawalDashboard({
                       return (
                         <div
                           className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
-                          style={{ borderColor: CHART_TOOLTIP_BORDER }}
+                          style={{ borderColor: "#E2E8F0" }}
                         >
                           <div className="font-semibold" style={{ color: NK_PRIMARY }}>
                             {data.name}
@@ -1434,13 +1435,13 @@ export function WithdrawalDashboard({
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke={CHART_GRID}
+                    stroke="#E8ECF1"
                     horizontal={false}
                   />
                   <XAxis
                     type="number"
                     fontSize={11}
-                    stroke={CHART_AXIS}
+                    stroke="#94A3B8"
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
@@ -1449,7 +1450,7 @@ export function WithdrawalDashboard({
                     type="category"
                     dataKey="name"
                     fontSize={12}
-                    stroke={CHART_AXIS}
+                    stroke="#64748B"
                     tickLine={false}
                     axisLine={false}
                     width={40}
@@ -1461,7 +1462,7 @@ export function WithdrawalDashboard({
                       return (
                         <div
                           className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
-                          style={{ borderColor: CHART_TOOLTIP_BORDER }}
+                          style={{ borderColor: "#E2E8F0" }}
                         >
                           <div className="font-semibold" style={{ color: NK_PRIMARY }}>
                             복귀 가능성: {data.name}
@@ -1531,19 +1532,19 @@ export function WithdrawalDashboard({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke={CHART_GRID}
+                stroke="#E8ECF1"
                 vertical={false}
               />
               <XAxis
                 dataKey="month"
                 fontSize={12}
-                stroke={CHART_AXIS}
+                stroke="#94A3B8"
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
                 fontSize={11}
-                stroke={CHART_AXIS}
+                stroke="#94A3B8"
                 tickLine={false}
                 axisLine={false}
                 unit="%"
@@ -1553,7 +1554,7 @@ export function WithdrawalDashboard({
                   if (!active || !payload?.length) return null;
                   const data = payload[0].payload as { month: string; count: number; rate: number; base: number };
                   return (
-                    <div className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white" style={{ borderColor: CHART_TOOLTIP_BORDER }}>
+                    <div className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white" style={{ borderColor: "#E2E8F0" }}>
                       <div className="font-semibold mb-1" style={{ color: NK_PRIMARY }}>{label}</div>
                       <div className="text-slate-600">퇴원율: <span className="font-bold text-slate-800">{data.rate}%</span></div>
                       <div className="text-slate-600">퇴원생: <span className="font-bold text-slate-800">{data.count}명</span></div>
@@ -1566,18 +1567,18 @@ export function WithdrawalDashboard({
                 type="monotone"
                 dataKey="rate"
                 name="퇴원율"
-                stroke={CHART_LINE}
+                stroke={NK_PRIMARY}
                 strokeWidth={2.5}
                 dot={{
                   r: 5,
-                  fill: CHART_LINE,
+                  fill: NK_PRIMARY,
                   stroke: "white",
                   strokeWidth: 2,
                 }}
                 activeDot={{
                   r: 7,
-                  fill: CHART_ACCENT,
-                  stroke: CHART_LINE,
+                  fill: NK_GOLD,
+                  stroke: NK_PRIMARY,
                   strokeWidth: 2,
                 }}
               />

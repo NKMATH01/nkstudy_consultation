@@ -64,11 +64,8 @@ interface Props {
 
 const NK_PRIMARY = "var(--primary)";
 const NK_GOLD = "var(--accent-warm-foreground)";
-const CHART_REGISTER = "var(--chart-2)";
-const CHART_OTHER = "var(--chart-3)";
-const CHART_PENDING = "var(--chart-5)";
-const GRID = "var(--border)";
-const CHART_AXIS = "var(--muted-foreground)";
+const NK_TEAL = "#0F766E";
+const GRID = "#E5EAF1";
 
 // ── Helper ──
 /** "YYYY-MM" 형식 반환 (년+월 기반 정렬용) */
@@ -218,10 +215,10 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
 
   // Pie data (from filtered)
   const pieData = [
-    { name: "등록", value: filteredStats.registered, color: CHART_REGISTER },
-    { name: "고민중", value: filteredStats.hold, color: "var(--chart-4)" },
-    { name: "미등록", value: filteredStats.other, color: CHART_OTHER },
-    { name: "미정", value: filteredStats.none, color: CHART_PENDING },
+    { name: "등록", value: filteredStats.registered, color: NK_TEAL },
+    { name: "고민중", value: filteredStats.hold, color: NK_GOLD },
+    { name: "미등록", value: filteredStats.other, color: "#BE123C" },
+    { name: "미정", value: filteredStats.none, color: "#94A3B8" },
   ];
   const pieTotal = pieData.reduce((a, b) => a + b.value, 0) || 1;
 
@@ -364,13 +361,13 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="2 6" stroke={GRID} vertical={false} />
-                  <XAxis dataKey="m" fontSize={11} fontWeight={700} stroke={CHART_AXIS} tickLine={false} axisLine={false} dy={8} />
-                  <YAxis fontSize={11} fontWeight={700} stroke={CHART_AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <XAxis dataKey="m" fontSize={11} fontWeight={700} stroke="#7C8797" tickLine={false} axisLine={false} dy={8} />
+                  <YAxis fontSize={11} fontWeight={700} stroke="#94A3B8" tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip
-                    cursor={{ fill: "color-mix(in srgb, var(--primary) 5%, transparent)", radius: 8 }}
+                    cursor={{ fill: "rgba(22,33,62,0.045)", radius: 8 }}
                     contentStyle={{
                       borderRadius: 12,
-                      border: "1px solid var(--border)",
+                      border: "1px solid #CBD5E1",
                       fontSize: 12,
                       boxShadow: "0 18px 42px rgba(17,24,39,0.14)",
                       fontWeight: 700,

@@ -337,16 +337,28 @@ export function ConsultationListClient({ initialData, initialPagination, classes
 
   return (
     <div className="space-y-2">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Header — 네이비 브랜드 밴드 (진도현황·퇴원생과 톤 통일) */}
+      <div
+        className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-4"
+        style={{
+          background:
+            "radial-gradient(circle at 10% 0%, rgba(233,196,106,0.16), transparent 36%), linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)",
+          boxShadow: "0 10px 30px color-mix(in srgb, var(--primary) 22%, transparent)",
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="h-5 w-5 text-slate-700" />
-            <span className="text-xl font-bold text-slate-800">상담 현황</span>
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-xl"
+            style={{ background: "rgba(255,255,255,0.14)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)" }}
+          >
+            <LayoutGrid className="h-5 w-5 text-white" />
           </div>
-          <div className="flex items-center gap-1.5 text-sm text-slate-500">
-            <Calendar className="h-4 w-4" />
-            {formatHeaderDate()}
+          <div>
+            <span className="block text-lg font-black tracking-tight text-white">상담 현황</span>
+            <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-white/55">
+              <Calendar className="h-3.5 w-3.5" />
+              {formatHeaderDate()}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -357,18 +369,19 @@ export function ConsultationListClient({ initialData, initialPagination, classes
               placeholder="이름, 학교, 연락처 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 pl-9 pr-3 rounded-lg text-sm bg-white border border-slate-200 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 w-52"
+              className="h-9 w-52 rounded-lg border border-white/20 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(233,196,106,0.55)]"
             />
           </div>
           <button
             onClick={() => startTransition(() => router.refresh())}
-            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
+            className="rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
           >
             <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={() => setShowTextParse(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-semibold bg-slate-800 hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold text-white transition-all hover:-translate-y-px"
+            style={{ background: "rgba(255,255,255,0.12)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.2)" }}
           >
             <FileText className="h-4 w-4" />
             텍스트 등록
@@ -378,10 +391,11 @@ export function ConsultationListClient({ initialData, initialPagination, classes
               setEditingConsultation(undefined);
               setShowForm(true);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition-all hover:-translate-y-px hover:shadow-lg"
             style={{
-              background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))",
-              boxShadow: "0 2px 8px rgba(212,168,83,0.25)",
+              background: "linear-gradient(135deg, #E9C46A, var(--chart-4))",
+              color: "#0B1020",
+              boxShadow: "0 6px 18px rgba(212,168,83,0.35)",
             }}
           >
             <Plus className="h-4 w-4" />
@@ -398,7 +412,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
           <button
             onClick={() => setMonthFilter(null)}
             className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
-              monthFilter === null ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              monthFilter === null ? "border-transparent bg-[var(--primary)] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
             }`}
           >
             전체
@@ -408,7 +422,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
               key={ym}
               onClick={() => setMonthFilter(monthFilter === ym ? null : ym)}
               className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
-                monthFilter === ym ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                monthFilter === ym ? "border-transparent bg-[var(--primary)] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
               }`}
             >
               {formatYearMonth(ym)}

@@ -100,24 +100,33 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         <Link
           key={item.href}
           href={item.href}
-          className="sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5"
+          className={`sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5 transition-all duration-200 ${
+            isActive ? "" : "hover:translate-x-0.5 hover:bg-white/[0.05]"
+          }`}
           style={{
             fontSize: "13px",
             fontWeight: isActive ? 800 : 550,
-            background: isActive ? "linear-gradient(135deg, rgba(184,138,68,0.24), rgba(255,255,255,0.065))" : "transparent",
+            background: isActive ? "linear-gradient(135deg, rgba(184,138,68,0.26), rgba(255,255,255,0.06))" : undefined,
             color: isActive ? "#F8E7BD" : "rgba(226,232,240,0.66)",
-            boxShadow: isActive ? "inset 0 0 0 1px rgba(184,138,68,0.22), 0 10px 28px rgba(0,0,0,0.18)" : "none",
+            boxShadow: isActive ? "inset 0 0 0 1px rgba(184,138,68,0.24), 0 10px 28px rgba(0,0,0,0.2)" : "none",
           }}
         >
-          {isActive && <span className="absolute left-0 top-2 h-6 w-1 rounded-r-full bg-[#B88A44]" />}
+          {isActive && (
+            <span
+              className="absolute left-0 top-2 h-6 w-1 rounded-r-full"
+              style={{ background: "linear-gradient(180deg, #E9C46A, #B88A44)", boxShadow: "0 0 10px rgba(233,196,106,0.5)" }}
+            />
+          )}
           <span
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${
-              isActive ? "bg-[#B88A44] text-[#0B1020]" : "bg-white/[0.04] text-slate-300 group-hover:bg-white/[0.08]"
+            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
+              isActive
+                ? "bg-[#B88A44] text-[#0B1020] shadow-[0_4px_12px_rgba(184,138,68,0.35)]"
+                : "bg-white/[0.04] text-slate-300 group-hover:scale-105 group-hover:bg-white/[0.09] group-hover:text-slate-100"
             }`}
           >
             <item.icon className="h-[15px] w-[15px]" />
           </span>
-          <span className="truncate">{item.label}</span>
+          <span className="truncate transition-colors duration-200 group-hover:text-slate-100">{item.label}</span>
         </Link>
       );
     });

@@ -105,6 +105,8 @@ export interface ClassProgress {
   homework_volume: string | null;
   class_pace: string | null;
   next_start_date: string | null;
+  expected_months: number | null;
+  expected_weeks: number | null;
   updated_by: string | null;
   progress_updated_at: string | null;
   created_at: string;

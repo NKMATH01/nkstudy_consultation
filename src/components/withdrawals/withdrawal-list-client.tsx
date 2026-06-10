@@ -37,6 +37,118 @@ interface Props {
   withdrawals: Withdrawal[];
 }
 
+/* ─── 인사이트 계산용: 퇴원일 파싱 (다양한 텍스트 형식 방어) ─── */
+function parseWithdrawalDate(w: Withdrawal): Date | null {
+  const raw = w.withdrawal_date?.trim();
+  if (raw) {
+    const m = raw.match(/(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})/);
+    if (m) {
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  }
+  const c = new Date(w.created_at);
+  return Number.isNaN(c.getTime()) ? null : c;
+}
+
+/* ─── 상단 인사이트 스트립: 학원·강사 문제가 목록 진입 즉시 보이도록 ─── */
+function WithdrawalInsightStrip({ withdrawals }: { withdrawals: Withdrawal[] }) {
+  // 마운트 시점 기준 시각 (렌더 중 Date.now() 호출 회피 — react-hooks/purity)
+  const [now] = useState(() => Date.now());
+  const insight = useMemo(() => {
+    const DAY = 24 * 60 * 60 * 1000;
+    let recent90 = 0;
+    let prev90 = 0;
+    const reasonCounts = new Map<string, number>();
+    const teacherCounts = new Map<string, number>();
+    let comebackPromising = 0;
+
+    for (const w of withdrawals) {
+      const date = parseWithdrawalDate(w);
+      if (date) {
+        const age = now - date.getTime();
+        if (age <= 90 * DAY) recent90 += 1;
+        else if (age <= 180 * DAY) prev90 += 1;
+      }
+      if (w.reason_category) {
+        reasonCounts.set(w.reason_category, (reasonCounts.get(w.reason_category) ?? 0) + 1);
+      }
+      if (w.teacher) {
+        teacherCounts.set(w.teacher, (teacherCounts.get(w.teacher) ?? 0) + 1);
+      }
+      if (w.comeback_possibility === "상" || w.comeback_possibility === "중상") comebackPromising += 1;
+    }
+
+    const topReason = [...reasonCounts.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+    const topTeacher = [...teacherCounts.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+    const trend = prev90 > 0 ? Math.round(((recent90 - prev90) / prev90) * 100) : null;
+
+    return { recent90, prev90, trend, topReason, topTeacher, comebackPromising };
+  }, [withdrawals, now]);
+
+  if (withdrawals.length === 0) return null;
+
+  const trendUp = insight.trend != null && insight.trend > 0;
+  const cards = [
+    {
+      label: "최근 90일 퇴원",
+      value: `${insight.recent90}명`,
+      sub:
+        insight.trend == null
+          ? `직전 90일 ${insight.prev90}명`
+          : `직전 90일 대비 ${insight.trend > 0 ? "+" : ""}${insight.trend}%`,
+      color: trendUp ? "#DC2626" : "#0F766E",
+      alert: trendUp,
+    },
+    {
+      label: "최다 퇴원 사유",
+      value: insight.topReason ? insight.topReason[0] : "-",
+      sub: insight.topReason ? `${insight.topReason[1]}명 — 학원 개선 1순위` : "사유 데이터 없음",
+      color: "var(--primary)",
+      alert: false,
+    },
+    {
+      label: "최다 퇴원 강사",
+      value: insight.topTeacher ? `${insight.topTeacher[0]} T` : "-",
+      sub: insight.topTeacher ? `${insight.topTeacher[1]}명 — 분석 대시보드에서 상세 확인` : "강사 데이터 없음",
+      color: "#DC2626",
+      alert: Boolean(insight.topTeacher && insight.topTeacher[1] >= 3),
+    },
+    {
+      label: "복귀 유망",
+      value: `${insight.comebackPromising}명`,
+      sub: "복귀 가능성 상/중상 — 재원 유도 연락 대상",
+      color: "#0F766E",
+      alert: false,
+    },
+  ];
+
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          className="rounded-2xl border bg-white px-4 py-3.5"
+          style={{
+            borderColor: card.alert ? "#FCA5A5" : "#E8ECF1",
+            boxShadow: card.alert
+              ? "0 4px 14px rgba(220,38,38,0.10)"
+              : "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+          }}
+        >
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{card.label}</p>
+          <p className="mt-1 truncate text-lg font-extrabold leading-tight" style={{ color: card.color }}>
+            {card.value}
+          </p>
+          <p className="mt-0.5 truncate text-[11px] text-slate-400" title={card.sub}>
+            {card.sub}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─── Comeback Possibility Badge ─── */
 function ComebackBadge({ value }: { value: string | null }) {
   if (!value) return <span className="text-xs text-slate-400">-</span>;
@@ -204,6 +316,7 @@ export function WithdrawalList({ withdrawals }: Props) {
 
   return (
     <>
+      <WithdrawalInsightStrip withdrawals={withdrawals} />
       <div
         className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
         style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.04)" }}

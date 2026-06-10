@@ -92,6 +92,8 @@ function defaultValues(row: ProgressBoardRow): ProgressFormValues {
     sub_textbook: progress?.sub_textbook ?? "",
     next_textbook: progress?.next_textbook ?? "",
     next_start_date: progress?.next_start_date ?? "",
+    expected_months: progress?.expected_months ?? undefined,
+    expected_weeks: progress?.expected_weeks ?? undefined,
     current_plan: progress?.current_plan ?? "",
     note: progress?.note ?? "",
     ability_level: (progress?.ability_level as ProgressFormValues["ability_level"]) ?? undefined,
@@ -99,6 +101,24 @@ function defaultValues(row: ProgressBoardRow): ProgressFormValues {
     homework_volume: (progress?.homework_volume as ProgressFormValues["homework_volume"]) ?? undefined,
     class_pace: (progress?.class_pace as ProgressFormValues["class_pace"]) ?? undefined,
   };
+}
+
+/** "3개월 2주" 형식의 예상 기간 문자열 */
+function formatExpectedDuration(months: number | null | undefined, weeks: number | null | undefined): string | null {
+  const parts: string[] = [];
+  if (months != null && months > 0) parts.push(`${months}개월`);
+  if (weeks != null && weeks > 0) parts.push(`${weeks}주`);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/** 가장 최근 목요일 00:00 (오늘이 목요일이면 오늘) — 주간 업데이트 사이클 기준 */
+function lastThursday(): Date {
+  const now = new Date();
+  const diff = (now.getDay() - 4 + 7) % 7;
+  const thu = new Date(now);
+  thu.setDate(now.getDate() - diff);
+  thu.setHours(0, 0, 0, 0);
+  return thu;
 }
 
 const TRAIT_LABELS: Array<{ key: "ability_level" | "study_intensity" | "homework_volume" | "class_pace"; label: string }> = [
@@ -222,8 +242,6 @@ function ProgressDialog({
   const [isPending, startTransition] = useTransition();
   const [history, setHistory] = useState<TextbookHistory[]>(row?.textbook_history ?? []);
   const [newTextbook, setNewTextbook] = useState("");
-  const [newStartedOn, setNewStartedOn] = useState("");
-  const [newFinishedOn, setNewFinishedOn] = useState("");
   const [historyPending, setHistoryPending] = useState(false);
   const form = useForm<ProgressFormValues>({
     resolver: zodResolver(progressFormSchema) as never,
@@ -238,19 +256,13 @@ function ProgressDialog({
       return;
     }
     setHistoryPending(true);
-    const result = await addTextbookHistory(row.class_id, {
-      textbook: newTextbook,
-      started_on: newStartedOn || undefined,
-      finished_on: newFinishedOn || undefined,
-    });
+    const result = await addTextbookHistory(row.class_id, { textbook: newTextbook });
     setHistoryPending(false);
     if (result.success && result.history) {
       const next = [result.history, ...history];
       setHistory(next);
       onHistoryChange(row.class_id, next);
       setNewTextbook("");
-      setNewStartedOn("");
-      setNewFinishedOn("");
       toast.success("지난 교재가 추가되었습니다");
     } else {
       toast.error(("error" in result && result.error) || "교재 이력 추가 실패");
@@ -268,13 +280,6 @@ function ProgressDialog({
     } else {
       toast.error(result.error || "교재 이력 삭제 실패");
     }
-  };
-
-  const formatPeriod = (h: TextbookHistory) => {
-    if (h.started_on && h.finished_on) return `${h.started_on} ~ ${h.finished_on}`;
-    if (h.finished_on) return `~ ${h.finished_on}`;
-    if (h.started_on) return `${h.started_on} ~`;
-    return "";
   };
 
   const numberRegister = {
@@ -383,10 +388,38 @@ function ProgressDialog({
             </label>
           </div>
 
-          <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-slate-500">다음 교재 시작 예정일</span>
-            <Input type="date" {...form.register("next_start_date")} className="w-fit" />
-          </label>
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="space-y-1.5">
+              <span className="text-xs font-bold text-slate-500">다음 교재 시작 예정일</span>
+              <Input type="date" {...form.register("next_start_date")} className="w-fit" />
+            </label>
+            <div className="space-y-1.5">
+              <span className="block text-xs font-bold text-slate-500">현재 교재 예상 기간</span>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  {...form.register("expected_months", numberRegister)}
+                  className="h-9 w-16 text-center font-bold"
+                />
+                <span className="text-sm font-semibold text-slate-500">개월</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  {...form.register("expected_weeks", numberRegister)}
+                  className="h-9 w-16 text-center font-bold"
+                />
+                <span className="text-sm font-semibold text-slate-500">주</span>
+              </div>
+              {(form.formState.errors.expected_months || form.formState.errors.expected_weeks) && (
+                <span className="text-[11px] font-semibold text-red-500">
+                  {form.formState.errors.expected_months?.message || form.formState.errors.expected_weeks?.message}
+                </span>
+              )}
+            </div>
+          </div>
 
           {/* 지난 교재 이력 — 계속 누적 */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
@@ -395,48 +428,41 @@ function ProgressDialog({
               지난 교재 ({history.length})
             </p>
             {history.length > 0 && (
-              <ul className="mb-3 space-y-1.5">
+              <ul className="mb-3 flex flex-wrap gap-1.5">
                 {history.map((h) => (
                   <li
                     key={h.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-700">{h.textbook}</p>
-                      {formatPeriod(h) && (
-                        <p className="text-[11px] text-slate-400">{formatPeriod(h)}</p>
-                      )}
-                    </div>
+                    <span className="text-sm font-semibold text-slate-700">{h.textbook}</span>
                     <button
                       type="button"
                       onClick={() => handleDeleteHistory(h.id)}
                       disabled={historyPending}
-                      className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                      className="rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
                       title="이력 삭제"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="min-w-[160px] flex-1 space-y-1">
+            <div className="flex items-end gap-2">
+              <label className="flex-1 space-y-1">
                 <span className="text-[11px] font-bold text-slate-500">교재명</span>
                 <Input
                   value={newTextbook}
                   onChange={(e) => setNewTextbook(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddHistory();
+                    }
+                  }}
                   placeholder="예: 쎈 수학(상)"
                   className="h-9"
                 />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-500">시작일</span>
-                <Input type="date" value={newStartedOn} onChange={(e) => setNewStartedOn(e.target.value)} className="h-9" />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-500">종료일</span>
-                <Input type="date" value={newFinishedOn} onChange={(e) => setNewFinishedOn(e.target.value)} className="h-9" />
               </label>
               <Button
                 type="button"
@@ -499,13 +525,6 @@ function ClassDetailDialog({
     </div>
   );
 
-  const formatPeriod = (h: TextbookHistory) => {
-    if (h.started_on && h.finished_on) return `${h.started_on} ~ ${h.finished_on}`;
-    if (h.finished_on) return `~ ${h.finished_on}`;
-    if (h.started_on) return `${h.started_on} ~`;
-    return "기간 미입력";
-  };
-
   return (
     <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-[640px] overflow-y-auto">
@@ -547,6 +566,7 @@ function ClassDetailDialog({
                 </div>
               </div>
             )}
+            {infoRow("예상 기간", formatExpectedDuration(progress?.expected_months, progress?.expected_weeks))}
             {infoRow("부교재", progress?.sub_textbook)}
             {infoRow("예정교재", progress?.next_textbook)}
             {infoRow("다음 시작 예정", progress?.next_start_date)}
@@ -569,11 +589,10 @@ function ClassDetailDialog({
             {row.textbook_history.length === 0 ? (
               <p className="text-xs text-slate-400">기록된 지난 교재가 없습니다</p>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="flex flex-wrap gap-1.5">
                 {row.textbook_history.map((h) => (
-                  <li key={h.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5">
-                    <span className="text-sm font-semibold text-slate-700">{h.textbook}</span>
-                    <span className="text-[11px] text-slate-400">{formatPeriod(h)}</span>
+                  <li key={h.id} className="rounded-lg bg-slate-50 px-2.5 py-1 text-sm font-semibold text-slate-700">
+                    {h.textbook}
                   </li>
                 ))}
               </ul>
@@ -733,8 +752,43 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
 
   const visibleGroups = gradeFilter ? grouped.filter(({ grade }) => grade === gradeFilter) : grouped;
 
+  // 주간(목요일 기준) 미업데이트 반 — 매주 목요일 00:00 이후 현재 페이지 저장이 없는 반
+  const thursday = lastThursday();
+  const staleRows = rows.filter((row) => {
+    const updated = row.progress?.progress_updated_at;
+    if (!updated) return true;
+    const date = new Date(updated);
+    return Number.isNaN(date.getTime()) || date < thursday;
+  });
+
   return (
     <div className="space-y-6">
+      {/* 주간 미업데이트 경고 배너 */}
+      {staleRows.length > 0 && (
+        <div
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-4 py-3"
+          style={{ background: "#FFF7ED", borderColor: "#FDBA74" }}
+        >
+          <span className="flex items-center gap-1.5 text-xs font-extrabold text-orange-700">
+            <AlertTriangle className="h-4 w-4" />
+            이번 주(목요일 기준) 진도 미업데이트 {staleRows.length}개 반
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {staleRows.map((row) => (
+              <button
+                key={row.class_id}
+                type="button"
+                onClick={() => setDetailRow(row)}
+                className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-bold text-orange-700 transition hover:bg-orange-100"
+                style={{ boxShadow: "inset 0 0 0 1px #FDBA74" }}
+              >
+                {row.class_name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 학년별 필터 버튼 */}
       <div className="flex flex-wrap gap-1.5">
         {[{ grade: null as string | null, label: `전체 (${rows.length})` }, ...grouped.map(({ grade, items }) => ({ grade: grade as string | null, label: `${grade} (${items.length})` }))].map(({ grade, label }) => {
@@ -820,8 +874,14 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         <div className="space-y-1.5">
                           <p className="max-w-[240px] whitespace-normal text-sm font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
                           <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
-                          {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date) && (
+                          {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date || formatExpectedDuration(progress?.expected_months, progress?.expected_weeks)) && (
                             <p className="max-w-[260px] whitespace-normal text-[11px] font-medium leading-relaxed text-slate-500">
+                              {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks) && (
+                                <span className="font-bold" style={{ color: "var(--accent-warm-foreground)" }}>
+                                  예상 {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks)}
+                                </span>
+                              )}
+                              {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks) && (progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date) && " · "}
                               {progress?.sub_textbook && <>부교재 {progress.sub_textbook}</>}
                               {progress?.sub_textbook && (progress?.next_textbook || progress?.next_start_date) && " · "}
                               {progress?.next_textbook && <>예정 {progress.next_textbook}</>}

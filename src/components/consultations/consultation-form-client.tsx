@@ -143,6 +143,9 @@ export function ConsultationFormDialog({
 
       if (result.success) {
         toast.success(isEdit ? "상담이 수정되었습니다" : "상담이 등록되었습니다");
+        if (result.warning) {
+          toast.warning(result.warning);
+        }
         onOpenChange(false);
         form.reset();
         router.refresh();

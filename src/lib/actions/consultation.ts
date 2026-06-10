@@ -10,6 +10,15 @@ import type {
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const BOOKING_SYNC_WARNING = "상담은 저장되었으나 예약 현황판 반영에 실패했습니다";
+
+type ConsultationMutationResult = {
+  success: boolean;
+  data?: Consultation;
+  error?: string;
+  warning?: string;
+};
+
 // 상담 → 예약 동기화 헬퍼
 async function syncConsultationToBooking(consultation: {
   name: string;
@@ -188,9 +197,10 @@ export async function getConsultationByName(
   return data as Consultation;
 }
 
-export async function createConsultation(formData: FormData) {
+export async function createConsultation(formData: FormData): Promise<ConsultationMutationResult> {
   try {
     const supabase = await createClient();
+    let warning: string | undefined;
 
     const raw = {
       name: formData.get("name"),
@@ -277,11 +287,12 @@ export async function createConsultation(formData: FormData) {
       });
     } catch (syncErr) {
       console.error("[Booking Sync] 예약 동기화 실패:", syncErr);
+      warning = BOOKING_SYNC_WARNING;
     }
 
     revalidatePath("/consultations");
     revalidatePath("/bookings");
-    return { success: true, data };
+    return { success: true, data, warning };
   } catch (e) {
     console.error("[상담] 등록 중 예외:", e instanceof Error ? e.message : e);
     const msg = e instanceof Error ? e.message : "상담 등록 실패";
@@ -289,9 +300,13 @@ export async function createConsultation(formData: FormData) {
   }
 }
 
-export async function updateConsultation(id: string, formData: FormData) {
+export async function updateConsultation(
+  id: string,
+  formData: FormData,
+): Promise<ConsultationMutationResult> {
   try {
     const supabase = await createClient();
+    let warning: string | undefined;
 
     const raw = {
       name: formData.get("name"),
@@ -379,12 +394,13 @@ export async function updateConsultation(id: string, formData: FormData) {
       });
     } catch (syncErr) {
       console.error("[Booking Sync] 예약 동기화 실패:", syncErr);
+      warning = BOOKING_SYNC_WARNING;
     }
 
     revalidatePath("/consultations");
     revalidatePath("/bookings");
     revalidatePath(`/consultations/${id}`);
-    return { success: true, data };
+    return { success: true, data, warning };
   } catch (e) {
     console.error("[상담] 수정 중 예외:", { id, error: e instanceof Error ? e.message : e });
     const msg = e instanceof Error ? e.message : "상담 수정 실패";

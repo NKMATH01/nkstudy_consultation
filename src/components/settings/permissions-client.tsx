@@ -29,7 +29,7 @@ const MENU_GROUPS = [
     label: "설문현황",
     color: "#F0FDF4",
     borderColor: "#BBF7D0",
-    hrefs: ["/surveys", "/analyses", "/registrations", "/onboarding"],
+    hrefs: ["/surveys", "/analyses", "/registrations", "/onboarding", "/progress"],
   },
   {
     label: "퇴원생",

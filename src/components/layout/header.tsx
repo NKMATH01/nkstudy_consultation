@@ -15,6 +15,7 @@ import {
   BookOpen,
   UserCog,
   Shield,
+  BookOpenCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ const pageTitles: Record<string, { label: string; icon: LucideIcon }> = {
   "/surveys": { label: "설문 현황", icon: ClipboardList },
   "/analyses": { label: "성향분석 결과", icon: Sparkles },
   "/registrations": { label: "등록 안내", icon: FileText },
+  "/progress": { label: "진도 현황", icon: BookOpenCheck },
   "/settings/students": { label: "학생 관리", icon: GraduationCap },
   "/settings/classes": { label: "반 관리", icon: BookOpen },
   "/settings/teachers": { label: "선생님 관리", icon: UserCog },

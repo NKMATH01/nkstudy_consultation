@@ -1,0 +1,398 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { currentPageSchema, progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
+import type { ClassProgress, ClassProgressLog, Teacher } from "@/types";
+
+type DbRow = Record<string, unknown>;
+
+export interface ProgressTeacherInfo {
+  id: string | null;
+  name: string;
+  role: Teacher["role"];
+  auth_user_id: string | null;
+}
+
+export interface ProgressBoardRow {
+  class_id: string;
+  class_name: string;
+  teacher_id: string | null;
+  teacher_name: string | null;
+  target_grade: string | null;
+  actual_student_count: number;
+  student_count: number;
+  progress: ClassProgress | null;
+  recent_logs: ClassProgressLog[];
+  weekly_progress: number | null;
+}
+
+export interface ProgressBoardResult {
+  rows: ProgressBoardRow[];
+  error: string | null;
+}
+
+const LIMITED_ROLES = new Set<Teacher["role"]>(["teacher", "clinic"]);
+const FULL_ACCESS_ROLES = new Set<Teacher["role"]>([
+  "admin",
+  "director",
+  "principal",
+  "manager",
+  "staff",
+]);
+
+function nullableString(value: unknown): string | null {
+  return value == null || value === "" ? null : String(value);
+}
+
+function nullableNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function mapProgress(row: DbRow): ClassProgress {
+  return {
+    id: String(row.id ?? ""),
+    class_id: String(row.class_id ?? ""),
+    student_count: nullableNumber(row.student_count),
+    main_textbook: nullableString(row.main_textbook),
+    main_total_pages: nullableNumber(row.main_total_pages),
+    current_page: nullableNumber(row.current_page),
+    sub_textbook: nullableString(row.sub_textbook),
+    next_textbook: nullableString(row.next_textbook),
+    next_start_plan: nullableString(row.next_start_plan),
+    current_plan: nullableString(row.current_plan),
+    note: nullableString(row.note),
+    updated_by: nullableString(row.updated_by),
+    progress_updated_at: nullableString(row.progress_updated_at),
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? ""),
+  };
+}
+
+function mapLog(row: DbRow): ClassProgressLog {
+  return {
+    id: String(row.id ?? ""),
+    progress_id: String(row.progress_id ?? ""),
+    page: Number(row.page ?? 0),
+    recorded_by: nullableString(row.recorded_by),
+    recorded_at: String(row.recorded_at ?? ""),
+  };
+}
+
+function pickProgress(value: unknown): ClassProgress | null {
+  if (Array.isArray(value)) {
+    const first = value[0] as DbRow | undefined;
+    return first ? mapProgress(first) : null;
+  }
+  if (value && typeof value === "object") return mapProgress(value as DbRow);
+  return null;
+}
+
+function getTeacherName(value: unknown): string | null {
+  if (Array.isArray(value)) return nullableString((value[0] as DbRow | undefined)?.name);
+  if (value && typeof value === "object") return nullableString((value as DbRow).name);
+  return null;
+}
+
+function weeklyProgress(logs: ClassProgressLog[]): number | null {
+  if (logs.length < 2) return null;
+  return logs[0].page - logs[1].page;
+}
+
+function cleanText(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function toProgressPayload(classId: string, data: ProgressFormValues, updatedBy: string): DbRow {
+  return {
+    class_id: classId,
+    student_count: data.student_count ?? null,
+    main_textbook: cleanText(data.main_textbook),
+    main_total_pages: data.main_total_pages ?? null,
+    current_page: data.current_page ?? null,
+    sub_textbook: cleanText(data.sub_textbook),
+    next_textbook: cleanText(data.next_textbook),
+    next_start_plan: cleanText(data.next_start_plan),
+    current_plan: cleanText(data.current_plan),
+    note: cleanText(data.note),
+    updated_by: updatedBy,
+    progress_updated_at: data.current_page != null ? new Date().toISOString() : null,
+  };
+}
+
+async function fetchRecentLogs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  progressId: string
+): Promise<ClassProgressLog[]> {
+  const { data, error } = await supabase
+    .from("class_progress_logs")
+    .select("*")
+    .eq("progress_id", progressId)
+    .order("recorded_at", { ascending: false })
+    .limit(2);
+
+  if (error) return [];
+  return (data ?? []).map((row) => mapLog(row as DbRow));
+}
+
+async function getCurrentProgressTeacherWithClient(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<ProgressTeacherInfo | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("teachers")
+    .select("id, name, role, auth_user_id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (data) {
+    return {
+      id: String(data.id ?? ""),
+      name: String(data.name ?? "선생님"),
+      role: (data.role ?? null) as Teacher["role"],
+      auth_user_id: nullableString(data.auth_user_id),
+    };
+  }
+
+  if (user.email === "admin@nk.com") {
+    return { id: null, name: "관리자", role: "admin", auth_user_id: user.id };
+  }
+
+  return null;
+}
+
+async function assertCanEditClass(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  classId: string
+): Promise<{ ok: true; teacher: ProgressTeacherInfo } | { ok: false; error: string }> {
+  const teacher = await getCurrentProgressTeacherWithClient(supabase);
+  if (!teacher) return { ok: false, error: "로그인이 필요합니다" };
+
+  if (!FULL_ACCESS_ROLES.has(teacher.role) && !LIMITED_ROLES.has(teacher.role)) {
+    return { ok: false, error: "수정 권한이 없습니다" };
+  }
+
+  const { data: classRow, error } = await supabase
+    .from("classes")
+    .select("id, teacher_id")
+    .eq("id", classId)
+    .single();
+
+  if (error || !classRow) {
+    return { ok: false, error: "반 정보를 찾을 수 없습니다" };
+  }
+
+  if (LIMITED_ROLES.has(teacher.role) && nullableString(classRow.teacher_id) !== teacher.id) {
+    return { ok: false, error: "본인 담당 반만 수정할 수 있습니다" };
+  }
+
+  return { ok: true, teacher };
+}
+
+export async function getCurrentProgressTeacher(): Promise<ProgressTeacherInfo | null> {
+  try {
+    const supabase = await createClient();
+    return await getCurrentProgressTeacherWithClient(supabase);
+  } catch {
+    return null;
+  }
+}
+
+export async function getProgressBoard(): Promise<ProgressBoardResult> {
+  const supabase = await createClient();
+
+  const { data: classes, error: classError } = await supabase
+    .from("classes")
+    .select("id, name, target_grade, teacher_id, is_active, teachers:teacher_id(name), class_progress(*)")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (classError) {
+    console.error("[Progress] class_progress board query failed:", classError.message);
+    return { rows: [], error: classError.message };
+  }
+
+  const { data: students, error: studentError } = await supabase
+    .from("students")
+    .select("id, class_name, is_active")
+    .eq("is_active", true);
+
+  if (studentError) {
+    console.error("[Progress] student count query failed:", studentError.message);
+  }
+
+  const classCounts = new Map<string, number>();
+  for (const student of students ?? []) {
+    const className = nullableString((student as DbRow).class_name);
+    if (!className) continue;
+    classCounts.set(className, (classCounts.get(className) ?? 0) + 1);
+  }
+
+  const baseRows = (classes ?? []).map((row) => {
+    const classRow = row as DbRow;
+    const progress = pickProgress(classRow.class_progress);
+    const className = String(classRow.name ?? "");
+    const actualStudentCount = classCounts.get(className) ?? 0;
+    return {
+      class_id: String(classRow.id ?? ""),
+      class_name: className,
+      teacher_id: nullableString(classRow.teacher_id),
+      teacher_name: getTeacherName(classRow.teachers),
+      target_grade: nullableString(classRow.target_grade),
+      actual_student_count: actualStudentCount,
+      student_count: progress?.student_count ?? actualStudentCount,
+      progress,
+      recent_logs: [] as ClassProgressLog[],
+      weekly_progress: null as number | null,
+    };
+  });
+
+  const progressIds = baseRows
+    .map((row) => row.progress?.id)
+    .filter((id): id is string => Boolean(id));
+
+  if (progressIds.length === 0) {
+    return { rows: baseRows, error: studentError?.message ?? null };
+  }
+
+  const { data: logs, error: logsError } = await supabase
+    .from("class_progress_logs")
+    .select("*")
+    .in("progress_id", progressIds)
+    .order("recorded_at", { ascending: false });
+
+  if (logsError) {
+    console.error("[Progress] logs query failed:", logsError.message);
+    return { rows: baseRows, error: logsError.message };
+  }
+
+  const logsByProgress = new Map<string, ClassProgressLog[]>();
+  for (const row of logs ?? []) {
+    const log = mapLog(row as DbRow);
+    const current = logsByProgress.get(log.progress_id) ?? [];
+    if (current.length < 2) {
+      current.push(log);
+      logsByProgress.set(log.progress_id, current);
+    }
+  }
+
+  return {
+    rows: baseRows.map((row) => {
+      const recentLogs = row.progress ? logsByProgress.get(row.progress.id) ?? [] : [];
+      return {
+        ...row,
+        recent_logs: recentLogs,
+        weekly_progress: weeklyProgress(recentLogs),
+      };
+    }),
+    error: studentError?.message ?? null,
+  };
+}
+
+export async function upsertProgress(classId: string, data: ProgressFormValues) {
+  try {
+    const parsed = progressFormSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = await createClient();
+    const permission = await assertCanEditClass(supabase, classId);
+    if (!permission.ok) return { success: false, error: permission.error };
+
+    const { data: progress, error } = await supabase
+      .from("class_progress")
+      .upsert(toProgressPayload(classId, parsed.data, permission.teacher.name), { onConflict: "class_id" })
+      .select("*")
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    const mapped = mapProgress(progress as DbRow);
+    const recentLogs = await fetchRecentLogs(supabase, mapped.id);
+
+    revalidatePath("/progress");
+    return {
+      success: true,
+      progress: mapped,
+      recent_logs: recentLogs,
+      weekly_progress: weeklyProgress(recentLogs),
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "진도 저장 실패";
+    return { success: false, error: msg };
+  }
+}
+
+export async function updateCurrentPage(classId: string, page: number) {
+  try {
+    const parsed = currentPageSchema.safeParse({ page });
+    if (!parsed.success || parsed.data.page == null) {
+      return { success: false, error: parsed.success ? "현재 페이지를 입력해주세요" : parsed.error.issues[0].message };
+    }
+
+    const supabase = await createClient();
+    const permission = await assertCanEditClass(supabase, classId);
+    if (!permission.ok) return { success: false, error: permission.error };
+
+    const { data: existing, error: existingError } = await supabase
+      .from("class_progress")
+      .select("id, main_total_pages")
+      .eq("class_id", classId)
+      .maybeSingle();
+
+    if (existingError) return { success: false, error: existingError.message };
+
+    const totalPages = nullableNumber(existing?.main_total_pages);
+    if (totalPages != null && parsed.data.page > totalPages) {
+      return { success: false, error: "현재 페이지는 전체 페이지보다 클 수 없습니다" };
+    }
+
+    const now = new Date().toISOString();
+    const { data: progress, error } = await supabase
+      .from("class_progress")
+      .upsert(
+        {
+          class_id: classId,
+          current_page: parsed.data.page,
+          progress_updated_at: now,
+          updated_by: permission.teacher.name,
+        },
+        { onConflict: "class_id" }
+      )
+      .select("*")
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    const mapped = mapProgress(progress as DbRow);
+    const { error: logError } = await supabase.from("class_progress_logs").insert({
+      progress_id: mapped.id,
+      page: parsed.data.page,
+      recorded_by: permission.teacher.name,
+    });
+
+    if (logError) return { success: false, error: logError.message };
+
+    const recentLogs = await fetchRecentLogs(supabase, mapped.id);
+
+    revalidatePath("/progress");
+    return {
+      success: true,
+      progress: mapped,
+      recent_logs: recentLogs,
+      weekly_progress: weeklyProgress(recentLogs),
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "현재 페이지 저장 실패";
+    return { success: false, error: msg };
+  }
+}

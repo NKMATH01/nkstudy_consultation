@@ -16,6 +16,7 @@ import {
   ExternalLink,
   LogOut,
   Shield,
+  BookOpenCheck,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { CurrentTeacherInfo } from "@/types";
@@ -29,6 +30,7 @@ const consultItems = [
 const analysisItems = [
   { href: "/surveys", label: "설문/분석", icon: ClipboardList },
   { href: "/onboarding", label: "등록 관리", icon: FileText },
+  { href: "/progress", label: "진도 현황", icon: BookOpenCheck },
 ];
 
 const withdrawalItems = [

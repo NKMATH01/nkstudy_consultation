@@ -76,6 +76,7 @@ export interface Class {
   id: string;
   name: string;
   teacher: string | null;
+  teacher_id?: string | null;
   target_grade: string | null;
   class_days: string | null;
   class_time: string | null;
@@ -85,6 +86,32 @@ export interface Class {
   active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ClassProgress {
+  id: string;
+  class_id: string;
+  student_count: number | null;
+  main_textbook: string | null;
+  main_total_pages: number | null;
+  current_page: number | null;
+  sub_textbook: string | null;
+  next_textbook: string | null;
+  next_start_plan: string | null;
+  current_plan: string | null;
+  note: string | null;
+  updated_by: string | null;
+  progress_updated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassProgressLog {
+  id: string;
+  progress_id: string;
+  page: number;
+  recorded_by: string | null;
+  recorded_at: string;
 }
 
 export interface Teacher {
@@ -118,6 +145,7 @@ export const ALL_MENU_ITEMS = [
   { href: "/analyses", label: "성향분석 결과" },
   { href: "/registrations", label: "등록 안내" },
   { href: "/onboarding", label: "신입생 등록" },
+  { href: "/progress", label: "진도 현황" },
   { href: "/withdrawals", label: "퇴원생 현황" },
   { href: "/withdrawals/dashboard", label: "퇴원생 분석" },
   { href: "/settings/students", label: "학생 관리" },

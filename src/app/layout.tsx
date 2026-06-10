@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_KR } from "next/font/google";
-import localFont from "next/font/local";
+import { Noto_Sans_KR, DM_Sans } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -12,11 +11,10 @@ const notoSansKR = Noto_Sans_KR({
   weight: ["300", "400", "500", "700"],
 });
 
-const pretendard = localFont({
-  src: "../../node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2",
-  variable: "--font-pretendard",
-  weight: "45 920",
-  display: "swap",
+const dmSans = DM_Sans({
+  variable: "--font-dm",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -31,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${pretendard.variable} ${notoSansKR.variable} antialiased`}>
+      <body className={`${dmSans.variable} ${notoSansKR.variable} antialiased`}>
         <Script
           src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
           strategy="beforeInteractive"

@@ -33,6 +33,9 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-warm-foreground: var(--accent-warm-foreground);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
@@ -81,6 +84,9 @@
   --sidebar-accent-foreground: #E2E8F0;
   --sidebar-border: rgba(255,255,255,0.05);
   --sidebar-ring: #D4A853;
+  --primary-soft: #1E3A6E; /* 기존 네이비 그라데이션 보조색 */
+  --accent-warm: #E9C46A; /* 기존 골드 */
+  --accent-warm-foreground: #A97832; /* 기존 다크 골드 */
 }
 
 @layer base {

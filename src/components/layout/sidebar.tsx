@@ -93,16 +93,19 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         <Link
           key={item.href}
           href={item.href}
-          className={`sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5 text-[13px] transition ${
-            isActive
-              ? "bg-sidebar-accent font-extrabold text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_rgba(168,213,226,0.65),0_10px_24px_rgba(94,147,172,0.12)]"
-              : "font-semibold text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-          }`}
+          className="sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5"
+          style={{
+            fontSize: "13px",
+            fontWeight: isActive ? 800 : 550,
+            background: isActive ? "linear-gradient(135deg, rgba(184,138,68,0.24), rgba(255,255,255,0.065))" : "transparent",
+            color: isActive ? "#F8E7BD" : "rgba(226,232,240,0.66)",
+            boxShadow: isActive ? "inset 0 0 0 1px rgba(184,138,68,0.22), 0 10px 28px rgba(0,0,0,0.18)" : "none",
+          }}
         >
-          {isActive && <span className="absolute left-0 top-2 h-6 w-1 rounded-r-full bg-sidebar-primary" />}
+          {isActive && <span className="absolute left-0 top-2 h-6 w-1 rounded-r-full bg-[#B88A44]" />}
           <span
             className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${
-              isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "bg-white/70 text-sidebar-foreground group-hover:bg-sidebar-accent"
+              isActive ? "bg-[#B88A44] text-[#0B1020]" : "bg-white/[0.04] text-slate-300 group-hover:bg-white/[0.08]"
             }`}
           >
             <item.icon className="h-[15px] w-[15px]" />
@@ -112,10 +115,12 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       );
     });
 
-  const divider = <div className="mx-3 my-4 border-t border-sidebar-border" />;
+  const divider = (
+    <div className="mx-3 my-4" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }} />
+  );
 
   const sectionLabel = (label: string) => (
-    <div className="mb-2 px-3.5 text-[10px] font-extrabold uppercase text-sidebar-primary/70 tracking-[0.12em]">
+    <div className="mb-2 px-3.5 uppercase" style={{ fontSize: "10px", fontWeight: 800, color: "rgba(212,168,83,0.48)", letterSpacing: "0.12em" }}>
       {label}
     </div>
   );
@@ -130,22 +135,30 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       <aside
         className={
           inSheet
-            ? "flex min-h-full w-full flex-shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
-            : "hidden min-h-screen w-[246px] flex-shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+            ? "flex min-h-full w-full flex-shrink-0 flex-col border-r"
+            : "hidden min-h-screen w-[246px] flex-shrink-0 flex-col border-r md:flex"
         }
+        style={{
+          background: "radial-gradient(circle at 22% 0%, rgba(184,138,68,0.15), transparent 30%), linear-gradient(180deg, #111827 0%, #0E1524 48%, #090E18 100%)",
+          borderColor: "rgba(255,255,255,0.08)",
+        }}
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 pb-7 pt-6">
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-black text-primary-foreground shadow-[0_12px_28px_rgba(94,147,172,0.22)]"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-[#08111F]"
+            style={{
+              background: "linear-gradient(135deg, #E9C46A, #A97832)",
+              boxShadow: "0 12px 28px rgba(184,138,68,0.28)",
+            }}
           >
             NK
           </div>
           <div>
-            <div className="text-[15px] font-black text-sidebar-foreground">
+            <div className="text-[15px] font-black text-white" style={{ letterSpacing: "-0.02em" }}>
               NK Academy
             </div>
-            <div className="text-[10.5px] font-semibold text-sidebar-foreground/55">
+            <div className="text-[10.5px] font-semibold" style={{ color: "rgba(226,232,240,0.46)" }}>
               상담관리 시스템
             </div>
           </div>
@@ -187,11 +200,18 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         </nav>
 
         {/* Footer - 공개 링크 */}
-        <div className="border-t border-sidebar-border px-3 pb-3 pt-2">
+        <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <Link
             href="/survey"
             target="_blank"
-            className="mt-2.5 flex w-full items-center gap-2 rounded-xl bg-accent px-3.5 py-2.5 text-[11.5px] font-extrabold text-accent-foreground shadow-[inset_0_0_0_1px_rgba(242,167,179,0.24)] transition-all hover:-translate-y-px"
+            className="mt-2.5 flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
+            style={{
+              fontSize: "11.5px",
+              fontWeight: 800,
+              background: "rgba(184,138,68,0.13)",
+              color: "#E9C46A",
+              boxShadow: "inset 0 0 0 1px rgba(184,138,68,0.16)",
+            }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
             공개 설문 링크
@@ -199,7 +219,14 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           <Link
             href="/booking"
             target="_blank"
-            className="mt-1.5 flex w-full items-center gap-2 rounded-xl bg-secondary px-3.5 py-2.5 text-[11.5px] font-extrabold text-secondary-foreground shadow-[inset_0_0_0_1px_rgba(143,201,168,0.22)] transition-all hover:-translate-y-px"
+            className="mt-1.5 flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
+            style={{
+              fontSize: "11.5px",
+              fontWeight: 800,
+              background: "rgba(20,184,166,0.11)",
+              color: "#8DDAD0",
+              boxShadow: "inset 0 0 0 1px rgba(45,212,191,0.13)",
+            }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
             공개 예약 링크
@@ -207,23 +234,31 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         </div>
 
         {/* User Info */}
-        <div className="mx-3 mb-3 flex items-center gap-2.5 rounded-2xl bg-white/70 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(227,237,241,0.95)]">
+        <div
+          className="mx-3 mb-3 flex items-center gap-2.5 rounded-2xl px-3 py-3"
+          style={{ background: "rgba(255,255,255,0.055)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }}
+        >
           <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-xs font-black text-sidebar-accent-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black"
+            style={{
+              background: "rgba(184,138,68,0.17)",
+              color: "#E9C46A",
+            }}
           >
             {avatarInitial}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-sidebar-foreground/80">
+            <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.7)" }}>
               {displayName}
             </div>
-            <div className="text-[10px] text-sidebar-foreground/45">
+            <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
               {displayRole}
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex cursor-pointer p-1 text-sidebar-foreground/45 transition hover:text-sidebar-accent-foreground"
+            className="p-1 flex cursor-pointer"
+            style={{ color: "rgba(255,255,255,0.25)" }}
             title="로그아웃"
           >
             <LogOut className="h-4 w-4" />

@@ -56,7 +56,15 @@ export function Header({ currentTeacher }: HeaderProps) {
   const TitleIcon = titleEntry?.[1].icon || Home;
 
   return (
-    <header className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur-[18px] md:px-7">
+    <header
+      className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b px-4 md:px-7"
+      style={{
+        background: "rgba(246,248,251,0.86)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        borderColor: "rgba(126,137,154,0.22)",
+      }}
+    >
       <div className="flex items-center gap-3">
         <Sheet>
           <SheetTrigger asChild>
@@ -70,11 +78,14 @@ export function Header({ currentTeacher }: HeaderProps) {
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card shadow-sm">
-            <TitleIcon className="h-4.5 w-4.5 text-primary" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300/70 bg-white shadow-sm">
+            <TitleIcon className="h-4.5 w-4.5 text-[#16213E]" />
           </span>
           <div>
-            <h2 className="text-[17px] font-black text-card-foreground">
+            <h2
+              className="text-[17px] font-black"
+              style={{ color: "#0F172A", letterSpacing: "-0.025em" }}
+            >
               {title}
             </h2>
             <p className="text-[11px] font-semibold text-slate-400">NK Academy Operations</p>
@@ -85,19 +96,32 @@ export function Header({ currentTeacher }: HeaderProps) {
       <div className="flex items-center gap-3">
         {/* Search */}
         <div className="relative hidden sm:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+            style={{ color: "#94A3B8" }}
+          />
           <input
             type="text"
             placeholder="검색..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="w-[240px] rounded-lg border border-border bg-card py-2 pl-9 pr-4 text-xs font-medium text-foreground shadow-sm outline-none transition-all duration-200 focus:w-[300px] focus:border-primary focus:ring-2 focus:ring-ring/30"
+            className="rounded-lg py-2 pl-9 pr-4 text-xs font-medium shadow-sm transition-all duration-200 focus:w-[300px] focus:border-[#16213E] focus:ring-2 focus:ring-[#16213E]/10"
+            style={{
+              width: "240px",
+              background: "#FFFFFF",
+              border: "1px solid #CBD5E1",
+              color: "#1E293B",
+              outline: "none",
+            }}
           />
         </div>
         {/* Bell */}
-        <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm">
+        <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-slate-300/70 bg-white shadow-sm" style={{ color: "#64748B" }}>
           <Bell className="h-[18px] w-[18px]" />
-          <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-card" />
+          <div
+            className="absolute right-2 top-2 h-2 w-2 rounded-full"
+            style={{ background: "#E11D48", border: "2px solid #FFFFFF" }}
+          />
         </div>
       </div>
     </header>

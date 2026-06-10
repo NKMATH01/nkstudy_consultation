@@ -137,7 +137,7 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
               {isAnalyzing ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  분석 중...
+                  분석 중입니다 (최대 60초 소요)
                 </>
               ) : (
                 <>

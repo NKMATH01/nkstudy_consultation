@@ -249,8 +249,18 @@ export default function BookingPage() {
 
       {/* 에러 */}
       {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-          {error}
+        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="h-9 rounded-lg border-red-200 bg-white text-red-600 hover:bg-red-50"
+          >
+            다시 시도
+          </Button>
         </div>
       )}
 

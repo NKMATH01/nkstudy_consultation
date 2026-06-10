@@ -561,6 +561,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="p-1 rounded text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "분석"}>
                               {isAnalyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
                             </button>
+                            {isAnalyzing && (
+                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">
+                                분석 중입니다 (최대 60초 소요)
+                              </span>
+                            )}
                             <button onClick={() => setDeleteTarget(item)} className="p-1 rounded text-red-400 hover:bg-red-50 transition-colors" title="삭제">
                               <Trash2 className="h-3 w-3" />
                             </button>

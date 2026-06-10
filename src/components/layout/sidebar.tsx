@@ -132,12 +132,18 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
     });
 
   const divider = (
-    <div className="mx-3 my-4" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }} />
+    <div
+      className="mx-3 my-4 h-px"
+      style={{ background: "linear-gradient(90deg, transparent, rgba(233,196,106,0.18) 30%, rgba(255,255,255,0.08) 70%, transparent)" }}
+    />
   );
 
   const sectionLabel = (label: string) => (
-    <div className="mb-2 px-3.5 uppercase" style={{ fontSize: "10px", fontWeight: 800, color: "rgba(212,168,83,0.48)", letterSpacing: "0.12em" }}>
-      {label}
+    <div className="mb-2 flex items-center gap-1.5 px-3.5">
+      <span className="h-1 w-1 rounded-full" style={{ background: "rgba(233,196,106,0.6)" }} />
+      <span className="uppercase" style={{ fontSize: "10px", fontWeight: 800, color: "rgba(212,168,83,0.55)", letterSpacing: "0.14em" }}>
+        {label}
+      </span>
     </div>
   );
 
@@ -155,27 +161,39 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             : "hidden min-h-screen w-[246px] flex-shrink-0 flex-col border-r md:flex"
         }
         style={{
-          background: "radial-gradient(circle at 22% 0%, rgba(184,138,68,0.15), transparent 30%), linear-gradient(180deg, #111827 0%, #0E1524 48%, #090E18 100%)",
-          borderColor: "rgba(255,255,255,0.08)",
+          background:
+            "radial-gradient(circle at 50% -8%, rgba(233,196,106,0.16), transparent 32%), radial-gradient(circle at 0% 100%, rgba(30,58,110,0.35), transparent 42%), linear-gradient(180deg, #0E1627 0%, #0B1220 52%, #070C16 100%)",
+          borderColor: "rgba(255,255,255,0.07)",
         }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 pb-7 pt-6">
+        <div className="px-4 pb-5 pt-5">
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-[#08111F]"
+            className="flex items-center gap-3 rounded-2xl px-3.5 py-3"
             style={{
-              background: "linear-gradient(135deg, #E9C46A, #A97832)",
-              boxShadow: "0 12px 28px rgba(184,138,68,0.28)",
+              background: "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
+              boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.14), 0 10px 30px rgba(0,0,0,0.25)",
             }}
           >
-            NK
-          </div>
-          <div>
-            <div className="text-[15px] font-black text-white" style={{ letterSpacing: "-0.02em" }}>
-              NK Academy
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-[#08111F]"
+              style={{
+                background: "linear-gradient(135deg, #F2D488 0%, #E9C46A 40%, #A97832 100%)",
+                boxShadow: "0 8px 22px rgba(184,138,68,0.4), inset 0 1px 0 rgba(255,255,255,0.45)",
+              }}
+            >
+              NK
             </div>
-            <div className="text-[10.5px] font-semibold" style={{ color: "rgba(226,232,240,0.46)" }}>
-              상담관리 시스템
+            <div className="min-w-0">
+              <div className="truncate text-[15px] font-black text-white" style={{ letterSpacing: "-0.02em" }}>
+                NK Academy
+              </div>
+              <div
+                className="text-[10px] font-bold uppercase"
+                style={{ color: "rgba(233,196,106,0.55)", letterSpacing: "0.14em" }}
+              >
+                상담관리 시스템
+              </div>
             </div>
           </div>
         </div>
@@ -216,65 +234,78 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         </nav>
 
         {/* Footer - 공개 링크 */}
-        <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+        <div
+          className="mx-3 grid grid-cols-2 gap-1.5 pb-3 pt-3"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+        >
           <Link
             href="/survey"
             target="_blank"
-            className="mt-2.5 flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
+            className="flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
             style={{
-              fontSize: "11.5px",
+              fontSize: "11px",
               fontWeight: 800,
-              background: "rgba(184,138,68,0.13)",
+              background: "linear-gradient(135deg, rgba(233,196,106,0.16), rgba(184,138,68,0.08))",
               color: "#E9C46A",
-              boxShadow: "inset 0 0 0 1px rgba(184,138,68,0.16)",
+              boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.2)",
             }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            공개 설문 링크
+            공개 설문
           </Link>
           <Link
             href="/booking"
             target="_blank"
-            className="mt-1.5 flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
+            className="flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
             style={{
-              fontSize: "11.5px",
+              fontSize: "11px",
               fontWeight: 800,
-              background: "rgba(20,184,166,0.11)",
+              background: "linear-gradient(135deg, rgba(45,212,191,0.14), rgba(20,184,166,0.06))",
               color: "#8DDAD0",
-              boxShadow: "inset 0 0 0 1px rgba(45,212,191,0.13)",
+              boxShadow: "inset 0 0 0 1px rgba(45,212,191,0.18)",
             }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            공개 예약 링크
+            공개 예약
           </Link>
         </div>
 
         {/* User Info */}
         <div
           className="mx-3 mb-3 flex items-center gap-2.5 rounded-2xl px-3 py-3"
-          style={{ background: "rgba(255,255,255,0.055)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }}
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 20px rgba(0,0,0,0.22)",
+          }}
         >
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black"
-            style={{
-              background: "rgba(184,138,68,0.17)",
-              color: "#E9C46A",
-            }}
-          >
-            {avatarInitial}
+          <div className="relative">
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black"
+              style={{
+                background: "linear-gradient(135deg, rgba(233,196,106,0.28), rgba(184,138,68,0.12))",
+                color: "#F2D488",
+                boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.3)",
+              }}
+            >
+              {avatarInitial}
+            </div>
+            <span
+              className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
+              style={{ background: "#34D399", boxShadow: "0 0 0 2px #0B1220" }}
+            />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.7)" }}>
+            <div className="truncate text-xs font-bold" style={{ color: "rgba(255,255,255,0.82)" }}>
               {displayName}
             </div>
-            <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+            <div className="text-[10px] font-semibold" style={{ color: "rgba(233,196,106,0.45)" }}>
               {displayRole}
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="p-1 flex cursor-pointer"
-            style={{ color: "rgba(255,255,255,0.25)" }}
+            className="flex cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-white/10 hover:text-red-300"
+            style={{ color: "rgba(255,255,255,0.3)" }}
             title="로그아웃"
           >
             <LogOut className="h-4 w-4" />

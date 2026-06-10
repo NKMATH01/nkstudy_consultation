@@ -74,7 +74,7 @@ export function Header({ currentTeacher }: HeaderProps) {
           </SheetTrigger>
           <SheetContent side="left" className="w-[224px] p-0">
             <SheetTitle className="sr-only">네비게이션 메뉴</SheetTitle>
-            <Sidebar currentTeacher={currentTeacher} />
+            <Sidebar inSheet currentTeacher={currentTeacher} />
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-3">

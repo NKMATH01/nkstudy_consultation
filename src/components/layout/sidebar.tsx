@@ -61,9 +61,10 @@ function filterMenuItems(
 
 interface SidebarProps {
   currentTeacher?: CurrentTeacherInfo | null;
+  inSheet?: boolean;
 }
 
-export function Sidebar({ currentTeacher }: SidebarProps) {
+export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -132,7 +133,11 @@ export function Sidebar({ currentTeacher }: SidebarProps) {
   return (
     <>
       <aside
-        className="hidden min-h-screen w-[246px] flex-shrink-0 flex-col border-r md:flex"
+        className={
+          inSheet
+            ? "flex min-h-full w-full flex-shrink-0 flex-col border-r"
+            : "hidden min-h-screen w-[246px] flex-shrink-0 flex-col border-r md:flex"
+        }
         style={{
           background: "radial-gradient(circle at 22% 0%, rgba(184,138,68,0.15), transparent 30%), linear-gradient(180deg, #111827 0%, #0E1524 48%, #090E18 100%)",
           borderColor: "rgba(255,255,255,0.08)",

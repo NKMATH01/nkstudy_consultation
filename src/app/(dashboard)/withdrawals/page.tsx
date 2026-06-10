@@ -16,7 +16,7 @@ export default async function WithdrawalsPage() {
       <div className="flex items-start gap-4">
         <div
           className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, #0F2B5B 0%, #1a3d7a 100%)" }}
+          style={{ background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)" }}
         >
           <UserMinus className="h-6 w-6 text-white" />
         </div>
@@ -29,7 +29,7 @@ export default async function WithdrawalsPage() {
           </h1>
           <div className="flex items-center gap-2 text-[12.5px]" style={{ color: "#64748B" }}>
             <span>
-              총 <span className="font-bold" style={{ color: "#0F2B5B" }}>{withdrawals.length}</span>명
+              총 <span className="font-bold" style={{ color: "var(--primary)" }}>{withdrawals.length}</span>명
             </span>
             {mathCount > 0 && (
               <>

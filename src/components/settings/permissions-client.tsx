@@ -302,7 +302,7 @@ export function PermissionsClient({ teachers }: Props) {
                           className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
                           style={{
                             background: "rgba(15,43,91,0.08)",
-                            color: "#0F2B5B",
+                            color: "var(--primary)",
                           }}
                         >
                           {teacher.name[0]}

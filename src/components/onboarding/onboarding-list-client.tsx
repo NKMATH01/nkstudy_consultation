@@ -23,8 +23,8 @@ import { deleteRegistration } from "@/lib/actions/registration";
 import { createReportToken } from "@/lib/actions/report-token";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 
-const NK_PRIMARY = "#0F2B5B";
-const NK_GOLD = "#D4A853";
+const NK_PRIMARY = "var(--primary)";
+const NK_GOLD = "var(--accent-warm)";
 
 interface OnboardingStep {
   key: string;
@@ -271,7 +271,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
         {/* Header */}
         <div
           className="border-b px-6 py-4 flex items-center justify-between"
-          style={{ background: `linear-gradient(135deg, ${NK_PRIMARY} 0%, #1a3d7a 100%)` }}
+          style={{ background: `linear-gradient(135deg, ${NK_PRIMARY} 0%, var(--primary-soft) 100%)` }}
         >
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center">

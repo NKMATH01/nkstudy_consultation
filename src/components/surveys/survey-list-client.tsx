@@ -75,7 +75,7 @@ function ResultStatusBadge({ status }: { status: ResultStatus }) {
   if (status === "none") return <span className="text-[10px] text-slate-300">-</span>;
   const styles: Record<string, string> = {
     registered: "bg-teal-600 text-white",
-    hold: "bg-[#B88A44] text-white",
+    hold: "bg-accent-warm text-accent-warm-foreground",
     other: "bg-slate-600 text-white line-through",
   };
   return (
@@ -94,7 +94,7 @@ function getRowTone(status: ResultStatus): string {
 
 function getRowStripe(status: ResultStatus): string {
   if (status === "registered") return "bg-teal-600";
-  if (status === "hold") return "bg-[#B88A44]";
+  if (status === "hold") return "bg-accent-warm";
   if (status === "other") return "bg-slate-500";
   return "bg-slate-200";
 }
@@ -348,27 +348,23 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   return (
     <div className="space-y-5">
       {/* Section Header */}
-      <div className="overflow-hidden rounded-[14px] border border-slate-200/90 bg-white shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(17,24,39,0.075)]">
-        <div className="flex flex-col gap-4 bg-gradient-to-r from-[#111827] via-[#16213E] to-[#2F3E5F] px-6 py-5 text-white md:flex-row md:items-end md:justify-between">
+      <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(94,147,172,0.08)]">
+        <div className="flex flex-col gap-4 bg-primary px-6 py-5 text-primary-foreground md:flex-row md:items-end md:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-[#E9C46A]">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-white/20 bg-white/15 px-2.5 py-1 text-[11px] font-bold text-primary-foreground">
             <ClipboardList className="h-3.5 w-3.5" />
             Survey Analysis
           </div>
           <h1 className="text-2xl font-black" style={{ letterSpacing: "-0.035em", marginBottom: "4px" }}>
             설문/분석 관리
           </h1>
-          <p className="text-[12.5px] font-medium text-slate-300">
+          <p className="text-[12.5px] font-medium text-primary-foreground/75">
             총 {initialPagination.total}건
           </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black text-[#111827] shadow-lg transition-all hover:-translate-y-px"
-          style={{
-            background: "linear-gradient(135deg, #E9C46A, #B88A44)",
-            boxShadow: "0 12px 28px rgba(184,138,68,0.25)",
-          }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-accent-warm px-3.5 py-2 text-[12.5px] font-black text-accent-warm-foreground shadow-[0_12px_28px_rgba(245,197,126,0.25)] transition-all hover:-translate-y-px"
         >
           <Plus className="h-3.5 w-3.5" />
           설문 입력
@@ -377,7 +373,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         <div className="grid grid-cols-3 divide-x divide-slate-100 bg-white">
           {[
             { label: "분석완료", value: summary.analyzed, color: "text-teal-700" },
-            { label: "등록", value: summary.registered, color: "text-[#B88A44]" },
+            { label: "등록", value: summary.registered, color: "text-accent-warm-foreground" },
             { label: "분석대기", value: summary.waiting, color: "text-slate-700" },
           ].map((item) => (
             <div key={item.label} className="px-5 py-3">
@@ -396,7 +392,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
-          className="border-0 bg-slate-50 pl-9 font-medium shadow-none focus-visible:ring-2 focus-visible:ring-[#16213E]/10"
+          className="border-0 bg-muted/50 pl-9 font-medium shadow-none focus-visible:ring-2 focus-visible:ring-ring/30"
         />
       </div>
 
@@ -409,8 +405,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           action={
             <button
               onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black text-[#111827]"
-              style={{ background: "linear-gradient(135deg, #E9C46A, #B88A44)", boxShadow: "0 12px 28px rgba(184,138,68,0.25)" }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-warm px-3.5 py-2 text-[12.5px] font-black text-accent-warm-foreground shadow-[0_12px_28px_rgba(245,197,126,0.25)]"
             >
               <Plus className="h-4 w-4" />
               설문 입력
@@ -419,7 +414,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-[14px] border border-slate-200/90 bg-white shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(17,24,39,0.075)]">
+          <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(94,147,172,0.08)]">
             <div className="overflow-x-auto">
               <table className="w-full text-sm" style={{ minWidth: "900px" }}>
                 <thead>
@@ -473,7 +468,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                           {format(new Date(item.created_at), "MM-dd")}
                         </td>
                         <td className={`px-2 py-2.5 whitespace-nowrap ${vb}`}>
-                          <Link href={nameHref} className="text-[12px] font-black text-slate-800 hover:text-[#16213E] hover:underline">{item.name}</Link>
+                          <Link href={nameHref} className="text-[12px] font-black text-slate-800 hover:text-primary hover:underline">{item.name}</Link>
                         </td>
                         <td className={`px-2 py-2.5 text-[10px] font-medium text-slate-500 whitespace-nowrap truncate ${vb}`}>
                           {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
@@ -509,7 +504,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus)}
                             className={`cursor-pointer rounded-md border-0 px-1.5 py-0.5 text-[9px] font-black outline-none ${
                               consultStatus === "registered" ? "bg-teal-600 text-white" :
-                              consultStatus === "hold" ? "bg-[#B88A44] text-white" :
+                              consultStatus === "hold" ? "bg-accent-warm text-accent-warm-foreground" :
                               consultStatus === "other" ? "bg-slate-600 text-white" :
                               "bg-slate-100 text-slate-400"
                             }`}
@@ -694,8 +689,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
             <Button
               onClick={handleRegister}
               disabled={isRegistering}
-              className="rounded-xl text-white"
-              style={{ background: "#0F2B5B" }}
+              className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isRegistering ? "처리 중..." : "등록 확인"}
             </Button>

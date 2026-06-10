@@ -454,8 +454,7 @@ export function ConsultationFormDialog({
               <Button
                 type="submit"
                 disabled={isPending}
-                className="rounded-lg text-white font-semibold px-6"
-                style={{ background: "#0F2B5B" }}
+                className="rounded-lg bg-primary px-6 font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 {isPending ? "저장 중..." : isEdit ? "수정" : "등록"}
               </Button>

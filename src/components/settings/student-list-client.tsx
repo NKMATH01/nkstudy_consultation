@@ -143,7 +143,7 @@ function InlineDateInput({ student }: { student: Student }) {
       type="date"
       value={value}
       onChange={(e) => handleChange(e.target.value)}
-      className="h-8 w-[124px] rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10"
+      className="h-8 w-[124px] rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10"
     />
   );
 }
@@ -186,8 +186,8 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
     });
   }, [grade, classes]);
 
-  const inputCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition placeholder:text-slate-400 focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10";
-  const selectCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-1.5 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10";
+  const inputCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10";
+  const selectCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-1.5 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10";
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -254,7 +254,7 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
         <input className={inputCls} placeholder="학부모 연락처" value={parentPhone} onChange={(e) => setParentPhone(formatPhone(e.target.value))} onKeyDown={handleKeyDown} />
       </TableCell>
       <TableCell className="px-4 py-2.5">
-        <Button size="sm" className="h-8 rounded-md px-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-px" style={{ background: "#0F2B5B" }} onClick={handleSave} disabled={isPending}>
+        <Button size="sm" className="h-8 rounded-md px-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-px" style={{ background: "var(--primary)" }} onClick={handleSave} disabled={isPending}>
           {isPending ? "..." : "저장"}
         </Button>
       </TableCell>
@@ -263,7 +263,7 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
 }
 
 // ── 필터 드롭다운 스타일 ──
-const filterSelectCls = "h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-sm transition focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10";
+const filterSelectCls = "h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-sm transition focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10";
 
 // ── 메인 컴포넌트 ──
 export function StudentList({ students, teachers, classes, canDelete = false }: Props) {
@@ -397,14 +397,14 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
         <div className="flex items-center justify-between border-b border-slate-200/70 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-4">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-800">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm">
-              <GraduationCap className="h-4 w-4 text-[#0F2B5B]" />
+              <GraduationCap className="h-4 w-4 text-[var(--primary)]" />
             </span>
             학생 정보 관리
           </h3>
           <button
             onClick={handleAdd}
             className="flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
-            style={{ background: "#0F2B5B" }}
+            style={{ background: "var(--primary)" }}
           >
             <Plus className="h-3 w-3" />
             추가
@@ -420,7 +420,7 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
               placeholder="이름 검색"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              className="h-8 w-[140px] rounded-md border border-slate-200 bg-white pl-8 pr-2 text-xs font-medium text-slate-700 shadow-sm transition placeholder:text-slate-400 focus:border-[#0F2B5B] focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/10"
+              className="h-8 w-[140px] rounded-md border border-slate-200 bg-white pl-8 pr-2 text-xs font-medium text-slate-700 shadow-sm transition placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10"
             />
           </div>
           <Filter className="h-4 w-4 text-slate-400" />
@@ -464,7 +464,7 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
               title="등록된 학생이 없습니다"
               description="새로운 학생을 추가해보세요"
               action={
-                <Button size="sm" onClick={handleAdd} className="rounded-lg text-white text-xs" style={{ background: "#0F2B5B" }}>
+                <Button size="sm" onClick={handleAdd} className="rounded-lg text-white text-xs" style={{ background: "var(--primary)" }}>
                   <Plus className="h-3 w-3 mr-1" />
                   학생 추가
                 </Button>

@@ -186,14 +186,14 @@ export function ClassList({ classes, teachers, students }: Props) {
         <div className="flex items-center justify-between border-b border-slate-200/70 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-4">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-800">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm">
-              <BookOpen className="h-4 w-4 text-[#0F2B5B]" />
+              <BookOpen className="h-4 w-4 text-[var(--primary)]" />
             </span>
             반 정보 관리
           </h3>
           <button
             onClick={handleAdd}
             className="flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
-            style={{ background: "#0F2B5B" }}
+            style={{ background: "var(--primary)" }}
           >
             <Plus className="h-3 w-3" />
             추가
@@ -236,7 +236,7 @@ export function ClassList({ classes, teachers, students }: Props) {
               title="등록된 반이 없습니다"
               description="새로운 반을 추가해보세요"
               action={
-                <Button size="sm" onClick={handleAdd} className="rounded-lg text-white text-xs" style={{ background: "#0F2B5B" }}>
+                <Button size="sm" onClick={handleAdd} className="rounded-lg text-white text-xs" style={{ background: "var(--primary)" }}>
                   <Plus className="h-3 w-3 mr-1" />
                   반 추가
                 </Button>

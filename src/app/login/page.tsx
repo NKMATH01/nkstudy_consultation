@@ -144,7 +144,7 @@ export default function LoginPage() {
           <div className="text-center mb-6">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-extrabold text-white"
-              style={{ background: "linear-gradient(135deg, #D4A853, #B8892E)" }}
+              style={{ background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))" }}
             >
               NK
             </div>
@@ -199,7 +199,7 @@ export default function LoginPage() {
               type="submit"
               disabled={changingPassword}
               className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #D4A853, #C49B3D)" }}
+              style={{ background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))" }}
             >
               {changingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
               {changingPassword ? "변경 중..." : "비밀번호 변경"}
@@ -225,8 +225,8 @@ export default function LoginPage() {
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-extrabold text-white"
             style={{
-              background: "linear-gradient(135deg, #D4A853, #B8892E)",
-              boxShadow: "0 8px 32px rgba(212,168,83,0.3)",
+              background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))",
+              boxShadow: "0 8px 32px color-mix(in srgb, var(--accent-warm) 30%, transparent)",
               letterSpacing: "-0.03em",
             }}
           >
@@ -301,7 +301,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="w-full py-3 rounded-[10px] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-1.5"
-              style={{ background: "linear-gradient(135deg, #D4A853, #C49B3D)", boxShadow: "0 2px 8px rgba(212,168,83,0.3)" }}
+              style={{ background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))", boxShadow: "0 2px 8px color-mix(in srgb, var(--accent-warm) 30%, transparent)" }}
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? "로그인 중..." : "관리자 로그인"}
@@ -362,8 +362,8 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3 rounded-[10px] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-1.5"
               style={{
-                background: "linear-gradient(135deg, #D4A853, #C49B3D)",
-                boxShadow: "0 2px 8px rgba(212,168,83,0.3)",
+                background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))",
+                boxShadow: "0 2px 8px color-mix(in srgb, var(--accent-warm) 30%, transparent)",
               }}
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}

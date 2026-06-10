@@ -200,7 +200,7 @@ export function WithdrawalList({ withdrawals }: Props) {
   };
 
   const filterSelectCls =
-    "h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0F2B5B]/30 focus:border-[#0F2B5B]/50 transition-colors";
+    "h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/50 transition-colors";
 
   return (
     <>
@@ -209,7 +209,7 @@ export function WithdrawalList({ withdrawals }: Props) {
         style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.04)" }}
       >
         {/* ─── Header ─── */}
-        <div className="border-b px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #0F2B5B 0%, #1a3d7a 100%)" }}>
+        <div className="border-b px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)" }}>
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center">
               <UserMinus className="h-5 w-5 text-white" />
@@ -222,7 +222,7 @@ export function WithdrawalList({ withdrawals }: Props) {
           <button
             onClick={() => { setEditTarget(undefined); setShowForm(true); }}
             className="h-8 px-4 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all hover:-translate-y-px hover:shadow-lg"
-            style={{ background: "#D4A853", color: "#0F2B5B" }}
+            style={{ background: "var(--accent-warm)", color: "var(--primary)" }}
           >
             <Plus className="h-3.5 w-3.5" />
             퇴원생 등록
@@ -240,11 +240,11 @@ export function WithdrawalList({ withdrawals }: Props) {
                   ? "text-white shadow-sm"
                   : "bg-[#F1F5F9] text-slate-500 hover:bg-slate-200"
               }`}
-              style={activeMonth === null ? { background: "#0F2B5B" } : undefined}
+              style={activeMonth === null ? { background: "var(--primary)" } : undefined}
             >
               전체
               {activeMonth === null && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "#D4A853", color: "#0F2B5B" }}>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "var(--accent-warm)", color: "var(--primary)" }}>
                   {withdrawals.length}
                 </span>
               )}
@@ -261,11 +261,11 @@ export function WithdrawalList({ withdrawals }: Props) {
                       ? "text-white shadow-sm"
                       : "bg-[#F1F5F9] text-slate-500 hover:bg-slate-200"
                   }`}
-                  style={isActive ? { background: "#0F2B5B" } : undefined}
+                  style={isActive ? { background: "var(--primary)" } : undefined}
                 >
                   {month}월
                   {isActive && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "#D4A853", color: "#0F2B5B" }}>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "var(--accent-warm)", color: "var(--primary)" }}>
                       {count}
                     </span>
                   )}
@@ -297,7 +297,7 @@ export function WithdrawalList({ withdrawals }: Props) {
                     onClick={() => setFilterSubject(filterSubject === subject ? "" : subject)}
                     className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-all ${
                       filterSubject === subject
-                        ? "bg-[#0F2B5B] text-white font-bold shadow-sm"
+                        ? "bg-[var(--primary)] text-white font-bold shadow-sm"
                         : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                     }`}
                   >
@@ -333,7 +333,7 @@ export function WithdrawalList({ withdrawals }: Props) {
           {hasFilter && (
             <button
               onClick={clearFilters}
-              className="inline-flex items-center gap-1 text-xs text-[#0F2B5B] hover:text-[#0F2B5B]/70 font-semibold transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-[var(--primary)] hover:text-[var(--primary)]/70 font-semibold transition-colors"
             >
               <X className="h-3 w-3" />
               필터 초기화
@@ -349,9 +349,9 @@ export function WithdrawalList({ withdrawals }: Props) {
           <div className="py-20 flex flex-col items-center justify-center text-center px-6">
             <div
               className="h-20 w-20 rounded-2xl flex items-center justify-center mb-5"
-              style={{ background: "linear-gradient(135deg, #0F2B5B10 0%, #D4A85320 100%)" }}
+              style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, transparent) 0%, color-mix(in srgb, var(--accent-warm) 20%, transparent) 100%)" }}
             >
-              <UserMinus className="h-10 w-10" style={{ color: "#0F2B5B" }} />
+              <UserMinus className="h-10 w-10" style={{ color: "var(--primary)" }} />
             </div>
             <h3 className="text-base font-bold text-slate-700 mb-1">등록된 퇴원생이 없습니다</h3>
             <p className="text-sm text-slate-400 mb-6 max-w-xs">
@@ -360,7 +360,7 @@ export function WithdrawalList({ withdrawals }: Props) {
             <button
               onClick={() => { setEditTarget(undefined); setShowForm(true); }}
               className="h-9 px-5 rounded-xl text-white text-sm font-bold flex items-center gap-2 transition-all hover:-translate-y-px hover:shadow-lg"
-              style={{ background: "#0F2B5B" }}
+              style={{ background: "var(--primary)" }}
             >
               <Plus className="h-4 w-4" />
               첫 퇴원생 등록하기
@@ -375,7 +375,7 @@ export function WithdrawalList({ withdrawals }: Props) {
             <p className="text-xs text-slate-400 mb-4">조건을 변경하거나 필터를 초기화해보세요</p>
             <button
               onClick={clearFilters}
-              className="text-xs text-[#0F2B5B] font-semibold hover:underline"
+              className="text-xs text-[var(--primary)] font-semibold hover:underline"
             >
               필터 초기화
             </button>
@@ -401,7 +401,7 @@ export function WithdrawalList({ withdrawals }: Props) {
             {filtered.map((w) => {
               const isExpanded = expandedId === w.id;
               return (
-                <div key={w.id} className={`border-b border-slate-100 last:border-b-0 transition-colors ${isExpanded ? "bg-[#0F2B5B]/[0.015]" : ""}`}>
+                <div key={w.id} className={`border-b border-slate-100 last:border-b-0 transition-colors ${isExpanded ? "bg-[var(--primary)]/[0.015]" : ""}`}>
                   {/* ─ Summary Row ─ */}
                   <div
                     className="px-6 py-3 flex items-center gap-4 hover:bg-slate-50/80 transition-colors cursor-pointer group"
@@ -409,7 +409,7 @@ export function WithdrawalList({ withdrawals }: Props) {
                   >
                     <span className="flex-shrink-0 w-5 flex items-center justify-center">
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-[#0F2B5B]" />
+                        <ChevronDown className="h-4 w-4 text-[var(--primary)]" />
                       ) : (
                         <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
                       )}
@@ -447,7 +447,7 @@ export function WithdrawalList({ withdrawals }: Props) {
                   {isExpanded && (
                     <div className="mx-6 mb-4 rounded-xl border border-slate-200 overflow-hidden" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
                       {/* Detail Header Strip */}
-                      <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "linear-gradient(90deg, #0F2B5B08 0%, #D4A85308 100%)" }}>
+                      <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--primary) 8%, transparent) 0%, color-mix(in srgb, var(--accent-warm) 8%, transparent) 100%)" }}>
                         <div className="flex items-center gap-4 text-xs text-slate-500">
                           <span><span className="text-slate-400">학교:</span> <span className="font-semibold text-slate-700">{w.school || "-"}</span></span>
                           <span className="text-slate-200">|</span>

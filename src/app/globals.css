@@ -266,23 +266,23 @@
 
 /* Navy button gradient */
 .btn-gradient-primary {
-  background: linear-gradient(135deg, #0F2B5B 0%, #1A3F7A 100%);
-  box-shadow: 0 1px 3px rgba(15,43,91,0.3);
+  background: linear-gradient(135deg, var(--primary), var(--primary-soft));
+  box-shadow: 0 1px 3px rgba(94, 147, 172, 0.26);
   transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .btn-gradient-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15,43,91,0.35);
+  box-shadow: 0 4px 12px rgba(94, 147, 172, 0.32);
 }
 .btn-gradient-primary:active {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(15,43,91,0.3);
+  box-shadow: 0 1px 2px rgba(94, 147, 172, 0.26);
 }
 
 /* Gold accent button */
 .btn-gradient-accent {
-  background: linear-gradient(135deg, #D4A853, #C49B3D);
-  box-shadow: 0 2px 8px rgba(212,168,83,0.25);
+  background: linear-gradient(135deg, var(--accent-warm), var(--chart-4));
+  box-shadow: 0 2px 8px rgba(245, 197, 126, 0.25);
   transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .btn-gradient-accent:hover {

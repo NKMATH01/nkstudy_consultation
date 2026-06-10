@@ -29,8 +29,8 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const NK_PRIMARY = "#0F2B5B";
-const NK_GOLD = "#D4A853";
+const NK_PRIMARY = "var(--primary)";
+const NK_GOLD = "var(--accent-warm)";
 const NK_PRIMARY_LIGHT = "#1A3F7A";
 const NK_BLUE_50 = "#EFF4FB";
 
@@ -38,8 +38,8 @@ const SUBJECT_TABS = ["전체", "수학", "영어"] as const;
 type SubjectTab = (typeof SUBJECT_TABS)[number];
 
 const REASON_COLORS = [
-  "#0F2B5B",
-  "#D4A853",
+  "var(--primary)",
+  "var(--accent-warm)",
   "#3B82F6",
   "#EF4444",
   "#10B981",

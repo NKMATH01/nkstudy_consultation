@@ -14,7 +14,7 @@ export default function BookingPublicLayout({
         <div className="max-w-[520px] mx-auto px-4 py-3 flex items-center gap-2.5">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-extrabold text-white"
-            style={{ background: "linear-gradient(135deg, #D4A853, #B8892E)" }}
+            style={{ background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))" }}
           >
             NK
           </div>

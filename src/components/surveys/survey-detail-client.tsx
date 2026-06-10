@@ -248,7 +248,7 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
         style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
       >
         <h3 className="text-[14.5px] font-bold mb-4 flex items-center gap-2" style={{ color: "#1E293B" }}>
-          <div className="w-1 h-5 rounded-full" style={{ background: "#D4A853" }} />
+          <div className="w-1 h-5 rounded-full" style={{ background: "var(--accent-warm)" }} />
           설문 응답 ({SURVEY_QUESTIONS.length}문항)
         </h3>
         <div className="space-y-1">

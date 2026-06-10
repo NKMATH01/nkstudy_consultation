@@ -115,8 +115,8 @@ export default function PublicSurveyPage() {
   if (submitted || step === TOTAL_STEPS - 1) {
     return (
       <div className="text-center py-16 space-y-5">
-        <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #d1fae5, #a7f3d0)" }}>
-          <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+          <CheckCircle2 className="h-10 w-10 text-secondary-foreground" />
         </div>
         <h2 className="text-2xl font-bold text-slate-800">설문이 제출되었습니다!</h2>
         <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
@@ -124,7 +124,7 @@ export default function PublicSurveyPage() {
           NK EDU에서 꼼꼼히 분석한 후 연락드리겠습니다.
         </p>
         <div className="pt-4">
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #D4A853, #B8892E)" }}>
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
             <Sparkles className="h-4 w-4" />
             NK Academy
           </div>
@@ -148,7 +148,7 @@ export default function PublicSurveyPage() {
             className="h-full rounded-full transition-all duration-500 ease-out"
             style={{
               width: `${progressPercent}%`,
-              background: "linear-gradient(90deg, #0F2B5B, #3b82f6)",
+              background: "linear-gradient(90deg, var(--primary), var(--primary-soft))",
             }}
           />
         </div>
@@ -195,14 +195,14 @@ export default function PublicSurveyPage() {
         <Button
           onClick={goNext}
           disabled={!canGoNext() || isPending}
-          className="rounded-xl h-11 px-6 font-semibold text-white shadow-lg"
+          className="h-11 rounded-xl px-6 font-semibold text-primary-foreground shadow-lg"
           style={{
             background: step === TOTAL_STEPS - 2
-              ? "linear-gradient(135deg, #10b981, #059669)"
-              : "linear-gradient(135deg, #0F2B5B, #1e3a6e)",
+              ? "linear-gradient(135deg, var(--chart-2), var(--secondary-foreground))"
+              : "linear-gradient(135deg, var(--primary), var(--primary-soft))",
             boxShadow: step === TOTAL_STEPS - 2
-              ? "0 4px 14px rgba(16,185,129,0.3)"
-              : "0 4px 14px rgba(15,43,91,0.25)",
+              ? "0 4px 14px rgba(143,201,168,0.30)"
+              : "0 4px 14px rgba(94,147,172,0.25)",
           }}
         >
           {isPending ? (
@@ -243,7 +243,7 @@ const REFERRAL_OPTIONS = [
 function SectionHeader({ icon: Icon, title, color }: { icon: React.ElementType; title: string; color: string }) {
   return (
     <div className="flex items-center gap-2.5 pb-3 mb-4 border-b border-slate-100">
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${color} 15%, transparent)` }}>
         <Icon className="h-3.5 w-3.5" style={{ color }} />
       </div>
       <span className="text-sm font-bold text-slate-700">{title}</span>
@@ -260,7 +260,7 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   );
 }
 
-const fieldClass = "w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors bg-slate-50/50";
+const fieldClass = "w-full rounded-xl border border-border bg-muted/50 px-3.5 py-2.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30";
 
 function formatPhone(v: string) {
   let digits = v.replace(/\D/g, "");
@@ -290,7 +290,7 @@ function StepInfo({
 
       {/* 학생 정보 */}
       <div>
-        <SectionHeader icon={User} title="학생 정보" color="#3b82f6" />
+        <SectionHeader icon={User} title="학생 정보" color="var(--chart-1)" />
         <div className="space-y-3.5">
           <div>
             <FieldLabel required>이름</FieldLabel>
@@ -330,7 +330,7 @@ function StepInfo({
 
       {/* 연락처 */}
       <div>
-        <SectionHeader icon={Phone} title="연락처" color="#8b5cf6" />
+        <SectionHeader icon={Phone} title="연락처" color="var(--chart-5)" />
         <div className="space-y-3.5">
           <div>
             <FieldLabel required>학생 연락처</FieldLabel>
@@ -359,7 +359,7 @@ function StepInfo({
 
       {/* 학원 경로 */}
       <div>
-        <SectionHeader icon={MapPin} title="학원 방문 경로" color="#f59e0b" />
+        <SectionHeader icon={MapPin} title="학원 방문 경로" color="var(--chart-4)" />
         <div className="space-y-3.5">
           <div>
             <FieldLabel required>NK 학원을 알게 된 경로</FieldLabel>
@@ -390,7 +390,7 @@ function StepInfo({
 
       {/* 이전 학원 */}
       <div>
-        <SectionHeader icon={School} title="이전 학원 정보" color="#ef4444" />
+        <SectionHeader icon={School} title="이전 학원 정보" color="var(--destructive)" />
         <div className="space-y-3.5">
           <div>
             <FieldLabel>기존에 다녔던 학원</FieldLabel>
@@ -473,7 +473,7 @@ function StepQuestions({
           return (
             <div key={qKey} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-3">
               <p className="text-[13px] font-semibold text-slate-700 leading-relaxed">
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold mr-2 text-white" style={{ background: "linear-gradient(135deg, #0F2B5B, #1e3a6e)" }}>
+                <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
                   {qNum}
                 </span>
                 {q}
@@ -486,13 +486,13 @@ function StepQuestions({
                       key={val}
                       type="button"
                       onClick={() => onScoreChange(qKey, val)}
-                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all duration-150"
+                      className={`flex flex-col items-center gap-1 rounded-xl border-2 py-2.5 text-xs font-bold transition-all duration-150 ${
+                        isSelected
+                          ? "border-primary bg-primary text-primary-foreground shadow-[0_2px_8px_rgba(94,147,172,0.25)]"
+                          : "border-border bg-card text-muted-foreground"
+                      }`}
                       style={{
-                        borderColor: isSelected ? "#2563EB" : "#e2e8f0",
-                        background: isSelected ? "#2563EB" : "#ffffff",
-                        color: isSelected ? "#ffffff" : "#94a3b8",
                         transform: isSelected ? "scale(1.03)" : "scale(1)",
-                        boxShadow: isSelected ? "0 2px 8px rgba(37,99,235,0.25)" : "none",
                       }}
                     >
                       <span className="text-base font-extrabold">{val}</span>

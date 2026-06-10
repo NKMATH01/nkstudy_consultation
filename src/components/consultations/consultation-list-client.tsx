@@ -380,7 +380,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
             }}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
             style={{
-              background: "linear-gradient(135deg, #D4A853, #C49B3D)",
+              background: "linear-gradient(135deg, var(--accent-warm), var(--chart-4))",
               boxShadow: "0 2px 8px rgba(212,168,83,0.25)",
             }}
           >

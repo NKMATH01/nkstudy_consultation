@@ -19,7 +19,7 @@ export default async function WithdrawalDashboardPage() {
       <div className="flex items-start gap-4">
         <div
           className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, #0F2B5B 0%, #1a3d7a 100%)" }}
+          style={{ background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)" }}
         >
           <BarChart3 className="h-6 w-6 text-white" />
         </div>
@@ -34,7 +34,7 @@ export default async function WithdrawalDashboardPage() {
             <span>전체 퇴원생 데이터를 종합적으로 분석합니다</span>
             <span className="text-slate-300">|</span>
             <span>
-              총 <span className="font-bold" style={{ color: "#0F2B5B" }}>{withdrawals.length}</span>명
+              총 <span className="font-bold" style={{ color: "var(--primary)" }}>{withdrawals.length}</span>명
             </span>
             {mathCount > 0 && (
               <>

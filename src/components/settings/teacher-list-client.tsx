@@ -180,7 +180,7 @@ export function TeacherList({ teachers }: Props) {
           <button
             onClick={handleAdd}
             className="h-7 px-3 rounded-lg text-white text-xs font-bold flex items-center gap-1 transition-all hover:-translate-y-px"
-            style={{ background: "#0F2B5B" }}
+            style={{ background: "var(--primary)" }}
           >
             <Plus className="h-3 w-3" />
             추가
@@ -196,10 +196,10 @@ export function TeacherList({ teachers }: Props) {
                 ? "text-white shadow-sm"
                 : "bg-slate-100 text-slate-500 hover:bg-slate-200"
             }`}
-            style={activeTab === "teacher" ? { background: "#0F2B5B" } : undefined}
+            style={activeTab === "teacher" ? { background: "var(--primary)" } : undefined}
           >
             담임 선생님
-            <span className={`ml-1.5 text-[10px] font-bold ${activeTab === "teacher" ? "text-[#D4A853]" : "text-slate-400"}`}>
+            <span className={`ml-1.5 text-[10px] font-bold ${activeTab === "teacher" ? "text-[var(--accent-warm)]" : "text-slate-400"}`}>
               {teacherCount}
             </span>
           </button>
@@ -255,7 +255,7 @@ export function TeacherList({ teachers }: Props) {
               title={activeTab === "clinic" ? "등록된 클리닉 선생님이 없습니다" : "등록된 선생님이 없습니다"}
               description="새로운 선생님을 추가해보세요"
               action={
-                <Button size="sm" onClick={handleAdd} className="rounded-lg text-white text-xs" style={{ background: "#0F2B5B" }}>
+                <Button size="sm" onClick={handleAdd} className="rounded-lg text-white text-xs" style={{ background: "var(--primary)" }}>
                   <Plus className="h-3 w-3 mr-1" />
                   선생님 추가
                 </Button>

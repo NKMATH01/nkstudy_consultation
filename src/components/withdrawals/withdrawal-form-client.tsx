@@ -293,7 +293,7 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
                 size="sm"
                 onClick={handleParse}
                 className="h-7 px-3 rounded-lg text-xs font-bold"
-                style={{ background: "#0F2B5B" }}
+                style={{ background: "var(--primary)" }}
               >
                 <Wand2 className="h-3 w-3 mr-1" />
                 텍스트 분석
@@ -490,7 +490,7 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
           {/* Submit */}
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
-            <Button onClick={handleSubmit} disabled={isPending} style={{ background: "#0F2B5B" }}>
+            <Button onClick={handleSubmit} disabled={isPending} style={{ background: "var(--primary)" }}>
               {isPending ? (isEditMode ? "수정 중..." : "등록 중...") : (isEditMode ? "퇴원생 수정" : "퇴원생 등록")}
             </Button>
           </div>

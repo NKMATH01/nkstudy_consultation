@@ -62,8 +62,8 @@ interface Props {
   analyses: AnalysisItem[];
 }
 
-const NK_PRIMARY = "#16213E";
-const NK_GOLD = "#B88A44";
+const NK_PRIMARY = "var(--primary)";
+const NK_GOLD = "var(--accent-warm-foreground)";
 const NK_TEAL = "#0F766E";
 const GRID = "#E5EAF1";
 
@@ -224,10 +224,10 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
 
   // Stat cards with filtered values
   const statCards = [
-    { key: "consult", label: "전체 상담", value: activeMonth === null ? stats.consultations : filteredStats.total, icon: Users, bg: "linear-gradient(135deg,#16213E,#31456F)", shadow: "rgba(22,33,62,0.18)" },
+    { key: "consult", label: "전체 상담", value: activeMonth === null ? stats.consultations : filteredStats.total, icon: Users, bg: "linear-gradient(135deg,var(--primary),var(--primary-soft))", shadow: "color-mix(in srgb, var(--primary) 18%, transparent)" },
     { key: "registered", label: "등록 완료", value: filteredStats.registered, icon: FileText, bg: "linear-gradient(135deg,#0F766E,#2DD4BF)", shadow: "rgba(15,118,110,0.16)" },
     { key: "survey", label: "설문 완료", value: filteredSurveys.length, icon: ClipboardList, bg: "linear-gradient(135deg,#4F46E5,#8B8CF6)", shadow: "rgba(79,70,229,0.15)" },
-    { key: "analysis", label: "성향분석", value: filteredAnalyses.length, icon: Sparkles, bg: "linear-gradient(135deg,#B88A44,#E9C46A)", shadow: "rgba(184,138,68,0.16)" },
+    { key: "analysis", label: "성향분석", value: filteredAnalyses.length, icon: Sparkles, bg: "linear-gradient(135deg,var(--accent-warm-foreground),var(--accent-warm))", shadow: "color-mix(in srgb, var(--accent-warm-foreground) 16%, transparent)" },
   ];
 
   // Get students for card popup
@@ -258,7 +258,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
         <button
           onClick={() => setActiveMonth(null)}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
-            activeMonth === null ? "border-[#16213E] text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+            activeMonth === null ? "border-[var(--primary)] text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
           }`}
           style={activeMonth === null ? { background: NK_PRIMARY } : undefined}
         >
@@ -277,7 +277,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
               key={ym}
               onClick={() => setActiveMonth(isActive ? null : ym)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-bold transition-all ${
-                isActive ? "border-[#16213E] text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                isActive ? "border-[var(--primary)] text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
               }`}
               style={isActive ? { background: NK_PRIMARY } : undefined}
             >
@@ -352,12 +352,12 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
                 <BarChart data={monthlyData} barCategoryGap="32%" margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
                   <defs>
                     <linearGradient id="consultGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#31456F" />
-                      <stop offset="100%" stopColor="#16213E" />
+                      <stop offset="0%" stopColor="var(--primary-soft)" />
+                      <stop offset="100%" stopColor="var(--primary)" />
                     </linearGradient>
                     <linearGradient id="registerGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#E9C46A" />
-                      <stop offset="100%" stopColor="#B88A44" />
+                      <stop offset="0%" stopColor="var(--accent-warm)" />
+                      <stop offset="100%" stopColor="var(--accent-warm-foreground)" />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="2 6" stroke={GRID} vertical={false} />

@@ -191,6 +191,11 @@ export default function PublicSurveyPage() {
         </div>
         <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
           <div
+            role="progressbar"
+            aria-label="설문 진행률"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
             className="h-full rounded-full transition-all duration-500 ease-out"
             style={{
               width: `${progressPercent}%`,
@@ -313,9 +318,9 @@ function SectionHeader({ icon: Icon, title, color }: { icon: React.ElementType; 
   );
 }
 
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function FieldLabel({ children, htmlFor, required }: { children: React.ReactNode; htmlFor?: string; required?: boolean }) {
   return (
-    <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">
+    <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-slate-600 mb-1.5">
       {children}
       {required && <span className="text-red-400 ml-0.5">*</span>}
     </label>
@@ -355,8 +360,9 @@ function StepInfo({
         <SectionHeader icon={User} title="학생 정보" color="var(--chart-1)" />
         <div className="space-y-3.5">
           <div>
-            <FieldLabel required>이름</FieldLabel>
+            <FieldLabel htmlFor="survey-name" required>이름</FieldLabel>
             <Input
+              id="survey-name"
               value={info.name}
               onChange={(e) => update("name", e.target.value)}
               placeholder="학생 이름"
@@ -365,8 +371,9 @@ function StepInfo({
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <FieldLabel>학교</FieldLabel>
+              <FieldLabel htmlFor="survey-school">학교</FieldLabel>
               <Input
+                id="survey-school"
                 value={info.school}
                 onChange={(e) => update("school", e.target.value)}
                 placeholder="예: OO중학교"
@@ -374,8 +381,9 @@ function StepInfo({
               />
             </div>
             <div>
-              <FieldLabel>학년</FieldLabel>
+              <FieldLabel htmlFor="survey-grade">학년</FieldLabel>
               <select
+                id="survey-grade"
                 value={info.grade}
                 onChange={(e) => update("grade", e.target.value)}
                 className={fieldClass}
@@ -395,8 +403,9 @@ function StepInfo({
         <SectionHeader icon={Phone} title="연락처" color="var(--chart-5)" />
         <div className="space-y-3.5">
           <div>
-            <FieldLabel required>학생 연락처</FieldLabel>
+            <FieldLabel htmlFor="survey-student-phone" required>학생 연락처</FieldLabel>
             <Input
+              id="survey-student-phone"
               type="tel"
               inputMode="numeric"
               value={info.student_phone}
@@ -406,8 +415,9 @@ function StepInfo({
             />
           </div>
           <div>
-            <FieldLabel required>학부모 연락처</FieldLabel>
+            <FieldLabel htmlFor="survey-parent-phone" required>학부모 연락처</FieldLabel>
             <Input
+              id="survey-parent-phone"
               type="tel"
               inputMode="numeric"
               value={info.parent_phone}
@@ -424,8 +434,9 @@ function StepInfo({
         <SectionHeader icon={MapPin} title="학원 방문 경로" color="var(--chart-4)" />
         <div className="space-y-3.5">
           <div>
-            <FieldLabel required>NK 학원을 알게 된 경로</FieldLabel>
+            <FieldLabel htmlFor="survey-referral" required>NK 학원을 알게 된 경로</FieldLabel>
             <select
+              id="survey-referral"
               value={info.referral}
               onChange={(e) => update("referral", e.target.value)}
               className={fieldClass}
@@ -438,8 +449,9 @@ function StepInfo({
           </div>
           {info.referral === "친구소개" && (
             <div>
-              <FieldLabel required>소개해준 친구 이름</FieldLabel>
+              <FieldLabel htmlFor="survey-referral-friend" required>소개해준 친구 이름</FieldLabel>
               <Input
+                id="survey-referral-friend"
                 value={info.referral_friend}
                 onChange={(e) => update("referral_friend", e.target.value)}
                 placeholder="친구 이름 (추후 같은 반 배정 참고)"
@@ -455,8 +467,9 @@ function StepInfo({
         <SectionHeader icon={School} title="이전 학원 정보" color="var(--destructive)" />
         <div className="space-y-3.5">
           <div>
-            <FieldLabel>기존에 다녔던 학원</FieldLabel>
+            <FieldLabel htmlFor="survey-prev-academy">기존에 다녔던 학원</FieldLabel>
             <Input
+              id="survey-prev-academy"
               value={info.prev_academy}
               onChange={(e) => update("prev_academy", e.target.value)}
               placeholder="예: OO학원, 1년"
@@ -465,8 +478,9 @@ function StepInfo({
             <p className="text-[11px] text-slate-400 mt-1">학원 이름과 다닌 기간을 알려주세요.</p>
           </div>
           <div>
-            <FieldLabel>기존 학원을 그만둔 결정적 이유</FieldLabel>
+            <FieldLabel htmlFor="survey-prev-complaint-reason">기존 학원을 그만둔 결정적 이유</FieldLabel>
             <select
+              id="survey-prev-complaint-reason"
               value={info.prev_complaint_reason}
               onChange={(e) => update("prev_complaint_reason", e.target.value)}
               className={fieldClass}
@@ -478,8 +492,9 @@ function StepInfo({
             </select>
           </div>
           <div>
-            <FieldLabel required>기존 학원에서 아쉬웠던 점</FieldLabel>
+            <FieldLabel htmlFor="survey-prev-complaint" required>기존 학원에서 아쉬웠던 점</FieldLabel>
             <textarea
+              id="survey-prev-complaint"
               value={info.prev_complaint}
               onChange={(e) => update("prev_complaint", e.target.value)}
               placeholder="예: 개인별 관리가 부족했다, 숙제 체크가 안 되었다 등"
@@ -489,8 +504,9 @@ function StepInfo({
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <FieldLabel>내신점수</FieldLabel>
+              <FieldLabel htmlFor="survey-school-score">내신점수</FieldLabel>
               <Input
+                id="survey-school-score"
                 inputMode="decimal"
                 value={info.school_score}
                 onChange={(e) => update("school_score", e.target.value)}
@@ -499,8 +515,9 @@ function StepInfo({
               />
             </div>
             <div>
-              <FieldLabel>최근 모의고사/전국단위 성적</FieldLabel>
+              <FieldLabel htmlFor="survey-mock-exam-score">최근 모의고사/전국단위 성적</FieldLabel>
               <Input
+                id="survey-mock-exam-score"
                 inputMode="decimal"
                 value={info.mock_exam_score}
                 onChange={(e) => update("mock_exam_score", e.target.value)}
@@ -509,8 +526,9 @@ function StepInfo({
               />
             </div>
             <div>
-              <FieldLabel>현재 진도 / 선행 정도</FieldLabel>
+              <FieldLabel htmlFor="survey-advance-level">현재 진도 / 선행 정도</FieldLabel>
               <Input
+                id="survey-advance-level"
                 value={info.advance_level}
                 onChange={(e) => update("advance_level", e.target.value)}
                 placeholder="예: 중2-1 일차함수"
@@ -520,8 +538,9 @@ function StepInfo({
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <FieldLabel>통학 수단</FieldLabel>
+              <FieldLabel htmlFor="survey-commute-method">통학 수단</FieldLabel>
               <select
+                id="survey-commute-method"
                 value={info.commute_method}
                 onChange={(e) => update("commute_method", e.target.value)}
                 className={fieldClass}
@@ -533,8 +552,9 @@ function StepInfo({
               </select>
             </div>
             <div>
-              <FieldLabel>통원 소요 시간/거리</FieldLabel>
+              <FieldLabel htmlFor="survey-commute-distance">통원 소요 시간/거리</FieldLabel>
               <Input
+                id="survey-commute-distance"
                 value={info.commute_distance}
                 onChange={(e) => update("commute_distance", e.target.value)}
                 placeholder="예: 차량 20분 / 도보 10분"
@@ -543,8 +563,9 @@ function StepInfo({
             </div>
           </div>
           <div>
-            <FieldLabel>형제·자매 재원/타학원 여부</FieldLabel>
+            <FieldLabel htmlFor="survey-sibling-enrolled">형제·자매 재원/타학원 여부</FieldLabel>
             <select
+              id="survey-sibling-enrolled"
               value={info.sibling_enrolled}
               onChange={(e) => update("sibling_enrolled", e.target.value)}
               className={fieldClass}
@@ -601,13 +622,15 @@ function StepQuestions({
                 </span>
                 {q}
               </p>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label={`${qNum}. ${q}`}>
                 {[1, 2, 3, 4, 5].map((val) => {
                   const isSelected = selected === val;
                   return (
                     <button
                       key={val}
                       type="button"
+                      role="radio"
+                      aria-checked={isSelected}
                       onClick={() => onScoreChange(qKey, val)}
                       className={`flex min-h-[44px] flex-col items-center gap-1 rounded-xl border-2 py-2.5 text-xs font-bold transition-all duration-150 ${
                         isSelected
@@ -658,8 +681,9 @@ function StepOpenEnded({
             <span className="text-xs font-bold text-slate-500">학습 관련</span>
           </div>
           <div>
-            <FieldLabel>공부의 핵심이 무엇이라고 생각하나요?</FieldLabel>
+            <FieldLabel htmlFor="survey-study-core">공부의 핵심이 무엇이라고 생각하나요?</FieldLabel>
             <textarea
+              id="survey-study-core"
               value={openEnded.study_core}
               onChange={(e) => update("study_core", e.target.value)}
               placeholder="예: 복습과 반복이 가장 중요하다고 생각합니다"
@@ -668,8 +692,9 @@ function StepOpenEnded({
             />
           </div>
           <div>
-            <FieldLabel>공부할 때 스스로 느끼는 문제점은?</FieldLabel>
+            <FieldLabel htmlFor="survey-problem-self">공부할 때 스스로 느끼는 문제점은?</FieldLabel>
             <textarea
+              id="survey-problem-self"
               value={openEnded.problem_self}
               onChange={(e) => update("problem_self", e.target.value)}
               placeholder="예: 집중력이 오래 유지되지 않습니다"
@@ -678,8 +703,9 @@ function StepOpenEnded({
             />
           </div>
           <div>
-            <FieldLabel>수학에서 가장 어려운 단원이나 영역은?</FieldLabel>
+            <FieldLabel htmlFor="survey-math-difficulty">수학에서 가장 어려운 단원이나 영역은?</FieldLabel>
             <textarea
+              id="survey-math-difficulty"
               value={openEnded.math_difficulty}
               onChange={(e) => update("math_difficulty", e.target.value)}
               placeholder="예: 함수, 도형의 성질, 확률과 통계 등"
@@ -688,8 +714,9 @@ function StepOpenEnded({
             />
           </div>
           <div>
-            <FieldLabel>영어에서 가장 어려운 영역은?</FieldLabel>
+            <FieldLabel htmlFor="survey-english-difficulty">영어에서 가장 어려운 영역은?</FieldLabel>
             <textarea
+              id="survey-english-difficulty"
               value={openEnded.english_difficulty}
               onChange={(e) => update("english_difficulty", e.target.value)}
               placeholder="예: 문법, 독해, 듣기, 단어 암기 등"
@@ -705,8 +732,9 @@ function StepOpenEnded({
             <span className="text-xs font-bold text-slate-500">목표 및 희망</span>
           </div>
           <div>
-            <FieldLabel>목표 대학/계열</FieldLabel>
+            <FieldLabel htmlFor="survey-target-university">목표 대학/계열</FieldLabel>
             <Input
+              id="survey-target-university"
               value={openEnded.target_university}
               onChange={(e) => update("target_university", e.target.value)}
               placeholder="예: 의예과, SKY 공대, 경찰대"
@@ -714,8 +742,9 @@ function StepOpenEnded({
             />
           </div>
           <div>
-            <FieldLabel>장래 희망이나 목표는?</FieldLabel>
+            <FieldLabel htmlFor="survey-dream">장래 희망이나 목표는?</FieldLabel>
             <textarea
+              id="survey-dream"
               value={openEnded.dream}
               onChange={(e) => update("dream", e.target.value)}
               placeholder="예: 의사가 되고 싶습니다"
@@ -725,8 +754,9 @@ function StepOpenEnded({
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <FieldLabel>주중 자습 가능 시간</FieldLabel>
+              <FieldLabel htmlFor="survey-weekly-study-hours">주중 자습 가능 시간</FieldLabel>
               <select
+                id="survey-weekly-study-hours"
                 value={openEnded.weekly_study_hours}
                 onChange={(e) => update("weekly_study_hours", e.target.value)}
                 className={fieldClass}
@@ -738,8 +768,9 @@ function StepOpenEnded({
               </select>
             </div>
             <div>
-              <FieldLabel>등원 가능 시간대</FieldLabel>
+              <FieldLabel htmlFor="survey-available-time">등원 가능 시간대</FieldLabel>
               <select
+                id="survey-available-time"
                 value={openEnded.available_time}
                 onChange={(e) => update("available_time", e.target.value)}
                 className={fieldClass}
@@ -752,8 +783,9 @@ function StepOpenEnded({
             </div>
           </div>
           <div>
-            <FieldLabel>선호하는 수업 요일</FieldLabel>
+            <FieldLabel htmlFor="survey-prefer-days">선호하는 수업 요일</FieldLabel>
             <select
+              id="survey-prefer-days"
               value={openEnded.prefer_days}
               onChange={(e) => update("prefer_days", e.target.value)}
               className={fieldClass}
@@ -765,8 +797,9 @@ function StepOpenEnded({
             </select>
           </div>
           <div>
-            <FieldLabel>학부모 기대치/요청</FieldLabel>
+            <FieldLabel htmlFor="survey-parent-expectation">학부모 기대치/요청</FieldLabel>
             <textarea
+              id="survey-parent-expectation"
               value={openEnded.parent_expectation}
               onChange={(e) => update("parent_expectation", e.target.value)}
               placeholder="예: 숙제 관리, 시험 대비, 생활 습관 관리 등"
@@ -776,8 +809,9 @@ function StepOpenEnded({
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <FieldLabel>MBTI</FieldLabel>
+              <FieldLabel htmlFor="survey-mbti">MBTI</FieldLabel>
               <Input
+                id="survey-mbti"
                 value={openEnded.mbti}
                 onChange={(e) => update("mbti", e.target.value.toUpperCase().slice(0, 4))}
                 placeholder="예: ENFP"
@@ -785,8 +819,9 @@ function StepOpenEnded({
               />
             </div>
             <div>
-              <FieldLabel>건강·특이사항</FieldLabel>
+              <FieldLabel htmlFor="survey-health-note">건강·특이사항</FieldLabel>
               <textarea
+                id="survey-health-note"
                 value={openEnded.health_note}
                 onChange={(e) => update("health_note", e.target.value)}
                 placeholder="예: 알레르기, 집중 관련 특이사항"
@@ -796,8 +831,9 @@ function StepOpenEnded({
             </div>
           </div>
           <div>
-            <FieldLabel>학원에 바라는 점이 있나요?</FieldLabel>
+            <FieldLabel htmlFor="survey-requests">학원에 바라는 점이 있나요?</FieldLabel>
             <textarea
+              id="survey-requests"
               value={openEnded.requests}
               onChange={(e) => update("requests", e.target.value)}
               placeholder="자유롭게 작성해주세요"

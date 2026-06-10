@@ -222,7 +222,14 @@ export default function BookingPage() {
   return (
     <div className="space-y-5">
       {/* 진행 바 */}
-      <div className="flex gap-1">
+      <div
+        className="flex gap-1"
+        role="progressbar"
+        aria-label="예약 진행 단계"
+        aria-valuemin={1}
+        aria-valuemax={steps.length}
+        aria-valuenow={step + 1}
+      >
         {steps.map((label, i) => (
           <div key={i} className="flex-1">
             <div
@@ -446,26 +453,27 @@ export default function BookingPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">학생 이름 *</label>
-                <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="홍길동" className="rounded-lg" />
+                <label htmlFor="booking-student-name" className="block text-[11px] font-semibold text-slate-500 mb-1">학생 이름 *</label>
+                <Input id="booking-student-name" value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="홍길동" className="rounded-lg" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">학부모 성함 *</label>
-                <Input value={parentName} onChange={(e) => setParentName(e.target.value)} placeholder="홍길동" className="rounded-lg" />
+                <label htmlFor="booking-parent-name" className="block text-[11px] font-semibold text-slate-500 mb-1">학부모 성함 *</label>
+                <Input id="booking-parent-name" value={parentName} onChange={(e) => setParentName(e.target.value)} placeholder="홍길동" className="rounded-lg" />
               </div>
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-500 mb-1">연락처 *</label>
-              <Input type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" className="rounded-lg" />
+              <label htmlFor="booking-phone" className="block text-[11px] font-semibold text-slate-500 mb-1">연락처 *</label>
+              <Input id="booking-phone" type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" className="rounded-lg" />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="sm:col-span-2">
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">학교 *</label>
-                <Input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="안산중학교" className="rounded-lg" />
+                <label htmlFor="booking-school" className="block text-[11px] font-semibold text-slate-500 mb-1">학교 *</label>
+                <Input id="booking-school" value={school} onChange={(e) => setSchool(e.target.value)} placeholder="안산중학교" className="rounded-lg" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">학년 *</label>
+                <label htmlFor="booking-grade" className="block text-[11px] font-semibold text-slate-500 mb-1">학년 *</label>
                 <select
+                  id="booking-grade"
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
@@ -478,15 +486,18 @@ export default function BookingPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-500 mb-1">현재 진도</label>
-              <Input value={progress} onChange={(e) => setProgress(e.target.value)} placeholder="예: 중2 일차방정식, 영문법 기초 등" className="rounded-lg" />
+              <label htmlFor="booking-progress" className="block text-[11px] font-semibold text-slate-500 mb-1">현재 진도</label>
+              <Input id="booking-progress" value={progress} onChange={(e) => setProgress(e.target.value)} placeholder="예: 중2 일차방정식, 영문법 기초 등" className="rounded-lg" />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-500 mb-2">과목 선택 *</label>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div id="booking-subject-label" className="block text-[11px] font-semibold text-slate-500 mb-2">과목 선택 *</div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-labelledby="booking-subject-label">
                 {BOOKING_SUBJECTS.map((s) => (
                   <button
                     key={s.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={subject === s.id}
                     onClick={() => setSubject(s.id)}
                     className="p-3 rounded-xl border-2 transition-all text-center"
                     style={{

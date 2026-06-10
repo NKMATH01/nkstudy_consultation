@@ -353,7 +353,7 @@ function StepInfo({
               className={fieldClass}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <FieldLabel>학교</FieldLabel>
               <Input
@@ -477,10 +477,11 @@ function StepInfo({
               className={`${fieldClass} resize-none`}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <FieldLabel>내신점수</FieldLabel>
               <Input
+                inputMode="decimal"
                 value={info.school_score}
                 onChange={(e) => update("school_score", e.target.value)}
                 placeholder="예: 85점 / 3등급"
@@ -490,6 +491,7 @@ function StepInfo({
             <div>
               <FieldLabel>최근 모의고사/전국단위 성적</FieldLabel>
               <Input
+                inputMode="decimal"
                 value={info.mock_exam_score}
                 onChange={(e) => update("mock_exam_score", e.target.value)}
                 placeholder="예: 3월 모의고사 수학 2등급"
@@ -506,7 +508,7 @@ function StepInfo({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <FieldLabel>통학 수단</FieldLabel>
               <select
@@ -597,7 +599,7 @@ function StepQuestions({
                       key={val}
                       type="button"
                       onClick={() => onScoreChange(qKey, val)}
-                      className={`flex flex-col items-center gap-1 rounded-xl border-2 py-2.5 text-xs font-bold transition-all duration-150 ${
+                      className={`flex min-h-[44px] flex-col items-center gap-1 rounded-xl border-2 py-2.5 text-xs font-bold transition-all duration-150 ${
                         isSelected
                           ? "border-primary bg-primary text-primary-foreground shadow-[0_2px_8px_rgba(94,147,172,0.25)]"
                           : "border-border bg-card text-muted-foreground"
@@ -711,7 +713,7 @@ function StepOpenEnded({
               className={`${fieldClass} resize-none`}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <FieldLabel>주중 자습 가능 시간</FieldLabel>
               <select
@@ -762,7 +764,7 @@ function StepOpenEnded({
               className={`${fieldClass} resize-none`}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <FieldLabel>MBTI</FieldLabel>
               <Input

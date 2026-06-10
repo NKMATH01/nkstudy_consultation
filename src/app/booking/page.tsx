@@ -292,7 +292,7 @@ export default function BookingPage() {
             <h3 className="text-lg font-extrabold text-slate-800">상담 유형 선택</h3>
             <p className="text-xs text-slate-400 mt-1">원하시는 상담 방식을 선택해주세요</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {CONSULT_TYPES.map((ct) => (
               <button
                 key={ct.id}
@@ -434,7 +434,7 @@ export default function BookingPage() {
             <p className="text-xs text-slate-400 mt-1">학생 및 학부모 정보를 입력해주세요</p>
           </div>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 mb-1">학생 이름 *</label>
                 <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="홍길동" className="rounded-lg" />
@@ -446,10 +446,10 @@ export default function BookingPage() {
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 mb-1">연락처 *</label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" className="rounded-lg" />
+              <Input type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" className="rounded-lg" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="sm:col-span-2">
                 <label className="block text-[11px] font-semibold text-slate-500 mb-1">학교 *</label>
                 <Input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="안산중학교" className="rounded-lg" />
               </div>
@@ -473,7 +473,7 @@ export default function BookingPage() {
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 mb-2">과목 선택 *</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {BOOKING_SUBJECTS.map((s) => (
                   <button
                     key={s.id}

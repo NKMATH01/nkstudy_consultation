@@ -7,16 +7,19 @@ export const registrationAdminSchema = z.object({
   preferred_days: z.string().optional().default(""),
   assigned_class: z.string().optional().default(""),
   teacher: z.string().optional().default(""),
+  // UI/프롬프트 전용: registrations DB 컬럼이 아니며 안내문 HTML 생성에만 사용.
   math_class_days: z.string().optional(),
   math_class_time: z.string().optional().default(""),
   math_clinic_time: z.string().optional().default(""),
   assigned_class_2: z.string().optional(),
   teacher_2: z.string().optional(),
+  // UI/프롬프트 전용: registrations DB 컬럼이 아니며 안내문 HTML 생성에만 사용.
   eng_class_days: z.string().optional(),
   eng_class_time: z.string().optional(),
   eng_clinic_time: z.string().optional(),
   assigned_class_math2: z.string().optional(),
   teacher_math2: z.string().optional(),
+  // UI/프롬프트 전용: registrations DB 컬럼이 아니며 안내문 HTML 생성에만 사용.
   math2_class_days: z.string().optional(),
   math2_class_time: z.string().optional(),
   math2_clinic_time: z.string().optional(),
@@ -33,6 +36,7 @@ export const registrationAdminSchema = z.object({
   location: z.string().optional(),
   consult_date: z.string().optional(),
   additional_note: z.string().optional(),
+  // UI/프롬프트 전용: checklist 항목은 report_html/report_data 생성에만 사용.
   checklist_items: z.string().optional(),
   tuition_fee: z.coerce.number().optional(),
 }).refine(

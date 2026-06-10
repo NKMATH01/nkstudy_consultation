@@ -34,6 +34,9 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-warm-foreground: var(--accent-warm-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -48,39 +51,42 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  /* Refined ink / champagne / cool gray theme */
-  --background: #F4F6FA;
-  --foreground: #111827;
+  --radius: 0.75rem;
+  /* Pastel consultation operations theme */
+  --background: #FAF9F6;
+  --foreground: #4A4A55;
   --card: #FFFFFF;
-  --card-foreground: #0F172A;
+  --card-foreground: #3F3F4A;
   --popover: #FFFFFF;
-  --popover-foreground: #0F172A;
-  --primary: #16213E;
+  --popover-foreground: #3F3F4A;
+  --primary: #5E93AC;
+  --primary-soft: #A8D5E2;
   --primary-foreground: #FFFFFF;
-  --secondary: #F8FAFC;
-  --secondary-foreground: #475569;
-  --muted: #F8FAFC;
-  --muted-foreground: #64748B;
-  --accent: #F1F5F9;
-  --accent-foreground: #0F172A;
-  --destructive: #E11D48;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #16213E;
-  --chart-1: #16213E;
-  --chart-2: #0F766E;
-  --chart-3: #5B5BD6;
-  --chart-4: #B88A44;
-  --chart-5: #BE123C;
-  --sidebar: #111827;
-  --sidebar-foreground: #E2E8F0;
-  --sidebar-primary: #D4A853;
+  --secondary: #EAF4EA;
+  --secondary-foreground: #4E6B4E;
+  --muted: #F3F1EC;
+  --muted-foreground: #8A8A96;
+  --accent: #FBE9EC;
+  --accent-foreground: #9C5560;
+  --accent-warm: #FFE0B2;
+  --accent-warm-foreground: #8A6230;
+  --destructive: #D9707E;
+  --border: #E8E4DC;
+  --input: #E8E4DC;
+  --ring: #A8D5E2;
+  --chart-1: #7FB5CC;
+  --chart-2: #8FC9A8;
+  --chart-3: #F2A7B3;
+  --chart-4: #F5C57E;
+  --chart-5: #B5A8D5;
+  --sidebar: #F2F8FA;
+  --sidebar-foreground: #4A4A55;
+  --sidebar-primary: #5E93AC;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: rgba(255,255,255,0.04);
-  --sidebar-accent-foreground: #E2E8F0;
-  --sidebar-border: rgba(255,255,255,0.05);
-  --sidebar-ring: #D4A853;
+  --sidebar-accent: #DDEEF4;
+  --sidebar-accent-foreground: #34606F;
+  --sidebar-border: #E3EDF1;
+  --sidebar-ring: #A8D5E2;
 }
 
 @layer base {
@@ -94,11 +100,11 @@
 
 .app-chrome {
   background:
-    linear-gradient(90deg, rgba(22, 33, 62, 0.035) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(22, 33, 62, 0.025) 1px, transparent 1px),
-    radial-gradient(circle at 15% 0%, rgba(184, 138, 68, 0.12), transparent 26%),
-    radial-gradient(circle at 82% 8%, rgba(75, 85, 99, 0.10), transparent 30%),
-    linear-gradient(180deg, #f7f8fb 0%, #edf1f6 100%);
+    linear-gradient(90deg, rgba(94, 147, 172, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(94, 147, 172, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 16% 0%, rgba(168, 213, 226, 0.08), transparent 28%),
+    radial-gradient(circle at 84% 8%, rgba(197, 225, 197, 0.06), transparent 32%),
+    linear-gradient(180deg, #FAF9F6 0%, #F3F1EC 100%);
   background-size: 32px 32px, 32px 32px, auto, auto, auto;
 }
 
@@ -123,8 +129,8 @@
   border-radius: 14px;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 1px 2px rgba(17, 24, 39, 0.04),
-    0 16px 42px rgba(17, 24, 39, 0.075);
+    0 1px 2px rgba(74, 74, 85, 0.04),
+    0 14px 34px rgba(94, 147, 172, 0.08);
 }
 
 .page-shell .card-elevated {
@@ -222,31 +228,31 @@
 /* Card shadows - layered for depth */
 .card-shadow {
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 1px 2px rgba(0,0,0,0.04),
-    0 4px 16px rgba(0,0,0,0.04);
+    0 0 0 1px rgba(232, 228, 220, 0.82),
+    0 1px 2px rgba(74, 74, 85, 0.04),
+    0 8px 22px rgba(94, 147, 172, 0.07);
 }
 .card-shadow-hover {
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 4px 8px rgba(0,0,0,0.06),
-    0 12px 40px rgba(0,0,0,0.08);
+    0 0 0 1px rgba(168, 213, 226, 0.55),
+    0 6px 14px rgba(74, 74, 85, 0.06),
+    0 18px 42px rgba(94, 147, 172, 0.10);
 }
 
 /* Elevated card (stats, charts) */
 .card-elevated {
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 2px 4px rgba(0,0,0,0.04),
-    0 8px 24px rgba(0,0,0,0.06);
+    0 0 0 1px rgba(232, 228, 220, 0.82),
+    0 2px 4px rgba(74, 74, 85, 0.04),
+    0 12px 28px rgba(94, 147, 172, 0.08);
   transition: box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
               transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .card-elevated:hover {
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 8px 16px rgba(0,0,0,0.08),
-    0 20px 48px rgba(0,0,0,0.1);
+    0 0 0 1px rgba(168, 213, 226, 0.55),
+    0 8px 18px rgba(74, 74, 85, 0.07),
+    0 22px 48px rgba(94, 147, 172, 0.11);
   transform: translateY(-2px);
 }
 

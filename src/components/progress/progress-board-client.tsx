@@ -752,39 +752,73 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
 
   const visibleGroups = gradeFilter ? grouped.filter(({ grade }) => grade === gradeFilter) : grouped;
 
-  // 주간(목요일 기준) 미업데이트 반 — 매주 목요일 00:00 이후 현재 페이지 저장이 없는 반
+  // 주간(목요일 기준) 진도 입력 현황 — 강사별로 미입력 반이 있는지 집계
   const thursday = lastThursday();
-  const staleRows = rows.filter((row) => {
+  const isStale = (row: ProgressBoardRow) => {
     const updated = row.progress?.progress_updated_at;
     if (!updated) return true;
     const date = new Date(updated);
     return Number.isNaN(date.getTime()) || date < thursday;
-  });
+  };
+  const teacherStatus = new Map<string, { staleClasses: string[]; total: number }>();
+  for (const row of rows) {
+    const name = row.teacher_name || "담당 미정";
+    const entry = teacherStatus.get(name) ?? { staleClasses: [], total: 0 };
+    entry.total += 1;
+    if (isStale(row)) entry.staleClasses.push(row.class_name);
+    teacherStatus.set(name, entry);
+  }
+  const teacherChips = [...teacherStatus.entries()]
+    .map(([name, s]) => ({ name, stale: s.staleClasses.length, total: s.total, staleClasses: s.staleClasses }))
+    .sort((a, b) => b.stale - a.stale || a.name.localeCompare(b.name, "ko"));
+  const staleTeacherCount = teacherChips.filter((t) => t.stale > 0).length;
 
   return (
     <div className="space-y-6">
-      {/* 주간 미업데이트 경고 배너 */}
-      {staleRows.length > 0 && (
+      {/* 주간 진도 입력 현황 — 강사별 (목요일 기준) */}
+      {teacherChips.length > 0 && (
         <div
-          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-4 py-3"
-          style={{ background: "#FFF7ED", borderColor: "#FDBA74" }}
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-slate-200 bg-white px-4 py-3"
+          style={{ boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)" }}
         >
-          <span className="flex items-center gap-1.5 text-xs font-extrabold text-orange-700">
-            <AlertTriangle className="h-4 w-4" />
-            이번 주(목요일 기준) 진도 미업데이트 {staleRows.length}개 반
+          <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+            {staleTeacherCount > 0 ? (
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+            ) : (
+              <BookOpenCheck className="h-4 w-4 text-emerald-500" />
+            )}
+            이번 주 진도 입력 (목요일 기준)
+            {staleTeacherCount > 0 && (
+              <span className="text-orange-600">— 미입력 {staleTeacherCount}명</span>
+            )}
           </span>
           <div className="flex flex-wrap gap-1">
-            {staleRows.map((row) => (
-              <button
-                key={row.class_id}
-                type="button"
-                onClick={() => setDetailRow(row)}
-                className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-bold text-orange-700 transition hover:bg-orange-100"
-                style={{ boxShadow: "inset 0 0 0 1px #FDBA74" }}
-              >
-                {row.class_name}
-              </button>
-            ))}
+            {teacherChips.map((t) => {
+              const incomplete = t.stale > 0;
+              return (
+                <span
+                  key={t.name}
+                  title={
+                    incomplete
+                      ? `미입력 반: ${t.staleClasses.join(", ")}`
+                      : `담당 ${t.total}개 반 모두 입력 완료`
+                  }
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                  style={
+                    incomplete
+                      ? { background: "#FEE2E2", color: "#B91C1C", boxShadow: "inset 0 0 0 1px #FCA5A5" }
+                      : { background: "#ECFDF5", color: "#047857", boxShadow: "inset 0 0 0 1px #A7F3D0" }
+                  }
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: incomplete ? "#EF4444" : "#10B981" }}
+                  />
+                  {t.name}
+                  {incomplete && <span className="font-black">{t.stale}</span>}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}

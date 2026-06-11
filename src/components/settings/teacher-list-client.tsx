@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { TeacherFormDialog } from "@/components/settings/teacher-form-client";
 import { deleteTeacher, updateTeacher, resetTeacherPassword } from "@/lib/actions/settings";
 import type { Teacher } from "@/types";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Eye, EyeOff } from "lucide-react";
 
 const SUBJECTS = ["수학", "영어"] as const;
 
@@ -103,6 +103,10 @@ export function TeacherList({ teachers }: Props) {
   const [resetTarget, setResetTarget] = useState<Teacher | undefined>();
   const [activeTab, setActiveTab] = useState<RoleTab>("teacher");
   const [subjectFilter, setSubjectFilter] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
+
+  // 서버(getTeachers)가 admin에게만 password를 채워서 내려줌 — 값이 하나라도 있으면 대표 화면
+  const canSeePasswords = teachers.some((t) => t.password != null);
 
   const filteredTeachers = teachers.filter((t) => {
     if (activeTab === "teacher") { if (t.role === "clinic") return false; }
@@ -269,7 +273,20 @@ export function TeacherList({ teachers }: Props) {
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">역할</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">담당과목</TableHead>
-                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">연락처</TableHead>
+                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500">아이디 (전화번호)</TableHead>
+                {canSeePasswords && (
+                  <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords((v) => !v)}
+                      className="inline-flex items-center gap-1 rounded px-1 py-0.5 transition hover:bg-slate-200/60"
+                      title={showPasswords ? "비밀번호 가리기" : "비밀번호 보기"}
+                    >
+                      비밀번호
+                      {showPasswords ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </TableHead>
+                )}
                 <TableHead className="w-[100px] px-4 py-3"></TableHead>
               </TableRow>
             </TableHeader>
@@ -294,6 +311,25 @@ export function TeacherList({ teachers }: Props) {
                   <TableCell className="hidden md:table-cell px-4 py-3.5 text-sm text-slate-600">
                     {formatPhoneDisplay(teacher.phone)}
                   </TableCell>
+                  {canSeePasswords && (
+                    <TableCell className="px-4 py-3.5">
+                      {teacher.password != null ? (
+                        <span className="font-mono text-sm font-bold text-slate-700">
+                          {showPasswords ? teacher.password : "••••"}
+                          {teacher.password === "1234" && showPasswords && (
+                            <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">초기</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span
+                          className="text-[11px] font-semibold text-slate-400"
+                          title="다른 앱에서 변경되어 확인할 수 없습니다. 비밀번호 초기화(열쇠 버튼)로 1234로 재설정할 수 있습니다."
+                        >
+                          확인 불가
+                        </span>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="px-4 py-3.5">
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" title="비밀번호 초기화" onClick={() => setResetTarget(teacher)}>
@@ -321,7 +357,7 @@ export function TeacherList({ teachers }: Props) {
           <DialogHeader>
             <DialogTitle>선생님 삭제</DialogTitle>
             <DialogDescription>
-              &quot;{deleteTarget?.name}&quot; 선생님을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              &quot;{deleteTarget?.name}&quot; 선생님을 퇴사 처리하시겠습니까? 목록에서 사라지고 로그인이 차단되며, 과거 기록은 보존됩니다.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

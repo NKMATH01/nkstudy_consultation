@@ -424,7 +424,21 @@ export async function getTeachers(): Promise<Teacher[]> {
     return [];
   }
 
-  return (data ?? []).map((row) => mapDbToTeacher(row as Record<string, unknown>));
+  // 대표(admin)에게만 로그인 비밀번호 노출:
+  // custom_password(직접 설정값) → 그 값, 초기 상태('1234') → '1234',
+  // 해시만 남은 경우(타앱에서 변경) → null ("확인 불가" 표시, 초기화로 해결)
+  const current = await getCurrentTeacher();
+  const isAdmin = current?.role === "admin";
+
+  return (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    const teacher = mapDbToTeacher(r);
+    if (isAdmin) {
+      const customPw = r.custom_password != null && r.custom_password !== "" ? String(r.custom_password) : null;
+      teacher.password = customPw ?? (r.password === "1234" ? "1234" : null);
+    }
+    return teacher;
+  });
 }
 
 export async function createTeacher(formData: FormData) {

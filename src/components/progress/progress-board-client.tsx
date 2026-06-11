@@ -775,6 +775,23 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
 
   return (
     <div className="space-y-6">
+      {/* 본인 식별 실패 안내 — 임시 계정 로그인 시 입력이 잠기는 문제 안내 */}
+      {!currentTeacher && (
+        <div
+          className="flex items-start gap-2.5 rounded-2xl border px-4 py-3"
+          style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }}
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+          <div className="text-xs leading-relaxed text-red-700">
+            <p className="font-extrabold">로그인 계정으로 선생님을 확인할 수 없어 입력이 잠겨 있습니다.</p>
+            <p className="mt-0.5">
+              임시 번호(010-0000-xxxx) 계정이 아닌 <b>본인 실제 전화번호</b>로 다시 로그인해주세요.
+              (초기 비밀번호 1234 — 첫 로그인 시 변경 화면이 뜹니다)
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 주간 진도 입력 현황 — 강사별 (목요일 기준) */}
       {teacherChips.length > 0 && (
         <div

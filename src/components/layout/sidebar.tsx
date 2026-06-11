@@ -158,8 +158,8 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       <aside
         className={
           inSheet
-            ? "flex min-h-full w-full flex-shrink-0 flex-col border-r"
-            : "hidden min-h-screen w-[246px] flex-shrink-0 flex-col border-r md:flex"
+            ? "flex h-full w-full flex-shrink-0 flex-col border-r"
+            : "hidden h-full w-[246px] flex-shrink-0 flex-col border-r md:flex"
         }
         style={{
           background:
@@ -226,8 +226,11 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3">
+        {/* Navigation — 메뉴가 화면보다 길어지면 이 영역만 스크롤 (상단 버튼·하단 로그아웃 고정) */}
+        <nav
+          className="min-h-0 flex-1 overflow-y-auto px-3 pb-2"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(233,196,106,0.25) transparent" }}
+        >
           {/* 상담 관리 */}
           {visibleConsult.length > 0 && renderItems(visibleConsult)}
 

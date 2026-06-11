@@ -250,10 +250,11 @@ function ProgressDialog({
 
   if (!row) return null;
 
-  const handleAddHistory = async () => {
+  /** 지난 교재 추가. 갱신된 이력 배열을 반환해 onSubmit에서 stale state 없이 사용 */
+  const handleAddHistory = async (): Promise<TextbookHistory[]> => {
     if (!newTextbook.trim()) {
       toast.error("지난 교재명을 입력해주세요");
-      return;
+      return history;
     }
     setHistoryPending(true);
     const result = await addTextbookHistory(row.class_id, { textbook: newTextbook });
@@ -264,9 +265,10 @@ function ProgressDialog({
       onHistoryChange(row.class_id, next);
       setNewTextbook("");
       toast.success("지난 교재가 추가되었습니다");
-    } else {
-      toast.error(("error" in result && result.error) || "교재 이력 추가 실패");
+      return next;
     }
+    toast.error(("error" in result && result.error) || "교재 이력 추가 실패");
+    return history;
   };
 
   const handleDeleteHistory = async (historyId: string) => {
@@ -288,10 +290,17 @@ function ProgressDialog({
 
   const onSubmit = (values: ProgressFormValues) => {
     startTransition(async () => {
+      // 지난 교재 입력칸에 [추가]를 누르지 않은 텍스트가 남아 있으면 자동으로 함께 저장
+      let latestHistory = history;
+      if (newTextbook.trim()) {
+        latestHistory = await handleAddHistory();
+      }
       const result = await upsertProgress(row.class_id, values);
       if (result.success) {
         toast.success("진도 정보가 저장되었습니다");
-        onSaved(rowWithProgress(row, result));
+        // 주의: row prop은 다이얼로그 오픈 시점 스냅샷 — 이력은 최신 상태로 덮어써야
+        // [추가]한 교재가 저장 직후 사라지는 버그가 없음
+        onSaved(rowWithProgress({ ...row, textbook_history: latestHistory }, result));
         onClose();
         router.refresh();
       } else {
@@ -943,6 +952,15 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           {progress?.current_plan && (
                             <p className="max-w-[240px] truncate text-[11px] text-slate-400" title={progress.current_plan}>
                               계획: {progress.current_plan}
+                            </p>
+                          )}
+                          {row.textbook_history.length > 0 && (
+                            <p
+                              className="max-w-[240px] truncate text-[11px] font-medium text-slate-400"
+                              title={row.textbook_history.map((h) => h.textbook).join(", ")}
+                            >
+                              지난 교재 {row.textbook_history.length}권 · {row.textbook_history[0].textbook}
+                              {row.textbook_history.length > 1 && " 외"}
                             </p>
                           )}
                         </div>

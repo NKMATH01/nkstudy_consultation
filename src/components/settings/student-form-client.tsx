@@ -246,7 +246,8 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
                         className={selectCls}
                       >
                         <option value="">선택</option>
-                        {teachers.map((t) => (
+                        {/* 담임 = 티칭 선생님만 (클리닉 제외) */}
+                        {teachers.filter((t) => t.role !== "clinic").map((t) => (
                           <option key={t.id} value={t.name}>{t.name}</option>
                         ))}
                       </select>

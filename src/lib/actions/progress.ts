@@ -185,6 +185,7 @@ async function getCurrentProgressTeacherWithClient(
       .from("teachers")
       .select("id, name, role")
       .or(`phone.eq.${digits},phone.eq.${formatted}`)
+      .or("is_active.is.null,is_active.eq.true") // 퇴사자 제외
       .limit(1)
       .single();
 

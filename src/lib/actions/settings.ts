@@ -412,9 +412,11 @@ function mapDbToTeacher(row: Record<string, unknown>): Teacher {
 export async function getTeachers(): Promise<Teacher[]> {
   const supabase = createAdminClient();
 
+  // 퇴사자(소프트 삭제, is_active=false)는 목록·드롭다운에서 제외
   const { data, error } = await supabase
     .from("teachers")
     .select("*")
+    .or("is_active.is.null,is_active.eq.true")
     .order("name", { ascending: true });
 
   if (error) {
@@ -472,7 +474,9 @@ export async function createTeacher(formData: FormData) {
       role: parsed.data.role || "teacher",
       password,
     };
-    if (authUserId) insertData.auth_user_id = authUserId;
+    // 주의: 운영 teachers 테이블에 auth_user_id 컬럼이 없어 INSERT에 포함하면 등록이 실패함.
+    // Auth 매칭은 전화번호(이메일) 기반으로만 수행. (authUserId는 생성 성공 여부 로깅용)
+    void authUserId;
     // 3앱 통합 비번: 명시적 비번 지정 시에만 custom_password 저장.
     // 기본 "1234"로 생성되면 custom_password=NULL 유지 → 학습관리앱 requires_password_change 트리거
     if (parsed.data.password && parsed.data.password !== "1234") {
@@ -512,9 +516,10 @@ export async function updateTeacher(id: string, formData: FormData) {
     }
 
     // 기존 선생님 정보 조회 (Auth 동기화용)
+    // 주의: 운영 teachers 테이블에 auth_user_id 컬럼이 없음 — 전화번호 기반으로만 Auth 매칭
     const { data: existingTeacher } = await admin
       .from("teachers")
-      .select("phone, auth_user_id, role")
+      .select("phone, role")
       .eq("id", id)
       .single();
 
@@ -526,10 +531,10 @@ export async function updateTeacher(id: string, formData: FormData) {
     // Supabase Auth 동기화
     if (env.SUPABASE_SERVICE_ROLE_KEY && newRole !== "clinic") {
       try {
-        // 기존 Auth 사용자 찾기 (auth_user_id 또는 이전 전화번호로)
-        let authUserId = existingTeacher?.auth_user_id || null;
+        // 기존 Auth 사용자 찾기 (이전 전화번호로)
+        let authUserId: string | null = null;
 
-        if (!authUserId && oldPhone) {
+        if (oldPhone) {
           const oldEmail = phoneToEmail(oldPhone);
           const { data: { users } } = await admin.auth.admin.listUsers();
           const found = users.find((u: { email?: string }) => u.email === oldEmail);
@@ -560,14 +565,6 @@ export async function updateTeacher(id: string, formData: FormData) {
           if (authData?.user) {
             authUserId = authData.user.id;
           }
-        }
-
-        // auth_user_id 업데이트
-        if (authUserId && !existingTeacher?.auth_user_id) {
-          await admin
-            .from("teachers")
-            .update({ auth_user_id: authUserId })
-            .eq("id", id);
         }
       } catch (authErr) {
         console.error("[Teacher Auth] 동기화 실패:", authErr);
@@ -722,10 +719,40 @@ export async function deleteTeacher(id: string) {
   try {
     const admin = createAdminClient();
 
-    const { error } = await admin.from("teachers").delete().eq("id", id);
+    // 퇴사 처리 = 소프트 삭제 (is_active=false).
+    // 하드 삭제는 classes/students FK(NO ACTION) 때문에 배정된 선생님에서 실패하고,
+    // 과거 기록(퇴원/등록/진도 입력자)의 출처도 끊어지므로 사용하지 않음.
+    const { data: teacher, error: fetchError } = await admin
+      .from("teachers")
+      .select("phone, role")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !teacher) {
+      return { success: false, error: "선생님 정보를 찾을 수 없습니다" };
+    }
+
+    const { error } = await admin
+      .from("teachers")
+      .update({ is_active: false })
+      .eq("id", id);
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    // 퇴사자 로그인 차단: Supabase Auth 계정 삭제 (전화번호 기반 매칭)
+    if (teacher.phone && env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const email = phoneToEmail(teacher.phone);
+        const { data: { users } } = await admin.auth.admin.listUsers();
+        const authUser = users.find((u: { email?: string }) => u.email === email);
+        if (authUser) {
+          await admin.auth.admin.deleteUser(authUser.id);
+        }
+      } catch (authErr) {
+        console.error("[Teacher Auth] 퇴사자 로그인 계정 삭제 실패:", authErr);
+      }
     }
 
     revalidatePath("/settings/teachers");
@@ -980,6 +1007,7 @@ export async function getCurrentTeacher(): Promise<CurrentTeacherInfo | null> {
         .from("teachers")
         .select("name, role, phone, allowed_menus")
         .or(`phone.eq.${digits},phone.eq.${formatted}`)
+        .or("is_active.is.null,is_active.eq.true") // 퇴사자 로그인 차단 (이중 방어)
         .limit(1)
         .single();
 

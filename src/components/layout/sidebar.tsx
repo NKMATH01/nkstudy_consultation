@@ -17,6 +17,7 @@ import {
   LogOut,
   Shield,
   BookOpenCheck,
+  ArrowLeftCircle,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { CurrentTeacherInfo } from "@/types";
@@ -166,8 +167,35 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           borderColor: "rgba(255,255,255,0.07)",
         }}
       >
+        {/* 메인 프로그램(업무보고) 복귀 버튼 */}
+        <div className="px-4 pt-4">
+          <a
+            href="https://nk-work-report.vercel.app"
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
+            style={{
+              background: "linear-gradient(135deg, rgba(233,196,106,0.2), rgba(184,138,68,0.1))",
+              boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.3), 0 6px 18px rgba(0,0,0,0.2)",
+            }}
+          >
+            <span
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-transform group-hover:-translate-x-0.5"
+              style={{ background: "rgba(233,196,106,0.22)", color: "#F2D488" }}
+            >
+              <ArrowLeftCircle className="h-[16px] w-[16px]" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[12.5px] font-extrabold" style={{ color: "#F2D488" }}>
+                업무보고 프로그램
+              </span>
+              <span className="block text-[9.5px] font-bold uppercase" style={{ color: "rgba(233,196,106,0.45)", letterSpacing: "0.1em" }}>
+                메인으로 돌아가기
+              </span>
+            </span>
+          </a>
+        </div>
+
         {/* Logo */}
-        <div className="px-4 pb-5 pt-5">
+        <div className="px-4 pb-5 pt-3">
           <div
             className="flex items-center gap-3 rounded-2xl px-3.5 py-3"
             style={{

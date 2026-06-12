@@ -107,6 +107,7 @@ export interface ClassProgress {
   next_start_date: string | null;
   expected_months: number | null;
   expected_weeks: number | null;
+  target_end_date: string | null;
   updated_by: string | null;
   progress_updated_at: string | null;
   created_at: string;

@@ -27,6 +27,7 @@ export const progressFormSchema = z
     next_start_date: z.string().optional(),
     expected_months: optionalNonnegativeInt,
     expected_weeks: optionalNonnegativeInt,
+    target_end_date: z.string().optional(),
     current_plan: z.string().optional(),
     note: z.string().optional(),
     ability_level: optionalLevel,

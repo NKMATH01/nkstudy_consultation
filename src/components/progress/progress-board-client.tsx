@@ -94,6 +94,7 @@ function defaultValues(row: ProgressBoardRow): ProgressFormValues {
     next_start_date: progress?.next_start_date ?? "",
     expected_months: progress?.expected_months ?? undefined,
     expected_weeks: progress?.expected_weeks ?? undefined,
+    target_end_date: progress?.target_end_date ?? "",
     current_plan: progress?.current_plan ?? "",
     note: progress?.note ?? "",
     ability_level: (progress?.ability_level as ProgressFormValues["ability_level"]) ?? undefined,
@@ -109,6 +110,70 @@ function formatExpectedDuration(months: number | null | undefined, weeks: number
   if (months != null && months > 0) parts.push(`${months}개월`);
   if (weeks != null && weeks > 0) parts.push(`${weeks}주`);
   return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/**
+ * 마감일 대비 페이스 진단.
+ * 필요 페이스 = 남은 페이지 ÷ 남은 주수, 최근 페이스 = 주간 진도(로그 2건 차이).
+ */
+function deadlineStatus(
+  progress: ProgressBoardRow["progress"],
+  weeklyProgress: number | null
+): { label: string; detail: string; tone: "ok" | "warn" | "over" | "info" } | null {
+  if (!progress?.target_end_date) return null;
+  const end = new Date(progress.target_end_date);
+  if (Number.isNaN(end.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  const total = progress.main_total_pages;
+  const current = progress.current_page;
+  const dateLabel = `${end.getMonth() + 1}/${end.getDate()}`;
+
+  if (total == null || current == null) {
+    return { label: `마감 ${dateLabel}`, detail: "페이지 미입력", tone: "info" };
+  }
+  const remainingPages = Math.max(0, total - current);
+  if (remainingPages === 0) {
+    return { label: `마감 ${dateLabel}`, detail: "교재 완료", tone: "ok" };
+  }
+  const remainingDays = Math.round((end.getTime() - today.getTime()) / 86400000);
+  if (remainingDays < 0) {
+    return { label: `마감 ${dateLabel} 경과`, detail: `${remainingPages}p 남음`, tone: "over" };
+  }
+  const remainingWeeks = Math.max(remainingDays / 7, 1 / 7);
+  const needPace = Math.ceil(remainingPages / remainingWeeks);
+
+  if (weeklyProgress == null || weeklyProgress <= 0) {
+    return { label: `마감 ${dateLabel}`, detail: `주 ${needPace}p 필요`, tone: "info" };
+  }
+  if (weeklyProgress >= needPace) {
+    return { label: `마감 ${dateLabel}`, detail: `정상 페이스 (주 ${weeklyProgress}p ≥ 필요 ${needPace}p)`, tone: "ok" };
+  }
+  return { label: `마감 ${dateLabel}`, detail: `지연 위험 — 주 ${needPace}p 필요, 현재 ${weeklyProgress}p`, tone: "warn" };
+}
+
+const DEADLINE_TONES: Record<string, { bg: string; color: string }> = {
+  ok: { bg: "#ECFDF5", color: "#047857" },
+  warn: { bg: "#FEF2F2", color: "#B91C1C" },
+  over: { bg: "#7F1D1D", color: "#FECACA" },
+  info: { bg: "#EFF6FF", color: "#1D4ED8" },
+};
+
+function DeadlineBadge({ progress, weeklyProgress }: { progress: ProgressBoardRow["progress"]; weeklyProgress: number | null }) {
+  const status = deadlineStatus(progress, weeklyProgress);
+  if (!status) return null;
+  const tone = DEADLINE_TONES[status.tone];
+  return (
+    <span
+      className="inline-flex max-w-[240px] items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
+      style={{ background: tone.bg, color: tone.color }}
+      title={`${status.label} · ${status.detail}`}
+    >
+      {status.label} · {status.detail}
+    </span>
+  );
 }
 
 /** 가장 최근 목요일 00:00 (오늘이 목요일이면 오늘) — 주간 업데이트 사이클 기준 */
@@ -399,6 +464,10 @@ function ProgressDialog({
 
           <div className="flex flex-wrap items-end gap-4">
             <label className="space-y-1.5">
+              <span className="text-xs font-bold text-slate-500">현재 교재 마감일</span>
+              <Input type="date" {...form.register("target_end_date")} className="w-fit" />
+            </label>
+            <label className="space-y-1.5">
               <span className="text-xs font-bold text-slate-500">다음 교재 시작 예정일</span>
               <Input type="date" {...form.register("next_start_date")} className="w-fit" />
             </label>
@@ -576,6 +645,13 @@ function ClassDetailDialog({
               </div>
             )}
             {infoRow("예상 기간", formatExpectedDuration(progress?.expected_months, progress?.expected_weeks))}
+            {infoRow("마감일", progress?.target_end_date)}
+            {progress?.target_end_date && (
+              <div className="flex gap-2">
+                <span className="w-28 shrink-0 text-sm font-bold text-slate-400">페이스 진단</span>
+                <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
+              </div>
+            )}
             {infoRow("부교재", progress?.sub_textbook)}
             {infoRow("예정교재", progress?.next_textbook)}
             {infoRow("다음 시작 예정", progress?.next_start_date)}
@@ -934,6 +1010,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         <div className="space-y-1.5">
                           <p className="max-w-[240px] whitespace-normal text-sm font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
                           <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
+                          <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
                           {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date || formatExpectedDuration(progress?.expected_months, progress?.expected_weeks)) && (
                             <p className="max-w-[260px] whitespace-normal text-[11px] font-medium leading-relaxed text-slate-500">
                               {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks) && (

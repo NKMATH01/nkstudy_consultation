@@ -59,5 +59,19 @@ export const textbookHistorySchema = z.object({
   note: z.string().optional(),
 });
 
+const optionalCurriculumLevel = z
+  .enum(["기본", "응용", "심화"])
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => (v === "" ? undefined : v));
+
+export const curriculumProgressSchema = z.object({
+  unit: z.string().min(1, "단원을 선택해주세요"),
+  level: optionalCurriculumLevel,
+  status: z.enum(["진행중", "완료"]).default("진행중"),
+  note: z.string().optional(),
+});
+
 export type ProgressFormValues = z.infer<typeof progressFormSchema>;
 export type TextbookHistoryFormValues = z.infer<typeof textbookHistorySchema>;
+export type CurriculumProgressFormValues = z.infer<typeof curriculumProgressSchema>;

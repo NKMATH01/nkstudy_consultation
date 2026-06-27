@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentPageSchema, progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
-import type { ClassProgress, ClassProgressLog, Teacher, TextbookHistory } from "@/types";
-import type { TextbookHistoryFormValues } from "@/lib/validations/progress";
-import { textbookHistorySchema } from "@/lib/validations/progress";
+import type { ClassProgress, ClassProgressLog, CurriculumProgress, Teacher, TextbookHistory } from "@/types";
+import { curriculumUnitOrder, GRADES } from "@/types";
+import type { TextbookHistoryFormValues, CurriculumProgressFormValues } from "@/lib/validations/progress";
+import { textbookHistorySchema, curriculumProgressSchema } from "@/lib/validations/progress";
 
 type DbRow = Record<string, unknown>;
 
@@ -15,17 +16,27 @@ export interface ProgressTeacherInfo {
   role: Teacher["role"];
 }
 
+export interface GradeCount {
+  grade: string;
+  count: number;
+}
+
 export interface ProgressBoardRow {
   class_id: string;
   class_name: string;
   teacher_id: string | null;
   teacher_name: string | null;
   target_grade: string | null;
+  class_days: string | null;
+  class_time: string | null;
+  clinic_time: string | null;
   actual_student_count: number;
   student_count: number;
   student_names: string[];
+  grade_breakdown: GradeCount[];
   progress: ClassProgress | null;
   textbook_history: TextbookHistory[];
+  curriculum: CurriculumProgress[];
   recent_logs: ClassProgressLog[];
   weekly_progress: number | null;
 }
@@ -92,6 +103,52 @@ function mapTextbookHistory(row: DbRow): TextbookHistory {
     note: nullableString(row.note),
     created_at: String(row.created_at ?? ""),
   };
+}
+
+function mapCurriculum(row: DbRow): CurriculumProgress {
+  return {
+    id: String(row.id ?? ""),
+    class_id: String(row.class_id ?? ""),
+    unit: String(row.unit ?? ""),
+    level: nullableString(row.level),
+    status: String(row.status ?? "진행중"),
+    note: nullableString(row.note),
+    created_at: String(row.created_at ?? ""),
+  };
+}
+
+/** 반명/대상학년에서 학교급(초/중/고) 추출 — 학년 정규화에 사용 */
+function detectSchool(className: string, targetGrade: string | null): "초" | "중" | "고" | null {
+  for (const src of [className, targetGrade ?? ""]) {
+    const m = src.match(/[초중고]/);
+    if (m) return m[0] as "초" | "중" | "고";
+  }
+  return null;
+}
+
+/**
+ * 학년 표기 정규화. 실제 데이터가 "고2"/"2"/맨숫자 등으로 뒤섞여 있어
+ * 같은 학년을 하나로 합치기 위함. 학교급 범위를 벗어난 맨숫자는 원본 유지.
+ */
+function normalizeGrade(raw: string | null, school: "초" | "중" | "고" | null): string | null {
+  const g = (raw ?? "").trim();
+  if (!g) return null;
+  const pre = g.match(/^(초|중|고)\s*([1-9])/);
+  if (pre) return `${pre[1]}${pre[2]}`;
+  const bare = g.match(/^([1-9])$/);
+  if (bare && school) {
+    const n = Number(bare[1]);
+    if (school === "고" && n >= 1 && n <= 3) return `고${n}`;
+    if (school === "중" && n >= 1 && n <= 3) return `중${n}`;
+    if (school === "초" && n >= 1 && n <= 6) return `초${n}`;
+  }
+  return g;
+}
+
+/** 학년 구성 정렬: GRADES(초3~고3) 순서, 미매칭은 뒤로 */
+function gradeOrderIndex(grade: string): number {
+  const idx = (GRADES as readonly string[]).indexOf(grade);
+  return idx === -1 ? GRADES.length : idx;
 }
 
 function mapLog(row: DbRow): ClassProgressLog {
@@ -265,9 +322,10 @@ export async function getCurrentProgressTeacher(): Promise<ProgressTeacherInfo |
 export async function getProgressBoard(): Promise<ProgressBoardResult> {
   const supabase = await createClient();
 
+  // description = 요일(class_days), class_time/clinic_time = 시간표 (표시 전용)
   const { data: classes, error: classError } = await supabase
     .from("classes")
-    .select("id, name, target_grade, teacher_id, is_active, teachers:teacher_id(name), class_progress(*)")
+    .select("id, name, target_grade, teacher_id, is_active, description, class_time, clinic_time, teachers:teacher_id(name), class_progress(*)")
     .eq("is_active", true)
     .order("name", { ascending: true });
 
@@ -276,9 +334,19 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
     return { rows: [], error: classError.message };
   }
 
+  // 반명 → 학교급 (학년 정규화에 사용)
+  const classSchoolByName = new Map<string, "초" | "중" | "고" | null>();
+  for (const row of classes ?? []) {
+    const classRow = row as DbRow;
+    const className = String(classRow.name ?? "");
+    if (className) {
+      classSchoolByName.set(className, detectSchool(className, nullableString(classRow.target_grade)));
+    }
+  }
+
   const { data: students, error: studentError } = await supabase
     .from("students")
-    .select("id, name, class_name, is_active")
+    .select("id, name, class_name, grade, is_active")
     .eq("is_active", true);
 
   if (studentError) {
@@ -287,6 +355,7 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
 
   const classCounts = new Map<string, number>();
   const classStudentNames = new Map<string, string[]>();
+  const classGradeCounts = new Map<string, Map<string, number>>();
   for (const student of students ?? []) {
     const className = nullableString((student as DbRow).class_name);
     if (!className) continue;
@@ -295,10 +364,24 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
     if (studentName) {
       classStudentNames.set(className, [...(classStudentNames.get(className) ?? []), studentName]);
     }
+    const grade = normalizeGrade(
+      nullableString((student as DbRow).grade),
+      classSchoolByName.get(className) ?? null
+    );
+    if (grade) {
+      const gradeMap = classGradeCounts.get(className) ?? new Map<string, number>();
+      gradeMap.set(grade, (gradeMap.get(grade) ?? 0) + 1);
+      classGradeCounts.set(className, gradeMap);
+    }
   }
   for (const names of classStudentNames.values()) {
     names.sort((a, b) => a.localeCompare(b, "ko"));
   }
+
+  const buildGradeBreakdown = (className: string): GradeCount[] =>
+    [...(classGradeCounts.get(className)?.entries() ?? [])]
+      .map(([grade, count]) => ({ grade, count }))
+      .sort((a, b) => gradeOrderIndex(a.grade) - gradeOrderIndex(b.grade) || a.grade.localeCompare(b.grade, "ko"));
 
   const baseRows = (classes ?? []).map((row) => {
     const classRow = row as DbRow;
@@ -311,11 +394,16 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
       teacher_id: nullableString(classRow.teacher_id),
       teacher_name: getTeacherName(classRow.teachers),
       target_grade: nullableString(classRow.target_grade),
+      class_days: nullableString(classRow.description),
+      class_time: nullableString(classRow.class_time),
+      clinic_time: nullableString(classRow.clinic_time),
       actual_student_count: actualStudentCount,
       student_count: actualStudentCount,
       student_names: classStudentNames.get(className) ?? [],
+      grade_breakdown: buildGradeBreakdown(className),
       progress,
       textbook_history: [] as TextbookHistory[],
+      curriculum: [] as CurriculumProgress[],
       recent_logs: [] as ClassProgressLog[],
       weekly_progress: null as number | null,
     };
@@ -341,6 +429,32 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
       }
       for (const row of baseRows) {
         row.textbook_history = historyMap.get(row.class_id) ?? [];
+      }
+    }
+
+    // 수업 진행 단원 일괄 조회 (반별 누적, canonical 정렬)
+    const { data: curriculums, error: curriculumError } = await supabase
+      .from("class_curriculum_progress")
+      .select("*")
+      .in("class_id", classIds);
+
+    if (curriculumError) {
+      console.error("[Progress] curriculum query failed:", curriculumError.message);
+    } else {
+      const curriculumMap = new Map<string, CurriculumProgress[]>();
+      for (const c of curriculums ?? []) {
+        const mapped = mapCurriculum(c as DbRow);
+        curriculumMap.set(mapped.class_id, [...(curriculumMap.get(mapped.class_id) ?? []), mapped]);
+      }
+      for (const list of curriculumMap.values()) {
+        list.sort(
+          (a, b) =>
+            curriculumUnitOrder(a.unit) - curriculumUnitOrder(b.unit) ||
+            a.created_at.localeCompare(b.created_at)
+        );
+      }
+      for (const row of baseRows) {
+        row.curriculum = curriculumMap.get(row.class_id) ?? [];
       }
     }
   }
@@ -546,6 +660,72 @@ export async function deleteTextbookHistory(historyId: string) {
     return { success: true as const };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "교재 이력 삭제 실패";
+    return { success: false as const, error: msg };
+  }
+}
+
+// ========== 수업 진행 단원 (반별 누적) ==========
+
+export async function upsertCurriculum(classId: string, data: CurriculumProgressFormValues) {
+  try {
+    const parsed = curriculumProgressSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false as const, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = await createClient();
+    const permission = await assertCanEditClass(supabase, classId);
+    if (!permission.ok) return { success: false as const, error: permission.error };
+
+    const { data: saved, error } = await supabase
+      .from("class_curriculum_progress")
+      .upsert(
+        {
+          class_id: classId,
+          unit: parsed.data.unit,
+          level: parsed.data.level ?? null,
+          status: parsed.data.status,
+          note: cleanText(parsed.data.note),
+        },
+        { onConflict: "class_id,unit" }
+      )
+      .select("*")
+      .single();
+
+    if (error) return { success: false as const, error: error.message };
+
+    revalidatePath("/progress");
+    return { success: true as const, curriculum: mapCurriculum(saved as DbRow) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "단원 저장 실패";
+    return { success: false as const, error: msg };
+  }
+}
+
+export async function deleteCurriculum(curriculumId: string) {
+  try {
+    const supabase = await createClient();
+
+    const { data: curriculum, error: fetchError } = await supabase
+      .from("class_curriculum_progress")
+      .select("id, class_id")
+      .eq("id", curriculumId)
+      .single();
+
+    if (fetchError || !curriculum) {
+      return { success: false as const, error: "단원 정보를 찾을 수 없습니다" };
+    }
+
+    const permission = await assertCanEditClass(supabase, String(curriculum.class_id));
+    if (!permission.ok) return { success: false as const, error: permission.error };
+
+    const { error } = await supabase.from("class_curriculum_progress").delete().eq("id", curriculumId);
+    if (error) return { success: false as const, error: error.message };
+
+    revalidatePath("/progress");
+    return { success: true as const };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "단원 삭제 실패";
     return { success: false as const, error: msg };
   }
 }

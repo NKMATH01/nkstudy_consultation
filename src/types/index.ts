@@ -127,6 +127,39 @@ export interface TextbookHistory {
 export const CLASS_LEVELS = ["상", "중", "하"] as const;
 export const CLASS_PACES = ["빠름", "보통", "느림"] as const;
 
+// ==================== 수업 진행 단원 ====================
+
+export interface CurriculumProgress {
+  id: string;
+  class_id: string;
+  unit: string;
+  level: string | null;   // 기본 | 응용 | 심화
+  status: string;         // 진행중 | 완료
+  note: string | null;
+  created_at: string;
+}
+
+export const CURRICULUM_LEVELS = ["기본", "응용", "심화"] as const;
+export const CURRICULUM_STATUS = ["진행중", "완료"] as const;
+
+/** 단원 picker 그룹 (학교급별). 저장값은 unit 문자열 그대로. */
+export const CURRICULUM_UNIT_GROUPS: { label: string; units: string[] }[] = [
+  { label: "초등", units: ["초3-1", "초3-2", "초4-1", "초4-2", "초5-1", "초5-2", "초6-1", "초6-2"] },
+  { label: "중등", units: ["중1-1", "중1-2", "중2-1", "중2-2", "중3-1", "중3-2"] },
+  { label: "고1", units: ["공수1", "공수2"] },
+  { label: "고2", units: ["대수", "미적분1"] },
+  { label: "고3·선택", units: ["미적분2", "확률통계", "기하"] },
+];
+
+/** 정렬 기준이 되는 평탄한 단원 순서(canonical order). */
+export const CURRICULUM_UNITS: string[] = CURRICULUM_UNIT_GROUPS.flatMap((g) => g.units);
+
+/** 단원의 canonical 정렬 인덱스 (미등록 단원은 뒤로). */
+export function curriculumUnitOrder(unit: string): number {
+  const idx = CURRICULUM_UNITS.indexOf(unit);
+  return idx === -1 ? CURRICULUM_UNITS.length : idx;
+}
+
 export interface ClassProgressLog {
   id: string;
   progress_id: string;

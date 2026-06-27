@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users, Plus, Trash2, History } from "lucide-react";
+import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users, Plus, Trash2, History, CalendarClock, GraduationCap, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,8 +25,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
-import { addTextbookHistory, deleteTextbookHistory, updateCurrentPage, upsertProgress } from "@/lib/actions/progress";
-import { GRADES, CLASS_LEVELS, CLASS_PACES, type TextbookHistory } from "@/types";
+import {
+  addTextbookHistory,
+  deleteTextbookHistory,
+  updateCurrentPage,
+  upsertProgress,
+  upsertCurriculum,
+  deleteCurriculum,
+} from "@/lib/actions/progress";
+import {
+  GRADES,
+  CLASS_LEVELS,
+  CLASS_PACES,
+  CURRICULUM_LEVELS,
+  CURRICULUM_STATUS,
+  CURRICULUM_UNIT_GROUPS,
+  curriculumUnitOrder,
+  type TextbookHistory,
+  type CurriculumProgress,
+} from "@/types";
+import { formatSchedule } from "@/lib/schedule";
 import type { ProgressBoardRow, ProgressTeacherInfo } from "@/lib/actions/progress";
 
 interface Props {
@@ -47,6 +65,17 @@ function formatDate(value: string | null | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** 진도 입력 날짜를 날짜(굵게)/시각(보조)으로 분리 */
+function formatDateParts(value: string | null | undefined): { date: string; time: string } | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    date: `${pad(d.getMonth() + 1)}/${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 }
 
 function progressPercent(current: number | null | undefined, total: number | null | undefined) {
@@ -219,6 +248,62 @@ function TraitBadges({ progress }: { progress: ProgressBoardRow["progress"] }) {
   );
 }
 
+function ScheduleBadge({ row }: { row: ProgressBoardRow }) {
+  const schedule = formatSchedule(row.class_days, row.class_time, row.clinic_time);
+  if (!schedule.text) return null;
+  return (
+    <span
+      className="mt-1.5 inline-flex max-w-[280px] items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
+      style={{ background: "#F1F5F9", color: "#475569" }}
+      title={schedule.text}
+    >
+      <CalendarClock className="h-3 w-3 shrink-0" />
+      <span className="truncate">{schedule.text}</span>
+    </span>
+  );
+}
+
+const CURRICULUM_TONES: Record<string, { bg: string; color: string }> = {
+  완료: { bg: "#ECFDF5", color: "#047857" },
+  진행중: { bg: "color-mix(in srgb, var(--accent-warm) 28%, white)", color: "var(--accent-warm-foreground)" },
+};
+
+function CurriculumChips({ curriculum, max }: { curriculum: CurriculumProgress[]; max?: number }) {
+  if (curriculum.length === 0) return <span className="text-xs text-slate-400">-</span>;
+  const items = max ? curriculum.slice(0, max) : curriculum;
+  const rest = max ? curriculum.length - items.length : 0;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {items.map((c) => {
+        const tone = CURRICULUM_TONES[c.status] ?? CURRICULUM_TONES["진행중"];
+        return (
+          <span
+            key={c.id}
+            className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-extrabold"
+            style={{ background: tone.bg, color: tone.color }}
+            title={`${c.unit}${c.level ? ` ${c.level}` : ""} · ${c.status}`}
+          >
+            {c.unit}
+            {c.level && <span className="font-bold opacity-80">{c.level}</span>}
+            {c.status === "완료" && <span>✓</span>}
+          </span>
+        );
+      })}
+      {rest > 0 && <span className="self-center text-[10.5px] font-bold text-slate-400">+{rest}</span>}
+    </div>
+  );
+}
+
+/** 합반(학년 2종 이상)일 때만 학년 구성 표시 */
+function GradeBreakdownText({ breakdown }: { breakdown: ProgressBoardRow["grade_breakdown"] }) {
+  if (breakdown.length <= 1) return null;
+  return (
+    <p className="mt-1 text-[10.5px] font-semibold text-slate-500">
+      {breakdown.map((g) => `${g.grade} ${g.count}`).join(" · ")}
+    </p>
+  );
+}
+
 function gradeFromClassName(className: string): string {
   const match = className.trimStart().match(/^(초|중|고)\s*([1-6])/);
   if (!match) return "고3";
@@ -296,18 +381,25 @@ function ProgressDialog({
   onClose,
   onSaved,
   onHistoryChange,
+  onCurriculumChange,
 }: {
   row: ProgressBoardRow | null;
   open: boolean;
   onClose: () => void;
   onSaved: (row: ProgressBoardRow) => void;
   onHistoryChange: (classId: string, history: TextbookHistory[]) => void;
+  onCurriculumChange: (classId: string, curriculum: CurriculumProgress[]) => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [history, setHistory] = useState<TextbookHistory[]>(row?.textbook_history ?? []);
   const [newTextbook, setNewTextbook] = useState("");
   const [historyPending, setHistoryPending] = useState(false);
+  const [curriculum, setCurriculum] = useState<CurriculumProgress[]>(row?.curriculum ?? []);
+  const [newUnit, setNewUnit] = useState("");
+  const [newLevel, setNewLevel] = useState("");
+  const [newStatus, setNewStatus] = useState<"진행중" | "완료">("진행중");
+  const [curriculumPending, setCurriculumPending] = useState(false);
   const form = useForm<ProgressFormValues>({
     resolver: zodResolver(progressFormSchema) as never,
     defaultValues: row ? defaultValues(row) : {},
@@ -349,6 +441,69 @@ function ProgressDialog({
     }
   };
 
+  /** 단원 목록에 upsert 결과를 반영(동일 단원 교체) + canonical 정렬 */
+  const mergeCurriculum = (list: CurriculumProgress[], item: CurriculumProgress): CurriculumProgress[] =>
+    [...list.filter((c) => c.unit !== item.unit), item].sort(
+      (a, b) => curriculumUnitOrder(a.unit) - curriculumUnitOrder(b.unit) || a.created_at.localeCompare(b.created_at)
+    );
+
+  const handleAddCurriculum = async () => {
+    if (!newUnit) {
+      toast.error("단원을 선택해주세요");
+      return;
+    }
+    setCurriculumPending(true);
+    const result = await upsertCurriculum(row.class_id, {
+      unit: newUnit,
+      level: (newLevel || undefined) as "기본" | "응용" | "심화" | undefined,
+      status: newStatus,
+    });
+    setCurriculumPending(false);
+    if (result.success && result.curriculum) {
+      const next = mergeCurriculum(curriculum, result.curriculum);
+      setCurriculum(next);
+      onCurriculumChange(row.class_id, next);
+      setNewUnit("");
+      setNewLevel("");
+      setNewStatus("진행중");
+      toast.success("단원이 저장되었습니다");
+    } else {
+      toast.error(("error" in result && result.error) || "단원 저장 실패");
+    }
+  };
+
+  /** 칩 클릭 → 진행중 ↔ 완료 토글 */
+  const handleToggleCurriculum = async (c: CurriculumProgress) => {
+    setCurriculumPending(true);
+    const nextStatus = c.status === "완료" ? "진행중" : "완료";
+    const result = await upsertCurriculum(row.class_id, {
+      unit: c.unit,
+      level: (c.level || undefined) as "기본" | "응용" | "심화" | undefined,
+      status: nextStatus,
+    });
+    setCurriculumPending(false);
+    if (result.success && result.curriculum) {
+      const next = mergeCurriculum(curriculum, result.curriculum);
+      setCurriculum(next);
+      onCurriculumChange(row.class_id, next);
+    } else {
+      toast.error(("error" in result && result.error) || "단원 상태 변경 실패");
+    }
+  };
+
+  const handleDeleteCurriculum = async (curriculumId: string) => {
+    setCurriculumPending(true);
+    const result = await deleteCurriculum(curriculumId);
+    setCurriculumPending(false);
+    if (result.success) {
+      const next = curriculum.filter((c) => c.id !== curriculumId);
+      setCurriculum(next);
+      onCurriculumChange(row.class_id, next);
+    } else {
+      toast.error(result.error || "단원 삭제 실패");
+    }
+  };
+
   const numberRegister = {
     setValueAs: (value: string) => (value === "" ? undefined : Number(value)),
   };
@@ -365,7 +520,7 @@ function ProgressDialog({
         toast.success("진도 정보가 저장되었습니다");
         // 주의: row prop은 다이얼로그 오픈 시점 스냅샷 — 이력은 최신 상태로 덮어써야
         // [추가]한 교재가 저장 직후 사라지는 버그가 없음
-        onSaved(rowWithProgress({ ...row, textbook_history: latestHistory }, result));
+        onSaved(rowWithProgress({ ...row, textbook_history: latestHistory, curriculum }, result));
         onClose();
         router.refresh();
       } else {
@@ -556,6 +711,108 @@ function ProgressDialog({
             </div>
           </div>
 
+          {/* 수업 진행 단원 — 단원 + 수준(기본/응용/심화) + 상태(진행중/완료) 누적 */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+              <Layers className="h-3.5 w-3.5" />
+              수업 진행 단원 ({curriculum.length})
+            </p>
+            {curriculum.length > 0 && (
+              <ul className="mb-3 flex flex-wrap gap-1.5">
+                {curriculum.map((c) => {
+                  const tone = CURRICULUM_TONES[c.status] ?? CURRICULUM_TONES["진행중"];
+                  return (
+                    <li
+                      key={c.id}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white py-1 pl-2 pr-1"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCurriculum(c)}
+                        disabled={curriculumPending}
+                        className="inline-flex items-center gap-1"
+                        title="클릭 시 진행중 ↔ 완료"
+                      >
+                        <span className="text-sm font-bold text-slate-700">{c.unit}</span>
+                        {c.level && <span className="text-[11px] font-semibold text-slate-400">{c.level}</span>}
+                        <span
+                          className="rounded px-1 py-0.5 text-[10px] font-extrabold"
+                          style={{ background: tone.bg, color: tone.color }}
+                        >
+                          {c.status}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCurriculum(c.id)}
+                        disabled={curriculumPending}
+                        className="rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                        title="단원 삭제"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="space-y-1">
+                <span className="block text-[11px] font-bold text-slate-500">단원</span>
+                <select
+                  value={newUnit}
+                  onChange={(e) => setNewUnit(e.target.value)}
+                  className="h-9 w-40 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                >
+                  <option value="">선택</option>
+                  {CURRICULUM_UNIT_GROUPS.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.units.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="block text-[11px] font-bold text-slate-500">수준</span>
+                <select
+                  value={newLevel}
+                  onChange={(e) => setNewLevel(e.target.value)}
+                  className="h-9 w-24 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                >
+                  <option value="">선택</option>
+                  {CURRICULUM_LEVELS.map((v) => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="block text-[11px] font-bold text-slate-500">상태</span>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as "진행중" | "완료")}
+                  className="h-9 w-24 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                >
+                  {CURRICULUM_STATUS.map((v) => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={curriculumPending}
+                onClick={handleAddCurriculum}
+                className="h-9 gap-1"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                추가
+              </Button>
+            </div>
+          </div>
+
           <label className="block space-y-1.5">
             <span className="text-xs font-bold text-slate-500">진행 계획</span>
             <Textarea rows={3} {...form.register("current_plan")} />
@@ -617,6 +874,32 @@ function ClassDetailDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* 요일 · 수업 시간 (반 관리 입력값, 표시 전용) */}
+          {(() => {
+            const schedule = formatSchedule(row.class_days, row.class_time, row.clinic_time);
+            if (schedule.segments.length === 0) return null;
+            return (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  요일 · 수업 시간
+                </p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {schedule.segments.map((seg, idx) => (
+                    <li
+                      key={`${seg.days}-${idx}`}
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700"
+                    >
+                      <span className="font-bold">{seg.days}</span>
+                      {seg.classTime && <span className="ml-1 text-slate-500">{seg.classTime}</span>}
+                      {seg.clinicTime && <span className="ml-1 text-[11px] text-slate-400">클리닉 {seg.clinicTime}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
+
           {/* 반 특성 */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             <p className="mb-2 text-xs font-extrabold text-slate-600">반 특성</p>
@@ -665,6 +948,19 @@ function ClassDetailDialog({
             )}
           </div>
 
+          {/* 수업 진행 단원 */}
+          <div className="rounded-xl border border-slate-200 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+              <Layers className="h-3.5 w-3.5" />
+              수업 진행 단원 ({row.curriculum.length})
+            </p>
+            {row.curriculum.length === 0 ? (
+              <p className="text-xs text-slate-400">기록된 진행 단원이 없습니다</p>
+            ) : (
+              <CurriculumChips curriculum={row.curriculum} />
+            )}
+          </div>
+
           {/* 지난 교재 이력 */}
           <div className="rounded-xl border border-slate-200 p-3">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
@@ -690,6 +986,12 @@ function ClassDetailDialog({
               <Users className="h-3.5 w-3.5" />
               학생 명단 ({row.student_names.length})
             </p>
+            {row.grade_breakdown.length > 0 && (
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                <GraduationCap className="h-3.5 w-3.5 text-slate-400" />
+                {row.grade_breakdown.map((g) => `${g.grade} ${g.count}명`).join(" · ")}
+              </p>
+            )}
             {row.student_names.length === 0 ? (
               <p className="text-xs text-slate-400">이 반으로 배정된 재원생이 없습니다</p>
             ) : (
@@ -740,6 +1042,12 @@ function StudentListDialog({
             재원생 {row?.student_names.length ?? 0}명 (학생 관리 기준)
           </DialogDescription>
         </DialogHeader>
+        {row && row.grade_breakdown.length > 0 && (
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+            <GraduationCap className="h-3.5 w-3.5 text-slate-400" />
+            {row.grade_breakdown.map((g) => `${g.grade} ${g.count}명`).join(" · ")}
+          </p>
+        )}
         {row && row.student_names.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">
             이 반으로 배정된 재원생이 없습니다
@@ -962,10 +1270,11 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/90">
-                  <TableHead className="min-w-[120px] px-4 text-xs font-bold text-slate-500">반명</TableHead>
+                  <TableHead className="min-w-[120px] px-4 text-xs font-bold text-slate-500">반명 · 요일/시간</TableHead>
                   <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">강사명</TableHead>
                   <TableHead className="min-w-[68px] text-xs font-bold text-slate-500">인원</TableHead>
                   <TableHead className="min-w-[280px] text-xs font-bold text-slate-500">메인교재 · 진도율</TableHead>
+                  <TableHead className="min-w-[150px] text-xs font-bold text-slate-500">진행 단원</TableHead>
                   <TableHead className="min-w-[160px] text-xs font-bold text-slate-500">현재 페이지</TableHead>
                   <TableHead className="min-w-[130px] text-xs font-bold text-slate-500">최신화</TableHead>
                   <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">입력</TableHead>
@@ -993,6 +1302,9 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           {row.class_name}
                         </button>
                         <TraitBadges progress={progress} />
+                        <div>
+                          <ScheduleBadge row={row} />
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
                       <TableCell>
@@ -1005,6 +1317,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           <Users className="h-3 w-3 text-slate-400" />
                           {row.student_count}명
                         </button>
+                        <GradeBreakdownText breakdown={row.grade_breakdown} />
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1.5">
@@ -1043,6 +1356,9 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         </div>
                       </TableCell>
                       <TableCell>
+                        <CurriculumChips curriculum={row.curriculum} max={6} />
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <Input
                             value={pageInputs[row.class_id] ?? ""}
@@ -1064,12 +1380,24 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-semibold text-slate-600">{formatDate(progress?.progress_updated_at)}</p>
-                          {progress?.updated_by && (
-                            <p className="text-[11px] font-medium text-slate-400">{progress.updated_by}</p>
-                          )}
-                        </div>
+                        {(() => {
+                          const parts = formatDateParts(progress?.progress_updated_at);
+                          return (
+                            <div className="space-y-0.5">
+                              {parts ? (
+                                <p className="text-sm font-bold text-slate-700">
+                                  {parts.date}
+                                  <span className="ml-1 text-[11px] font-medium text-slate-400">{parts.time}</span>
+                                </p>
+                              ) : (
+                                <p className="text-xs font-semibold text-slate-400">미입력</p>
+                              )}
+                              {progress?.updated_by && (
+                                <p className="text-[11px] font-medium text-slate-400">{progress.updated_by}</p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -1099,6 +1427,9 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         onSaved={updateRow}
         onHistoryChange={(classId, history) =>
           setRows((prev) => prev.map((r) => (r.class_id === classId ? { ...r, textbook_history: history } : r)))
+        }
+        onCurriculumChange={(classId, curriculum) =>
+          setRows((prev) => prev.map((r) => (r.class_id === classId ? { ...r, curriculum } : r)))
         }
       />
       <StudentListDialog row={studentListRow} onClose={() => setStudentListRow(null)} />

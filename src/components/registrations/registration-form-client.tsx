@@ -321,7 +321,8 @@ export function RegistrationForm({
   const filteredClasses = useMemo(() => {
     if (!classBaseGrade) return classes;
     const matched = classes.filter((c) =>
-      c.target_grade === classBaseGrade || c.name.startsWith(classBaseGrade)
+      // target_grade "초6~중1" 같은 범위 표기도 매칭 (정확 일치만으로는 놓침)
+      Boolean(c.target_grade?.includes(classBaseGrade)) || c.name.startsWith(classBaseGrade)
     );
     return matched.length > 0 ? matched : classes;
   }, [classes, classBaseGrade]);

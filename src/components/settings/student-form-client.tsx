@@ -127,6 +127,9 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
   const filteredClasses = useMemo(() => {
     if (!classBaseGrade) return classes;
     return classes.filter((c) => {
+      // target_grade가 "고3" 정확 일치뿐 아니라 "초6~중1" 같은 범위 표기도 매칭 —
+      // 이름이 "수능대비_확통"처럼 학년 prefix로 시작하지 않는 반을 잡기 위함
+      if (c.target_grade && c.target_grade.includes(classBaseGrade)) return true;
       if (extractGradeFromClassName(c.name) === classBaseGrade) return true;
       // 고3 기준일 때 기하/미적/확통 등 특수과목 반도 포함
       if (classBaseGrade === "고3" && isHighSchoolSubjectClass(c.name)) return true;

@@ -47,6 +47,15 @@ function isHighSchoolSubjectClass(className: string): boolean {
   return HIGH_SCHOOL_SUBJECTS.some((s) => className.startsWith(s));
 }
 
+/** 학년에 맞는 반 판별 — 이름 prefix + target_grade(범위 표기 포함) + 고3 특수과목.
+ *  "수능대비_확통"처럼 이름이 학년 prefix로 시작하지 않아도 target_grade로 매칭한다. */
+function classMatchesGrade(c: Class, grade: string): boolean {
+  if (c.target_grade && c.target_grade.includes(grade)) return true;
+  if (extractGradeFromClassName(c.name) === grade) return true;
+  if (grade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
+  return false;
+}
+
 // ── 학생의 실제 학년 판별 (grade 숫자 + class_name 조합) ──
 function resolveStudentGrade(student: { grade?: string | null; assigned_class?: string | null }): string | null {
   // 1. class_name에서 학년 추출 (가장 정확)
@@ -179,11 +188,7 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
   // 학년에 맞는 반 필터링
   const filteredClasses = useMemo(() => {
     if (!grade) return classes;
-    return classes.filter((c) => {
-      if (extractGradeFromClassName(c.name) === grade) return true;
-      if (grade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
-      return false;
-    });
+    return classes.filter((c) => classMatchesGrade(c, grade));
   }, [grade, classes]);
 
   const inputCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10";
@@ -292,11 +297,7 @@ export function StudentList({ students, teachers, classes, canDelete = false }: 
   // 학년에 맞는 반 목록 (classes 테이블 + 학생 실제 배정반 합치기)
   const classesForGrade = useMemo(() => {
     if (!filterGrade) return classes;
-    return classes.filter((c) => {
-      if (extractGradeFromClassName(c.name) === filterGrade) return true;
-      if (filterGrade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
-      return false;
-    });
+    return classes.filter((c) => classMatchesGrade(c, filterGrade));
   }, [filterGrade, classes]);
 
   // 학생 목록에서 사용되는 고유 배정반 목록

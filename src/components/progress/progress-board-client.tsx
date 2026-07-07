@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users, Plus, Trash2, History, CalendarClock, GraduationCap, Layers } from "lucide-react";
+import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users, Plus, Trash2, History, CalendarClock, GraduationCap, Layers, ChevronRight, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +65,13 @@ function formatDate(value: string | null | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** "YYYY-MM-DD" 원본을 "YY.MM.DD"로 짧게 (지난 교재 표의 시작/종료일용) */
+function shortDate(value: string | null | undefined): string {
+  if (!value) return "-";
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : value;
 }
 
 /** 진도 입력 날짜를 날짜(굵게)/시각(보조)으로 분리 */
@@ -248,16 +255,35 @@ function TraitBadges({ progress }: { progress: ProgressBoardRow["progress"] }) {
   );
 }
 
+/** 요일 그룹 — 첫 세트(| 앞) 기준으로 월수/화목/기타 분류 (월수 우선) */
+type DayGroup = "월수" | "화목" | "기타";
+
+function dayGroupOf(classDays: string | null | undefined): DayGroup {
+  const first = (classDays ?? "").split("|")[0] ?? "";
+  if (first.includes("월") && first.includes("수")) return "월수";
+  if (first.includes("화") && first.includes("목")) return "화목";
+  return "기타";
+}
+
+const DAY_GROUP_TONES: Record<DayGroup, { bg: string; color: string; border: string; accent: string }> = {
+  월수: { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", accent: "#3B82F6" }, // 파랑
+  화목: { bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA", accent: "#F97316" }, // 주황
+  기타: { bg: "#F1F5F9", color: "#475569", border: "#E2E8F0", accent: "#94A3B8" }, // 슬레이트(현행 유지)
+};
+
 function ScheduleBadge({ row }: { row: ProgressBoardRow }) {
   const schedule = formatSchedule(row.class_days, row.class_time, row.clinic_time);
   if (!schedule.text) return null;
+  const group = dayGroupOf(row.class_days);
+  const tone = DAY_GROUP_TONES[group];
   return (
     <span
       className="mt-1.5 inline-flex max-w-[280px] items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
-      style={{ background: "#F1F5F9", color: "#475569" }}
+      style={{ background: tone.bg, color: tone.color }}
       title={schedule.text}
     >
       <CalendarClock className="h-3 w-3 shrink-0" />
+      {group !== "기타" && <span className="font-extrabold">{group}</span>}
       <span className="truncate">{schedule.text}</span>
     </span>
   );
@@ -838,42 +864,214 @@ function ProgressDialog({
   );
 }
 
-function ClassDetailDialog({
+/** 학생 명단을 학년별로 묶어 이름까지 표시 — 누가 초5/초6인지 한눈에 */
+function StudentsByGrade({ row }: { row: ProgressBoardRow }) {
+  if (row.student_names.length === 0) {
+    return <p className="text-xs text-slate-400">이 반으로 배정된 재원생이 없습니다</p>;
+  }
+  if (row.grade_groups.length === 0) {
+    return (
+      <ul className="flex flex-wrap gap-1.5">
+        {row.student_names.map((name, idx) => (
+          <li key={`${name}-${idx}`} className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700">
+            {name}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {row.grade_groups.map((g) => (
+        <div key={g.grade}>
+          <p className="mb-1 flex items-center gap-1.5 text-[11px] font-extrabold">
+            <span
+              className="rounded-md px-1.5 py-0.5"
+              style={{ background: "color-mix(in srgb, var(--primary) 12%, white)", color: "var(--primary)" }}
+            >
+              {g.grade}
+            </span>
+            <span className="text-slate-400">{g.names.length}명</span>
+          </p>
+          <ul className="flex flex-wrap gap-1.5">
+            {g.names.map((name, idx) => (
+              <li
+                key={`${g.grade}-${name}-${idx}`}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700"
+              >
+                {name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 진행 단원을 완료/진행중으로 나눠 상세 표시 (예: 초3-1, 초3-2 완료) */
+function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) {
+  if (curriculum.length === 0) {
+    return <p className="text-xs text-slate-400">기록된 진행 단원이 없습니다</p>;
+  }
+  const done = curriculum.filter((c) => c.status === "완료");
+  const ongoing = curriculum.filter((c) => c.status !== "완료");
+
+  const renderGroup = (label: string, items: CurriculumProgress[]) =>
+    items.length === 0 ? null : (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="w-12 shrink-0 text-[11px] font-extrabold text-slate-400">{label}</span>
+        {items.map((c) => {
+          const tone = CURRICULUM_TONES[c.status] ?? CURRICULUM_TONES["진행중"];
+          return (
+            <span
+              key={c.id}
+              className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11.5px] font-extrabold"
+              style={{ background: tone.bg, color: tone.color }}
+            >
+              {c.unit}
+              {c.level && <span className="font-bold opacity-80">{c.level}</span>}
+            </span>
+          );
+        })}
+      </div>
+    );
+
+  return (
+    <div className="space-y-1.5">
+      {renderGroup("진행중", ongoing)}
+      {renderGroup("완료", done)}
+    </div>
+  );
+}
+
+/** 진도 입력 로그를 표로 — 날짜/페이지/증감/기록자 (recorded_at 내림차순, 최근 10회) */
+function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+        <History className="h-3.5 w-3.5" />
+        진도 기록 (최근 10회)
+      </p>
+      {logs.length === 0 ? (
+        <p className="text-xs text-slate-400">기록된 진도 입력이 없습니다</p>
+      ) : (
+        <div className="max-h-56 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="h-8 text-[11px] font-bold text-slate-500">날짜</TableHead>
+                <TableHead className="h-8 text-[11px] font-bold text-slate-500">페이지</TableHead>
+                <TableHead className="h-8 text-[11px] font-bold text-slate-500">증감</TableHead>
+                <TableHead className="h-8 text-[11px] font-bold text-slate-500">기록자</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.map((log, i) => {
+                // 증감 = 이 로그 − 바로 이전(더 오래된) 로그. 내림차순이므로 다음 인덱스가 더 과거.
+                const older = logs[i + 1];
+                const delta = older ? log.page - older.page : null;
+                return (
+                  <TableRow key={log.id}>
+                    <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{formatDate(log.recorded_at)}</TableCell>
+                    <TableCell className="py-1.5 text-sm font-bold text-slate-800">{log.page}p</TableCell>
+                    <TableCell className="py-1.5 text-[11px] font-bold">
+                      {delta == null ? (
+                        <span className="text-slate-400">-</span>
+                      ) : delta > 0 ? (
+                        <span style={{ color: "#047857" }}>+{delta}p</span>
+                      ) : (
+                        <span className="text-slate-400">{delta}p</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-1.5 text-[11px] font-semibold text-slate-500">{log.recorded_by || "-"}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 지난 교재 이력을 표로 — 교재명/시작일/종료일(+비고, 있을 때만) */
+function TextbookHistoryTable({ history }: { history: ProgressBoardRow["textbook_history"] }) {
+  const hasNote = history.some((h) => h.note);
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+        <History className="h-3.5 w-3.5" />
+        지난 교재 ({history.length})
+      </p>
+      {history.length === 0 ? (
+        <p className="text-xs text-slate-400">기록된 지난 교재가 없습니다</p>
+      ) : (
+        <div className="max-h-56 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="h-8 text-[11px] font-bold text-slate-500">교재명</TableHead>
+                <TableHead className="h-8 text-[11px] font-bold text-slate-500">시작일</TableHead>
+                <TableHead className="h-8 text-[11px] font-bold text-slate-500">종료일</TableHead>
+                {hasNote && <TableHead className="h-8 text-[11px] font-bold text-slate-500">비고</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.map((h) => (
+                <TableRow key={h.id}>
+                  <TableCell className="py-1.5 text-sm font-semibold text-slate-700">{h.textbook}</TableCell>
+                  <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{shortDate(h.started_on)}</TableCell>
+                  <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{shortDate(h.finished_on)}</TableCell>
+                  {hasNote && <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{h.note || "-"}</TableCell>}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClassDetailPanel({
   row,
-  onClose,
-  onEdit,
   editable,
+  onEdit,
 }: {
-  row: ProgressBoardRow | null;
-  onClose: () => void;
-  onEdit: (row: ProgressBoardRow) => void;
+  row: ProgressBoardRow;
   editable: boolean;
+  onEdit: (row: ProgressBoardRow) => void;
 }) {
-  if (!row) return null;
   const progress = row.progress;
   const percent = progressPercent(progress?.current_page, progress?.main_total_pages);
 
   const infoRow = (label: string, value: string | null | undefined) => (
     <div className="flex gap-2 text-sm">
-      <span className="w-28 shrink-0 font-bold text-slate-400">{label}</span>
+      <span className="w-24 shrink-0 font-bold text-slate-400">{label}</span>
       <span className="font-semibold text-slate-700">{value || "-"}</span>
     </div>
   );
 
   return (
-    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-[640px] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <BookOpenCheck className="h-4.5 w-4.5" style={{ color: "var(--primary)" }} />
-            {row.class_name} 상세 정보
-          </DialogTitle>
-          <DialogDescription>
+    <div className="space-y-3 border-t-2 border-[var(--primary)]/15 bg-slate-50/50 px-4 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-black text-slate-800">{row.class_name}</span>
+          <span className="text-xs font-semibold text-slate-400">
             {row.teacher_name || "담당 미정"} · 재원 {row.actual_student_count}명
-          </DialogDescription>
-        </DialogHeader>
+          </span>
+        </div>
+        {editable && (
+          <Button size="sm" onClick={() => onEdit(row)} className="h-8 gap-1">
+            <Pencil className="h-3.5 w-3.5" />
+            입력·수정
+          </Button>
+        )}
+      </div>
 
-        <div className="space-y-4">
+      <div className="grid items-start gap-3 lg:grid-cols-2">
           {/* 요일 · 수업 시간 (반 관리 입력값, 표시 전용) */}
           {(() => {
             const schedule = formatSchedule(row.class_days, row.class_time, row.clinic_time);
@@ -948,124 +1146,31 @@ function ClassDetailDialog({
             )}
           </div>
 
-          {/* 수업 진행 단원 */}
-          <div className="rounded-xl border border-slate-200 p-3">
+          {/* 진도 기록 (최근 10회) */}
+          <ProgressLogTable logs={row.recent_logs} />
+
+          {/* 수업 진행 단원 (완료/진행중) */}
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
               <Layers className="h-3.5 w-3.5" />
               수업 진행 단원 ({row.curriculum.length})
             </p>
-            {row.curriculum.length === 0 ? (
-              <p className="text-xs text-slate-400">기록된 진행 단원이 없습니다</p>
-            ) : (
-              <CurriculumChips curriculum={row.curriculum} />
-            )}
+            <CurriculumDetail curriculum={row.curriculum} />
           </div>
 
-          {/* 지난 교재 이력 */}
-          <div className="rounded-xl border border-slate-200 p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
-              <History className="h-3.5 w-3.5" />
-              지난 교재 ({row.textbook_history.length})
-            </p>
-            {row.textbook_history.length === 0 ? (
-              <p className="text-xs text-slate-400">기록된 지난 교재가 없습니다</p>
-            ) : (
-              <ul className="flex flex-wrap gap-1.5">
-                {row.textbook_history.map((h) => (
-                  <li key={h.id} className="rounded-lg bg-slate-50 px-2.5 py-1 text-sm font-semibold text-slate-700">
-                    {h.textbook}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {/* 지난 교재 이력 (표) */}
+          <TextbookHistoryTable history={row.textbook_history} />
 
-          {/* 학생 명단 */}
-          <div className="rounded-xl border border-slate-200 p-3">
+          {/* 학생 명단 (학년별 — 누가 초5/초6인지) */}
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
-              <Users className="h-3.5 w-3.5" />
+              <GraduationCap className="h-3.5 w-3.5" />
               학생 명단 ({row.student_names.length})
             </p>
-            {row.grade_breakdown.length > 0 && (
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                <GraduationCap className="h-3.5 w-3.5 text-slate-400" />
-                {row.grade_breakdown.map((g) => `${g.grade} ${g.count}명`).join(" · ")}
-              </p>
-            )}
-            {row.student_names.length === 0 ? (
-              <p className="text-xs text-slate-400">이 반으로 배정된 재원생이 없습니다</p>
-            ) : (
-              <ul className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                {row.student_names.map((name, idx) => (
-                  <li
-                    key={`${name}-${idx}`}
-                    className="rounded-lg bg-slate-50 px-2 py-1 text-center text-sm font-semibold text-slate-700"
-                  >
-                    {name}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-            <Button variant="outline" onClick={onClose}>닫기</Button>
-            {editable && (
-              <Button onClick={() => { onClose(); onEdit(row); }} className="gap-1">
-                <Pencil className="h-3.5 w-3.5" />
-                수정
-              </Button>
-            )}
+            <StudentsByGrade row={row} />
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function StudentListDialog({
-  row,
-  onClose,
-}: {
-  row: ProgressBoardRow | null;
-  onClose: () => void;
-}) {
-  return (
-    <Dialog open={Boolean(row)} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent className="max-h-[80vh] max-w-[420px] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            {row?.class_name} 학생 명단
-          </DialogTitle>
-          <DialogDescription>
-            재원생 {row?.student_names.length ?? 0}명 (학생 관리 기준)
-          </DialogDescription>
-        </DialogHeader>
-        {row && row.grade_breakdown.length > 0 && (
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-            <GraduationCap className="h-3.5 w-3.5 text-slate-400" />
-            {row.grade_breakdown.map((g) => `${g.grade} ${g.count}명`).join(" · ")}
-          </p>
-        )}
-        {row && row.student_names.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">
-            이 반으로 배정된 재원생이 없습니다
-          </p>
-        ) : (
-          <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {row?.student_names.map((name, idx) => (
-              <li
-                key={`${name}-${idx}`}
-                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-center text-sm font-semibold text-slate-700"
-              >
-                {name}
-              </li>
-            ))}
-          </ul>
-        )}
-      </DialogContent>
-    </Dialog>
+      </div>
   );
 }
 
@@ -1073,9 +1178,16 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
   const router = useRouter();
   const [rows, setRows] = useState<ProgressBoardRow[]>(initialRows);
   const [editingRow, setEditingRow] = useState<ProgressBoardRow | null>(null);
-  const [studentListRow, setStudentListRow] = useState<ProgressBoardRow | null>(null);
-  const [detailRow, setDetailRow] = useState<ProgressBoardRow | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set());
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
+
+  const toggleExpand = (classId: string) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(classId)) next.delete(classId);
+      else next.add(classId);
+      return next;
+    });
   const [pageInputs, setPageInputs] = useState<Record<string, string>>(() =>
     Object.fromEntries(initialRows.map((row) => [row.class_id, numberValue(row.progress?.current_page)]))
   );
@@ -1233,7 +1345,8 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         </div>
       )}
 
-      {/* 학년별 필터 버튼 */}
+      {/* 학년별 필터 버튼 + 요일 그룹 범례 */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap gap-1.5">
         {[{ grade: null as string | null, label: `전체 (${rows.length})` }, ...grouped.map(({ grade, items }) => ({ grade: grade as string | null, label: `${grade} (${items.length})` }))].map(({ grade, label }) => {
           const active = gradeFilter === grade;
@@ -1262,6 +1375,18 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
           );
         })}
       </div>
+        {/* 요일 그룹 범례 */}
+        <div className="flex flex-wrap items-center gap-3 pr-1 text-[11px] font-bold text-slate-500">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full" style={{ background: DAY_GROUP_TONES.월수.accent }} />
+            월수반
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full" style={{ background: DAY_GROUP_TONES.화목.accent }} />
+            화목반
+          </span>
+        </div>
+      </div>
 
       {visibleGroups.map(({ grade, items }) => (
         <section key={grade} className="card-elevated overflow-hidden rounded-2xl">
@@ -1285,24 +1410,34 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   const progress = row.progress;
                   const editable = canEditRow(row, currentTeacher);
                   const isSaving = pendingClassId === row.class_id;
+                  const isExpanded = expandedRows.has(row.class_id);
+                  const dayGroup = dayGroupOf(row.class_days);
+                  const dayTone = DAY_GROUP_TONES[dayGroup];
                   return (
+                    <Fragment key={row.class_id}>
                     <TableRow
-                      key={row.class_id}
-                      className="transition-colors odd:bg-white even:bg-slate-50/45 hover:bg-[#F6F2E7]/60"
+                      className={`transition-colors hover:bg-[#F6F2E7]/60 ${isExpanded ? "bg-[#F6F2E7]/55" : "odd:bg-white even:bg-slate-50/45"}`}
                     >
-                      <TableCell className="px-4 font-bold text-slate-900">
+                      <TableCell
+                        className="px-4 font-bold text-slate-900"
+                        style={dayGroup !== "기타" ? { boxShadow: `inset 3px 0 0 ${dayTone.accent}` } : undefined}
+                      >
                         <button
                           type="button"
-                          onClick={() => setDetailRow(row)}
-                          title="반 상세 정보 보기"
-                          className="flex cursor-pointer items-center gap-2 text-left underline-offset-4 transition hover:underline"
+                          onClick={() => toggleExpand(row.class_id)}
+                          title="클릭하면 학생 명단·진행 단원·계획이 펼쳐집니다"
+                          className="flex cursor-pointer items-center gap-1.5 text-left transition"
                           style={{ color: "var(--primary)" }}
                         >
+                          <ChevronRight
+                            className="h-4 w-4 shrink-0 transition-transform duration-200"
+                            style={{ transform: isExpanded ? "rotate(90deg)" : "none" }}
+                          />
                           {!editable && <Lock className="h-3.5 w-3.5 text-slate-300" />}
-                          {row.class_name}
+                          <span className="underline-offset-4 hover:underline">{row.class_name}</span>
                         </button>
-                        <TraitBadges progress={progress} />
-                        <div>
+                        <div className="pl-[22px]">
+                          <TraitBadges progress={progress} />
                           <ScheduleBadge row={row} />
                         </div>
                       </TableCell>
@@ -1310,8 +1445,8 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                       <TableCell>
                         <button
                           type="button"
-                          onClick={() => setStudentListRow(row)}
-                          title="학생 명단 보기"
+                          onClick={() => toggleExpand(row.class_id)}
+                          title="학년별 명단 펼쳐 보기"
                           className="inline-flex min-w-12 cursor-pointer items-center justify-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100"
                         >
                           <Users className="h-3 w-3 text-slate-400" />
@@ -1340,9 +1475,15 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                             </p>
                           )}
                           {progress?.current_plan && (
-                            <p className="max-w-[240px] truncate text-[11px] text-slate-400" title={progress.current_plan}>
-                              계획: {progress.current_plan}
-                            </p>
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(row.class_id)}
+                              className="flex max-w-[240px] items-center gap-1 text-[11px] font-semibold text-slate-400 transition hover:text-slate-600"
+                              title="계획 전체 보기"
+                            >
+                              <ClipboardList className="h-3 w-3 shrink-0" />
+                              <span className="truncate">계획: {progress.current_plan}</span>
+                            </button>
                           )}
                           {row.textbook_history.length > 0 && (
                             <p
@@ -1356,7 +1497,14 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         </div>
                       </TableCell>
                       <TableCell>
-                        <CurriculumChips curriculum={row.curriculum} max={6} />
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(row.class_id)}
+                          title="진행 단원 펼쳐 보기"
+                          className="cursor-pointer text-left"
+                        >
+                          <CurriculumChips curriculum={row.curriculum} max={6} />
+                        </button>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -1411,6 +1559,14 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         </Button>
                       </TableCell>
                     </TableRow>
+                    {isExpanded && (
+                      <TableRow className="bg-transparent hover:bg-transparent">
+                        <TableCell colSpan={8} className="p-0">
+                          <ClassDetailPanel row={row} editable={editable} onEdit={(r) => setEditingRow(r)} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -1431,13 +1587,6 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         onCurriculumChange={(classId, curriculum) =>
           setRows((prev) => prev.map((r) => (r.class_id === classId ? { ...r, curriculum } : r)))
         }
-      />
-      <StudentListDialog row={studentListRow} onClose={() => setStudentListRow(null)} />
-      <ClassDetailDialog
-        row={detailRow}
-        onClose={() => setDetailRow(null)}
-        onEdit={(row) => setEditingRow(row)}
-        editable={detailRow ? canEditRow(detailRow, currentTeacher) : false}
       />
     </div>
   );

@@ -21,6 +21,11 @@ export interface GradeCount {
   count: number;
 }
 
+export interface GradeGroup {
+  grade: string;
+  names: string[];
+}
+
 export interface ProgressBoardRow {
   class_id: string;
   class_name: string;
@@ -34,6 +39,7 @@ export interface ProgressBoardRow {
   student_count: number;
   student_names: string[];
   grade_breakdown: GradeCount[];
+  grade_groups: GradeGroup[];
   progress: ClassProgress | null;
   textbook_history: TextbookHistory[];
   curriculum: CurriculumProgress[];
@@ -218,7 +224,7 @@ async function fetchRecentLogs(
     .select("*")
     .eq("progress_id", progressId)
     .order("recorded_at", { ascending: false })
-    .limit(2);
+    .limit(10);
 
   if (error) return [];
   return (data ?? []).map((row) => mapLog(row as DbRow));
@@ -355,7 +361,7 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
 
   const classCounts = new Map<string, number>();
   const classStudentNames = new Map<string, string[]>();
-  const classGradeCounts = new Map<string, Map<string, number>>();
+  const classGradeNames = new Map<string, Map<string, string[]>>();
   for (const student of students ?? []) {
     const className = nullableString((student as DbRow).class_name);
     if (!className) continue;
@@ -369,19 +375,22 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
       classSchoolByName.get(className) ?? null
     );
     if (grade) {
-      const gradeMap = classGradeCounts.get(className) ?? new Map<string, number>();
-      gradeMap.set(grade, (gradeMap.get(grade) ?? 0) + 1);
-      classGradeCounts.set(className, gradeMap);
+      const gradeMap = classGradeNames.get(className) ?? new Map<string, string[]>();
+      gradeMap.set(grade, [...(gradeMap.get(grade) ?? []), studentName ?? "이름미상"]);
+      classGradeNames.set(className, gradeMap);
     }
   }
   for (const names of classStudentNames.values()) {
     names.sort((a, b) => a.localeCompare(b, "ko"));
   }
 
-  const buildGradeBreakdown = (className: string): GradeCount[] =>
-    [...(classGradeCounts.get(className)?.entries() ?? [])]
-      .map(([grade, count]) => ({ grade, count }))
+  const buildGradeGroups = (className: string): GradeGroup[] =>
+    [...(classGradeNames.get(className)?.entries() ?? [])]
+      .map(([grade, names]) => ({ grade, names: names.slice().sort((a, b) => a.localeCompare(b, "ko")) }))
       .sort((a, b) => gradeOrderIndex(a.grade) - gradeOrderIndex(b.grade) || a.grade.localeCompare(b.grade, "ko"));
+
+  const buildGradeBreakdown = (className: string): GradeCount[] =>
+    buildGradeGroups(className).map((g) => ({ grade: g.grade, count: g.names.length }));
 
   const baseRows = (classes ?? []).map((row) => {
     const classRow = row as DbRow;
@@ -401,6 +410,7 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
       student_count: actualStudentCount,
       student_names: classStudentNames.get(className) ?? [],
       grade_breakdown: buildGradeBreakdown(className),
+      grade_groups: buildGradeGroups(className),
       progress,
       textbook_history: [] as TextbookHistory[],
       curriculum: [] as CurriculumProgress[],
@@ -482,7 +492,9 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
   for (const row of logs ?? []) {
     const log = mapLog(row as DbRow);
     const current = logsByProgress.get(log.progress_id) ?? [];
-    if (current.length < 2) {
+    // 반당 최근 10건까지 보관 — 진도 기록 히스토리 표에 사용.
+    // weeklyProgress()는 여전히 logs[0]/logs[1](최근 2건 차이)만 참조하므로 계산이 깨지지 않는다.
+    if (current.length < 10) {
       current.push(log);
       logsByProgress.set(log.progress_id, current);
     }

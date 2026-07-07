@@ -31,7 +31,7 @@ const consultItems = [
 const analysisItems = [
   { href: "/surveys", label: "설문/분석", icon: ClipboardList },
   { href: "/onboarding", label: "등록 관리", icon: FileText },
-  { href: "/progress", label: "진도 현황", icon: BookOpenCheck },
+  { href: "/progress", label: "진도 현황", icon: BookOpenCheck, newTab: true },
 ];
 
 const withdrawalItems = [
@@ -50,7 +50,7 @@ const adminOnlyItems = [
 ];
 
 
-type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; newTab?: boolean };
 
 // 권한 설정과 무관하게 모든 강사에게 항상 표시되는 메뉴 (진도현황)
 const ALWAYS_VISIBLE_MENUS = new Set(["/progress"]);
@@ -101,6 +101,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         <Link
           key={item.href}
           href={item.href}
+          {...(item.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           className={`sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5 transition-all duration-200 ${
             isActive ? "" : "hover:translate-x-0.5 hover:bg-white/[0.05]"
           }`}
@@ -299,6 +300,22 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             <ExternalLink className="h-3.5 w-3.5" />
             공개 예약
           </Link>
+          <a
+            href="https://nk-guide.vercel.app/t"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              background: "linear-gradient(135deg, rgba(96,165,250,0.14), rgba(59,130,246,0.06))",
+              color: "#93C5FD",
+              boxShadow: "inset 0 0 0 1px rgba(96,165,250,0.18)",
+            }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            학부모 안내
+          </a>
         </div>
 
         {/* User Info */}

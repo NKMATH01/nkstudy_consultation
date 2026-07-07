@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useEffect, useMemo } from "react";
+import { useTransition, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,6 +66,9 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const isEdit = !!student;
+  // 배정반 목록의 기준 학년 override — null이면 학생 학년(selectedGrade)을 따름.
+  // 초4 학생을 초3 반에 넣는 등 다른 학년 반 배정을 허용한다.
+  const [classGradeOverride, setClassGradeOverride] = useState<string | null>(null);
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema) as never,
@@ -84,10 +87,11 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
 
   useEffect(() => {
     if (open && student) {
+      const resolved = resolveGrade(student);
       form.reset({
         name: student.name ?? "",
         school: student.school ?? "",
-        grade: resolveGrade(student),
+        grade: resolved,
         student_phone: student.student_phone ?? "",
         parent_phone: student.parent_phone ?? "",
         assigned_class: student.assigned_class ?? "",
@@ -95,6 +99,12 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
         memo: (student.memo ?? "").replace(/^\[REG:[^\]]*\]\s*/, ""),
         registration_date: student.registration_date ?? "",
       });
+      // 이미 다른 학년 반에 배정된 학생이면 그 반의 학년으로 override —
+      // 그래야 현재 배정반이 목록에 있어 select가 비어 보이지 않는다.
+      const clsGrade = student.assigned_class
+        ? extractGradeFromClassName(student.assigned_class)
+        : null;
+      setClassGradeOverride(clsGrade && clsGrade !== resolved ? clsGrade : null);
     } else if (open) {
       form.reset({
         name: "",
@@ -107,20 +117,22 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
         memo: "",
         registration_date: "",
       });
+      setClassGradeOverride(null);
     }
   }, [open, student, form]);
 
-  // 선택된 학년에 맞는 반 목록 필터링
+  // 선택된 학년에 맞는 반 목록 필터링 (override가 있으면 그 학년 기준)
   const selectedGrade = form.watch("grade");
+  const classBaseGrade = classGradeOverride ?? selectedGrade;
   const filteredClasses = useMemo(() => {
-    if (!selectedGrade) return classes;
+    if (!classBaseGrade) return classes;
     return classes.filter((c) => {
-      if (extractGradeFromClassName(c.name) === selectedGrade) return true;
-      // 고3 선택 시 기하/미적/확통 등 특수과목 반도 포함
-      if (selectedGrade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
+      if (extractGradeFromClassName(c.name) === classBaseGrade) return true;
+      // 고3 기준일 때 기하/미적/확통 등 특수과목 반도 포함
+      if (classBaseGrade === "고3" && isHighSchoolSubjectClass(c.name)) return true;
       return false;
     });
-  }, [selectedGrade, classes]);
+  }, [classBaseGrade, classes]);
 
   const onSubmit = (values: StudentFormValues) => {
     startTransition(async () => {
@@ -195,8 +207,9 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
                         value={field.value ?? ""}
                         onChange={(e) => {
                           field.onChange(e.target.value);
-                          // 학년 변경 시 배정반 초기화
+                          // 학년 변경 시 배정반 초기화 + 다른 학년 override 해제
                           form.setValue("assigned_class", "");
+                          setClassGradeOverride(null);
                         }}
                         className={selectCls}
                       >
@@ -217,7 +230,53 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
                 name="assigned_class"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>배정반</FormLabel>
+                    <div className="flex items-center justify-between gap-2">
+                      <FormLabel className="flex items-center gap-1.5">
+                        배정반
+                        {classGradeOverride && (
+                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600">
+                            {classGradeOverride} 반 목록
+                          </span>
+                        )}
+                      </FormLabel>
+                      {classGradeOverride ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClassGradeOverride(null);
+                            form.setValue("assigned_class", "");
+                          }}
+                          className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
+                        >
+                          원래 학년으로
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClassGradeOverride(selectedGrade || GRADES[0]);
+                            form.setValue("assigned_class", "");
+                          }}
+                          className="text-[10px] font-semibold text-blue-500 hover:text-blue-700"
+                        >
+                          다른 학년 반
+                        </button>
+                      )}
+                    </div>
+                    {classGradeOverride && (
+                      <select
+                        value={classGradeOverride}
+                        onChange={(e) => {
+                          setClassGradeOverride(e.target.value);
+                          form.setValue("assigned_class", "");
+                        }}
+                        className={`${selectCls} mb-1.5`}
+                      >
+                        {GRADES.map((g) => (
+                          <option key={g} value={g}>{g} 반</option>
+                        ))}
+                      </select>
+                    )}
                     <FormControl>
                       <select
                         value={field.value ?? ""}

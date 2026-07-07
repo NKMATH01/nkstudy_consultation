@@ -247,6 +247,9 @@ export function RegistrationForm({
   const [math2MultiSet, setMath2MultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
   const [mathMultiSet, setMathMultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
   const [engMultiSet, setEngMultiSet] = useState<{ classDisplay: string; clinicDisplay: string }>({ classDisplay: "", clinicDisplay: "" });
+  // 수학 배정반 목록 기준 학년 override — null이면 학생 학년(selectedGrade)을 따름.
+  // 초4 학생을 초3 반에 넣는 등 다른 학년 반 배정을 허용한다.
+  const [classGradeOverride, setClassGradeOverride] = useState<string | null>(null);
 
   // 이름 중복 제거
   const uniqueTeachers = useMemo(() => {
@@ -313,13 +316,15 @@ export function RegistrationForm({
   const isDoubleSubject = selectedSubject === "영어수학";
   const canHaveMath2 = selectedGrade === "고2" || selectedGrade === "고3";
 
+  // override가 있으면 그 학년 기준으로 반 목록 필터 (수학/영어 파생 필터에 자동 반영)
+  const classBaseGrade = classGradeOverride ?? selectedGrade;
   const filteredClasses = useMemo(() => {
-    if (!selectedGrade) return classes;
+    if (!classBaseGrade) return classes;
     const matched = classes.filter((c) =>
-      c.target_grade === selectedGrade || c.name.startsWith(selectedGrade)
+      c.target_grade === classBaseGrade || c.name.startsWith(classBaseGrade)
     );
     return matched.length > 0 ? matched : classes;
-  }, [classes, selectedGrade]);
+  }, [classes, classBaseGrade]);
 
   // 선생님 이름 → 과목 매핑 (teacher.subject = DB building 컬럼)
   const teacherSubjectMap = useMemo(() => {
@@ -359,6 +364,7 @@ export function RegistrationForm({
 
   const handleGradeChange = (value: string) => {
     form.setValue("grade", value);
+    setClassGradeOverride(null);
     form.setValue("assigned_class", "");
     form.setValue("teacher", "");
     form.setValue("assigned_class_math2", "");
@@ -635,7 +641,53 @@ export function RegistrationForm({
                     name="assigned_class"
                     render={() => (
                       <FormItem>
-                        <FormLabel>{mathLabel} *</FormLabel>
+                        <div className="flex items-center justify-between gap-2">
+                          <FormLabel className="flex items-center gap-1.5">
+                            {mathLabel} *
+                            {classGradeOverride && (
+                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600">
+                                {classGradeOverride} 반 목록
+                              </span>
+                            )}
+                          </FormLabel>
+                          {classGradeOverride ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClassGradeOverride(null);
+                                form.setValue("assigned_class", "");
+                              }}
+                              className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
+                            >
+                              원래 학년으로
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClassGradeOverride(selectedGrade || GRADES[0]);
+                                form.setValue("assigned_class", "");
+                              }}
+                              className="text-[10px] font-semibold text-blue-500 hover:text-blue-700"
+                            >
+                              다른 학년 반
+                            </button>
+                          )}
+                        </div>
+                        {classGradeOverride && (
+                          <select
+                            value={classGradeOverride}
+                            onChange={(e) => {
+                              setClassGradeOverride(e.target.value);
+                              form.setValue("assigned_class", "");
+                            }}
+                            className={`${sel} mb-1.5`}
+                          >
+                            {GRADES.map((g) => (
+                              <option key={g} value={g}>{g} 반</option>
+                            ))}
+                          </select>
+                        )}
                         <select
                           value={form.watch("assigned_class") || ""}
                           onChange={(e) => handleClassChange(e.target.value)}

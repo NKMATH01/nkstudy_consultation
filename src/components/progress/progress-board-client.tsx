@@ -203,7 +203,7 @@ function DeadlineBadge({ progress, weeklyProgress }: { progress: ProgressBoardRo
   const tone = DEADLINE_TONES[status.tone];
   return (
     <span
-      className="inline-flex max-w-[240px] items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
+      className="inline-flex items-center gap-1 whitespace-normal rounded-md px-1.5 py-0.5 text-[12.5px] font-bold"
       style={{ background: tone.bg, color: tone.color }}
       title={`${status.label} · ${status.detail}`}
     >
@@ -245,7 +245,7 @@ function TraitBadges({ progress }: { progress: ProgressBoardRow["progress"] }) {
       {badges.map(({ key, label }) => (
         <span
           key={key}
-          className="inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-extrabold"
+          className="inline-flex rounded-md px-1.5 py-0.5 text-[12px] font-extrabold"
           style={TRAIT_COLORS[key]}
         >
           {label} {progress[key]}
@@ -278,13 +278,13 @@ function ScheduleBadge({ row }: { row: ProgressBoardRow }) {
   const tone = DAY_GROUP_TONES[group];
   return (
     <span
-      className="mt-1.5 inline-flex max-w-[280px] items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
+      className="mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[13px] font-bold"
       style={{ background: tone.bg, color: tone.color }}
       title={schedule.text}
     >
       <CalendarClock className="h-3 w-3 shrink-0" />
       {group !== "기타" && <span className="font-extrabold">{group}</span>}
-      <span className="truncate">{schedule.text}</span>
+      <span className="whitespace-normal">{schedule.text}</span>
     </span>
   );
 }
@@ -305,7 +305,7 @@ function CurriculumChips({ curriculum, max }: { curriculum: CurriculumProgress[]
         return (
           <span
             key={c.id}
-            className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-extrabold"
+            className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[12.5px] font-extrabold"
             style={{ background: tone.bg, color: tone.color }}
             title={`${c.unit}${c.level ? ` ${c.level}` : ""} · ${c.status}`}
           >
@@ -315,7 +315,7 @@ function CurriculumChips({ curriculum, max }: { curriculum: CurriculumProgress[]
           </span>
         );
       })}
-      {rest > 0 && <span className="self-center text-[10.5px] font-bold text-slate-400">+{rest}</span>}
+      {rest > 0 && <span className="self-center text-[12.5px] font-bold text-slate-400">+{rest}</span>}
     </div>
   );
 }
@@ -324,7 +324,7 @@ function CurriculumChips({ curriculum, max }: { curriculum: CurriculumProgress[]
 function GradeBreakdownText({ breakdown }: { breakdown: ProgressBoardRow["grade_breakdown"] }) {
   if (breakdown.length <= 1) return null;
   return (
-    <p className="mt-1 text-[10.5px] font-semibold text-slate-500">
+    <p className="mt-1 text-[12px] font-semibold text-slate-500">
       {breakdown.map((g) => `${g.grade} ${g.count}`).join(" · ")}
     </p>
   );
@@ -384,7 +384,7 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
   return (
     <div className="flex min-w-[200px] items-center gap-2.5">
       <div className="flex-1 space-y-1">
-        <div className="text-[11px] font-bold text-slate-500">
+        <div className="text-[13px] font-bold text-slate-500">
           {current}p <span className="font-medium text-slate-400">/ {total}p</span>
         </div>
         <div className="h-2.5 overflow-hidden rounded-full" style={{ background: "#EEF1F6", boxShadow: "inset 0 1px 2px rgba(15,23,42,0.06)" }}>
@@ -394,7 +394,7 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
           />
         </div>
       </div>
-      <span className="shrink-0 text-base font-black tabular-nums" style={{ color: colors.text }}>
+      <span className="shrink-0 text-lg font-black tabular-nums" style={{ color: colors.text }}>
         {percent}%
       </span>
     </div>
@@ -949,21 +949,21 @@ function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) 
 function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+      <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
         <History className="h-3.5 w-3.5" />
         진도 기록 (최근 10회)
       </p>
       {logs.length === 0 ? (
         <p className="text-xs text-slate-400">기록된 진도 입력이 없습니다</p>
       ) : (
-        <div className="max-h-56 overflow-y-auto">
+        <div className="max-h-72 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="h-8 text-[11px] font-bold text-slate-500">날짜</TableHead>
-                <TableHead className="h-8 text-[11px] font-bold text-slate-500">페이지</TableHead>
-                <TableHead className="h-8 text-[11px] font-bold text-slate-500">증감</TableHead>
-                <TableHead className="h-8 text-[11px] font-bold text-slate-500">기록자</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-slate-500">날짜</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-slate-500">페이지</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-slate-500">증감</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-slate-500">기록자</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -973,9 +973,9 @@ function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
                 const delta = older ? log.page - older.page : null;
                 return (
                   <TableRow key={log.id}>
-                    <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{formatDate(log.recorded_at)}</TableCell>
-                    <TableCell className="py-1.5 text-sm font-bold text-slate-800">{log.page}p</TableCell>
-                    <TableCell className="py-1.5 text-[11px] font-bold">
+                    <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{formatDate(log.recorded_at)}</TableCell>
+                    <TableCell className="py-1.5 text-[15px] font-bold text-slate-800">{log.page}p</TableCell>
+                    <TableCell className="py-1.5 text-[13px] font-bold">
                       {delta == null ? (
                         <span className="text-slate-400">-</span>
                       ) : delta > 0 ? (
@@ -984,7 +984,7 @@ function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
                         <span className="text-slate-400">{delta}p</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-1.5 text-[11px] font-semibold text-slate-500">{log.recorded_by || "-"}</TableCell>
+                    <TableCell className="py-1.5 text-[13px] font-semibold text-slate-500">{log.recorded_by || "-"}</TableCell>
                   </TableRow>
                 );
               })}
@@ -1001,30 +1001,30 @@ function TextbookHistoryTable({ history }: { history: ProgressBoardRow["textbook
   const hasNote = history.some((h) => h.note);
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+      <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
         <History className="h-3.5 w-3.5" />
         지난 교재 ({history.length})
       </p>
       {history.length === 0 ? (
         <p className="text-xs text-slate-400">기록된 지난 교재가 없습니다</p>
       ) : (
-        <div className="max-h-56 overflow-y-auto">
+        <div className="max-h-72 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="h-8 text-[11px] font-bold text-slate-500">교재명</TableHead>
-                <TableHead className="h-8 text-[11px] font-bold text-slate-500">시작일</TableHead>
-                <TableHead className="h-8 text-[11px] font-bold text-slate-500">종료일</TableHead>
-                {hasNote && <TableHead className="h-8 text-[11px] font-bold text-slate-500">비고</TableHead>}
+                <TableHead className="h-8 text-[13px] font-bold text-slate-500">교재명</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-slate-500">시작일</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-slate-500">종료일</TableHead>
+                {hasNote && <TableHead className="h-8 text-[13px] font-bold text-slate-500">비고</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((h) => (
                 <TableRow key={h.id}>
-                  <TableCell className="py-1.5 text-sm font-semibold text-slate-700">{h.textbook}</TableCell>
-                  <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{shortDate(h.started_on)}</TableCell>
-                  <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{shortDate(h.finished_on)}</TableCell>
-                  {hasNote && <TableCell className="py-1.5 text-[11px] font-medium text-slate-500">{h.note || "-"}</TableCell>}
+                  <TableCell className="py-1.5 text-[15px] font-semibold text-slate-700">{h.textbook}</TableCell>
+                  <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{shortDate(h.started_on)}</TableCell>
+                  <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{shortDate(h.finished_on)}</TableCell>
+                  {hasNote && <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{h.note || "-"}</TableCell>}
                 </TableRow>
               ))}
             </TableBody>
@@ -1078,7 +1078,7 @@ function ClassDetailPanel({
             if (schedule.segments.length === 0) return null;
             return (
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+                <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
                   <CalendarClock className="h-3.5 w-3.5" />
                   요일 · 수업 시간
                 </p>
@@ -1100,7 +1100,7 @@ function ClassDetailPanel({
 
           {/* 반 특성 */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <p className="mb-2 text-xs font-extrabold text-slate-600">반 특성</p>
+            <p className="mb-2 text-[13px] font-extrabold text-slate-600">반 특성</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {TRAIT_LABELS.map(({ key, label }) => (
                 <div key={key} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center">
@@ -1115,7 +1115,7 @@ function ClassDetailPanel({
 
           {/* 교재·진도 */}
           <div className="space-y-2 rounded-xl border border-slate-200 p-3">
-            <p className="text-xs font-extrabold text-slate-600">교재 · 진도</p>
+            <p className="text-[13px] font-extrabold text-slate-600">교재 · 진도</p>
             {infoRow("메인교재", progress?.main_textbook)}
             {percent != null && (
               <div className="flex gap-2">
@@ -1151,7 +1151,7 @@ function ClassDetailPanel({
 
           {/* 수업 진행 단원 (완료/진행중) */}
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+            <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
               <Layers className="h-3.5 w-3.5" />
               수업 진행 단원 ({row.curriculum.length})
             </p>
@@ -1163,7 +1163,7 @@ function ClassDetailPanel({
 
           {/* 학생 명단 (학년별 — 누가 초5/초6인지) */}
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+            <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
               <GraduationCap className="h-3.5 w-3.5" />
               학생 명단 ({row.student_names.length})
             </p>
@@ -1395,14 +1395,14 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/90">
-                  <TableHead className="min-w-[120px] px-4 text-xs font-bold text-slate-500">반명 · 요일/시간</TableHead>
-                  <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">강사명</TableHead>
-                  <TableHead className="min-w-[68px] text-xs font-bold text-slate-500">인원</TableHead>
-                  <TableHead className="min-w-[280px] text-xs font-bold text-slate-500">메인교재 · 진도율</TableHead>
-                  <TableHead className="min-w-[150px] text-xs font-bold text-slate-500">진행 단원</TableHead>
-                  <TableHead className="min-w-[160px] text-xs font-bold text-slate-500">현재 페이지</TableHead>
-                  <TableHead className="min-w-[130px] text-xs font-bold text-slate-500">최신화</TableHead>
-                  <TableHead className="min-w-[80px] text-xs font-bold text-slate-500">입력</TableHead>
+                  <TableHead className="min-w-[120px] px-4 text-[13px] font-bold text-slate-500">반명 · 요일/시간</TableHead>
+                  <TableHead className="min-w-[80px] text-[13px] font-bold text-slate-500">강사명</TableHead>
+                  <TableHead className="min-w-[68px] text-[13px] font-bold text-slate-500">인원</TableHead>
+                  <TableHead className="min-w-[280px] text-[13px] font-bold text-slate-500">메인교재 · 진도율</TableHead>
+                  <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">진행 단원</TableHead>
+                  <TableHead className="min-w-[160px] text-[13px] font-bold text-slate-500">현재 페이지</TableHead>
+                  <TableHead className="min-w-[130px] text-[13px] font-bold text-slate-500">최신화</TableHead>
+                  <TableHead className="min-w-[80px] text-[13px] font-bold text-slate-500">입력</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1441,7 +1441,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           <ScheduleBadge row={row} />
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
+                      <TableCell className="text-[15px] font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
                       <TableCell>
                         <button
                           type="button"
@@ -1456,11 +1456,11 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1.5">
-                          <p className="max-w-[240px] whitespace-normal text-sm font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
+                          <p className="max-w-[320px] whitespace-normal text-[15px] font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
                           <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
                           <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
                           {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date || formatExpectedDuration(progress?.expected_months, progress?.expected_weeks)) && (
-                            <p className="max-w-[260px] whitespace-normal text-[11px] font-medium leading-relaxed text-slate-500">
+                            <p className="max-w-[320px] whitespace-normal text-[12.5px] font-medium leading-relaxed text-slate-500">
                               {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks) && (
                                 <span className="font-bold" style={{ color: "var(--accent-warm-foreground)" }}>
                                   예상 {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks)}
@@ -1478,16 +1478,16 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                             <button
                               type="button"
                               onClick={() => toggleExpand(row.class_id)}
-                              className="flex max-w-[240px] items-center gap-1 text-[11px] font-semibold text-slate-400 transition hover:text-slate-600"
+                              className="flex max-w-[320px] items-start gap-1 text-[12.5px] font-semibold text-slate-400 transition hover:text-slate-600"
                               title="계획 전체 보기"
                             >
-                              <ClipboardList className="h-3 w-3 shrink-0" />
-                              <span className="truncate">계획: {progress.current_plan}</span>
+                              <ClipboardList className="mt-0.5 h-3 w-3 shrink-0" />
+                              <span className="line-clamp-2 text-left">계획: {progress.current_plan}</span>
                             </button>
                           )}
                           {row.textbook_history.length > 0 && (
                             <p
-                              className="max-w-[240px] truncate text-[11px] font-medium text-slate-400"
+                              className="max-w-[320px] truncate text-[12.5px] font-medium text-slate-400"
                               title={row.textbook_history.map((h) => h.textbook).join(", ")}
                             >
                               지난 교재 {row.textbook_history.length}권 · {row.textbook_history[0].textbook}
@@ -1513,7 +1513,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                             onChange={(e) => setPageInputs((prev) => ({ ...prev, [row.class_id]: e.target.value.replace(/\D/g, "") }))}
                             inputMode="numeric"
                             disabled={!editable || isSaving}
-                            className="h-8 w-20 text-center text-sm font-bold"
+                            className="h-8 w-24 text-center text-[15px] font-bold"
                           />
                           <Button
                             size="sm"
@@ -1535,13 +1535,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                               {parts ? (
                                 <p className="text-sm font-bold text-slate-700">
                                   {parts.date}
-                                  <span className="ml-1 text-[11px] font-medium text-slate-400">{parts.time}</span>
+                                  <span className="ml-1 text-[12.5px] font-medium text-slate-400">{parts.time}</span>
                                 </p>
                               ) : (
                                 <p className="text-xs font-semibold text-slate-400">미입력</p>
                               )}
                               {progress?.updated_by && (
-                                <p className="text-[11px] font-medium text-slate-400">{progress.updated_by}</p>
+                                <p className="text-[12.5px] font-medium text-slate-400">{progress.updated_by}</p>
                               )}
                             </div>
                           );

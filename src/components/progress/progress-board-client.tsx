@@ -945,6 +945,69 @@ function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) 
   );
 }
 
+/** 메인 표 "지난 교재" 컬럼 — 최근 교재명 칩 최대 3개 세로 나열, 초과분은 +N권(클릭 시 펼침) */
+function PastTextbookCell({ history, onExpand }: { history: ProgressBoardRow["textbook_history"]; onExpand: () => void }) {
+  if (history.length === 0) return <span className="text-xs text-slate-400">-</span>;
+  const shown = history.slice(0, 3);
+  const rest = history.length - shown.length;
+  return (
+    <div className="space-y-1">
+      {shown.map((h) => (
+        <span
+          key={h.id}
+          className="block w-fit max-w-[150px] truncate rounded bg-slate-100 px-1.5 py-0.5 text-[12.5px] font-semibold text-slate-600"
+          title={h.textbook}
+        >
+          {h.textbook}
+        </span>
+      ))}
+      {rest > 0 && (
+        <button
+          type="button"
+          onClick={onExpand}
+          className="text-[11px] font-bold text-slate-400 transition hover:text-slate-600"
+          title="지난 교재 전체 보기"
+        >
+          +{rest}권
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** 메인 표 "다음 계획" 컬럼 — 부교재/예정교재/기간/다음시작 라벨 세로 정렬 + 진행 계획 */
+function NextPlanCell({ progress, onExpand }: { progress: ProgressBoardRow["progress"]; onExpand: () => void }) {
+  const duration = formatExpectedDuration(progress?.expected_months, progress?.expected_weeks);
+  const rows: Array<{ label: string; value: string }> = [];
+  if (progress?.sub_textbook) rows.push({ label: "부", value: progress.sub_textbook });
+  if (progress?.next_textbook) rows.push({ label: "예정", value: progress.next_textbook });
+  if (duration) rows.push({ label: "기간", value: duration });
+  if (progress?.next_start_date) rows.push({ label: "시작", value: progress.next_start_date.slice(5).replace("-", "/") });
+  const hasPlan = Boolean(progress?.current_plan);
+  if (rows.length === 0 && !hasPlan) return <span className="text-xs text-slate-400">-</span>;
+  return (
+    <div className="space-y-1">
+      {rows.map((r) => (
+        <div key={r.label} className="flex gap-1.5 text-[12.5px] leading-snug">
+          <span className="w-8 shrink-0 font-bold text-slate-400">{r.label}</span>
+          <span className="font-semibold text-slate-600">{r.value}</span>
+        </div>
+      ))}
+      {hasPlan && (
+        <button
+          type="button"
+          onClick={onExpand}
+          className="flex max-w-[180px] items-center gap-1 text-[12.5px] font-semibold text-slate-400 transition hover:text-slate-600"
+          title="계획 전체 보기"
+        >
+          <ClipboardList className="h-3 w-3 shrink-0" />
+          <span className="line-clamp-1 text-left">계획 {progress?.current_plan}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** 진도 입력 로그를 표로 — 날짜/페이지/증감/기록자 (recorded_at 내림차순, 최근 10회) */
 function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
   return (
@@ -1396,13 +1459,14 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
               <TableHeader>
                 <TableRow className="bg-slate-50/90">
                   <TableHead className="min-w-[120px] px-4 text-[13px] font-bold text-slate-500">반명 · 요일/시간</TableHead>
-                  <TableHead className="min-w-[80px] text-[13px] font-bold text-slate-500">강사명</TableHead>
+                  <TableHead className="min-w-[80px] text-[13px] font-bold text-slate-500">강사</TableHead>
                   <TableHead className="min-w-[68px] text-[13px] font-bold text-slate-500">인원</TableHead>
                   <TableHead className="min-w-[280px] text-[13px] font-bold text-slate-500">메인교재 · 진도율</TableHead>
+                  <TableHead className="min-w-[110px] text-[13px] font-bold text-slate-500">지난 교재</TableHead>
+                  <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">다음 계획</TableHead>
                   <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">진행 단원</TableHead>
                   <TableHead className="min-w-[160px] text-[13px] font-bold text-slate-500">현재 페이지</TableHead>
-                  <TableHead className="min-w-[130px] text-[13px] font-bold text-slate-500">최신화</TableHead>
-                  <TableHead className="min-w-[80px] text-[13px] font-bold text-slate-500">입력</TableHead>
+                  <TableHead className="min-w-[110px] text-[13px] font-bold text-slate-500">최신화 · 입력</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1419,7 +1483,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                       className={`transition-colors hover:bg-[#F6F2E7]/60 ${isExpanded ? "bg-[#F6F2E7]/55" : "odd:bg-white even:bg-slate-50/45"}`}
                     >
                       <TableCell
-                        className="px-4 font-bold text-slate-900"
+                        className="align-top py-3 px-4 font-bold text-slate-900"
                         style={dayGroup !== "기타" ? { boxShadow: `inset 3px 0 0 ${dayTone.accent}` } : undefined}
                       >
                         <button
@@ -1441,8 +1505,8 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           <ScheduleBadge row={row} />
                         </div>
                       </TableCell>
-                      <TableCell className="text-[15px] font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="align-top py-3 text-[15px] font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
+                      <TableCell className="align-top py-3">
                         <button
                           type="button"
                           onClick={() => toggleExpand(row.class_id)}
@@ -1454,49 +1518,20 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         </button>
                         <GradeBreakdownText breakdown={row.grade_breakdown} />
                       </TableCell>
-                      <TableCell>
-                        <div className="space-y-1.5">
+                      <TableCell className="align-top py-3">
+                        <div className="space-y-1">
                           <p className="max-w-[320px] whitespace-normal text-[15px] font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
                           <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
                           <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
-                          {(progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date || formatExpectedDuration(progress?.expected_months, progress?.expected_weeks)) && (
-                            <p className="max-w-[320px] whitespace-normal text-[12.5px] font-medium leading-relaxed text-slate-500">
-                              {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks) && (
-                                <span className="font-bold" style={{ color: "var(--accent-warm-foreground)" }}>
-                                  예상 {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks)}
-                                </span>
-                              )}
-                              {formatExpectedDuration(progress?.expected_months, progress?.expected_weeks) && (progress?.sub_textbook || progress?.next_textbook || progress?.next_start_date) && " · "}
-                              {progress?.sub_textbook && <>부교재 {progress.sub_textbook}</>}
-                              {progress?.sub_textbook && (progress?.next_textbook || progress?.next_start_date) && " · "}
-                              {progress?.next_textbook && <>예정 {progress.next_textbook}</>}
-                              {progress?.next_textbook && progress?.next_start_date && " "}
-                              {progress?.next_start_date && <>({progress.next_start_date.slice(5).replace("-", "/")} 시작)</>}
-                            </p>
-                          )}
-                          {progress?.current_plan && (
-                            <button
-                              type="button"
-                              onClick={() => toggleExpand(row.class_id)}
-                              className="flex max-w-[320px] items-start gap-1 text-[12.5px] font-semibold text-slate-400 transition hover:text-slate-600"
-                              title="계획 전체 보기"
-                            >
-                              <ClipboardList className="mt-0.5 h-3 w-3 shrink-0" />
-                              <span className="line-clamp-2 text-left">계획: {progress.current_plan}</span>
-                            </button>
-                          )}
-                          {row.textbook_history.length > 0 && (
-                            <p
-                              className="max-w-[320px] truncate text-[12.5px] font-medium text-slate-400"
-                              title={row.textbook_history.map((h) => h.textbook).join(", ")}
-                            >
-                              지난 교재 {row.textbook_history.length}권 · {row.textbook_history[0].textbook}
-                              {row.textbook_history.length > 1 && " 외"}
-                            </p>
-                          )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="align-top py-3">
+                        <PastTextbookCell history={row.textbook_history} onExpand={() => toggleExpand(row.class_id)} />
+                      </TableCell>
+                      <TableCell className="align-top py-3">
+                        <NextPlanCell progress={progress} onExpand={() => toggleExpand(row.class_id)} />
+                      </TableCell>
+                      <TableCell className="align-top py-3">
                         <button
                           type="button"
                           onClick={() => toggleExpand(row.class_id)}
@@ -1506,7 +1541,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           <CurriculumChips curriculum={row.curriculum} max={6} />
                         </button>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="align-top py-3">
                         <div className="flex items-center gap-2">
                           <Input
                             value={pageInputs[row.class_id] ?? ""}
@@ -1527,41 +1562,41 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const parts = formatDateParts(progress?.progress_updated_at);
-                          return (
-                            <div className="space-y-0.5">
-                              {parts ? (
-                                <p className="text-sm font-bold text-slate-700">
-                                  {parts.date}
-                                  <span className="ml-1 text-[12.5px] font-medium text-slate-400">{parts.time}</span>
-                                </p>
-                              ) : (
-                                <p className="text-xs font-semibold text-slate-400">미입력</p>
-                              )}
-                              {progress?.updated_by && (
-                                <p className="text-[12.5px] font-medium text-slate-400">{progress.updated_by}</p>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          disabled={!editable}
-                          onClick={() => setEditingRow(row)}
-                          className="h-8 gap-1"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          입력
-                        </Button>
+                      <TableCell className="align-top py-3">
+                        <div className="space-y-2">
+                          {(() => {
+                            const parts = formatDateParts(progress?.progress_updated_at);
+                            return (
+                              <div className="space-y-0.5">
+                                {parts ? (
+                                  <p className="text-sm font-bold text-slate-700">
+                                    {parts.date}
+                                    <span className="ml-1 text-[12.5px] font-medium text-slate-400">{parts.time}</span>
+                                  </p>
+                                ) : (
+                                  <p className="text-xs font-semibold text-slate-400">미입력</p>
+                                )}
+                                {progress?.updated_by && (
+                                  <p className="text-[12.5px] font-medium text-slate-400">{progress.updated_by}</p>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          <Button
+                            size="sm"
+                            disabled={!editable}
+                            onClick={() => setEditingRow(row)}
+                            className="h-8 gap-1"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            입력
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
                       <TableRow className="bg-transparent hover:bg-transparent">
-                        <TableCell colSpan={8} className="p-0">
+                        <TableCell colSpan={9} className="p-0">
                           <ClassDetailPanel row={row} editable={editable} onEdit={(r) => setEditingRow(r)} />
                         </TableCell>
                       </TableRow>

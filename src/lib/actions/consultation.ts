@@ -173,30 +173,29 @@ export async function getConsultationByName(
   const supabase = await createClient();
 
   // 이름 공백 차이("김혜원" vs "김혜원 ") 방어: exact match 실패 시 trim 기준으로 재시도
+  // 같은 이름의 상담이 여러 건(재상담 등)이면 분석 상세 페이지와 동일하게 가장 최근 1건을 사용
   const trimmed = (name ?? "").trim();
   const tryFetch = async (nameValue: string) =>
     supabase
       .from("consultations")
-      .select("*", { count: "exact" })
+      .select("*")
       .eq("name", nameValue)
       .order("consult_date", { ascending: false, nullsFirst: false })
       .order("consult_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(2);
+      .limit(1)
+      .maybeSingle();
 
-  let { data, error, count } = await tryFetch(name);
+  let { data, error } = await tryFetch(name);
   if ((!data || error) && trimmed !== name) {
-    ({ data, error, count } = await tryFetch(trimmed));
+    ({ data, error } = await tryFetch(trimmed));
   }
 
-  if (error || !data?.length) {
+  if (error || !data) {
     return null;
   }
-  if ((count ?? data.length) > 1) {
-    throw new Error(`동명이인 상담이 ${count ?? data.length}건 있어 자동 조회할 수 없습니다`);
-  }
 
-  return data[0] as Consultation;
+  return data as Consultation;
 }
 
 export async function createConsultation(formData: FormData): Promise<ConsultationMutationResult> {

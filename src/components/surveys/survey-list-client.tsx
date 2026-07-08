@@ -541,7 +541,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                                       const consultation = await getConsultationByName(item.name);
                                       setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null });
                                     } catch (e) {
-                                      toast.error(e instanceof Error ? e.message : "?곷떞 ?뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎");
+                                      toast.error(e instanceof Error ? e.message : "상담 정보를 불러오는데 실패했습니다");
                                     }
                                   }
                                 }}

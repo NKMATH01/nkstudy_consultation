@@ -15,14 +15,20 @@ export default async function SurveysPage({
   const search = params.search;
 
   const supabase = await createClient();
-  const [result, classes, teachers, { data: analyses }, { data: registrations }, { data: consultations }] = await Promise.all([
+  // report_html 본문(~3MB)은 목록에서 로드하지 않고 존재 여부만 파악한다.
+  // 쿼리 A: 전체 분석의 id/survey_id, 쿼리 B: report_html이 있는 분석 id 집합
+  const [result, classes, teachers, { data: analysesBase }, { data: analysesWithReport }, { data: registrations }, { data: consultations }] = await Promise.all([
     getSurveys({ page, search, limit: 20 }),
     getClasses(),
     getTeachers(),
     supabase
       .from("analyses")
-      .select("id, survey_id, report_html")
+      .select("id, survey_id")
       .order("created_at", { ascending: false }),
+    supabase
+      .from("analyses")
+      .select("id")
+      .not("report_html", "is", null),
     supabase
       .from("registrations")
       .select("id, analysis_id")
@@ -37,11 +43,18 @@ export default async function SurveysPage({
       .order("created_at", { ascending: false }),
   ]);
 
+  const reportIds = new Set(((analysesWithReport ?? []) as { id: string }[]).map((a) => a.id));
+  const analyses = ((analysesBase ?? []) as { id: string; survey_id: string | null }[]).map((a) => ({
+    id: a.id,
+    survey_id: a.survey_id,
+    has_report: reportIds.has(a.id),
+  }));
+
   return (
     <SurveyListClient
       initialData={result.data}
       initialPagination={result.pagination}
-      analyses={(analyses ?? []) as { id: string; survey_id: string | null; report_html: string | null }[]}
+      analyses={analyses}
       registrations={(registrations ?? []) as { id: string; analysis_id: string | null }[]}
       consultations={(consultations ?? []) as { id: string; name: string; result_status: string; test_score: string | null; subject: string | null }[]}
       classes={classes}

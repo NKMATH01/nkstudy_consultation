@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { SurveyFormDialog } from "@/components/surveys/survey-form-client";
 import { SurveyPreviewDialog } from "@/components/surveys/survey-preview-dialog";
 import { toast } from "sonner";
-import { analyzeSurvey, reAnalyzeSurvey } from "@/lib/actions/analysis";
+import { analyzeSurvey, reAnalyzeSurvey, getAnalysis } from "@/lib/actions/analysis";
 import { deleteSurvey } from "@/lib/actions/survey";
 import { updateRegistrationInfo, getConsultationByName } from "@/lib/actions/consultation";
 import { generateRegistration } from "@/lib/actions/registration";
@@ -39,7 +39,7 @@ interface Props {
     total: number;
     totalPages: number;
   };
-  analyses: { id: string; survey_id: string | null; report_html: string | null }[];
+  analyses: { id: string; survey_id: string | null; has_report: boolean }[];
   registrations: { id: string; analysis_id: string | null }[];
   consultations: { id: string; name: string; result_status: string; test_score: string | null; subject: string | null }[];
   classes: Class[];
@@ -121,9 +121,13 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [searchValue, setSearchValue] = useState(searchParams.get("search") || "");
   const [showForm, setShowForm] = useState(false);
   const [previewSurvey, setPreviewSurvey] = useState<Survey | null>(null);
+  // 설문지 미리보기의 결과지 HTML은 목록에서 미리 받지 않고 열 때 개별 조회한다.
+  const [previewReportHtml, setPreviewReportHtml] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Survey | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  // 분석 완료 직후 서버 데이터 갱신 전 재클릭 시 중복 생성을 막기 위한 로컬 기록
+  const [localAnalyzedIds, setLocalAnalyzedIds] = useState<Set<string>>(new Set());
 
   // 등록 다이얼로그 상태
   const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId?: string } | null>(null);
@@ -208,10 +212,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
 
   // 분석 데이터 맵 생성
   const analysisMap = useMemo(() => {
-    const map = new Map<string, { id: string; report_html: string | null }>();
+    const map = new Map<string, { id: string; has_report: boolean }>();
     for (const a of analyses) {
       if (a.survey_id) {
-        map.set(a.survey_id, { id: a.id, report_html: a.report_html });
+        map.set(a.survey_id, { id: a.id, has_report: a.has_report });
       }
     }
     return map;
@@ -309,11 +313,12 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     setAnalyzingId(survey.id);
     try {
       const existingAnalysis = analysisMap.get(survey.id);
-      const hasAnalysis = !!survey.analysis_id || !!existingAnalysis;
+      const hasAnalysis = !!survey.analysis_id || !!existingAnalysis || localAnalyzedIds.has(survey.id);
       const result = hasAnalysis
         ? await reAnalyzeSurvey(survey.id)
         : await analyzeSurvey(survey.id);
       if (result.success) {
+        setLocalAnalyzedIds((prev) => new Set(prev).add(survey.id));
         toast.success(hasAnalysis ? "재분석이 완료되었습니다" : "성향분석이 완료되었습니다");
         router.refresh();
       } else {
@@ -343,13 +348,40 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     }
   };
 
-  const handleViewReport = (surveyId: string) => {
+  const handleViewReport = async (surveyId: string) => {
     const analysis = analysisMap.get(surveyId);
-    if (analysis?.report_html) {
-      const blob = new Blob([analysis.report_html], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    if (!analysis?.has_report) return;
+    // 팝업 차단 방지: 서버 조회(await) 전에 클릭 컨텍스트에서 먼저 새 창을 연다
+    const win = window.open("", "_blank");
+    try {
+      const data = await getAnalysis(analysis.id);
+      const html = data?.report_html;
+      if (!html) {
+        win?.close();
+        toast.error("결과지를 불러오지 못했습니다");
+        return;
+      }
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+      }
+    } catch {
+      win?.close();
+      toast.error("결과지를 불러오지 못했습니다");
+    }
+  };
+
+  // 설문지 미리보기 열기 — 결과지 HTML은 이 시점에 lazy 조회
+  const handleOpenPreview = async (survey: Survey) => {
+    setPreviewSurvey(survey);
+    setPreviewReportHtml(null);
+    const analysis = analysisMap.get(survey.id);
+    if (!analysis?.has_report) return;
+    try {
+      const data = await getAnalysis(analysis.id);
+      setPreviewReportHtml(data?.report_html ?? null);
+    } catch {
+      setPreviewReportHtml(null);
     }
   };
 
@@ -552,10 +584,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             <button onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="p-1 rounded text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50" title="상담기록">
                               {recordLoading === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileEdit className="h-3 w-3" />}
                             </button>
-                            <button onClick={() => setPreviewSurvey(item)} className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-colors" title="설문지">
+                            <button onClick={() => handleOpenPreview(item)} className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-colors" title="설문지">
                               <ClipboardList className="h-3 w-3" />
                             </button>
-                            <button onClick={() => handleViewReport(item.id)} disabled={!analysis?.report_html} className="p-1 rounded text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
+                            <button onClick={() => handleViewReport(item.id)} disabled={!analysis?.has_report} className="p-1 rounded text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
                               <Sparkles className="h-3 w-3" />
                             </button>
                             <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="p-1 rounded text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "분석"}>
@@ -614,9 +646,9 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
       {/* Survey Preview Dialog */}
       <SurveyPreviewDialog
         survey={previewSurvey}
-        analysisReportHtml={previewSurvey ? (analysisMap.get(previewSurvey.id)?.report_html ?? null) : null}
+        analysisReportHtml={previewReportHtml}
         open={!!previewSurvey}
-        onOpenChange={(open) => { if (!open) setPreviewSurvey(null); }}
+        onOpenChange={(open) => { if (!open) { setPreviewSurvey(null); setPreviewReportHtml(null); } }}
       />
 
       {/* Delete Dialog */}

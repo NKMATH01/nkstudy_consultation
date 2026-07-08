@@ -191,6 +191,7 @@ export async function analyzeSurvey(surveyId: string) {
   if (linkError) {
     console.error("설문-분석 연결 실패:", linkError.message);
     revalidatePath("/analyses");
+    revalidatePath("/surveys");
     return { success: true, data: analysis, warning: "분석은 생성되었으나 설문 연결에 실패했습니다." };
   }
 
@@ -264,7 +265,8 @@ export async function reAnalyzeSurvey(surveyId: string) {
 
   // 3. 새 분석 실행
   const result = await analyzeSurvey(surveyId);
-  if (!result.success || result.warning) {
+  // warning(설문 연결 실패)이 있어도 새 분석은 생성됐으므로 옛 분석 삭제를 진행한다.
+  if (!result.success) {
     return result;
   }
 

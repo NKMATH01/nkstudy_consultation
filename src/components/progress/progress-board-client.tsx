@@ -1089,20 +1089,23 @@ function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) 
   );
 }
 
-/** 메인 표 "지난 교재" 컬럼 — 최신 1권만 한 줄, 2권 이상이면 "외 N권"(클릭 시 펼침, hover 전체 목록) */
+/** 메인 표 "지난 교재" 컬럼 — 최신 3권까지 세로 나열, 4권 이상이면 "외 N권"(클릭 시 펼침, hover 전체 목록) */
 function PastTextbookCell({ history, onExpand }: { history: ProgressBoardRow["textbook_history"]; onExpand: () => void }) {
   if (history.length === 0) return <span className="text-xs text-slate-400">-</span>;
-  const latest = history[0];
-  const rest = history.length - 1;
+  const shown = history.slice(0, 3);
+  const rest = history.length - shown.length;
   const allTitles = history.map((h) => h.textbook).join(", ");
   return (
     <div className="flex flex-col items-start gap-0.5">
-      <span
-        className="block max-w-[150px] truncate rounded bg-slate-100 px-1.5 py-0.5 text-[12.5px] font-semibold text-slate-600"
-        title={allTitles}
-      >
-        {latest.textbook}
-      </span>
+      {shown.map((h) => (
+        <span
+          key={h.id}
+          className="block max-w-[150px] truncate rounded bg-slate-100 px-1.5 py-0.5 text-[12px] font-semibold text-slate-600"
+          title={allTitles}
+        >
+          {h.textbook}
+        </span>
+      ))}
       {rest > 0 && (
         <button
           type="button"
@@ -1670,15 +1673,14 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           type="button"
                           onClick={() => toggleExpand(row.class_id)}
                           title="클릭하면 학생 명단·진행 단원·계획이 펼쳐집니다"
-                          className="flex cursor-pointer items-center gap-1.5 text-left transition"
-                          style={{ color: "var(--primary)" }}
+                          className="flex cursor-pointer items-center gap-1.5 text-left text-slate-900 transition"
                         >
                           <ChevronRight
                             className="h-4 w-4 shrink-0 transition-transform duration-200"
-                            style={{ transform: isExpanded ? "rotate(90deg)" : "none" }}
+                            style={{ transform: isExpanded ? "rotate(90deg)" : "none", color: "var(--primary)" }}
                           />
                           {!editable && <Lock className="h-3.5 w-3.5 text-slate-300" />}
-                          <span className="underline-offset-4 hover:underline">{row.class_name}</span>
+                          <span className="text-[14px] font-black underline-offset-4 hover:underline">{row.class_name}</span>
                         </button>
                         <div className="pl-[22px]">
                           <TraitBadges progress={progress} />
@@ -1779,13 +1781,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         })()}
                       </TableCell>
                       <TableCell className="align-top py-3">
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex w-[64px] flex-col gap-1.5">
                           <Button
                             size="sm"
                             variant="outline"
                             disabled={!editable || isSaving}
                             onClick={() => handlePageSave(row)}
-                            className="h-8 gap-1"
+                            className="h-8 w-full gap-1"
                           >
                             <Save className="h-3.5 w-3.5" />
                             저장
@@ -1794,7 +1796,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                             size="sm"
                             disabled={!editable}
                             onClick={() => setEditingRow(row)}
-                            className="h-8 gap-1"
+                            className="h-8 w-full gap-1"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                             입력

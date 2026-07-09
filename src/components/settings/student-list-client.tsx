@@ -184,12 +184,15 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
   const [assignedClass, setAssignedClass] = useState("");
   const [studentPhone, setStudentPhone] = useState("");
   const [parentPhone, setParentPhone] = useState("");
+  // 반 목록 학년 기준 override — ""이면 학생 학년(grade)을 따름. 다른 학년 반 배정용.
+  const [classGrade, setClassGrade] = useState("");
 
-  // 학년에 맞는 반 필터링
+  // 반 목록 필터링 (override가 있으면 그 학년, 없으면 학생 학년 기준)
+  const classBaseGrade = classGrade || grade;
   const filteredClasses = useMemo(() => {
-    if (!grade) return classes;
-    return classes.filter((c) => classMatchesGrade(c, grade));
-  }, [grade, classes]);
+    if (!classBaseGrade) return classes;
+    return classes.filter((c) => classMatchesGrade(c, classBaseGrade));
+  }, [classBaseGrade, classes]);
 
   const inputCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10";
   const selectCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-1.5 text-xs text-slate-700 shadow-[inset_0_1px_0_rgba(15,23,42,0.02)] transition focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10";
@@ -213,7 +216,7 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
         toast.success("학생이 등록되었습니다");
         if (regDate) setStoredRegDate("temp", regDate); // TODO: 실제 ID 필요
         setRegDate(""); setName(""); setSchool(""); setGrade(""); setAssignedClass("");
-        setStudentPhone(""); setParentPhone("");
+        setStudentPhone(""); setParentPhone(""); setClassGrade("");
         onAdded();
       } else {
         toast.error(result.error || "등록 실패");
@@ -241,12 +244,17 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
         <input className={inputCls} placeholder="학교" value={school} onChange={(e) => setSchool(e.target.value)} onKeyDown={handleKeyDown} />
       </TableCell>
       <TableCell className="hidden sm:table-cell px-4 py-2.5">
-        <select className={selectCls} value={grade} onChange={(e) => { setGrade(e.target.value); setAssignedClass(""); }}>
+        <select className={selectCls} value={grade} onChange={(e) => { setGrade(e.target.value); setAssignedClass(""); setClassGrade(""); }}>
           <option value="">학년</option>
           {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
       </TableCell>
       <TableCell className="hidden md:table-cell px-4 py-2.5">
+        {/* 반 학년 기준 — 다른 학년 반(예: 초6→중1반) 배정 가능 */}
+        <select className={selectCls + " mb-1"} value={classGrade} onChange={(e) => { setClassGrade(e.target.value); setAssignedClass(""); }} title="배정 반 목록의 학년 기준">
+          <option value="">반학년: 학생학년</option>
+          {GRADES.map((g) => <option key={g} value={g}>반학년: {g}</option>)}
+        </select>
         <select className={selectCls} value={assignedClass} onChange={(e) => setAssignedClass(e.target.value)}>
           <option value="">배정반</option>
           {filteredClasses.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}

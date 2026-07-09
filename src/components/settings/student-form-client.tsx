@@ -233,53 +233,22 @@ export function StudentFormDialog({ open, onOpenChange, student, teachers = [], 
                 name="assigned_class"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center justify-between gap-2">
-                      <FormLabel className="flex items-center gap-1.5">
-                        배정반
-                        {classGradeOverride && (
-                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600">
-                            {classGradeOverride} 반 목록
-                          </span>
-                        )}
-                      </FormLabel>
-                      {classGradeOverride ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setClassGradeOverride(null);
-                            form.setValue("assigned_class", "");
-                          }}
-                          className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
-                        >
-                          원래 학년으로
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setClassGradeOverride(selectedGrade || GRADES[0]);
-                            form.setValue("assigned_class", "");
-                          }}
-                          className="text-[10px] font-semibold text-blue-500 hover:text-blue-700"
-                        >
-                          다른 학년 반
-                        </button>
-                      )}
-                    </div>
-                    {classGradeOverride && (
-                      <select
-                        value={classGradeOverride}
-                        onChange={(e) => {
-                          setClassGradeOverride(e.target.value);
-                          form.setValue("assigned_class", "");
-                        }}
-                        className={`${selectCls} mb-1.5`}
-                      >
-                        {GRADES.map((g) => (
-                          <option key={g} value={g}>{g} 반</option>
-                        ))}
-                      </select>
-                    )}
+                    <FormLabel>배정반</FormLabel>
+                    {/* 반 학년 기준 — 학생 학년과 다른 학년의 반(예: 초6→중1반)도 배정 가능 */}
+                    <select
+                      value={classGradeOverride ?? ""}
+                      onChange={(e) => {
+                        setClassGradeOverride(e.target.value || null);
+                        form.setValue("assigned_class", "");
+                      }}
+                      className={`${selectCls} mb-1.5 text-xs`}
+                      title="배정 반 목록의 학년 기준"
+                    >
+                      <option value="">반 학년 기준: 학생 학년</option>
+                      {GRADES.map((g) => (
+                        <option key={g} value={g}>반 학년 기준: {g}</option>
+                      ))}
+                    </select>
                     <FormControl>
                       <select
                         value={field.value ?? ""}

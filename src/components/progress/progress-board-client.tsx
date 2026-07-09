@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users, Plus, Trash2, History, CalendarClock, GraduationCap, Layers, ChevronRight, ClipboardList } from "lucide-react";
+import { BookOpenCheck, Lock, Save, Pencil, AlertTriangle, Users, Plus, Trash2, History, CalendarClock, GraduationCap, Layers, ChevronRight, ClipboardList, CircleAlert, CircleCheck, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ import {
   addTextbookHistory,
   deleteTextbookHistory,
   updateCurrentPage,
+  updateCurrentUnits,
   upsertProgress,
   upsertCurriculum,
   deleteCurriculum,
@@ -132,6 +133,8 @@ function defaultValues(row: ProgressBoardRow): ProgressFormValues {
     expected_weeks: progress?.expected_weeks ?? undefined,
     target_end_date: progress?.target_end_date ?? "",
     current_plan: progress?.current_plan ?? "",
+    current_major_unit: progress?.current_major_unit ?? "",
+    current_minor_unit: progress?.current_minor_unit ?? "",
     note: progress?.note ?? "",
     ability_level: (progress?.ability_level as ProgressFormValues["ability_level"]) ?? undefined,
     study_intensity: (progress?.study_intensity as ProgressFormValues["study_intensity"]) ?? undefined,
@@ -294,32 +297,6 @@ const CURRICULUM_TONES: Record<string, { bg: string; color: string }> = {
   진행중: { bg: "color-mix(in srgb, var(--accent-warm) 28%, white)", color: "var(--accent-warm-foreground)" },
 };
 
-function CurriculumChips({ curriculum, max }: { curriculum: CurriculumProgress[]; max?: number }) {
-  if (curriculum.length === 0) return <span className="text-xs text-slate-400">-</span>;
-  const items = max ? curriculum.slice(0, max) : curriculum;
-  const rest = max ? curriculum.length - items.length : 0;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {items.map((c) => {
-        const tone = CURRICULUM_TONES[c.status] ?? CURRICULUM_TONES["진행중"];
-        return (
-          <span
-            key={c.id}
-            className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[12.5px] font-extrabold"
-            style={{ background: tone.bg, color: tone.color }}
-            title={`${c.unit}${c.level ? ` ${c.level}` : ""} · ${c.status}`}
-          >
-            {c.unit}
-            {c.level && <span className="font-bold opacity-80">{c.level}</span>}
-            {c.status === "완료" && <span>✓</span>}
-          </span>
-        );
-      })}
-      {rest > 0 && <span className="self-center text-[12.5px] font-bold text-slate-400">+{rest}</span>}
-    </div>
-  );
-}
-
 /** 합반(학년 2종 이상)일 때만 학년 구성 표시 */
 function GradeBreakdownText({ breakdown }: { breakdown: ProgressBoardRow["grade_breakdown"] }) {
   if (breakdown.length <= 1) return null;
@@ -397,6 +374,162 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
       <span className="shrink-0 text-lg font-black tabular-nums" style={{ color: colors.text }}>
         {percent}%
       </span>
+    </div>
+  );
+}
+
+/**
+ * 예상 진도율(%) — 시작일(가장 최근 완료 교재 finished_on, 없으면 진도 생성일)부터
+ * 마감일(target_end_date)까지 오늘 기준 경과 비율. 마감일 없으면 null(요약 카드 분류 제외).
+ */
+function expectedPercent(row: ProgressBoardRow): number | null {
+  const progress = row.progress;
+  if (!progress?.target_end_date) return null;
+  const end = new Date(progress.target_end_date);
+  if (Number.isNaN(end.getTime())) return null;
+  const finished = row.textbook_history.find((h) => h.finished_on)?.finished_on;
+  const startStr = finished ?? progress.created_at ?? null;
+  if (!startStr) return null;
+  const start = new Date(startStr);
+  if (Number.isNaN(start.getTime())) return null;
+  const span = end.getTime() - start.getTime();
+  if (span <= 0) return null;
+  const ratio = ((Date.now() - start.getTime()) / span) * 100;
+  return Math.max(0, Math.min(100, Math.round(ratio)));
+}
+
+type DiffTone = "delay" | "slightDelay" | "normal" | "aheadSlight" | "ahead";
+
+const DIFF_TONES: Record<DiffTone, { bg: string; color: string }> = {
+  delay: { bg: "#FEF2F2", color: "#B91C1C" },
+  slightDelay: { bg: "#FFF7ED", color: "#C2410C" },
+  normal: { bg: "#EFF6FF", color: "#1D4ED8" },
+  aheadSlight: { bg: "#F0FDF4", color: "#16A34A" },
+  ahead: { bg: "#ECFDF5", color: "#047857" },
+};
+
+/** 실제% − 예상% 차이 → 배지(퍼센트/문구/톤). 둘 중 하나라도 없으면 null. */
+function diffBadge(actual: number | null, expected: number | null): { pct: string; word: string; tone: DiffTone } | null {
+  if (actual == null || expected == null) return null;
+  const diff = Math.round(actual - expected);
+  const sign = diff > 0 ? `+${diff}` : `${diff}`;
+  if (diff > 5) return { pct: `${sign}%p`, word: "앞섬", tone: "ahead" };
+  if (diff >= 1) return { pct: `${sign}%p`, word: "앞섬", tone: "aheadSlight" };
+  if (diff === 0) return { pct: "", word: "정상", tone: "normal" };
+  if (diff >= -5) return { pct: `${sign}%p`, word: "소폭 지연", tone: "slightDelay" };
+  return { pct: `${sign}%p`, word: "지연", tone: "delay" };
+}
+
+function DiffBadge({ badge }: { badge: { pct: string; word: string; tone: DiffTone } }) {
+  const tone = DIFF_TONES[badge.tone];
+  return (
+    <span
+      className="shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-center text-[11px] font-black leading-tight"
+      style={{ background: tone.bg, color: tone.color }}
+    >
+      {badge.pct && <span className="block">{badge.pct}</span>}
+      <span className="block">{badge.word}</span>
+    </span>
+  );
+}
+
+/** 예상 vs 실제 진도율 — 예상(회색 게이지 + ▼마커) / 실제(색 게이지) 두 줄 + 우측 차이 배지 */
+function ExpectedVsActualCell({ row }: { row: ProgressBoardRow }) {
+  const actual = progressPercent(row.progress?.current_page, row.progress?.main_total_pages);
+  const expected = expectedPercent(row);
+  if (actual == null && expected == null) {
+    return <span className="text-xs text-slate-400">예상 정보 없음</span>;
+  }
+  const badge = diffBadge(actual, expected);
+  const actualColors = actual != null ? meterColors(actual) : null;
+  return (
+    <div className="flex min-w-[220px] items-center gap-2.5">
+      <div className="flex-1 space-y-1.5">
+        <div className="flex items-center gap-2">
+          <span className="w-7 shrink-0 text-[11px] font-bold text-slate-400">예상</span>
+          <span className="w-9 shrink-0 text-[13px] font-black tabular-nums text-slate-500">{expected != null ? `${expected}%` : "-"}</span>
+          <div className="relative h-2 flex-1 rounded-full" style={{ background: "#E5E9F0" }}>
+            {expected != null && (
+              <>
+                <div className="h-full rounded-full" style={{ width: `${expected}%`, background: "#94A3B8" }} />
+                <span className="absolute -top-2 text-[8px] leading-none text-slate-400" style={{ left: `calc(${expected}% - 4px)` }}>▼</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-7 shrink-0 text-[11px] font-bold text-slate-400">실제</span>
+          <span className="w-9 shrink-0 text-[13px] font-black tabular-nums" style={{ color: actualColors?.text ?? "#94A3B8" }}>{actual != null ? `${actual}%` : "-"}</span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "#E5E9F0" }}>
+            {actual != null && <div className="h-full rounded-full transition-all" style={{ width: `${actual}%`, background: actualColors?.bar }} />}
+          </div>
+        </div>
+      </div>
+      {badge ? (
+        <DiffBadge badge={badge} />
+      ) : expected == null ? (
+        <span className="shrink-0 text-center text-[10px] font-semibold leading-tight text-slate-400">예상<br />정보없음</span>
+      ) : null}
+    </div>
+  );
+}
+
+/** 이번 주(목요일 기준) 나간 페이지 칩 — 양수는 초록 "+Np", 0 이하는 회색 "0p" */
+function WeeklyPageChip({ weekly }: { weekly: number | null }) {
+  if (weekly == null) return null;
+  const positive = weekly > 0;
+  return (
+    <span
+      className="inline-flex w-fit items-center rounded-md px-1.5 py-0.5 text-[11px] font-black"
+      style={positive ? { background: "#ECFDF5", color: "#047857" } : { background: "#F1F5F9", color: "#94A3B8" }}
+    >
+      이번주 {positive ? `+${weekly}p` : "0p"}
+    </span>
+  );
+}
+
+/** 예상 대비 지연/정상/앞섬 반 요약 카드 3종 — 분류 가능한 반(예상·실제 모두 있음) 대비 % */
+function SummaryCards({ rows }: { rows: ProgressBoardRow[] }) {
+  let delay = 0;
+  let normal = 0;
+  let ahead = 0;
+  let classifiable = 0;
+  for (const row of rows) {
+    const actual = progressPercent(row.progress?.current_page, row.progress?.main_total_pages);
+    const expected = expectedPercent(row);
+    if (actual == null || expected == null) continue;
+    classifiable += 1;
+    const diff = actual - expected;
+    if (diff < -5) delay += 1;
+    else if (diff > 5) ahead += 1;
+    else normal += 1;
+  }
+  const pct = (n: number) => (classifiable > 0 ? Math.round((n / classifiable) * 100) : 0);
+  const cards = [
+    { label: "지연 반 (예상 대비)", value: delay, percent: pct(delay), Icon: CircleAlert, bg: "#F43F5E" },
+    { label: "정상 반 (예상 ±5%p 이내)", value: normal, percent: pct(normal), Icon: CircleCheck, bg: "#10B981" },
+    { label: "앞섬 반 (예상 대비)", value: ahead, percent: pct(ahead), Icon: ArrowUpRight, bg: "#3B82F6" },
+  ];
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {cards.map((c) => (
+        <div
+          key={c.label}
+          className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4"
+          style={{ boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)" }}
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ background: c.bg }}>
+            <c.Icon className="h-5 w-5 text-white" />
+          </span>
+          <div>
+            <p className="text-[12.5px] font-bold text-slate-500">{c.label}</p>
+            <p className="mt-0.5">
+              <span className="text-xl font-black text-slate-900">{c.value}</span>
+              <span className="ml-1 text-[13px] font-bold text-slate-500">반 ({c.percent}%)</span>
+            </p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -839,6 +972,17 @@ function ProgressDialog({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="space-y-1.5">
+              <span className="text-xs font-bold text-slate-500">진행 대단원</span>
+              <Input {...form.register("current_major_unit")} placeholder="예: 소인수분해" />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-bold text-slate-500">진행 소단원</span>
+              <Input {...form.register("current_minor_unit")} placeholder="예: 최대공약수" />
+            </label>
+          </div>
+
           <label className="block space-y-1.5">
             <span className="text-xs font-bold text-slate-500">진행 계획</span>
             <Textarea rows={3} {...form.register("current_plan")} />
@@ -945,30 +1089,28 @@ function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) 
   );
 }
 
-/** 메인 표 "지난 교재" 컬럼 — 최근 교재명 칩 최대 3개 세로 나열, 초과분은 +N권(클릭 시 펼침) */
+/** 메인 표 "지난 교재" 컬럼 — 최신 1권만 한 줄, 2권 이상이면 "외 N권"(클릭 시 펼침, hover 전체 목록) */
 function PastTextbookCell({ history, onExpand }: { history: ProgressBoardRow["textbook_history"]; onExpand: () => void }) {
   if (history.length === 0) return <span className="text-xs text-slate-400">-</span>;
-  const shown = history.slice(0, 3);
-  const rest = history.length - shown.length;
+  const latest = history[0];
+  const rest = history.length - 1;
+  const allTitles = history.map((h) => h.textbook).join(", ");
   return (
-    <div className="space-y-1">
-      {shown.map((h) => (
-        <span
-          key={h.id}
-          className="block w-fit max-w-[150px] truncate rounded bg-slate-100 px-1.5 py-0.5 text-[12.5px] font-semibold text-slate-600"
-          title={h.textbook}
-        >
-          {h.textbook}
-        </span>
-      ))}
+    <div className="flex flex-col items-start gap-0.5">
+      <span
+        className="block max-w-[150px] truncate rounded bg-slate-100 px-1.5 py-0.5 text-[12.5px] font-semibold text-slate-600"
+        title={allTitles}
+      >
+        {latest.textbook}
+      </span>
       {rest > 0 && (
         <button
           type="button"
           onClick={onExpand}
           className="text-[11px] font-bold text-slate-400 transition hover:text-slate-600"
-          title="지난 교재 전체 보기"
+          title={allTitles}
         >
-          +{rest}권
+          외 {rest}권
         </button>
       )}
     </div>
@@ -1008,13 +1150,13 @@ function NextPlanCell({ progress, onExpand }: { progress: ProgressBoardRow["prog
   );
 }
 
-/** 진도 입력 로그를 표로 — 날짜/페이지/증감/기록자 (recorded_at 내림차순, 최근 10회) */
+/** 진도 입력 로그를 표로 — 날짜/페이지/증감/기록자 (recorded_at 내림차순, 최근 5회만 표시) */
 function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
       <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
         <History className="h-3.5 w-3.5" />
-        진도 기록 (최근 10회)
+        진도 기록 (최근 5회)
       </p>
       {logs.length === 0 ? (
         <p className="text-xs text-slate-400">기록된 진도 입력이 없습니다</p>
@@ -1030,7 +1172,7 @@ function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log, i) => {
+              {logs.slice(0, 5).map((log, i) => {
                 // 증감 = 이 로그 − 바로 이전(더 오래된) 로그. 내림차순이므로 다음 인덱스가 더 과거.
                 const older = logs[i + 1];
                 const delta = older ? log.page - older.page : null;
@@ -1255,6 +1397,15 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
     Object.fromEntries(initialRows.map((row) => [row.class_id, numberValue(row.progress?.current_page)]))
   );
   const [pendingClassId, setPendingClassId] = useState<string | null>(null);
+  const [unitInputs, setUnitInputs] = useState<Record<string, { major: string; minor: string }>>(() =>
+    Object.fromEntries(
+      initialRows.map((row) => [
+        row.class_id,
+        { major: row.progress?.current_major_unit ?? "", minor: row.progress?.current_minor_unit ?? "" },
+      ])
+    )
+  );
+  const [pendingUnitsClassId, setPendingUnitsClassId] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialError) toast.error(`진도현황 조회 실패: ${initialError}`);
@@ -1284,6 +1435,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       ...prev,
       [nextRow.class_id]: numberValue(nextRow.progress?.current_page),
     }));
+    setUnitInputs((prev) => ({
+      ...prev,
+      [nextRow.class_id]: {
+        major: nextRow.progress?.current_major_unit ?? "",
+        minor: nextRow.progress?.current_minor_unit ?? "",
+      },
+    }));
   };
 
   const handlePageSave = async (row: ProgressBoardRow) => {
@@ -1305,6 +1463,21 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       router.refresh();
     } else {
       toast.error(result.error || "현재 페이지 저장 실패");
+    }
+  };
+
+  const handleUnitsSave = async (row: ProgressBoardRow) => {
+    const input = unitInputs[row.class_id] ?? { major: "", minor: "" };
+    setPendingUnitsClassId(row.class_id);
+    const result = await updateCurrentUnits(row.class_id, input.major, input.minor);
+    setPendingUnitsClassId(null);
+
+    if (result.success && result.progress) {
+      updateRow(rowWithProgress(row, { progress: result.progress }));
+      toast.success("진행 단원이 저장되었습니다");
+      router.refresh();
+    } else {
+      toast.error(("error" in result && result.error) || "진행 단원 저장 실패");
     }
   };
 
@@ -1451,6 +1624,9 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         </div>
       </div>
 
+      {/* 예상 대비 요약 카드 (지연/정상/앞섬) */}
+      <SummaryCards rows={visibleGroups.flatMap((g) => g.items)} />
+
       {visibleGroups.map(({ grade, items }) => (
         <section key={grade} className="card-elevated overflow-hidden rounded-2xl">
           <SectionHeader grade={grade} count={items.length} />
@@ -1458,15 +1634,17 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/90">
-                  <TableHead className="min-w-[120px] px-4 text-[13px] font-bold text-slate-500">반명 · 요일/시간</TableHead>
-                  <TableHead className="min-w-[80px] text-[13px] font-bold text-slate-500">강사</TableHead>
+                  <TableHead className="min-w-[140px] px-4 text-[13px] font-bold text-slate-500">반명 · 특성 · 시간</TableHead>
+                  <TableHead className="min-w-[72px] text-[13px] font-bold text-slate-500">강사</TableHead>
                   <TableHead className="min-w-[68px] text-[13px] font-bold text-slate-500">인원</TableHead>
-                  <TableHead className="min-w-[280px] text-[13px] font-bold text-slate-500">메인교재 · 진도율</TableHead>
+                  <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">메인교재 (페이지)</TableHead>
+                  <TableHead className="min-w-[240px] text-[13px] font-bold text-slate-500">예상 vs 실제 진도율</TableHead>
                   <TableHead className="min-w-[110px] text-[13px] font-bold text-slate-500">지난 교재</TableHead>
                   <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">다음 계획</TableHead>
-                  <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">진행 단원</TableHead>
-                  <TableHead className="min-w-[160px] text-[13px] font-bold text-slate-500">현재 페이지</TableHead>
-                  <TableHead className="min-w-[110px] text-[13px] font-bold text-slate-500">최신화 · 입력</TableHead>
+                  <TableHead className="min-w-[130px] text-[13px] font-bold text-slate-500">진행 단원</TableHead>
+                  <TableHead className="min-w-[96px] text-[13px] font-bold text-slate-500">현재 페이지</TableHead>
+                  <TableHead className="min-w-[96px] text-[13px] font-bold text-slate-500">최신화</TableHead>
+                  <TableHead className="min-w-[84px] text-[13px] font-bold text-slate-500">작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1474,6 +1652,8 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   const progress = row.progress;
                   const editable = canEditRow(row, currentTeacher);
                   const isSaving = pendingClassId === row.class_id;
+                  const isUnitsSaving = pendingUnitsClassId === row.class_id;
+                  const units = unitInputs[row.class_id] ?? { major: "", minor: "" };
                   const isExpanded = expandedRows.has(row.class_id);
                   const dayGroup = dayGroupOf(row.class_days);
                   const dayTone = DAY_GROUP_TONES[dayGroup];
@@ -1519,9 +1699,16 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         <GradeBreakdownText breakdown={row.grade_breakdown} />
                       </TableCell>
                       <TableCell className="align-top py-3">
-                        <div className="space-y-1">
-                          <p className="max-w-[320px] whitespace-normal text-[15px] font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
-                          <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
+                        <p className="max-w-[160px] whitespace-normal text-[15px] font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
+                        {progress?.current_page != null && progress?.main_total_pages != null && (
+                          <p className="mt-0.5 text-[12.5px] font-medium text-slate-400">
+                            {progress.current_page}p <span className="text-slate-300">/ {progress.main_total_pages}p</span>
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell className="align-top py-3">
+                        <div className="space-y-1.5">
+                          <ExpectedVsActualCell row={row} />
                           <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
                         </div>
                       </TableCell>
@@ -1532,24 +1719,67 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                         <NextPlanCell progress={progress} onExpand={() => toggleExpand(row.class_id)} />
                       </TableCell>
                       <TableCell className="align-top py-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleExpand(row.class_id)}
-                          title="진행 단원 펼쳐 보기"
-                          className="cursor-pointer text-left"
-                        >
-                          <CurriculumChips curriculum={row.curriculum} max={6} />
-                        </button>
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            value={units.major}
+                            onChange={(e) => setUnitInputs((prev) => ({ ...prev, [row.class_id]: { major: e.target.value, minor: prev[row.class_id]?.minor ?? "" } }))}
+                            disabled={!editable || isUnitsSaving}
+                            placeholder="대단원"
+                            className="h-7 w-28 text-[12.5px]"
+                          />
+                          <Input
+                            value={units.minor}
+                            onChange={(e) => setUnitInputs((prev) => ({ ...prev, [row.class_id]: { major: prev[row.class_id]?.major ?? "", minor: e.target.value } }))}
+                            disabled={!editable || isUnitsSaving}
+                            placeholder="소단원"
+                            className="h-7 w-28 text-[12.5px]"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!editable || isUnitsSaving}
+                            onClick={() => handleUnitsSave(row)}
+                            className="h-7 w-fit gap-1 px-2 text-[11px]"
+                          >
+                            <Save className="h-3 w-3" />
+                            저장
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className="align-top py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="space-y-1.5">
                           <Input
                             value={pageInputs[row.class_id] ?? ""}
                             onChange={(e) => setPageInputs((prev) => ({ ...prev, [row.class_id]: e.target.value.replace(/\D/g, "") }))}
                             inputMode="numeric"
                             disabled={!editable || isSaving}
-                            className="h-8 w-24 text-center text-[15px] font-bold"
+                            className="h-8 w-20 text-center text-[15px] font-bold"
                           />
+                          <WeeklyPageChip weekly={row.weekly_progress} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top py-3">
+                        {(() => {
+                          const parts = formatDateParts(progress?.progress_updated_at);
+                          return (
+                            <div className="space-y-0.5">
+                              {parts ? (
+                                <p className="text-sm font-bold text-slate-700">
+                                  {parts.date}
+                                  <span className="ml-1 text-[12.5px] font-medium text-slate-400">{parts.time}</span>
+                                </p>
+                              ) : (
+                                <p className="text-xs font-semibold text-slate-400">미입력</p>
+                              )}
+                              {progress?.updated_by && (
+                                <p className="text-[12.5px] font-medium text-slate-400">{progress.updated_by}</p>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell className="align-top py-3">
+                        <div className="flex flex-col gap-1.5">
                           <Button
                             size="sm"
                             variant="outline"
@@ -1560,28 +1790,6 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                             <Save className="h-3.5 w-3.5" />
                             저장
                           </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="align-top py-3">
-                        <div className="space-y-2">
-                          {(() => {
-                            const parts = formatDateParts(progress?.progress_updated_at);
-                            return (
-                              <div className="space-y-0.5">
-                                {parts ? (
-                                  <p className="text-sm font-bold text-slate-700">
-                                    {parts.date}
-                                    <span className="ml-1 text-[12.5px] font-medium text-slate-400">{parts.time}</span>
-                                  </p>
-                                ) : (
-                                  <p className="text-xs font-semibold text-slate-400">미입력</p>
-                                )}
-                                {progress?.updated_by && (
-                                  <p className="text-[12.5px] font-medium text-slate-400">{progress.updated_by}</p>
-                                )}
-                              </div>
-                            );
-                          })()}
                           <Button
                             size="sm"
                             disabled={!editable}
@@ -1596,7 +1804,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                     </TableRow>
                     {isExpanded && (
                       <TableRow className="bg-transparent hover:bg-transparent">
-                        <TableCell colSpan={9} className="p-0">
+                        <TableCell colSpan={11} className="p-0">
                           <ClassDetailPanel row={row} editable={editable} onEdit={(r) => setEditingRow(r)} />
                         </TableCell>
                       </TableRow>

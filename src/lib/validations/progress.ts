@@ -29,6 +29,8 @@ export const progressFormSchema = z
     expected_weeks: optionalNonnegativeInt,
     target_end_date: z.string().optional(),
     current_plan: z.string().optional(),
+    current_major_unit: z.string().optional(),
+    current_minor_unit: z.string().optional(),
     note: z.string().optional(),
     ability_level: optionalLevel,
     study_intensity: optionalLevel,
@@ -52,6 +54,11 @@ export const currentPageSchema = z.object({
   }),
 });
 
+export const currentUnitsSchema = z.object({
+  current_major_unit: z.string().optional(),
+  current_minor_unit: z.string().optional(),
+});
+
 export const textbookHistorySchema = z.object({
   textbook: z.string().min(1, "교재명을 입력해주세요"),
   started_on: z.string().optional(),
@@ -73,5 +80,6 @@ export const curriculumProgressSchema = z.object({
 });
 
 export type ProgressFormValues = z.infer<typeof progressFormSchema>;
+export type CurrentUnitsFormValues = z.infer<typeof currentUnitsSchema>;
 export type TextbookHistoryFormValues = z.infer<typeof textbookHistorySchema>;
 export type CurriculumProgressFormValues = z.infer<typeof curriculumProgressSchema>;

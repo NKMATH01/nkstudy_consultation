@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { currentPageSchema, progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
+import { currentPageSchema, currentUnitsSchema, progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
 import type { ClassProgress, ClassProgressLog, CurriculumProgress, Teacher, TextbookHistory } from "@/types";
 import { curriculumUnitOrder, GRADES } from "@/types";
 import type { TextbookHistoryFormValues, CurriculumProgressFormValues } from "@/lib/validations/progress";
@@ -83,6 +83,8 @@ function mapProgress(row: DbRow): ClassProgress {
     next_textbook: nullableString(row.next_textbook),
     next_start_plan: nullableString(row.next_start_plan),
     current_plan: nullableString(row.current_plan),
+    current_major_unit: nullableString(row.current_major_unit),
+    current_minor_unit: nullableString(row.current_minor_unit),
     note: nullableString(row.note),
     ability_level: nullableString(row.ability_level),
     study_intensity: nullableString(row.study_intensity),
@@ -182,7 +184,29 @@ function getTeacherName(value: unknown): string | null {
   return null;
 }
 
-function weeklyProgress(logs: ClassProgressLog[]): number | null {
+/** 가장 최근 목요일 00:00 (오늘이 목요일이면 오늘) — 주간 진도 계산 기준 */
+function lastThursdayStart(): Date {
+  const now = new Date();
+  const diff = (now.getDay() - 4 + 7) % 7;
+  const thu = new Date(now);
+  thu.setDate(now.getDate() - diff);
+  thu.setHours(0, 0, 0, 0);
+  return thu;
+}
+
+/**
+ * 이번 주(목요일 00:00 시작) 나간 페이지 = 이번 주 시작 이전 마지막 로그 페이지 대비 현재 페이지 차이.
+ * 이번 주 이전 로그가 없으면 최근 2건 차이로 폴백. logs는 recorded_at 내림차순.
+ */
+function weeklyProgress(logs: ClassProgressLog[], currentPage: number | null): number | null {
+  if (currentPage != null) {
+    const thu = lastThursdayStart();
+    const beforeThisWeek = logs.find((l) => {
+      const d = new Date(l.recorded_at);
+      return !Number.isNaN(d.getTime()) && d < thu;
+    });
+    if (beforeThisWeek) return currentPage - beforeThisWeek.page;
+  }
   if (logs.length < 2) return null;
   return logs[0].page - logs[1].page;
 }
@@ -205,6 +229,8 @@ function toProgressPayload(classId: string, data: ProgressFormValues, updatedBy:
     expected_weeks: data.expected_weeks ?? null,
     target_end_date: cleanText(data.target_end_date),
     current_plan: cleanText(data.current_plan),
+    current_major_unit: cleanText(data.current_major_unit),
+    current_minor_unit: cleanText(data.current_minor_unit),
     note: cleanText(data.note),
     ability_level: data.ability_level ?? null,
     study_intensity: data.study_intensity ?? null,
@@ -506,7 +532,7 @@ export async function getProgressBoard(): Promise<ProgressBoardResult> {
       return {
         ...row,
         recent_logs: recentLogs,
-        weekly_progress: weeklyProgress(recentLogs),
+        weekly_progress: weeklyProgress(recentLogs, row.progress?.current_page ?? null),
       };
     }),
     error: studentError?.message ?? null,
@@ -540,7 +566,7 @@ export async function upsertProgress(classId: string, data: ProgressFormValues) 
       success: true,
       progress: mapped,
       recent_logs: recentLogs,
-      weekly_progress: weeklyProgress(recentLogs),
+      weekly_progress: weeklyProgress(recentLogs, mapped.current_page),
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "진도 저장 실패";
@@ -605,10 +631,44 @@ export async function updateCurrentPage(classId: string, page: number) {
       success: true,
       progress: mapped,
       recent_logs: recentLogs,
-      weekly_progress: weeklyProgress(recentLogs),
+      weekly_progress: weeklyProgress(recentLogs, mapped.current_page),
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "현재 페이지 저장 실패";
+    return { success: false, error: msg };
+  }
+}
+
+export async function updateCurrentUnits(classId: string, major: string, minor: string) {
+  try {
+    const parsed = currentUnitsSchema.safeParse({ current_major_unit: major, current_minor_unit: minor });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = await createClient();
+    const permission = await assertCanEditClass(supabase, classId);
+    if (!permission.ok) return { success: false, error: permission.error };
+
+    const { data: progress, error } = await supabase
+      .from("class_progress")
+      .upsert(
+        {
+          class_id: classId,
+          current_major_unit: cleanText(parsed.data.current_major_unit),
+          current_minor_unit: cleanText(parsed.data.current_minor_unit),
+        },
+        { onConflict: "class_id" }
+      )
+      .select("*")
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/progress");
+    return { success: true, progress: mapProgress(progress as DbRow) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "진행 단원 저장 실패";
     return { success: false, error: msg };
   }
 }

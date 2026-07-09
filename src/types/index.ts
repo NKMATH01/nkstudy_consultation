@@ -99,6 +99,8 @@ export interface ClassProgress {
   next_textbook: string | null;
   next_start_plan: string | null;
   current_plan: string | null;
+  current_major_unit: string | null;
+  current_minor_unit: string | null;
   note: string | null;
   ability_level: string | null;
   study_intensity: string | null;

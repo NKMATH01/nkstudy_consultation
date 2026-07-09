@@ -166,6 +166,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     const result = await generateRegistration(regFormTarget.analysisId, data);
     if (result.success && result.data) {
       toast.success("등록 안내문이 생성되었습니다");
+      if (result.warning) toast.warning(result.warning);
       setRegFormTarget(null);
       router.push(`/registrations/${result.data.id}`);
     } else {

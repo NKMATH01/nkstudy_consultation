@@ -171,9 +171,11 @@ export async function analyzeSurvey(surveyId: string) {
     console.error("[Report] HTML 생성 실패:", e instanceof Error ? e.message : e);
   }
 
+  // survey_id upsert로 설문당 분석 1건을 원천 보장 (unique 인덱스 전제).
+  // 재분석 시 같은 행이 갱신되어 id가 보존됨 → registrations/surveys 링크 유지.
   const { data: analysis, error: insertError } = await supabase
     .from("analyses")
-    .insert(insertData)
+    .upsert(insertData, { onConflict: "survey_id" })
     .select()
     .single();
 
@@ -233,51 +235,11 @@ export async function regenerateAnalysisReport(id: string) {
   }
 }
 
-// ========== 재분석 (기존 분석 삭제 후 새로 실행) ==========
+// ========== 재분석 ==========
+// analyzeSurvey가 survey_id upsert로 중복을 원천 차단하므로, 재분석은 동일 호출로 충분하다.
+// (기존 "옛 분석 조회→새 분석→삭제" 로직 불필요) export 시그니처는 클라이언트 호환을 위해 유지.
 export async function reAnalyzeSurvey(surveyId: string) {
-  const supabase = await createClient();
-
-  // 1. 설문 조회 → 기존 analysis_id 확인
-  const { data: survey } = await supabase
-    .from("surveys")
-    .select("analysis_id")
-    .eq("id", surveyId)
-    .single();
-
-  // 2. 기존 분석이 있으면 삭제 (analysis_id 또는 survey_id로 조회)
-  const previousAnalysisIds = new Set<string>();
-  // Delete these only after a new analysis is created and linked to the survey.
-  if (survey?.analysis_id) {
-    previousAnalysisIds.add(survey.analysis_id);
-  } else {
-    // analysis_id가 없어도 survey_id로 연결된 분석이 있을 수 있음
-    const { data: orphanedAnalyses } = await supabase
-      .from("analyses")
-      .select("id")
-      .eq("survey_id", surveyId);
-
-    if (orphanedAnalyses && orphanedAnalyses.length > 0) {
-      for (const a of orphanedAnalyses) {
-        previousAnalysisIds.add(a.id);
-      }
-    }
-  }
-
-  // 3. 새 분석 실행
-  const result = await analyzeSurvey(surveyId);
-  // warning(설문 연결 실패)이 있어도 새 분석은 생성됐으므로 옛 분석 삭제를 진행한다.
-  if (!result.success) {
-    return result;
-  }
-
-  const newAnalysisId = result.data?.id;
-  for (const id of previousAnalysisIds) {
-    if (id !== newAnalysisId) {
-      await deleteAnalysis(id);
-    }
-  }
-
-  return result;
+  return analyzeSurvey(surveyId);
 }
 
 // ========== 분석 삭제 ==========

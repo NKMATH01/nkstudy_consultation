@@ -454,9 +454,23 @@ export async function generateRegistration(
     .single();
 
   if (insertError) {
+    // 동시 이중 생성으로 analysis_id unique 충돌(23505) 시, 기존 등록안내를 반환한다.
+    if (insertError.code === "23505") {
+      const { data: existingReg } = await supabase
+        .from("registrations")
+        .select("*")
+        .eq("analysis_id", analysisId)
+        .maybeSingle();
+      if (existingReg) {
+        return { success: true, data: existingReg as Registration };
+      }
+    }
     console.error("[DB] 등록 안내 저장 실패:", { analysisId, error: insertError.message });
     return { success: false, error: insertError.message };
   }
+
+  // 부분 쓰기 실패(무음 실패)를 사용자에게 고지하기 위한 경고 누적
+  let warning: string | undefined;
 
   // 8. 학생 관리에 자동 등록/업데이트
   try {
@@ -497,6 +511,7 @@ export async function generateRegistration(
     }
   } catch (e) {
     console.error("[Student] 학생 자동 등록/업데이트 실패:", e instanceof Error ? e.message : e);
+    warning = "등록안내는 생성되었으나 학생관리 자동 등록에 실패했습니다. 학생관리에서 확인해주세요.";
   }
 
   // 9. 상담 result_status → "registered" 자동 변경
@@ -514,6 +529,8 @@ export async function generateRegistration(
     }
   } catch (e) {
     console.error("[Consultation] 등록 상태 자동 변경 실패:", e instanceof Error ? e.message : e);
+    const consultWarning = "상담 상태 자동 변경에 실패했습니다. 상담관리에서 확인해주세요.";
+    warning = warning ? `${warning} / ${consultWarning}` : consultWarning;
   }
 
   revalidatePath("/registrations");
@@ -522,7 +539,7 @@ export async function generateRegistration(
   revalidatePath("/consultations");
   revalidatePath("/settings/students");
   revalidatePath("/onboarding");
-  return { success: true, data: registration };
+  return { success: true, data: registration, warning };
 }
 
 // ========== 등록 안내 보고서 재생성 ==========

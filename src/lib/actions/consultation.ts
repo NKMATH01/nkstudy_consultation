@@ -57,16 +57,17 @@ async function syncConsultationToBooking(consultation: {
     subjectCode = "eng";
   }
 
-  // 기존 예약 존재 여부 확인 (이름+날짜+시간으로)
+  // 기존 예약 존재 여부 확인 (이름+날짜+시간으로). 동일 조건이 2건 이상이어도 에러 없이 첫 건 사용.
   const { data: existing } = await admin
     .from("bookings")
     .select("id")
     .eq("student_name", consultation.name)
     .eq("booking_date", consultation.consult_date)
     .eq("booking_hour", hour)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  if (existing) {
+  if (existing && existing.length > 0) {
     // 기존 예약 업데이트
     await admin
       .from("bookings")
@@ -78,7 +79,7 @@ async function syncConsultationToBooking(consultation: {
         school: consultation.school || null,
         grade: consultation.grade || null,
       })
-      .eq("id", existing.id);
+      .eq("id", existing[0].id);
   } else {
     // 새 예약 생성
     await admin.from("bookings").insert({

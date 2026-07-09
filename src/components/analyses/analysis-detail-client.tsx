@@ -113,6 +113,7 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
     const result = await generateRegistration(analysis.id, data);
     if (result.success && result.data) {
       toast.success("등록 안내문이 생성되었습니다");
+      if (result.warning) toast.warning(result.warning);
       setShowRegForm(false);
       router.push(`/registrations/${result.data.id}`);
     } else {

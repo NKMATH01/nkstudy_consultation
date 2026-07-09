@@ -146,6 +146,23 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
 
   try {
     const supabase = await createClient();
+
+    // 중복 제출 방어(완전한 원자성은 아님): 같은 이름으로 10분 내 제출된 설문이 있으면 차단.
+    // parent_phone 값이 있으면 조건에 포함해 동명이인 오탐을 줄인다.
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    let dupQuery = supabase
+      .from("surveys")
+      .select("id")
+      .eq("name", parsed.data.name.trim())
+      .gte("created_at", tenMinutesAgo);
+    if (parsed.data.parent_phone) {
+      dupQuery = dupQuery.eq("parent_phone", parsed.data.parent_phone);
+    }
+    const { data: recentDup } = await dupQuery.limit(1);
+    if (recentDup && recentDup.length > 0) {
+      return { success: false, error: "이미 제출된 설문이 있습니다. 10분 후에 다시 시도하거나 학원으로 문의해주세요." };
+    }
+
     const { error } = await supabase.from("surveys").insert(insertData);
 
     if (error) {

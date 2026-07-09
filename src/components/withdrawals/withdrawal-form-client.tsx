@@ -281,6 +281,8 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
         : await createWithdrawal(formData);
       if (result.success) {
         toast.success(isEditMode ? "퇴원생 정보가 수정되었습니다" : "퇴원생이 등록되었습니다");
+        const warning = (result as { warning?: string }).warning;
+        if (warning) toast.warning(warning);
         onOpenChange(false);
         setRawText("");
         setFields({});

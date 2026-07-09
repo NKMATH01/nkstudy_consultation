@@ -107,6 +107,7 @@ export async function createWithdrawal(formData: FormData) {
     }
 
     // 퇴원 등록 시 학생관리에서 해당 학생 비활성화 (admin 클라이언트로 RLS 우회)
+    let warning: string | undefined;
     if (parsed.data.name) {
       const admin = createAdminClient();
       const rawClassName = parsed.data.class_name || "";
@@ -142,20 +143,28 @@ export async function createWithdrawal(formData: FormData) {
 
       // 3차: 반 매칭 실패 시 이름만으로 비활성화
       if (!deactivated) {
-        const { error: deactivateError } = await admin
+        const { data: byName, error: deactivateError } = await admin
           .from("students")
           .update({ is_active: false })
           .eq("name", parsed.data.name)
-          .eq("is_active", true);
+          .eq("is_active", true)
+          .select("id");
         if (deactivateError) {
           console.error("[퇴원] 학생 비활성화 실패:", deactivateError.message);
+        } else if (byName && byName.length > 0) {
+          deactivated = true;
         }
+      }
+
+      // 1~3차 모두 비활성화하지 못한 경우 사용자에게 고지
+      if (!deactivated) {
+        warning = "퇴원은 기록되었으나 학생 비활성화에 실패했습니다. 학생관리에서 수동 확인해주세요.";
       }
     }
 
     revalidatePath("/withdrawals");
     revalidatePath("/settings/students");
-    return { success: true };
+    return { success: true, warning };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "퇴원생 등록 실패";
     return { success: false, error: msg };

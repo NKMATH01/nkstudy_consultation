@@ -94,25 +94,56 @@ export async function submitBooking(data: Record<string, unknown>) {
       return { success: false, error: "해당 시간은 예약이 불가합니다. 다른 시간을 선택해주세요." };
     }
 
-    const { error } = await supabase.from("bookings").insert({
-      branch: parsed.data.branch,
-      consult_type: parsed.data.consult_type,
-      booking_date: parsed.data.booking_date,
-      booking_hour: parsed.data.booking_hour,
-      student_name: parsed.data.student_name,
-      parent_name: parsed.data.parent_name,
-      phone: parsed.data.phone,
-      school: parsed.data.school || null,
-      grade: parsed.data.grade || null,
-      subject: parsed.data.subject,
-      progress: parsed.data.progress || null,
-      paid: parsed.data.pay_method === "done",
-      pay_method: parsed.data.pay_method,
+    const { data: myBooking, error } = await supabase
+      .from("bookings")
+      .insert({
+        branch: parsed.data.branch,
+        consult_type: parsed.data.consult_type,
+        booking_date: parsed.data.booking_date,
+        booking_hour: parsed.data.booking_hour,
+        student_name: parsed.data.student_name,
+        parent_name: parsed.data.parent_name,
+        phone: parsed.data.phone,
+        school: parsed.data.school || null,
+        grade: parsed.data.grade || null,
+        subject: parsed.data.subject,
+        progress: parsed.data.progress || null,
+        paid: parsed.data.pay_method === "done",
+        pay_method: parsed.data.pay_method,
+      })
+      .select("id, created_at")
+      .single();
+
+    if (error || !myBooking) {
+      console.error("[DB] 예약 생성 실패:", error?.message);
+      return { success: false, error: "예약 저장에 실패했습니다. 다시 시도해주세요." };
+    }
+
+    // 삽입 후 재검증(트랜잭션 부재 대응): 같은 슬롯을 재조회해 나보다 먼저 접수된 행과의 충돌을 확인.
+    // 충돌이면 내가 방금 넣은 행을 스스로 취소(delete)하고 실패 반환한다.
+    const { data: sameSlot } = await supabase
+      .from("bookings")
+      .select("id, consult_type, created_at")
+      .eq("booking_date", parsed.data.booking_date)
+      .eq("booking_hour", parsed.data.booking_hour)
+      .eq("branch", parsed.data.branch);
+
+    const earlier = (sameSlot ?? []).filter((b) => {
+      if (b.id === myBooking.id) return false;
+      // created_at이 더 이르면 먼저인 행. 동률이면 id 문자열 비교로 순서 확정.
+      if (b.created_at < myBooking.created_at) return true;
+      if (b.created_at === myBooking.created_at) return b.id < myBooking.id;
+      return false;
     });
 
-    if (error) {
-      console.error("[DB] 예약 생성 실패:", error.message);
-      return { success: false, error: "예약 저장에 실패했습니다. 다시 시도해주세요." };
+    const iAmInperson = parsed.data.consult_type === "inperson";
+    const conflict = iAmInperson
+      ? earlier.length > 0
+      : earlier.some((b) => b.consult_type === "inperson");
+
+    if (conflict) {
+      await supabase.from("bookings").delete().eq("id", myBooking.id);
+      return { success: false, error: "죄송합니다. 방금 다른 예약이 먼저 접수되어 해당 시간이 마감되었습니다. 다른 시간을 선택해주세요." };
     }
 
     // 상담관리 자동 연동: 예약 → 상담 레코드 생성
@@ -289,10 +320,13 @@ export async function toggleBlockedSlot(date: string, hour: number, branch: stri
       .limit(1);
 
     if (existing && existing.length > 0) {
+      // 단건 id가 아닌 조건 삭제로 중복 행까지 모두 해제
       const { error } = await supabase
         .from("blocked_slots")
         .delete()
-        .eq("id", existing[0].id);
+        .eq("slot_date", date)
+        .eq("slot_hour", hour)
+        .eq("branch", branch);
 
       if (error) return { success: false, error: error.message };
       revalidatePath("/bookings");
@@ -302,7 +336,8 @@ export async function toggleBlockedSlot(date: string, hour: number, branch: stri
         .from("blocked_slots")
         .insert({ slot_date: date, slot_hour: hour, branch });
 
-      if (error) return { success: false, error: error.message };
+      // 동시 삽입으로 unique 위반(23505) 시 이미 차단된 것으로 간주
+      if (error && error.code !== "23505") return { success: false, error: error.message };
       revalidatePath("/bookings");
       return { success: true, blocked: true };
     }
@@ -340,16 +375,13 @@ export async function toggleBlockedDate(date: string, branch: string, hours: num
       revalidatePath("/bookings");
       return { success: true, blocked: false };
     } else {
-      // 일부 또는 전부 미차단 → 전체 차단
-      const toInsert = hours
-        .filter((h) => !existingHours.has(h))
-        .map((h) => ({ slot_date: date, slot_hour: h, branch }));
-
-      if (toInsert.length > 0) {
+      // 일부 또는 전부 미차단 → 전체 차단 (시간별 개별 insert, 23505=이미 차단됨은 무시)
+      const toInsert = hours.filter((h) => !existingHours.has(h));
+      for (const h of toInsert) {
         const { error } = await supabase
           .from("blocked_slots")
-          .insert(toInsert);
-        if (error) return { success: false, error: error.message };
+          .insert({ slot_date: date, slot_hour: h, branch });
+        if (error && error.code !== "23505") return { success: false, error: error.message };
       }
       revalidatePath("/bookings");
       return { success: true, blocked: true };
@@ -364,27 +396,36 @@ export async function deleteBooking(id: string) {
   try {
     const supabase = await createClient();
 
-    // 예약 정보 조회 → 연동된 상담 삭제
+    // 예약 정보 조회 (연동 상담 삭제 조건용)
     const { data: booking } = await supabase
       .from("bookings")
       .select("student_name, booking_date, booking_hour")
       .eq("id", id)
       .single();
 
+    // 예약을 먼저 삭제한다. (상담을 먼저 지우면 예약 삭제 실패 시 상담만 유실됨)
+    const { error } = await supabase.from("bookings").delete().eq("id", id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // 예약 삭제 성공 후 연동된 상담 삭제
     if (booking) {
       const consultTime = `${String(booking.booking_hour).padStart(2, "0")}:00`;
-      await supabase
+      const { error: consultError } = await supabase
         .from("consultations")
         .delete()
         .eq("name", booking.student_name)
         .eq("consult_date", booking.booking_date)
         .eq("consult_time", consultTime);
-    }
 
-    const { error } = await supabase.from("bookings").delete().eq("id", id);
-
-    if (error) {
-      return { success: false, error: error.message };
+      if (consultError) {
+        console.error("[Booking] 연동 상담 삭제 실패:", consultError.message);
+        revalidatePath("/bookings");
+        revalidatePath("/consultations");
+        return { success: true, warning: "예약은 삭제되었으나 연동 상담 삭제에 실패했습니다." };
+      }
     }
 
     revalidatePath("/bookings");

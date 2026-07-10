@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -33,7 +34,6 @@ const analysisItems = [
   { href: "/surveys", label: "설문/분석", icon: ClipboardList },
   { href: "/drip-responses", label: "설문 피드백", icon: MessageSquareHeart },
   { href: "/onboarding", label: "등록 관리", icon: FileText },
-  { href: "/progress", label: "진도 현황", icon: BookOpenCheck, newTab: true },
 ];
 
 const withdrawalItems = [
@@ -69,6 +69,30 @@ function filterMenuItems(
   );
 }
 
+// 목차(섹터) 정의 — 각 섹터는 대표 아이콘 1개 + 소속 메뉴 아이템 배열로 구성.
+// 학생 관리 섹터의 매칭 대상에는 adminOnlyItems 경로도 포함해, 관리자 전용 화면에서도
+// 초기 섹터 계산이 학생 관리로 잡히도록 한다(권한 필터는 렌더 단계에서 별도로 수행).
+const SECTOR_DEFS: { name: string; icon: React.ComponentType<{ className?: string }>; items: MenuItem[] }[] = [
+  { name: "상담 관리", icon: Users, items: consultItems },
+  { name: "학생 분석", icon: BarChart3, items: analysisItems },
+  { name: "퇴원생 관리", icon: UserMinus, items: withdrawalItems },
+  { name: "학생 관리", icon: GraduationCap, items: [...studentMgmtItems, ...adminOnlyItems] },
+];
+
+// 현재 경로가 속한 섹터명을 계산한다.
+// - href === "/" 는 pathname === "/" 로만 매칭(루트 오탐 방지)
+// - 그 외에는 pathname.startsWith(href) 로 매칭
+// - 어느 섹터에도 속하지 않으면 기본값 "상담 관리"
+function computeInitialSector(pathname: string): string {
+  for (const sector of SECTOR_DEFS) {
+    const matched = sector.items.some((item) =>
+      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href),
+    );
+    if (matched) return sector.name;
+  }
+  return "상담 관리";
+}
+
 interface SidebarProps {
   currentTeacher?: CurrentTeacherInfo | null;
   inSheet?: boolean;
@@ -84,6 +108,33 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
   const visibleAnalysis = filterMenuItems(analysisItems, currentTeacher);
   const visibleWithdrawal = filterMenuItems(withdrawalItems, currentTeacher);
   const visibleStudentMgmt = filterMenuItems(studentMgmtItems, currentTeacher);
+
+  // 진도 현황(최상단 고정 버튼) 활성 여부
+  const progressActive = pathname.startsWith("/progress");
+
+  // 목차 섹터별 표시 아이템 — 권한 필터를 거친 결과. 학생 관리 섹터는 관리자면 adminOnlyItems도 포함.
+  const sectors = [
+    { name: "상담 관리", icon: Users, items: visibleConsult },
+    { name: "학생 분석", icon: BarChart3, items: visibleAnalysis },
+    { name: "퇴원생 관리", icon: UserMinus, items: visibleWithdrawal },
+    {
+      name: "학생 관리",
+      icon: GraduationCap,
+      items: isAdmin ? [...visibleStudentMgmt, ...adminOnlyItems] : visibleStudentMgmt,
+    },
+  ];
+  // 항목이 0개인 섹터는 목차 버튼 자체를 렌더하지 않는다.
+  const visibleSectors = sectors.filter((s) => s.items.length > 0);
+
+  // 선택된 섹터 상태 — lazy initializer로 최초 1회만 현재 경로 기준 섹터를 계산.
+  // 이후 pathname이 바뀌어도 useEffect로 동기화하지 않아 사용자가 고른 섹터를 유지한다.
+  const [activeSector, setActiveSector] = useState<string>(() => computeInitialSector(pathname));
+
+  // 현재 활성 섹터가 권한상 보이지 않으면 첫 번째 표시 섹터로 대체(버튼 하이라이트·본문 일치 유지).
+  const currentSectorName = visibleSectors.some((s) => s.name === activeSector)
+    ? activeSector
+    : visibleSectors[0]?.name;
+  const activeItems = visibleSectors.find((s) => s.name === currentSectorName)?.items ?? [];
 
   const handleLogout = async () => {
     const supabase = createBrowserClient(
@@ -234,34 +285,79 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           className="min-h-0 flex-1 overflow-y-auto px-3 pb-2"
           style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(233,196,106,0.25) transparent" }}
         >
-          {/* 상담 관리 */}
-          {visibleConsult.length > 0 && renderItems(visibleConsult)}
+          {/* 진도 현황 — 최상단 고정 대형 버튼(권한 무관 항상 표시, 같은 탭 이동) */}
+          <Link
+            href="/progress"
+            className={`group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-3.5 transition-all duration-200 ${
+              progressActive ? "" : "hover:-translate-y-px hover:brightness-110"
+            }`}
+            style={{
+              fontSize: "14px",
+              fontWeight: 800,
+              background: progressActive
+                ? "linear-gradient(135deg, rgba(233,196,106,0.34), rgba(184,138,68,0.16))"
+                : "linear-gradient(135deg, rgba(233,196,106,0.2), rgba(184,138,68,0.1))",
+              color: progressActive ? "#F8E7BD" : "#F2D488",
+              boxShadow: progressActive
+                ? "inset 0 0 0 1.5px rgba(233,196,106,0.5), 0 10px 28px rgba(0,0,0,0.22)"
+                : "inset 0 0 0 1px rgba(233,196,106,0.3), 0 6px 18px rgba(0,0,0,0.2)",
+            }}
+          >
+            {progressActive && (
+              <span
+                className="absolute left-0 top-2.5 h-7 w-1 rounded-r-full"
+                style={{ background: "linear-gradient(180deg, #E9C46A, #B88A44)", boxShadow: "0 0 10px rgba(233,196,106,0.5)" }}
+              />
+            )}
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
+              style={{ background: "rgba(233,196,106,0.24)", color: "#F8E7BD" }}
+            >
+              <BookOpenCheck className="h-[18px] w-[18px]" />
+            </span>
+            <span className="truncate">진도 현황</span>
+          </Link>
 
-          {/* 학생 분석 */}
-          {visibleAnalysis.length > 0 && (
+          {divider}
+
+          {/* 목차 — 섹터 버튼(2열 그리드). 클릭 시 해당 섹터 메뉴만 아래에 표시(탭 방식) */}
+          {sectionLabel("목차")}
+          <div className="grid grid-cols-2 gap-1.5">
+            {visibleSectors.map((sector) => {
+              const active = sector.name === currentSectorName;
+              return (
+                <button
+                  key={sector.name}
+                  type="button"
+                  onClick={() => setActiveSector(sector.name)}
+                  className={`group flex w-full items-center justify-center gap-1.5 rounded-xl px-2 py-3 transition-all duration-200 ${
+                    active ? "" : "hover:-translate-y-px hover:brightness-110"
+                  }`}
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 800,
+                    background: active
+                      ? "linear-gradient(135deg, rgba(184,138,68,0.3), rgba(255,255,255,0.06))"
+                      : "rgba(255,255,255,0.04)",
+                    color: active ? "#F8E7BD" : "rgba(226,232,240,0.6)",
+                    boxShadow: active
+                      ? "inset 0 0 0 1.5px rgba(184,138,68,0.4), 0 8px 20px rgba(0,0,0,0.2)"
+                      : "inset 0 0 0 1px rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <sector.icon className="h-[15px] w-[15px] flex-shrink-0" />
+                  <span className="truncate transition-colors duration-200 group-hover:text-slate-100">{sector.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 선택된 섹터의 메뉴만 렌더(기존 renderItems 스타일 유지) */}
+          {activeItems.length > 0 && (
             <>
               {divider}
-              {sectionLabel("학생 분석")}
-              {renderItems(visibleAnalysis)}
-            </>
-          )}
-
-          {/* 퇴원생 관리 */}
-          {visibleWithdrawal.length > 0 && (
-            <>
-              {divider}
-              {sectionLabel("퇴원생 관리")}
-              {renderItems(visibleWithdrawal)}
-            </>
-          )}
-
-          {/* 학생 관리 */}
-          {(visibleStudentMgmt.length > 0 || isAdmin) && (
-            <>
-              {divider}
-              {sectionLabel("학생 관리")}
-              {renderItems(visibleStudentMgmt)}
-              {isAdmin && renderItems(adminOnlyItems)}
+              {sectionLabel(currentSectorName ?? "")}
+              {renderItems(activeItems)}
             </>
           )}
 

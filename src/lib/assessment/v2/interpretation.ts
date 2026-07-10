@@ -73,18 +73,18 @@ export function buildFallbackInterpretation(
   const strengths = ranked
     .filter((e) => e.score >= 60)
     .slice(0, 3)
-    .map((e) => `${e.label}: ${interpretBand(e.score)} (${e.score}점)`);
+    .map((e) => `${e.label}: ${interpretBand(e.score)} (${e.score.toFixed(1)}점)`);
   const growthAreas = [...ranked]
     .reverse()
     .filter((e) => e.score < 60)
     .slice(0, 3)
-    .map((e) => `${e.label}: ${interpretBand(e.score)} (${e.score}점)`);
+    .map((e) => `${e.label}: ${interpretBand(e.score)} (${e.score.toFixed(1)}점)`);
 
   const note = neutralQualityNote(profile);
   const noteSuffix = note ? ` (${note})` : "";
 
   const conscientiousnessText = isNum(c.conscientiousness)
-    ? `학습 성실성 종합 ${c.conscientiousness}점 — 학습 태도 ${scoreText(
+    ? `학습 성실성 종합 ${c.conscientiousness.toFixed(1)}점 — 학습 태도 ${scoreText(
         c.learningAttitude
       )}, 숙제 신뢰 ${scoreText(c.homeworkReliability)}, 장기 의지 ${scoreText(
         c.longTermPersistence
@@ -160,7 +160,8 @@ export function buildFallbackInterpretation(
 }
 
 function scoreText(s: Score): string {
-  return isNum(s) ? `${s}점` : "정보 부족";
+  // §8.1 일관된 반올림: 소수 첫째 자리로 고정 표기.
+  return isNum(s) ? `${s.toFixed(1)}점` : "정보 부족";
 }
 
 function buildVerificationPlan(profile: ScoreProfile): string[] {

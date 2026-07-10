@@ -46,7 +46,8 @@ export function isNum(s: Score): s is number {
 }
 
 export function scoreText(s: Score): string {
-  return isNum(s) ? `${s}점` : "정보 부족";
+  // §8.1 일관된 반올림: 소수 첫째 자리로 고정 표기(75 → "75.0점").
+  return isNum(s) ? `${s.toFixed(1)}점` : "정보 부족";
 }
 
 // ── 정방향 밴드(높을수록 좋음) 색·라벨 ───────────────────────────────────

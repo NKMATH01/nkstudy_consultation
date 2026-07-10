@@ -264,7 +264,7 @@ export function NkFitBlock({
           NK 운영 적합도: {nkFit.stage}
         </span>
         <span style={{ fontSize: 12, color: C.sub }}>
-          {nkFit.overall !== null ? `종합 ${nkFit.overall}` : "종합 산출 보류"}
+          {nkFit.overall !== null ? `종합 ${nkFit.overall.toFixed(1)}` : "종합 산출 보류"}
         </span>
       </div>
       <div style={{ marginBottom: 10 }}>

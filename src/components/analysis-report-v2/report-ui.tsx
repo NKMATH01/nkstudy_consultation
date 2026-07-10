@@ -257,7 +257,7 @@ export function CoachingCoordinate({
   const descId = "coord-desc";
   return (
     <svg
-      viewBox={`0 0 ${size} ${size}`}
+      viewBox={`-24 0 ${size + 24} ${size}`}
       width="100%"
       style={{ maxWidth: 300, display: "block", margin: "0 auto" }}
       role="img"
@@ -320,9 +320,9 @@ export function CoreSignalsRadar({ axes }: { axes: RadarAxis[] }) {
   const descId = "radar-desc";
   return (
     <svg
-      viewBox={`0 0 ${size} ${size}`}
+      viewBox={`-48 0 ${size + 96} ${size}`}
       width="100%"
-      style={{ maxWidth: 320, display: "block", margin: "0 auto" }}
+      style={{ maxWidth: 360, display: "block", margin: "0 auto" }}
       role="img"
       aria-labelledby={`${titleId} ${descId}`}
     >
@@ -439,7 +439,7 @@ export function NkAreaRow({
   readiness: number | null;
   featureFit: number | null;
 }) {
-  const cell = (v: number | null) => (v === null ? "-" : `${v}`);
+  const cell = (v: number | null) => (v === null ? "-" : v.toFixed(1));
   const gap =
     preference !== null && readiness !== null ? Math.abs(preference - readiness) : null;
   return (

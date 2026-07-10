@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { currentPageSchema, currentUnitsSchema, progressFormSchema, type ProgressFormValues } from "@/lib/validations/progress";
+import { currentPageSchema, currentUnitsSchema, progressFormSchema, targetPlanSchema, type ProgressFormValues } from "@/lib/validations/progress";
 import type { ClassProgress, ClassProgressLog, CurriculumProgress, Teacher, TextbookHistory } from "@/types";
 import { curriculumUnitOrder, GRADES } from "@/types";
 import type { TextbookHistoryFormValues, CurriculumProgressFormValues } from "@/lib/validations/progress";
@@ -94,6 +94,7 @@ function mapProgress(row: DbRow): ClassProgress {
     expected_months: nullableNumber(row.expected_months),
     expected_weeks: nullableNumber(row.expected_weeks),
     target_end_date: nullableString(row.target_end_date),
+    target_percent: nullableNumber(row.target_percent),
     updated_by: nullableString(row.updated_by),
     progress_updated_at: nullableString(row.progress_updated_at),
     created_at: String(row.created_at ?? ""),
@@ -228,6 +229,7 @@ function toProgressPayload(classId: string, data: ProgressFormValues, updatedBy:
     expected_months: data.expected_months ?? null,
     expected_weeks: data.expected_weeks ?? null,
     target_end_date: cleanText(data.target_end_date),
+    target_percent: data.target_percent ?? null,
     current_plan: cleanText(data.current_plan),
     current_major_unit: cleanText(data.current_major_unit),
     current_minor_unit: cleanText(data.current_minor_unit),
@@ -669,6 +671,44 @@ export async function updateCurrentUnits(classId: string, major: string, minor: 
     return { success: true, progress: mapProgress(progress as DbRow) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "진행 단원 저장 실패";
+    return { success: false, error: msg };
+  }
+}
+
+export async function updateTargetPlan(
+  classId: string,
+  endDate: string,
+  percent: number | string | null
+) {
+  try {
+    const parsed = targetPlanSchema.safeParse({ target_end_date: endDate, target_percent: percent });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = await createClient();
+    const permission = await assertCanEditClass(supabase, classId);
+    if (!permission.ok) return { success: false, error: permission.error };
+
+    const { data: progress, error } = await supabase
+      .from("class_progress")
+      .upsert(
+        {
+          class_id: classId,
+          target_end_date: cleanText(parsed.data.target_end_date),
+          target_percent: parsed.data.target_percent ?? null,
+        },
+        { onConflict: "class_id" }
+      )
+      .select("*")
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/progress");
+    return { success: true, progress: mapProgress(progress as DbRow) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "목표 진도 저장 실패";
     return { success: false, error: msg };
   }
 }

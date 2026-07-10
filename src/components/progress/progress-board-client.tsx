@@ -30,6 +30,7 @@ import {
   deleteTextbookHistory,
   updateCurrentPage,
   updateCurrentUnits,
+  updateTargetPlan,
   upsertProgress,
   upsertCurriculum,
   deleteCurriculum,
@@ -132,6 +133,7 @@ function defaultValues(row: ProgressBoardRow): ProgressFormValues {
     expected_months: progress?.expected_months ?? undefined,
     expected_weeks: progress?.expected_weeks ?? undefined,
     target_end_date: progress?.target_end_date ?? "",
+    target_percent: progress?.target_percent ?? undefined,
     current_plan: progress?.current_plan ?? "",
     current_major_unit: progress?.current_major_unit ?? "",
     current_minor_unit: progress?.current_minor_unit ?? "",
@@ -153,6 +155,7 @@ function formatExpectedDuration(months: number | null | undefined, weeks: number
 
 /**
  * 마감일 대비 페이스 진단.
+ * 목표 페이지 = 전체 × 목표 진도율(target_percent, 없으면 100%). 남은 페이지 = 목표 페이지 − 현재.
  * 필요 페이스 = 남은 페이지 ÷ 남은 주수, 최근 페이스 = 주간 진도(로그 2건 차이).
  */
 function deadlineStatus(
@@ -169,28 +172,31 @@ function deadlineStatus(
   const total = progress.main_total_pages;
   const current = progress.current_page;
   const dateLabel = `${end.getMonth() + 1}/${end.getDate()}`;
+  const targetPct = progress.target_percent ?? null;
+  const label = targetPct != null ? `마감 ${dateLabel}·목표 ${targetPct}%` : `마감 ${dateLabel}`;
 
   if (total == null || current == null) {
-    return { label: `마감 ${dateLabel}`, detail: "페이지 미입력", tone: "info" };
+    return { label, detail: "페이지 미입력", tone: "info" };
   }
-  const remainingPages = Math.max(0, total - current);
+  const targetPage = Math.ceil((total * (targetPct ?? 100)) / 100);
+  const remainingPages = Math.max(0, targetPage - current);
   if (remainingPages === 0) {
-    return { label: `마감 ${dateLabel}`, detail: "교재 완료", tone: "ok" };
+    return { label, detail: targetPct != null ? "목표 달성" : "교재 완료", tone: "ok" };
   }
   const remainingDays = Math.round((end.getTime() - today.getTime()) / 86400000);
   if (remainingDays < 0) {
-    return { label: `마감 ${dateLabel} 경과`, detail: `${remainingPages}p 남음`, tone: "over" };
+    return { label: `${label} 경과`, detail: `${remainingPages}p 남음`, tone: "over" };
   }
   const remainingWeeks = Math.max(remainingDays / 7, 1 / 7);
   const needPace = Math.ceil(remainingPages / remainingWeeks);
 
   if (weeklyProgress == null || weeklyProgress <= 0) {
-    return { label: `마감 ${dateLabel}`, detail: `주 ${needPace}p 필요`, tone: "info" };
+    return { label, detail: `주 ${needPace}p 필요`, tone: "info" };
   }
   if (weeklyProgress >= needPace) {
-    return { label: `마감 ${dateLabel}`, detail: `정상 페이스 (주 ${weeklyProgress}p ≥ 필요 ${needPace}p)`, tone: "ok" };
+    return { label, detail: `정상 페이스 (주 ${weeklyProgress}p ≥ 필요 ${needPace}p)`, tone: "ok" };
   }
-  return { label: `마감 ${dateLabel}`, detail: `지연 위험 — 주 ${needPace}p 필요, 현재 ${weeklyProgress}p`, tone: "warn" };
+  return { label, detail: `지연 위험 — 주 ${needPace}p 필요, 현재 ${weeklyProgress}p`, tone: "warn" };
 }
 
 const DEADLINE_TONES: Record<string, { bg: string; color: string }> = {
@@ -380,7 +386,9 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
 
 /**
  * 예상 진도율(%) — 시작일(가장 최근 완료 교재 finished_on, 없으면 진도 생성일)부터
- * 마감일(target_end_date)까지 오늘 기준 경과 비율. 마감일 없으면 null(요약 카드 분류 제외).
+ * 마감일(target_end_date)까지 오늘 기준 경과 비율. 목표 진도율(target_percent)이 있으면
+ * 마감일에 100%가 아니라 목표%에 도달하도록 스케일(경과비율 × 목표% / 100)하고 상한도 목표%로 캡.
+ * 마감일 없으면 null(요약 카드 분류 제외).
  */
 function expectedPercent(row: ProgressBoardRow): number | null {
   const progress = row.progress;
@@ -394,8 +402,10 @@ function expectedPercent(row: ProgressBoardRow): number | null {
   if (Number.isNaN(start.getTime())) return null;
   const span = end.getTime() - start.getTime();
   if (span <= 0) return null;
-  const ratio = ((Date.now() - start.getTime()) / span) * 100;
-  return Math.max(0, Math.min(100, Math.round(ratio)));
+  const target = progress.target_percent ?? 100;
+  const elapsed = ((Date.now() - start.getTime()) / span) * 100;
+  const scaled = (elapsed * target) / 100;
+  return Math.max(0, Math.min(target, Math.round(scaled)));
 }
 
 type DiffTone = "delay" | "slightDelay" | "normal" | "aheadSlight" | "ahead";
@@ -780,6 +790,21 @@ function ProgressDialog({
             <label className="space-y-1.5">
               <span className="text-xs font-bold text-slate-500">현재 교재 마감일</span>
               <Input type="date" {...form.register("target_end_date")} className="w-fit" />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-bold text-slate-500">목표 진도율(%)</span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={100}
+                placeholder="100"
+                {...form.register("target_percent", numberRegister)}
+                className="h-9 w-24 text-center font-bold"
+              />
+              {form.formState.errors.target_percent && (
+                <span className="text-[11px] font-semibold text-red-500">{form.formState.errors.target_percent.message}</span>
+              )}
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-bold text-slate-500">다음 교재 시작 예정일</span>
@@ -1335,6 +1360,7 @@ function ClassDetailPanel({
             )}
             {infoRow("예상 기간", formatExpectedDuration(progress?.expected_months, progress?.expected_weeks))}
             {infoRow("마감일", progress?.target_end_date)}
+            {progress?.target_percent != null && infoRow("목표 진도율", `${progress.target_percent}%`)}
             {progress?.target_end_date && (
               <div className="flex gap-2">
                 <span className="w-28 shrink-0 text-sm font-bold text-slate-400">페이스 진단</span>
@@ -1409,6 +1435,16 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
     )
   );
   const [pendingUnitsClassId, setPendingUnitsClassId] = useState<string | null>(null);
+  const [targetInputs, setTargetInputs] = useState<Record<string, { endDate: string; percent: string }>>(() =>
+    Object.fromEntries(
+      initialRows.map((row) => [
+        row.class_id,
+        { endDate: row.progress?.target_end_date ?? "", percent: numberValue(row.progress?.target_percent) },
+      ])
+    )
+  );
+  const [editingTargetClassId, setEditingTargetClassId] = useState<string | null>(null);
+  const [pendingTargetClassId, setPendingTargetClassId] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialError) toast.error(`진도현황 조회 실패: ${initialError}`);
@@ -1443,6 +1479,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       [nextRow.class_id]: {
         major: nextRow.progress?.current_major_unit ?? "",
         minor: nextRow.progress?.current_minor_unit ?? "",
+      },
+    }));
+    setTargetInputs((prev) => ({
+      ...prev,
+      [nextRow.class_id]: {
+        endDate: nextRow.progress?.target_end_date ?? "",
+        percent: numberValue(nextRow.progress?.target_percent),
       },
     }));
   };
@@ -1481,6 +1524,22 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       router.refresh();
     } else {
       toast.error(("error" in result && result.error) || "진행 단원 저장 실패");
+    }
+  };
+
+  const handleTargetSave = async (row: ProgressBoardRow) => {
+    const input = targetInputs[row.class_id] ?? { endDate: "", percent: "" };
+    setPendingTargetClassId(row.class_id);
+    const result = await updateTargetPlan(row.class_id, input.endDate, input.percent === "" ? null : input.percent);
+    setPendingTargetClassId(null);
+
+    if (result.success && result.progress) {
+      updateRow(rowWithProgress(row, { progress: result.progress }));
+      toast.success("마감일·목표 진도율이 저장되었습니다");
+      setEditingTargetClassId(null);
+      router.refresh();
+    } else {
+      toast.error(("error" in result && result.error) || "마감일·목표 진도율 저장 실패");
     }
   };
 
@@ -1657,6 +1716,9 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   const isSaving = pendingClassId === row.class_id;
                   const isUnitsSaving = pendingUnitsClassId === row.class_id;
                   const units = unitInputs[row.class_id] ?? { major: "", minor: "" };
+                  const target = targetInputs[row.class_id] ?? { endDate: "", percent: "" };
+                  const isTargetEditing = editingTargetClassId === row.class_id;
+                  const isTargetSaving = pendingTargetClassId === row.class_id;
                   const isExpanded = expandedRows.has(row.class_id);
                   const dayGroup = dayGroupOf(row.class_days);
                   const dayTone = DAY_GROUP_TONES[dayGroup];
@@ -1711,7 +1773,63 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                       <TableCell className="align-top py-3">
                         <div className="space-y-1.5">
                           <ExpectedVsActualCell row={row} />
-                          <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
+                          {isTargetEditing ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Input
+                                type="date"
+                                value={target.endDate}
+                                onChange={(e) => setTargetInputs((prev) => ({ ...prev, [row.class_id]: { endDate: e.target.value, percent: prev[row.class_id]?.percent ?? "" } }))}
+                                disabled={isTargetSaving}
+                                className="h-7 w-[130px] text-[12px]"
+                              />
+                              <div className="flex items-center gap-0.5">
+                                <Input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={100}
+                                  placeholder="100"
+                                  value={target.percent}
+                                  onChange={(e) => setTargetInputs((prev) => ({ ...prev, [row.class_id]: { endDate: prev[row.class_id]?.endDate ?? "", percent: e.target.value.replace(/\D/g, "") } }))}
+                                  disabled={isTargetSaving}
+                                  className="h-7 w-14 text-center text-[12.5px] font-bold"
+                                />
+                                <span className="text-[12px] font-bold text-slate-400">%</span>
+                              </div>
+                              <Button size="sm" variant="outline" disabled={isTargetSaving} onClick={() => handleTargetSave(row)} className="h-7 gap-1 px-2 text-[11px]">
+                                <Save className="h-3 w-3" />
+                                저장
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={isTargetSaving} onClick={() => setEditingTargetClassId(null)} className="h-7 px-2 text-[11px] text-slate-400">
+                                취소
+                              </Button>
+                            </div>
+                          ) : progress?.target_end_date ? (
+                            editable ? (
+                              <button
+                                type="button"
+                                onClick={() => setEditingTargetClassId(row.class_id)}
+                                className="inline-flex items-center gap-1 text-left"
+                                title="클릭하면 마감일·목표 진도율을 수정합니다"
+                              >
+                                <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
+                                <Pencil className="h-3 w-3 shrink-0 text-slate-300" />
+                              </button>
+                            ) : (
+                              <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
+                            )
+                          ) : (
+                            editable && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingTargetClassId(row.class_id)}
+                                className="inline-flex items-center gap-1 rounded-md border border-dashed border-slate-300 px-1.5 py-0.5 text-[11.5px] font-bold text-slate-400 transition hover:border-slate-400 hover:text-slate-600"
+                              >
+                                <CalendarClock className="h-3 w-3" />
+                                마감일 입력
+                              </button>
+                            )
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="align-top py-3">

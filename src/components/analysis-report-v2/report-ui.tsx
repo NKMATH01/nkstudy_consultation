@@ -48,7 +48,7 @@ export function SectionTitle({
   sub?: string;
 }) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="rpt-sec" style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {index !== undefined && (
           <span
@@ -116,7 +116,7 @@ export function ScoreRow({
           marginBottom: 5,
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{label}</span>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{label}</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: band.color }}>
             {scoreText(score)}
@@ -182,7 +182,7 @@ export function BulletList({
           style={{
             display: "flex",
             gap: 8,
-            fontSize: 13,
+            fontSize: 13.5,
             lineHeight: 1.6,
             color: C.ink,
             marginBottom: 6,

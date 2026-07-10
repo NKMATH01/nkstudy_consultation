@@ -48,6 +48,9 @@ export const REPORT_PRINT_CSS = `
   }
   .report-page:last-child { break-after: auto; page-break-after: auto; }
   .rpt-card { break-inside: avoid; }
+  /* 섹션 제목이 페이지 끝에 홀로 남지 않도록 제목 블록을 통째로 유지하고
+     다음 내용과 함께 이동시킨다(§15.4 제목 고립 방지). */
+  .rpt-sec { break-inside: avoid; break-after: avoid; page-break-inside: avoid; page-break-after: avoid; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 `;

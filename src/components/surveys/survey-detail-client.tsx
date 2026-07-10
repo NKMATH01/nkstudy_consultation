@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { deleteSurvey } from "@/lib/actions/survey";
 import { analyzeSurvey } from "@/lib/actions/analysis";
+import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
 
 import type { Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
@@ -79,7 +80,10 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
-      const result = await analyzeSurvey(survey.id);
+      const result =
+        survey.instrument_version === "v2"
+          ? await analyzeSurveyV2(survey.id)
+          : await analyzeSurvey(survey.id);
       if (result.success && result.data) {
         toast.success("성향분석이 완료되었습니다");
         router.push(`/analyses/${result.data.id}`);

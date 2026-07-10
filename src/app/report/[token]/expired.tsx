@@ -1,6 +1,11 @@
 import { AlertTriangle } from "lucide-react";
 
-export function ExpiredReport() {
+export function ExpiredReport({ reason = "expired" }: { reason?: "expired" | "revoked" }) {
+  const title = reason === "revoked" ? "종료된 보고서입니다" : "만료된 보고서입니다";
+  const body =
+    reason === "revoked"
+      ? "이 보고서의 공유 링크가 종료되었습니다."
+      : "이 보고서의 공유 링크가 만료되었습니다.";
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div
@@ -10,10 +15,10 @@ export function ExpiredReport() {
         <AlertTriangle className="w-8 h-8" style={{ color: "#D97706" }} />
       </div>
       <h2 className="text-xl font-bold mb-2" style={{ color: "#1F2937" }}>
-        만료된 보고서입니다
+        {title}
       </h2>
       <p className="text-sm" style={{ color: "#6B7280" }}>
-        이 보고서의 공유 링크가 만료되었습니다.
+        {body}
         <br />
         보고서를 다시 확인하시려면 담당 선생님께 문의해주세요.
       </p>

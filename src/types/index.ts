@@ -372,6 +372,10 @@ export interface Analysis {
   report_html: string | null;
   created_at: string;
   updated_at: string;
+  // 설문 V2(학습 프로필) 분석. V1 분석에서는 null.
+  analysis_version?: string | null;
+  result_profile_v2?: import("@/lib/assessment/v2/interpretation").ResultProfileV2 | null;
+  response_quality_v2?: import("@/lib/assessment/v2/types").ResponseQuality | null;
 }
 
 export interface Registration {

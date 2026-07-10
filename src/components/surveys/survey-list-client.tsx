@@ -20,6 +20,7 @@ import { SurveyFormDialog } from "@/components/surveys/survey-form-client";
 import { SurveyPreviewDialog } from "@/components/surveys/survey-preview-dialog";
 import { toast } from "sonner";
 import { analyzeSurvey, reAnalyzeSurvey, getAnalysis } from "@/lib/actions/analysis";
+import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
 import { deleteSurvey } from "@/lib/actions/survey";
 import { updateRegistrationInfo, getConsultationByName } from "@/lib/actions/consultation";
 import { generateRegistration } from "@/lib/actions/registration";
@@ -315,9 +316,13 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     try {
       const existingAnalysis = analysisMap.get(survey.id);
       const hasAnalysis = !!survey.analysis_id || !!existingAnalysis || localAnalyzedIds.has(survey.id);
-      const result = hasAnalysis
-        ? await reAnalyzeSurvey(survey.id)
-        : await analyzeSurvey(survey.id);
+      // V2(학습 프로필)는 해석 전용 액션 사용(upsert로 재분석 겸용). V1은 기존 흐름 유지.
+      const result =
+        survey.instrument_version === "v2"
+          ? await analyzeSurveyV2(survey.id)
+          : hasAnalysis
+            ? await reAnalyzeSurvey(survey.id)
+            : await analyzeSurvey(survey.id);
       if (result.success) {
         setLocalAnalyzedIds((prev) => new Set(prev).add(survey.id));
         toast.success(hasAnalysis ? "재분석이 완료되었습니다" : "성향분석이 완료되었습니다");

@@ -1,11 +1,42 @@
 import { getAnalysis } from "@/lib/actions/analysis";
 import { getClasses, getTeachers } from "@/lib/actions/settings";
 import { AnalysisDetailClient } from "@/components/analyses/analysis-detail-client";
+import { AnalysisDetailV2Client } from "@/components/analyses/analysis-detail-v2-client";
+import type { CounselorBackground } from "@/components/analysis-report-v2/counselor-report";
 import { ClassRecommendationSection } from "@/components/analyses/class-recommendation-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
 import { createClient } from "@/lib/supabase/server";
 import type { ResultStatus } from "@/types";
+
+function toBackground(intake: Record<string, unknown> | null): CounselorBackground | null {
+  if (!intake) return null;
+  const s = (k: string) => {
+    const v = intake[k];
+    return typeof v === "string" && v.trim() ? v : null;
+  };
+  const exp = intake.nk_expectations;
+  return {
+    prevAcademy: s("prev_academy"),
+    prevLeaveReason: s("prev_leave_reason"),
+    prevComplaint: s("prev_complaint"),
+    referral: s("referral"),
+    nkKnowledge: s("nk_knowledge"),
+    nkExpectations: Array.isArray(exp) ? (exp as string[]) : null,
+    preferredDays: s("preferred_days"),
+    availableTime: s("available_time"),
+    clinicCondition: s("clinic_condition"),
+    hasFuturePlan: s("has_future_plan"),
+    dream: s("dream"),
+    targetUniversity: s("target_university"),
+    studyCore: s("study_core"),
+    problemSelf: s("problem_self"),
+    mathDifficulty: s("math_difficulty"),
+    englishDifficulty: s("english_difficulty"),
+    healthNote: s("health_note"),
+    requests: s("requests"),
+  };
+}
 
 export default async function AnalysisDetailPage({
   params,
@@ -54,19 +85,45 @@ export default async function AnalysisDetailPage({
     .limit(1)
     .maybeSingle();
 
-  // 설문에서 전화번호 조회
+  // 설문에서 전화번호·V2 사전정보 조회
   let studentPhone: string | null = null;
   let parentPhone: string | null = null;
+  let intakeV2: Record<string, unknown> | null = null;
   if (analysis.survey_id) {
     const { data: survey } = await supabase
       .from("surveys")
-      .select("student_phone, parent_phone")
+      .select("student_phone, parent_phone, intake_v2")
       .eq("id", analysis.survey_id)
       .single();
     if (survey) {
       studentPhone = survey.student_phone;
       parentPhone = survey.parent_phone;
+      intakeV2 = (survey.intake_v2 as Record<string, unknown> | null) ?? null;
     }
+  }
+
+  // 설문 V2(학습 프로필) 분석이면 전용 V2 결과지를 렌더한다(V1 분석은 기존 화면 그대로).
+  if (analysis.analysis_version === "v2" && analysis.result_profile_v2) {
+    return (
+      <div className="space-y-6">
+        <AnalysisDetailV2Client
+          analysis={analysis}
+          profile={analysis.result_profile_v2}
+          classes={classes}
+          teachers={teachers}
+          background={toBackground(intakeV2)}
+          contacts={{ studentPhone, parentPhone }}
+          consultationData={consultationData}
+          existingRegistrationId={existingReg?.id || null}
+        />
+        <ClassRecommendationSection
+          analysisId={analysis.id}
+          studentName={analysis.name}
+          studentGrade={analysis.grade}
+          initialTestScore={consultationData?.test_score ?? null}
+        />
+      </div>
+    );
   }
 
   return (

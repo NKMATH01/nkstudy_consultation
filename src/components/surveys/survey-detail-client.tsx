@@ -95,6 +95,10 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
 
   const baseFKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
   const factorKeys = survey.factor_emotion != null ? [...baseFKeys, "emotion" as const] : baseFKeys;
+  // V2 학습 프로필 행은 q1~q35·factor가 없다. 오해를 주는 0점 차트/문항 대신 안전 패널만 표시한다.
+  // (본격 V2 상세 결과지는 Phase 4에서 별도 구현.)
+  const isV2 = survey.instrument_version === "v2";
+  const SUBJECT_LABEL_V2: Record<string, string> = { math: "수학", english: "영어", both: "수학+영어" };
 
   return (
     <div className="space-y-5 max-w-4xl fade-in">
@@ -108,10 +112,15 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
           </Button>
           <div>
             <h1
-              className="text-xl font-extrabold"
+              className="text-xl font-extrabold flex items-center gap-2"
               style={{ color: "#0F172A", letterSpacing: "-0.02em" }}
             >
               {survey.name}
+              {isV2 && (
+                <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-black text-violet-700">
+                  V2 학습 프로필
+                </span>
+              )}
             </h1>
             <p className="text-[12.5px]" style={{ color: "#64748B" }}>
               {[survey.school, survey.grade].filter(Boolean).join(" ")}
@@ -206,7 +215,34 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
         )}
       </div>
 
-      {/* 6-Factor Scores */}
+      {/* V2 학습 프로필: 안전 요약 패널 (본격 상세는 Phase 4) */}
+      {isV2 && (
+        <div
+          className="bg-white rounded-2xl p-6"
+          style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        >
+          <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "#1E293B" }}>
+            <div className="w-1 h-5 rounded-full" style={{ background: "#6D28D9" }} />
+            V2 학습 프로필
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+            <div>
+              <span className="text-[10.5px] font-medium uppercase" style={{ color: "#94A3B8", letterSpacing: "0.04em" }}>진단 과목</span>
+              <p className="text-[13px] font-semibold mt-0.5" style={{ color: "#1E293B" }}>
+                {SUBJECT_LABEL_V2[survey.subject_selection ?? ""] || "-"}
+              </p>
+            </div>
+          </div>
+          <p className="mt-4 text-[12px]" style={{ color: "#64748B" }}>
+            V2 학습 프로필 설문입니다. 결정론적 점수와 상세 결과지는 별도 화면에서 제공됩니다.
+            기본 정보와 주관식 답변은 아래에서 확인할 수 있습니다.
+          </p>
+        </div>
+      )}
+
+      {/* 6-Factor Scores + 35문항 (V1 전용) */}
+      {!isV2 && (
+      <>
       <div
         className="bg-white rounded-2xl p-6"
         style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
@@ -300,6 +336,8 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
           })}
         </div>
       </div>
+      </>
+      )}
 
       {/* Open-ended Answers */}
       <div

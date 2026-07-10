@@ -516,7 +516,12 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                           {format(new Date(item.created_at), "MM-dd")}
                         </td>
                         <td className={`px-2 py-2.5 whitespace-nowrap ${vb}`}>
-                          <Link href={nameHref} className="text-[12px] font-black text-slate-800 hover:text-primary hover:underline">{item.name}</Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link href={nameHref} className="text-[12px] font-black text-slate-800 hover:text-primary hover:underline">{item.name}</Link>
+                            {item.instrument_version === "v2" && (
+                              <span className="rounded border border-violet-200 bg-violet-50 px-1 py-0.5 text-[8px] font-black text-violet-700" title="V2 학습 프로필 설문">V2</span>
+                            )}
+                          </div>
                         </td>
                         <td className={`px-2 py-2.5 text-[10px] font-medium text-slate-500 whitespace-nowrap truncate ${vb}`}>
                           {[item.school, item.grade].filter(Boolean).join(" ") || "-"}

@@ -271,6 +271,14 @@ export interface Survey {
   factor_management: number | null;
   factor_emotion: number | null;
   analysis_id: string | null;
+  // ── 설문 V2 (learning profile, versioned JSONB) ──
+  // V1 행에서는 모두 null. instrument_version='v2'만 V2 제출을 뜻한다.
+  instrument_version?: string | null;
+  subject_selection?: string | null;
+  intake_v2?: Record<string, unknown> | null;
+  responses_v2?: Record<string, unknown> | null;
+  response_meta_v2?: Record<string, unknown> | null;
+  score_profile_v2?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

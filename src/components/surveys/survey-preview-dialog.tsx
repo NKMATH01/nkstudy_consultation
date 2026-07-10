@@ -41,6 +41,9 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
 
   if (!survey) return null;
 
+  // V2 학습 프로필 행은 q1~q35·factor가 없다. 오해를 주는 0점 블록은 숨긴다.
+  const isV2 = survey.instrument_version === "v2";
+
   const handlePdfDownload = async () => {
     if (!contentRef.current) return;
     setPdfLoading(true);
@@ -176,7 +179,18 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
           </div>
         )}
 
-        {/* 7-Factor 점수 */}
+        {isV2 && (
+          <div className="mt-3 p-3 rounded-xl bg-violet-50 border border-violet-100">
+            <span className="text-[10px] font-black text-violet-700">V2 학습 프로필</span>
+            <p className="text-[11px] mt-0.5 text-violet-900">
+              V2 설문입니다. 상세 점수·결과지는 별도 화면에서 제공됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 7-Factor 점수 + 35문항 (V1 전용) */}
+        {!isV2 && (
+        <>
         <div className="mt-3 p-3 rounded-xl bg-slate-50">
           <h4 className="text-xs font-bold text-slate-700 mb-2.5">7-Factor 학습 성향</h4>
           <div className="space-y-2">
@@ -234,6 +248,8 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
             })}
           </div>
         </div>
+        </>
+        )}
 
         {/* 주관식 답변 */}
         <div className="mt-3">

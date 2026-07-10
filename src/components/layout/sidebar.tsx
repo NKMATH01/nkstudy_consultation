@@ -18,6 +18,7 @@ import {
   Shield,
   BookOpenCheck,
   ArrowLeftCircle,
+  MessageSquareHeart,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { CurrentTeacherInfo } from "@/types";
@@ -30,6 +31,7 @@ const consultItems = [
 
 const analysisItems = [
   { href: "/surveys", label: "설문/분석", icon: ClipboardList },
+  { href: "/drip-responses", label: "설문 피드백", icon: MessageSquareHeart },
   { href: "/onboarding", label: "등록 관리", icon: FileText },
   { href: "/progress", label: "진도 현황", icon: BookOpenCheck, newTab: true },
 ];
@@ -53,7 +55,7 @@ const adminOnlyItems = [
 type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; newTab?: boolean };
 
 // 권한 설정과 무관하게 모든 강사에게 항상 표시되는 메뉴 (진도현황)
-const ALWAYS_VISIBLE_MENUS = new Set(["/progress"]);
+const ALWAYS_VISIBLE_MENUS = new Set(["/progress", "/drip-responses"]);
 
 function filterMenuItems(
   items: MenuItem[],

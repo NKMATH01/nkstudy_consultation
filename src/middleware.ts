@@ -43,7 +43,8 @@ export async function middleware(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/auth") &&
     !request.nextUrl.pathname.startsWith("/survey") &&
     !request.nextUrl.pathname.startsWith("/booking") &&
-    !request.nextUrl.pathname.startsWith("/report")
+    !request.nextUrl.pathname.startsWith("/report") &&
+    !request.nextUrl.pathname.startsWith("/feedback")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

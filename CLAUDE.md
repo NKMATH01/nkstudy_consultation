@@ -92,6 +92,10 @@ CLAUDE_MODEL=                   # Claude 모델명 (기본: claude-haiku-4-5-202
 NK_ACADEMY_VEHICLE_FEE=         # 차량비 (선택, 기본: 2만원)
 NK_ACADEMY_BANK_INFO=           # 계좌 정보 (선택)
 NK_ACADEMY_BANK_OWNER=          # 예금주 (선택)
+SOLAPI_API_KEY=                 # Solapi/CoolSMS API 키 (서버 전용)
+SOLAPI_API_SECRET=              # Solapi/CoolSMS API 시크릿 (서버 전용)
+SOLAPI_PFID=                    # 알림톡 발신프로필 ID (서버 전용)
+SOLAPI_SENDER_PHONE=            # 대체 SMS/LMS 발신번호 (서버 전용)
 ```
 
 ## 빌드/실행

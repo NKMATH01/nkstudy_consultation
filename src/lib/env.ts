@@ -10,6 +10,10 @@ const envSchema = z.object({
   NK_ACADEMY_VEHICLE_FEE: z.string().optional().default("20000"),
   NK_ACADEMY_BANK_INFO: z.string().optional().default(""),
   NK_ACADEMY_BANK_OWNER: z.string().optional().default(""),
+  SOLAPI_API_KEY: z.string().optional().default(""),
+  SOLAPI_API_SECRET: z.string().optional().default(""),
+  SOLAPI_PFID: z.string().optional().default(""),
+  SOLAPI_SENDER_PHONE: z.string().optional().default(""),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(""),
 });
 

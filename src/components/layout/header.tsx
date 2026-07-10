@@ -16,6 +16,7 @@ import {
   UserCog,
   Shield,
   BookOpenCheck,
+  MessageSquareHeart,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const pageTitles: Record<string, { label: string; icon: LucideIcon }> = {
   "/consultations": { label: "상담 관리", icon: Users },
   "/bookings": { label: "예약 현황판", icon: CalendarCheck },
   "/surveys": { label: "설문 현황", icon: ClipboardList },
+  "/drip-responses": { label: "설문 피드백", icon: MessageSquareHeart },
   "/analyses": { label: "성향분석 결과", icon: Sparkles },
   "/registrations": { label: "등록 안내", icon: FileText },
   "/progress": { label: "진도 현황", icon: BookOpenCheck },

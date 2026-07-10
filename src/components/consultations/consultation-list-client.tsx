@@ -17,10 +17,26 @@ import {
   Search,
   CalendarDays,
   Filter,
+  Link2,
+  MessageCircle,
+  Send,
 } from "lucide-react";
 import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import { TextParseModal } from "@/components/consultations/text-parse-modal";
 import { updateConsultationField, deleteConsultation } from "@/lib/actions/consultation";
+import { previewAlimtalk, sendAlimtalk } from "@/lib/actions/alimtalk";
+import { createDripInvitation } from "@/lib/actions/drip-survey";
+import {
+  CONSULT_CONFIRM_TEMPLATE_CODE,
+  buildConsultConfirmVars,
+} from "@/lib/consultation-alimtalk";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Consultation, ResultStatus } from "@/types";
 
 interface Props {
@@ -115,8 +131,27 @@ const STATUS_FILTER_OPTIONS: { value: ResultStatus | null; label: string; cls: s
   { value: "other", label: "미등록", cls: "bg-white text-neutral-500 border-neutral-200", activeCls: "bg-neutral-600 text-white border-neutral-600" },
 ];
 
+type AlimtalkPreviewState = {
+  loading: boolean;
+  data: {
+    text: string;
+    missing: string[];
+    maskedPhone: string;
+    sendable: boolean;
+    template: {
+      kakao_status: "draft" | "pending" | "approved" | "rejected";
+    };
+  } | null;
+  error: string | null;
+};
+
 // 고정 컬럼 너비 (colgroup) — 한 화면에 맞추기
 const COL_WIDTHS = [48, 56, 72, 60, 44, 68, 100, 110, 76, 190, 76];
+
+function isNightTimeKSTClient(date: Date = new Date()): boolean {
+  const kstHour = (date.getUTCHours() + 9) % 24;
+  return kstHour >= 21 || kstHour < 8;
+}
 
 export function ConsultationListClient({ initialData, initialPagination, classes = [] }: Props) {
   const router = useRouter();
@@ -128,6 +163,13 @@ export function ConsultationListClient({ initialData, initialPagination, classes
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ResultStatus | null>(null);
+  const [alimtalkTarget, setAlimtalkTarget] = useState<Consultation | null>(null);
+  const [alimtalkPreview, setAlimtalkPreview] = useState<AlimtalkPreviewState>({
+    loading: false,
+    data: null,
+    error: null,
+  });
+  const [sendingAlimtalk, setSendingAlimtalk] = useState(false);
 
   useEffect(() => {
     setLocalData(initialData);
@@ -288,6 +330,96 @@ export function ConsultationListClient({ initialData, initialPagination, classes
     toast.success("클립보드에 복사되었습니다");
   }, []);
 
+  const handleOpenAlimtalk = useCallback(async (c: Consultation) => {
+    setAlimtalkTarget(c);
+    setAlimtalkPreview({ loading: true, data: null, error: null });
+
+    const vars = buildConsultConfirmVars(c);
+    const result = await previewAlimtalk({
+      consultationId: c.id,
+      templateCode: CONSULT_CONFIRM_TEMPLATE_CODE,
+      vars,
+    });
+
+    if (!result.success || !result.data) {
+      setAlimtalkPreview({
+        loading: false,
+        data: null,
+        error: result.error ?? "미리보기 실패",
+      });
+      return;
+    }
+
+    setAlimtalkPreview({
+      loading: false,
+      data: result.data,
+      error: null,
+    });
+  }, []);
+
+  const handleCreateDripLink = useCallback(async (c: Consultation) => {
+    const result = await createDripInvitation({
+      consultationId: c.id,
+      wave: "W1",
+    });
+
+    if (!result.success || !result.url) {
+      toast.error(result.error ?? "링크 생성 실패");
+      return;
+    }
+
+    await navigator.clipboard.writeText(result.url);
+    toast.success("설문 링크가 복사되었습니다");
+  }, []);
+
+  const handleCloseAlimtalk = useCallback((open: boolean) => {
+    if (open || sendingAlimtalk) return;
+    setAlimtalkTarget(null);
+    setAlimtalkPreview({ loading: false, data: null, error: null });
+  }, [sendingAlimtalk]);
+
+  const handleSendAlimtalk = useCallback(async () => {
+    if (!alimtalkTarget) return;
+
+    const vars = buildConsultConfirmVars(alimtalkTarget);
+    setSendingAlimtalk(true);
+
+    try {
+      const result = await sendAlimtalk({
+        consultationId: alimtalkTarget.id,
+        templateCode: CONSULT_CONFIRM_TEMPLATE_CODE,
+        vars,
+        allowSmsFallback: true,
+      });
+
+      if (!result.success) {
+        toast.error(result.error ?? "발송 실패");
+        return;
+      }
+
+      toast.success("알림톡 발송 완료");
+      const updateResult = await updateConsultationField(
+        alimtalkTarget.id,
+        "notify_sent",
+        true,
+      );
+
+      if (!updateResult.success) {
+        toast.error("발송 완료, 안내 상태 업데이트 실패");
+      }
+
+      setLocalData((prev) =>
+        prev.map((c) =>
+          c.id === alimtalkTarget.id ? { ...c, notify_sent: true } : c,
+        ),
+      );
+      setAlimtalkTarget(null);
+      setAlimtalkPreview({ loading: false, data: null, error: null });
+    } finally {
+      setSendingAlimtalk(false);
+    }
+  }, [alimtalkTarget]);
+
   const handleEdit = useCallback((c: Consultation) => {
     setEditingConsultation(c);
     setShowForm(true);
@@ -334,6 +466,20 @@ export function ConsultationListClient({ initialData, initialPagination, classes
       </tr>
     </thead>
   );
+
+  const alimtalkMissing = alimtalkPreview.data?.missing ?? [];
+  const alimtalkTemplateUnapproved =
+    !!alimtalkPreview.data &&
+    alimtalkPreview.data.template.kakao_status !== "approved";
+  const alimtalkSendDisabled =
+    sendingAlimtalk ||
+    alimtalkPreview.loading ||
+    !!alimtalkPreview.error ||
+    !alimtalkPreview.data ||
+    !alimtalkPreview.data.sendable ||
+    alimtalkMissing.length > 0 ||
+    alimtalkTemplateUnapproved;
+  const showAlimtalkNightNotice = isNightTimeKSTClient();
 
   return (
     <div className="space-y-2">
@@ -709,6 +855,32 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                                 <ClipboardCopy className="h-3.5 w-3.5" />
                               </button>
                               <button
+                                onClick={() => handleOpenAlimtalk(item)}
+                                className={`inline-flex items-center gap-0.5 rounded px-1.5 py-1.5 text-[10px] font-bold transition-colors ${
+                                  isUnregistered
+                                    ? "text-neutral-600 hover:bg-neutral-800"
+                                    : "text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                }`}
+                                title="알림톡 발송"
+                                aria-label="알림톡 발송"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                톡
+                              </button>
+                              <button
+                                onClick={() => handleCreateDripLink(item)}
+                                className={`inline-flex items-center gap-0.5 rounded px-1.5 py-1.5 text-[10px] font-bold transition-colors ${
+                                  isUnregistered
+                                    ? "text-neutral-600 hover:bg-neutral-800"
+                                    : "text-sky-600 hover:bg-sky-50 hover:text-sky-700"
+                                }`}
+                                title="1주 설문 링크"
+                                aria-label="1주 설문 링크"
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                                W1
+                              </button>
+                              <button
                                 onClick={() => handleEdit(item)}
                                 className={`p-1.5 rounded transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
                                 title="수정"
@@ -785,6 +957,86 @@ export function ConsultationListClient({ initialData, initialPagination, classes
         classes={classes}
       />
       <TextParseModal open={showTextParse} onOpenChange={setShowTextParse} />
+      <Dialog open={!!alimtalkTarget} onOpenChange={handleCloseAlimtalk}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>알림톡 발송 미리보기</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              대상:{" "}
+              <span className="font-semibold text-slate-900">
+                {alimtalkTarget?.name ?? "-"} ·{" "}
+                {alimtalkPreview.data?.maskedPhone ?? "-"} · 1명
+              </span>
+            </div>
+
+            {alimtalkPreview.loading ? (
+              <div className="rounded-lg border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">
+                미리보기를 불러오는 중입니다.
+              </div>
+            ) : alimtalkPreview.error ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                {alimtalkPreview.error}
+              </div>
+            ) : (
+              <div className="rounded-lg bg-[#FEE500] p-4 text-sm leading-6 text-slate-950 shadow-sm">
+                <div className="whitespace-pre-wrap">
+                  {alimtalkPreview.data?.text ?? ""}
+                </div>
+              </div>
+            )}
+
+            {alimtalkMissing.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                미치환 변수: {alimtalkMissing.join(", ")}
+              </div>
+            )}
+
+            {alimtalkTemplateUnapproved && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                미승인 템플릿
+              </div>
+            )}
+
+            {alimtalkPreview.data &&
+              !alimtalkPreview.data.sendable &&
+              alimtalkMissing.length === 0 &&
+              !alimtalkTemplateUnapproved && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                  대상 전화번호를 확인해 주세요
+                </div>
+              )}
+
+            {showAlimtalkNightNotice && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                야간 시간대 — 서버에서 발송이 차단될 수 있습니다
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => handleCloseAlimtalk(false)}
+              disabled={sendingAlimtalk}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleSendAlimtalk}
+              disabled={alimtalkSendDisabled}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" />
+              {sendingAlimtalk ? "발송 중" : "발송하기"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

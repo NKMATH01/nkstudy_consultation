@@ -4,16 +4,36 @@
 
 ---
 
-## ▶ 다음 세션 시작 체크리스트 (2026-07-09 세션 마감 기준)
+## ▶ 다음 세션 시작 체크리스트 (2026-07-10 세션 마감 기준)
 
-**배포 상태**: origin/master = `28744ad`, Vercel 자동 배포 완료 추정. 07-08~09 이틀간 총 5개 커밋 배포 (RSC 에러 → 스키마 복구 → 동시성 방어 → API 보안 → 진도현황 리디자인 2건).
+**배포 상태**: origin/master = `2c0d9e6` (+WORKLOG 커밋), Vercel 자동 배포. 07-10에 알림톡·드립설문 기능 배포 + 미커밋 43개 파일 정리 완료.
 
-1. **[최우선] 사용자 확인 대기** — `/progress` 진도현황 리디자인(76f1336+28744ad)과 학생관리 "반 학년 기준" 교차 배정 실사용 피드백. 디자인 추가 다듬기 요청 나올 수 있음 (부분 스크린샷 받아 해당 부분만 수정하는 방식으로).
-2. **미커밋 ~40개 파일 정리** — 알림톡(alimtalk·solapi), drip-survey, /feedback, /drip-responses, sidebar/header/middleware/env/package.json 수정, scripts/·test-*.py. 기능 단위 검토 후 선별 커밋 or 폐기. `20260630120000_nkc_alimtalk.sql` 운영 적용 여부도 미확인.
-3. **보류 항목** (07-09 race 점검에서 후순위 처리): alimtalk.ts·drip-survey.ts의 throw 패턴(프로덕션 마스킹 동일 버그 후보), toggleBookingPaid lost-update, createTeacher Auth-orphan, deleteSurvey/deleteStudent 연쇄 삭제 순서, 인메모리 rate limit 서버리스 한계.
-4. **진도현황 예상 진도율** — 현재 정의(교재 시작일~마감일 시간 경과 비율)가 실사용에서 자연스러운지 확인. 마감일(target_end_date) 미입력 반은 "예상 정보 없음"으로 나옴 → 강사들에게 마감일 입력 안내 필요할 수 있음.
+1. **[최우선] 사용자 확인 대기** — ① `/progress` 진도현황 리디자인 실사용 피드백, ② 신규 배포된 "설문 피드백"(/drip-responses) 메뉴 정상 표시 여부.
+2. **알림톡 실발송 활성화 (미완)** — SOLAPI_API_KEY/SECRET/PFID/SENDER_PHONE이 .env.local·Vercel에 미설정. nkc_alimtalk_templates 테이블 비어 있음(템플릿 등록 + 카카오 승인 필요). 이것 없이는 미리보기·발송 모두 "템플릿 없음" 류 에러 반환(페이지 자체는 정상).
+3. **보류 항목** (07-09 race 점검 후순위): alimtalk.ts·drip-survey.ts의 throw 패턴, toggleBookingPaid lost-update, createTeacher Auth-orphan, deleteSurvey/deleteStudent 연쇄 삭제 순서, 인메모리 rate limit 서버리스 한계.
+4. **진도현황 예상 진도율** — 마감일(target_end_date) 미입력 반은 "예상 정보 없음" → 강사 안내 필요할 수 있음.
 
-**작업 체계 리마인드**: Claude=브레인(분석·명세·검증·푸시), Opus 4.8 실행자=코드 수정·커밋(푸시는 권한 문제로 브레인이 수행). DDL은 사용자가 SQL Editor에서 실행(주소: https://supabase.com/dashboard/project/scrliiiiexjedgzogcfo/sql/new). 운영 데이터 변경 스크립트는 사용자가 `! node scripts/...`로 직접 실행.
+**작업 체계 리마인드**: Claude=브레인(분석·명세·검증·푸시), Opus 4.8 실행자=코드 수정·커밋. DDL은 사용자가 SQL Editor에서 실행(https://supabase.com/dashboard/project/scrliiiiexjedgzogcfo/sql/new). 운영 데이터 변경 스크립트는 사용자가 `! node scripts/...`로 직접 실행.
+
+---
+
+## 2026-07-10 (금) — 미커밋 43개 파일 정리 + 알림톡·드립설문 기능 배포
+
+**조사 결과**: 미커밋 파일을 4그룹으로 분류. 알림톡+드립설문 기능(6/30 작업분)은 코드 완결·빌드 통과 상태였으나 ① 운영 DB에 nkc_ 테이블 6개 미적용, ② SOLAPI 키 미설정 상태였음. 점검 스크립트 3개(check-new-project/full-check/verify-new.mjs)에서 타 프로젝트(xhlxwmzhhvexqxbrukfg) anon 키 하드코딩 발견 → 커밋 제외·삭제.
+
+**주의(재발 방지)**: supabase-js `select(..., {head:true})`는 존재하지 않는 테이블에서도 error 없이 count=null만 반환함 — 테이블 존재 확인은 반드시 일반 GET으로 할 것.
+
+**배포 커밋** (origin/master `28744ad` → `2c0d9e6`):
+| 커밋 | 내용 |
+|---|---|
+| `778e2de` | feat: 알림톡 발송·드립 설문 기능 (Solapi 연동, 19파일) — 상담목록 알림톡 발송/설문링크 버튼, /drip-responses 강사 페이지, /feedback/[token] 공개 설문, nkc_ 마이그레이션 |
+| `3d779ee` | docs: WORKLOG·TASK 작업 기록 |
+| `756c892` | chore: DB 점검 스크립트 7개 |
+| `2c0d9e6` | chore: 일회성 test-*.py 13개·키 하드코딩 스크립트 3개·깨진 빈 디렉토리(src/app/feedback/백틱[token백틱]) 삭제, supabase/.temp gitignore |
+
+**DDL**: 사용자가 SQL Editor에서 `20260630120000_nkc_alimtalk.sql` 실행 → nkc_ 테이블 6개 + get_drip_invitation/submit_drip_response RPC 생성 실측 확인 완료 (푸시 전 적용).
+
+**미완(다음 작업)**: SOLAPI 키 4종 Vercel/.env.local 등록, nkc_alimtalk_templates에 템플릿 등록 + 카카오 채널 승인. 이전까지 발송·미리보기는 에러 반환(정상 동작).
 
 ---
 

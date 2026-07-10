@@ -4,16 +4,49 @@
 
 ---
 
-## ▶ 다음 세션 시작 체크리스트 (2026-07-10 세션 마감 기준)
+## ▶ 다음 세션 시작 체크리스트 (2026-07-11 세션 마감 기준)
 
-**배포 상태**: origin/master = `2c0d9e6` (+WORKLOG 커밋), Vercel 자동 배포. 07-10에 알림톡·드립설문 기능 배포 + 미커밋 43개 파일 정리 완료.
+**상태**: 설문 V2 개편 **구현 완료(Phase 1~5)** — master에 커밋됨, **미푸시**. vitest 97건 통과, build 성공, 신규 Playwright E2E 13건 통과, PDF 시각검증 통과.
 
-1. **[최우선] 사용자 확인 대기** — ① `/progress` 진도현황 리디자인 실사용 피드백, ② 신규 배포된 "설문 피드백"(/drip-responses) 메뉴 정상 표시 여부.
-2. **알림톡 실발송 활성화 (미완)** — SOLAPI_API_KEY/SECRET/PFID/SENDER_PHONE이 .env.local·Vercel에 미설정. nkc_alimtalk_templates 테이블 비어 있음(템플릿 등록 + 카카오 승인 필요). 이것 없이는 미리보기·발송 모두 "템플릿 없음" 류 에러 반환(페이지 자체는 정상).
-3. **보류 항목** (07-09 race 점검 후순위): alimtalk.ts·drip-survey.ts의 throw 패턴, toggleBookingPaid lost-update, createTeacher Auth-orphan, deleteSurvey/deleteStudent 연쇄 삭제 순서, 인메모리 rate limit 서버리스 한계.
-4. **진도현황 예상 진도율** — 마감일(target_end_date) 미입력 반은 "예상 정보 없음" → 강사 안내 필요할 수 있음.
+**커밋 목록 (V2, origin/master `2c0d9e6` 이후 · 전부 미푸시)**:
+| 커밋 | 내용 |
+|---|---|
+| `7c085de` | Phase 1 — 문항 정의·결정론적 점수 엔진·단위 테스트 |
+| `bb2dd25` | Phase 2 — 학생 설문 UI·공유 검증·제출 액션 |
+| `7c0f0a5`/`156e9d7` | Phase 3 — AI-safe serializer·해석 전용 분석·fallback(+merge) |
+| `f485844` | Phase 4 — 결과 보고서(상담자/학부모)·공유 token·A4 PDF |
+| `436683e` | Phase 5 fix — 인쇄 시 섹션 제목 고아 방지·본문 10pt 보장 |
+| (이 세션) | Phase 5 — Playwright E2E·PDF 시각검증·검증 라우트·WORKLOG |
+
+**⚠ 미적용 DDL 2건 (사용자가 SQL Editor에서 실행 필요, 프로덕션 직접 적용 안 함)**:
+1. `supabase/migrations/20260711100000_survey_v2_jsonb.sql` — surveys/analyses에 V2 JSONB 컬럼. **배포 전 필수** (없으면 V2 제출·분석 실패).
+2. `supabase/migrations/20260711150000_report_tokens_v2.sql` — report_tokens RLS·만료·parent-safe snapshot 관련. **검토 후 적용**.
+
+**남은 작업 (순서)**:
+1. 위 DDL 2건 적용 → 2. 운영 DB 대상 "제출 성공"·"AI 분석 실행" E2E 검증(현재 DB에 V2 컬럼 없어 SKIP한 2항목) → 3. 임시 검증 라우트 `/dev-report-preview` 유지/삭제 결정 → 4. push.
+
+**검증 제약(현 세션)**: 운영 DB에 V2 컬럼 미적용이라 "제출 성공"·"분석 실행" E2E는 SKIP. 결과지 검증은 가상 점수 프로필+fallback 해석을 렌더하는 **비프로덕션 전용 라우트** `/dev-report-preview`로 수행(production은 notFound()+미들웨어 이중 가드).
 
 **작업 체계 리마인드**: Claude=브레인(분석·명세·검증·푸시), Opus 4.8 실행자=코드 수정·커밋. DDL은 사용자가 SQL Editor에서 실행(https://supabase.com/dashboard/project/scrliiiiexjedgzogcfo/sql/new). 운영 데이터 변경 스크립트는 사용자가 `! node scripts/...`로 직접 실행.
+
+---
+
+## 2026-07-11 (토) — 설문 V2 학습 프로필 개편 Phase 1~5 (미푸시)
+
+기존 35문항(7-Factor) 공개 설문을 학생 자기작성형 **학습운영 프로필 V2**로 교체. 명세서 `CLAUDE-CODE-NK-SURVEY-REPORT-IMPLEMENTATION.md` 기준. 5단계로 분업 구현.
+
+- **Phase 1 (`7c085de`)**: `src/lib/assessment/v2/` — 문항 정의(공통36+과목12·역채점 고정), 결정론적 점수 엔진(정/역 환산·75% 유효응답·conscientiousness·지도 4분면·MBTI 0/4/8% 보조·NK 적합도·응답품질 flag), vitest 고정 fixture.
+- **Phase 2 (`bb2dd25`)**: 학생 설문 UI(`assessment-v2/`) — 한 화면 한 문항, 포인터 첫 선택 자동이동(520ms), 키보드·수정·보조선택(P4·N4) 예외, NK 기대 최대 3개, sessionStorage 임시저장. 공유 Zod 검증·제출 액션(서버 재채점).
+- **Phase 3 (`7c0f0a5`/`156e9d7`)**: AI-safe serializer(deny-by-default allowlist·PII redaction), 해석 전용 분석(숫자 미생성), 규칙 기반 fallback.
+- **Phase 4 (`f485844`)**: 결과 보고서 — 상담자용 14섹션 + 학부모 parent-safe snapshot(금지 필드 물리 제외), 하단 고정 5메뉴, A4 세로 다중 페이지 PDF(native print CSS).
+- **Phase 5 (이 세션 + fix `436683e`)**: Playwright E2E·PDF 시각검증.
+  - **E2E** (`e2e/`, `npm run test:e2e`, playwright 코어 API 자체 러너): 13건 전부 통과. 사전정보 입력, 수학 48/영어 48/수학+영어 60 전 문항 진행(문항 수 assert), 첫 선택 자동이동, 기존 답 수정 시 자동이탈 없음·값 보존, 보조선택 문항 자동이동 안 함, NK 기대 최대 3개, 14일 약속 전 제출 차단. **제출 성공·분석 실행 = SKIP(운영 DB에 V2 컬럼 미적용)** — 제출 직전 단계·버튼 존재까지 확인. 결과지: 상담자 14섹션·학부모 토글 시 금지 섹션 DOM 부재·하단 5메뉴 fixed·수학+영어 모두 렌더·모바일 390 가로넘침 0·console/page error 0.
+  - **PDF 시각검증** (`npm run verify:pdf`): chromium `page.pdf()`로 상담자 결과지 A4 PDF 생성 → MediaBox 595.9×842.9pt(A4) 확인, 11페이지(8논리 섹션이 내용 분량따라 자연 분할), pdftoppm 래스터 11장 육안 검수 → 잘림·빈 페이지·고립 제목 없음, 인쇄 시 dock/toolbar 미출력 확인. 스크린샷: `screenshots/v2-final/`(repo) 및 `../docs/prototypes/2026-07-10-learning-profile-v2/screenshots/v2-final/`.
+  - **fix (`436683e`)**: 검수 중 09 MBTI 섹션 제목 고립 발견 → print CSS `.rpt-sec break-inside/after:avoid` + 본문 10.125pt 상향.
+  - **검증 인프라**: 비프로덕션 전용 `src/app/dev-report-preview/` 라우트(가상 프로필 렌더, production notFound()+미들웨어 가드), `middleware.ts` 비프로덕션 예외, `eslint.config.mjs` 중첩 `.next`·`.claude` 무시, `next.config.ts` NEXT_DIST_DIR 오버라이드(개발 서버와 빌드 .next 충돌 방지·기본값 불변).
+  - **게이트**: `npm run lint` 0 error(32 pre-existing warning), `npm run build` 성공, `npm test` 97건, E2E 13건.
+
+**미적용 DDL 2건**(위 체크리스트 참조)·**미푸시**. 남은 작업: DDL 적용 → 운영 DB 제출·분석 E2E → push.
 
 ---
 

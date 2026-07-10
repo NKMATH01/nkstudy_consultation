@@ -9,6 +9,9 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // 중첩 빌드 산출물·에이전트 워크트리는 소스가 아니므로 린트 대상에서 제외한다.
+    "**/.next/**",
+    ".claude/**",
     ".deploy-clean-src/**",
     "out/**",
     "build/**",

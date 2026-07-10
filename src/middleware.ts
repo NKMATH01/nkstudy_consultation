@@ -37,8 +37,15 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 비프로덕션 전용 결과지 검증 라우트(E2E·PDF 시각검증). 페이지 자체도 production에서
+  // notFound()로 404를 반환하므로 이중 방어이며, 운영 환경에서는 공개되지 않는다.
+  const isDevPreview =
+    process.env.NODE_ENV !== "production" &&
+    request.nextUrl.pathname.startsWith("/dev-report-preview");
+
   if (
     !user &&
+    !isDevPreview &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth") &&
     !request.nextUrl.pathname.startsWith("/survey") &&

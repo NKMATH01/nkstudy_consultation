@@ -3,7 +3,7 @@
 
 import type { ParentSafeProfile } from "@/lib/assessment/v2/parent-safe";
 import { SUBJECT_LABEL, formatDate } from "./report-theme";
-import { ReportCover, ReportSection } from "./report-frame";
+import { ReportSection } from "./report-frame";
 import {
   AnalysisVisualGrid,
   CautionFooter,
@@ -29,21 +29,24 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const review = s.responseQualityStatus === "review";
   const genDate = formatDate(data.generatedAt);
 
+  const bandMeta = [data.display.schoolGrade, SUBJECT_LABEL[data.subjectSelection], genDate]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <>
-      <ReportCover
-        eyebrow="학부모 공유용 · 학습 성향 분석"
-        brandCode="NK 학습 프로필 2.0"
-        kicker="우리 아이 학습 성향 분석"
-        name={`${data.display.name} 학생`}
-        titleEm="학습 프로필"
-        meta={[data.display.schoolGrade, SUBJECT_LABEL[data.subjectSelection], genDate]}
-        verdictLabel="한 줄 요약"
-        verdictType={i.studentType}
-        verdictNote={firstSentence(i.parentSummary)}
-        footerLeft="NK EDUCATION"
-        footerRight={`작성일 ${genDate}`}
-      />
+      {/* 카톡 전송용 컴팩트 상단 밴드 — 큰 표지 대신 열자마자 요약이 보이게 */}
+      <header className="report-v2-band">
+        <div className="report-v2-band__brand">
+          <span className="report-v2-band__mark">NK</span>
+          <span>NK 학습 프로필 2.0</span>
+        </div>
+        <h1>
+          {data.display.name} 학생 <em>학습 프로필</em>
+        </h1>
+        <div className="report-v2-band__meta">{bandMeta}</div>
+        <p className="report-v2-band__summary">{firstSentence(i.parentSummary)}</p>
+      </header>
 
       <ReportSection
         id="sec-summary"

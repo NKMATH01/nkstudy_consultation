@@ -1,107 +1,107 @@
-// 코럴 리디자인 — GNB 카테고리·사이드바 세부 메뉴·카테고리별 서브 액센트 매핑 (1단계).
-// 이름은 전부 [자리표시자]이며 이후 단계에서 실제 이름으로 교체한다.
-// 데이터/이름 교체가 쉽도록 타입을 명시하고, 색은 여기 한 곳에서만 관리한다.
+// 코럴 리디자인 — GNB 카테고리·사이드바 세부 메뉴·카테고리별 서브 액센트 매핑.
+// 실제 메뉴 이름(기존 사이드바 기준)으로 확정. href는 운영 이전 시 사용할 메타로 저장(미리보기에선 링크 미동작).
+// 아이콘은 기존 사이드바와 동일 계열 lucide 아이콘 재사용.
 
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Bell,
-  CalendarDays,
+  BookOpen,
+  BookOpenCheck,
+  CalendarCheck,
   ClipboardList,
   FileText,
-  Inbox,
-  LayoutGrid,
-  Settings2,
+  GraduationCap,
+  Home,
+  MessageSquareHeart,
+  Shield,
+  Sparkles,
   UserCog,
+  UserMinus,
   Users,
 } from "lucide-react";
+
+// ── 로고/브랜드 ─────────────────────────────────────────────────────────────
+export const ACADEMY = {
+  initial: "NK",
+  name: "NK Academy",
+  subtitle: "상담관리 시스템",
+} as const;
 
 // ── 카테고리(상단 GNB 큰 메뉴) ───────────────────────────────────────────────
 export type CategoryId = "cat1" | "cat2" | "cat3";
 
 export interface Category {
   id: CategoryId;
-  /** [카테고리N] 자리표시자 — 실제 이름으로 교체 예정 */
   label: string;
   icon: LucideIcon;
 }
 
 export const CATEGORIES: Category[] = [
-  { id: "cat1", label: "[카테고리1]", icon: LayoutGrid },
-  { id: "cat2", label: "[카테고리2]", icon: Users },
-  { id: "cat3", label: "[카테고리3]", icon: ClipboardList },
+  { id: "cat1", label: "상담 관리", icon: Home },
+  { id: "cat2", label: "학생 분석", icon: Sparkles },
+  { id: "cat3", label: "학생 관리", icon: GraduationCap },
 ];
 
 // ── 사이드바 세부 메뉴(카테고리별 세트) ──────────────────────────────────────
 export interface SidebarSubItem {
   id: string;
-  /** [하위 항목N] 자리표시자 */
   label: string;
+  /** 운영 이전 시 사용할 라우트(미리보기에선 미동작) */
+  href: string;
+  icon?: LucideIcon;
 }
 
 export interface SidebarMenu {
   id: string;
-  /** [세부메뉴X] 자리표시자 */
   label: string;
   icon: LucideIcon;
+  /** 하위 항목이 없는 단일 메뉴의 라우트. 그룹 메뉴는 children으로 대체. */
+  href?: string;
   /** 하위 항목이 있으면 chevron으로 접기/펼치기 */
   children?: SidebarSubItem[];
 }
 
 /** 카테고리 → 사이드바 메뉴 세트. 카테고리 전환 시 이 세트를 통째로 교체한다. */
 export const SIDEBAR_MENUS: Record<CategoryId, SidebarMenu[]> = {
+  // 상담 관리(틸)
   cat1: [
-    {
-      id: "cat1-a",
-      label: "[세부메뉴A]",
-      icon: LayoutGrid,
-      children: [
-        { id: "cat1-a-1", label: "[하위 항목 1]" },
-        { id: "cat1-a-2", label: "[하위 항목 2]" },
-      ],
-    },
-    { id: "cat1-b", label: "[세부메뉴B]", icon: FileText },
-    { id: "cat1-c", label: "[세부메뉴C]", icon: BarChart3 },
+    { id: "cat1-home", label: "상담 및 등록 현황", href: "/", icon: Home },
+    { id: "cat1-consult", label: "상담 관리", href: "/consultations", icon: Users },
+    { id: "cat1-bookings", label: "예약 현황판", href: "/bookings", icon: CalendarCheck },
   ],
+  // 학생 분석(블루베리)
   cat2: [
-    {
-      id: "cat2-a",
-      label: "[세부메뉴A]",
-      icon: Inbox,
-      children: [
-        { id: "cat2-a-1", label: "[하위 항목 1]" },
-        { id: "cat2-a-2", label: "[하위 항목 2]" },
-        { id: "cat2-a-3", label: "[하위 항목 3]" },
-      ],
-    },
-    { id: "cat2-b", label: "[세부메뉴B]", icon: Users },
-    { id: "cat2-c", label: "[세부메뉴C]", icon: CalendarDays },
+    { id: "cat2-surveys", label: "설문/분석", href: "/surveys", icon: ClipboardList },
+    { id: "cat2-drip", label: "설문 피드백", href: "/drip-responses", icon: MessageSquareHeart },
+    { id: "cat2-analyses", label: "성향분석 결과", href: "/analyses", icon: Sparkles },
+    { id: "cat2-onboarding", label: "등록 관리", href: "/onboarding", icon: FileText },
+    { id: "cat2-progress", label: "진도 현황", href: "/progress", icon: BookOpenCheck },
   ],
+  // 학생 관리(플럼)
   cat3: [
-    { id: "cat3-a", label: "[세부메뉴A]", icon: ClipboardList },
+    { id: "cat3-students", label: "학생 관리", href: "/settings/students", icon: GraduationCap },
+    { id: "cat3-classes", label: "반 관리", href: "/settings/classes", icon: BookOpen },
+    { id: "cat3-teachers", label: "선생님 관리", href: "/settings/teachers", icon: UserCog },
+    { id: "cat3-permissions", label: "선생님 권한", href: "/settings/permissions", icon: Shield },
     {
-      id: "cat3-b",
-      label: "[세부메뉴B]",
-      icon: UserCog,
+      id: "cat3-withdrawals",
+      label: "퇴원생 관리",
+      icon: UserMinus,
       children: [
-        { id: "cat3-b-1", label: "[하위 항목 1]" },
-        { id: "cat3-b-2", label: "[하위 항목 2]" },
+        { id: "cat3-withdrawals-list", label: "퇴원생 현황", href: "/withdrawals", icon: UserMinus },
+        { id: "cat3-withdrawals-dash", label: "퇴원생 분석", href: "/withdrawals/dashboard", icon: BarChart3 },
       ],
     },
-    { id: "cat3-c", label: "[세부메뉴C]", icon: Settings2 },
   ],
 };
 
 // ── 카테고리별 서브 액센트(적용 3곳: 요약 숫자·사이드바 선택 3px 라인·목록 뱃지) ──
 // 코럴은 카테고리와 무관하게 불변. 서브 액센트만 카테고리에 따라 바뀐다.
 export interface CategoryAccent {
-  /** 사람이 읽는 이름 */
   name: string;
-  /** 강조 컬러(요약 숫자·사이드바 선택 왼쪽 3px 라인) */
   color: string;
-  /** 연한 틴트 배경(목록 뱃지 배경) */
   soft: string;
-  /** 틴트 배경 위 진한 텍스트(뱃지 텍스트) */
   text: string;
 }
 
@@ -111,12 +111,12 @@ export const CATEGORY_ACCENT: Record<CategoryId, CategoryAccent> = {
   cat3: { name: "플럼", color: "#8A4A6B", soft: "#F5EAF0", text: "#6F3B55" },
 };
 
-// ── 코럴(불변) — 로고·활성 pill·CTA 전용. 정식 토큰은 2단계 @theme에서 등록. ──
+// ── 코럴(불변) — 로고·활성 pill·CTA 전용. 정식 토큰은 design-preview coral-theme.css. ──
 export const CORAL = {
   base: "#F0653A",
   deep: "#C7521F",
   soft: "#FFF3ED",
 } as const;
 
-/** GNB 우측 알림 아이콘(자리표시자 배지 수). */
+/** GNB 우측 알림 아이콘. */
 export const NOTIFICATION_ICON = Bell;

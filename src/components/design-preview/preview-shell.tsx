@@ -7,20 +7,21 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Bell, ChevronDown, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import {
+  ACADEMY,
   CATEGORIES,
   CATEGORY_ACCENT,
   SIDEBAR_MENUS,
   type CategoryId,
 } from "@/constants/menu";
-import { getListItems, getSummary } from "@/lib/design-preview/data";
+import { getListItems, getSummary, SUMMARY_LABELS } from "@/lib/design-preview/data";
 
 const GRADE_FILTERS = ["전체", "초", "중", "고"] as const;
 type GradeFilter = (typeof GRADE_FILTERS)[number];
 
 export function DesignPreviewShell() {
   const [activeCat, setActiveCat] = useState<CategoryId>("cat1");
-  const [activeMenu, setActiveMenu] = useState<string>("cat1-a-1");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ "cat1-a": true });
+  const [activeMenu, setActiveMenu] = useState<string>("cat1-home");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [activeFilter, setActiveFilter] = useState<GradeFilter>("전체");
   const [search, setSearch] = useState("");
 
@@ -48,11 +49,12 @@ export function DesignPreviewShell() {
     });
   }, [activeCat, activeFilter, search]);
 
+  const labels = SUMMARY_LABELS[activeCat];
   const summaryCards: { label: string; value: number; attention?: boolean }[] = [
-    { label: "전체", value: summary.total },
-    { label: "이번 주", value: summary.thisWeek },
-    { label: "대기 중", value: summary.waiting, attention: true },
-    { label: "완료", value: summary.done },
+    { label: labels[0], value: summary.total },
+    { label: labels[1], value: summary.thisWeek },
+    { label: labels[2], value: summary.waiting, attention: true },
+    { label: labels[3], value: summary.done },
   ];
 
   const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -90,9 +92,14 @@ export function DesignPreviewShell() {
               className="grid h-9 w-9 place-items-center rounded-xl text-sm font-bold text-white"
               style={{ background: "var(--coral)" }}
             >
-              NK
+              {ACADEMY.initial}
             </div>
-            <span className="text-[15px] font-semibold">[학원 이름]</span>
+            <span className="grid leading-tight">
+              <strong className="text-[15px] font-semibold">{ACADEMY.name}</strong>
+              <span className="text-[11px]" style={subtleText}>
+                {ACADEMY.subtitle}
+              </span>
+            </span>
           </div>
 
           <nav className="flex items-center gap-1">

@@ -63,10 +63,10 @@ export function Header({ currentTeacher }: HeaderProps) {
     <header
       className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b px-4 md:px-7"
       style={{
-        background: "rgba(246,248,251,0.86)",
+        background: "rgba(255,251,249,0.88)",
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
-        borderColor: "rgba(126,137,154,0.22)",
+        borderColor: "#F0E4DD",
       }}
     >
       <div className="flex items-center gap-3">
@@ -82,17 +82,17 @@ export function Header({ currentTeacher }: HeaderProps) {
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300/70 bg-white shadow-sm">
-            <TitleIcon className="h-4.5 w-4.5 text-[#16213E]" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-sm" style={{ borderColor: "#F0E4DD" }}>
+            <TitleIcon className="h-4.5 w-4.5" style={{ color: "#C7521F" }} />
           </span>
           <div>
             <h2
               className="text-[17px] font-black"
-              style={{ color: "#0F172A", letterSpacing: "-0.025em" }}
+              style={{ color: "#3A342F", letterSpacing: "-0.025em" }}
             >
               {title}
             </h2>
-            <p className="text-[11px] font-semibold text-slate-400">NK Academy Operations</p>
+            <p className="text-[11px] font-semibold" style={{ color: "#A59A90" }}>NK Academy Operations</p>
           </div>
         </div>
       </div>
@@ -101,30 +101,30 @@ export function Header({ currentTeacher }: HeaderProps) {
         {/* Search */}
         <div className="relative hidden sm:block">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
-            style={{ color: "#94A3B8" }}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4"
+            style={{ color: "#A59A90" }}
           />
           <input
             type="text"
             placeholder="검색..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="rounded-lg py-2 pl-9 pr-4 text-xs font-medium shadow-sm transition-all duration-200 focus:w-[300px] focus:border-[#16213E] focus:ring-2 focus:ring-[#16213E]/10"
+            className="rounded-full py-2 pl-9 pr-4 text-xs font-medium shadow-sm transition-all duration-200 focus:w-[300px] focus:border-[#F0653A] focus:ring-2 focus:ring-[#F0653A]/12"
             style={{
               width: "240px",
               background: "#FFFFFF",
-              border: "1px solid #CBD5E1",
-              color: "#1E293B",
+              border: "1px solid #E4D3C8",
+              color: "#3A342F",
               outline: "none",
             }}
           />
         </div>
         {/* Bell */}
-        <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-slate-300/70 bg-white shadow-sm" style={{ color: "#64748B" }}>
+        <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border bg-white shadow-sm" style={{ color: "#8B8078", borderColor: "#F0E4DD" }}>
           <Bell className="h-[18px] w-[18px]" />
           <div
             className="absolute right-2 top-2 h-2 w-2 rounded-full"
-            style={{ background: "#E11D48", border: "2px solid #FFFFFF" }}
+            style={{ background: "#F0653A", border: "2px solid #FFFFFF" }}
           />
         </div>
       </div>

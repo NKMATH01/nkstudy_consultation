@@ -98,14 +98,16 @@
   }
 }
 
+/* 코럴 리디자인 스킨: (dashboard) 영역 배경·폰트를 웜톤/Pretendard로.
+ * 폰트는 .app-chrome 하위에만 적용되어 공개 설문(/survey)·V2 결과지(.rptv2-doc 자체 font-family)에는 영향 없음.
+ * Pretendard CDN은 (dashboard)/layout.tsx의 <link>로 로드한다. */
 .app-chrome {
   background:
-    linear-gradient(90deg, rgba(22, 33, 62, 0.035) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(22, 33, 62, 0.025) 1px, transparent 1px),
-    radial-gradient(circle at 15% 0%, rgba(184, 138, 68, 0.12), transparent 26%),
-    radial-gradient(circle at 82% 8%, rgba(75, 85, 99, 0.10), transparent 30%),
-    linear-gradient(180deg, #f7f8fb 0%, #edf1f6 100%);
-  background-size: 32px 32px, 32px 32px, auto, auto, auto;
+    radial-gradient(circle at 12% -4%, rgba(240, 101, 58, 0.05), transparent 30%),
+    linear-gradient(180deg, #fffbf9 0%, #fbf4ef 100%);
+  font-family:
+    "Pretendard Variable", Pretendard, var(--font-noto), -apple-system,
+    "Apple SD Gothic Neo", system-ui, sans-serif;
 }
 
 .page-shell {
@@ -125,12 +127,12 @@
 .page-shell .bg-white.rounded-2xl,
 .page-shell .bg-white.rounded-xl,
 .page-shell .bg-white.rounded-lg {
-  border: 1px solid rgba(190, 198, 212, 0.9);
-  border-radius: 14px;
+  border: 1px solid #f0e4dd;
+  border-radius: 16px;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 1px 2px rgba(17, 24, 39, 0.04),
-    0 16px 42px rgba(17, 24, 39, 0.075);
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 1px 2px rgba(58, 52, 47, 0.03),
+    0 12px 34px rgba(58, 52, 47, 0.06);
 }
 
 .page-shell .card-elevated {
@@ -141,11 +143,11 @@
 }
 
 .page-shell .card-elevated:hover {
-  border-color: rgba(126, 137, 154, 0.95);
+  border-color: #e4d3c8;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.78) inset,
-    0 1px 2px rgba(17, 24, 39, 0.05),
-    0 24px 58px rgba(17, 24, 39, 0.13);
+    0 1px 2px rgba(58, 52, 47, 0.04),
+    0 20px 50px rgba(58, 52, 47, 0.1);
   transform: translateY(-2px);
 }
 
@@ -155,11 +157,11 @@
 }
 
 .page-shell thead tr {
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%) !important;
+  background: linear-gradient(180deg, #fbf4ef 0%, #f5ebe3 100%) !important;
 }
 
 .page-shell th {
-  color: #5f6b7a !important;
+  color: #8b8078 !important;
   font-weight: 800 !important;
   letter-spacing: 0.02em;
 }
@@ -171,17 +173,17 @@
 }
 
 .page-shell tbody tr:hover {
-  background-color: rgba(241, 245, 249, 0.78) !important;
+  background-color: #fff8f4 !important;
 }
 
 .page-shell input,
 .page-shell select,
 .page-shell textarea {
-  border-color: #cbd5e1;
+  border-color: #e4d3c8;
   border-radius: 9px;
   box-shadow:
-    inset 0 1px 0 rgba(17, 24, 39, 0.025),
-    0 1px 0 rgba(255,255,255,0.8);
+    inset 0 1px 0 rgba(58, 52, 47, 0.02),
+    0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .page-shell button {
@@ -300,13 +302,13 @@
   box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
 }
 
-/* Sidebar menu item hover */
+/* Sidebar menu item hover (코럴 라이트 스킨) */
 .sidebar-item {
   transition: all 0.15s ease;
 }
-.sidebar-item:hover {
-  background: rgba(255,255,255,0.06) !important;
-  color: rgba(255,255,255,0.85) !important;
+.sidebar-item:not(.is-active):hover {
+  background: #fff8f4 !important;
+  color: #3a342f !important;
 }
 
 /* Table row hover */

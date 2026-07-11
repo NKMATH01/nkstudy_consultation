@@ -1,5 +1,8 @@
 "use client";
 
+// 코럴 라이트 스킨(디자인만 변경). 메뉴 구성·이름·순서·링크·권한 로직은 이전과 동일하다.
+// 색·배경만 다크 네이비+골드 → 웜톤 화이트 + 코럴 액센트로 교체했다.
+
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -156,47 +159,37 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           href={item.href}
           {...(item.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           className={`sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5 transition-all duration-200 ${
-            isActive ? "" : "hover:translate-x-0.5 hover:bg-white/[0.05]"
+            isActive ? "is-active" : "hover:translate-x-0.5"
           }`}
           style={{
             fontSize: "13px",
-            fontWeight: isActive ? 800 : 550,
-            background: isActive ? "linear-gradient(135deg, rgba(184,138,68,0.26), rgba(255,255,255,0.06))" : undefined,
-            color: isActive ? "#F8E7BD" : "rgba(226,232,240,0.66)",
-            boxShadow: isActive ? "inset 0 0 0 1px rgba(184,138,68,0.24), 0 10px 28px rgba(0,0,0,0.2)" : "none",
+            fontWeight: isActive ? 800 : 600,
+            background: isActive ? "#FFF3ED" : undefined,
+            color: isActive ? "#C7521F" : "#8B8078",
+            boxShadow: isActive ? "inset 3px 0 0 #F0653A" : "none",
           }}
         >
-          {isActive && (
-            <span
-              className="absolute left-0 top-2 h-6 w-1 rounded-r-full"
-              style={{ background: "linear-gradient(180deg, #E9C46A, #B88A44)", boxShadow: "0 0 10px rgba(233,196,106,0.5)" }}
-            />
-          )}
           <span
             className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
               isActive
-                ? "bg-[#B88A44] text-[#0B1020] shadow-[0_4px_12px_rgba(184,138,68,0.35)]"
-                : "bg-white/[0.04] text-slate-300 group-hover:scale-105 group-hover:bg-white/[0.09] group-hover:text-slate-100"
+                ? "text-white"
+                : "text-[#8B8078] group-hover:scale-105 group-hover:bg-[#FFF3ED] group-hover:text-[#C7521F]"
             }`}
+            style={{ background: isActive ? "#F0653A" : "#F8EEE8" }}
           >
             <item.icon className="h-[15px] w-[15px]" />
           </span>
-          <span className="truncate transition-colors duration-200 group-hover:text-slate-100">{item.label}</span>
+          <span className="truncate transition-colors duration-200">{item.label}</span>
         </Link>
       );
     });
 
-  const divider = (
-    <div
-      className="mx-3 my-4 h-px"
-      style={{ background: "linear-gradient(90deg, transparent, rgba(233,196,106,0.18) 30%, rgba(255,255,255,0.08) 70%, transparent)" }}
-    />
-  );
+  const divider = <div className="mx-3 my-4 h-px" style={{ background: "#F0E4DD" }} />;
 
   const sectionLabel = (label: string) => (
     <div className="mb-2 flex items-center gap-1.5 px-3.5">
-      <span className="h-1 w-1 rounded-full" style={{ background: "rgba(233,196,106,0.6)" }} />
-      <span className="uppercase" style={{ fontSize: "10px", fontWeight: 800, color: "rgba(212,168,83,0.55)", letterSpacing: "0.14em" }}>
+      <span className="h-1 w-1 rounded-full" style={{ background: "#F0653A" }} />
+      <span className="uppercase" style={{ fontSize: "10px", fontWeight: 800, color: "#A59A90", letterSpacing: "0.14em" }}>
         {label}
       </span>
     </div>
@@ -215,33 +208,26 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             ? "flex h-full w-full flex-shrink-0 flex-col border-r"
             : "hidden h-full w-[246px] flex-shrink-0 flex-col border-r md:flex"
         }
-        style={{
-          background:
-            "radial-gradient(circle at 50% -8%, rgba(233,196,106,0.16), transparent 32%), radial-gradient(circle at 0% 100%, rgba(30,58,110,0.35), transparent 42%), linear-gradient(180deg, #0E1627 0%, #0B1220 52%, #070C16 100%)",
-          borderColor: "rgba(255,255,255,0.07)",
-        }}
+        style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
       >
         {/* 메인 프로그램(업무보고) 복귀 버튼 */}
         <div className="px-4 pt-4">
           <a
             href="https://nk-work-report.vercel.app"
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
-            style={{
-              background: "linear-gradient(135deg, rgba(233,196,106,0.2), rgba(184,138,68,0.1))",
-              boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.3), 0 6px 18px rgba(0,0,0,0.2)",
-            }}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
+            style={{ background: "#FFF3ED", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
           >
             <span
               className="flex h-7 w-7 items-center justify-center rounded-lg transition-transform group-hover:-translate-x-0.5"
-              style={{ background: "rgba(233,196,106,0.22)", color: "#F2D488" }}
+              style={{ background: "#FBE4D8", color: "#C7521F" }}
             >
               <ArrowLeftCircle className="h-[16px] w-[16px]" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-[12.5px] font-extrabold" style={{ color: "#F2D488" }}>
+              <span className="block truncate text-[12.5px] font-extrabold" style={{ color: "#C7521F" }}>
                 업무보고 프로그램
               </span>
-              <span className="block text-[9.5px] font-bold uppercase" style={{ color: "rgba(233,196,106,0.45)", letterSpacing: "0.1em" }}>
+              <span className="block text-[9.5px] font-bold uppercase" style={{ color: "#A59A90", letterSpacing: "0.1em" }}>
                 메인으로 돌아가기
               </span>
             </span>
@@ -250,30 +236,18 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
 
         {/* Logo */}
         <div className="px-4 pb-5 pt-3">
-          <div
-            className="flex items-center gap-3 rounded-2xl px-3.5 py-3"
-            style={{
-              background: "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
-              boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.14), 0 10px 30px rgba(0,0,0,0.25)",
-            }}
-          >
+          <div className="flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-[#08111F]"
-              style={{
-                background: "linear-gradient(135deg, #F2D488 0%, #E9C46A 40%, #A97832 100%)",
-                boxShadow: "0 8px 22px rgba(184,138,68,0.4), inset 0 1px 0 rgba(255,255,255,0.45)",
-              }}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-white"
+              style={{ background: "#F0653A", boxShadow: "0 6px 16px rgba(240,101,58,0.28)" }}
             >
               NK
             </div>
             <div className="min-w-0">
-              <div className="truncate text-[15px] font-black text-white" style={{ letterSpacing: "-0.02em" }}>
+              <div className="truncate text-[15px] font-black" style={{ color: "#3A342F", letterSpacing: "-0.02em" }}>
                 NK Academy
               </div>
-              <div
-                className="text-[10px] font-bold uppercase"
-                style={{ color: "rgba(233,196,106,0.55)", letterSpacing: "0.14em" }}
-              >
+              <div className="text-[10px] font-bold uppercase" style={{ color: "#A59A90", letterSpacing: "0.14em" }}>
                 상담관리 시스템
               </div>
             </div>
@@ -283,35 +257,27 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         {/* Navigation — 메뉴가 화면보다 길어지면 이 영역만 스크롤 (상단 버튼·하단 로그아웃 고정) */}
         <nav
           className="min-h-0 flex-1 overflow-y-auto px-3 pb-2"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(233,196,106,0.25) transparent" }}
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#F0E4DD transparent" }}
         >
-          {/* 진도 현황 — 최상단 고정 대형 버튼(권한 무관 항상 표시, 같은 탭 이동) */}
+          {/* 진도 현황 — 최상단 고정 대형 버튼(권한 무관 항상 표시, 같은 탭 이동). 코럴 CTA 스타일 */}
           <Link
             href="/progress"
             className={`group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-3.5 transition-all duration-200 ${
-              progressActive ? "" : "hover:-translate-y-px hover:brightness-110"
+              progressActive ? "" : "hover:-translate-y-px hover:brightness-105"
             }`}
             style={{
               fontSize: "14px",
               fontWeight: 800,
-              background: progressActive
-                ? "linear-gradient(135deg, rgba(233,196,106,0.34), rgba(184,138,68,0.16))"
-                : "linear-gradient(135deg, rgba(233,196,106,0.2), rgba(184,138,68,0.1))",
-              color: progressActive ? "#F8E7BD" : "#F2D488",
+              background: progressActive ? "#C7521F" : "#F0653A",
+              color: "#FFFFFF",
               boxShadow: progressActive
-                ? "inset 0 0 0 1.5px rgba(233,196,106,0.5), 0 10px 28px rgba(0,0,0,0.22)"
-                : "inset 0 0 0 1px rgba(233,196,106,0.3), 0 6px 18px rgba(0,0,0,0.2)",
+                ? "inset 0 0 0 1.5px rgba(255,255,255,0.35), 0 8px 20px rgba(199,82,31,0.3)"
+                : "0 8px 20px rgba(240,101,58,0.28)",
             }}
           >
-            {progressActive && (
-              <span
-                className="absolute left-0 top-2.5 h-7 w-1 rounded-r-full"
-                style={{ background: "linear-gradient(180deg, #E9C46A, #B88A44)", boxShadow: "0 0 10px rgba(233,196,106,0.5)" }}
-              />
-            )}
             <span
               className="flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
-              style={{ background: "rgba(233,196,106,0.24)", color: "#F8E7BD" }}
+              style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
             >
               <BookOpenCheck className="h-[18px] w-[18px]" />
             </span>
@@ -320,7 +286,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
 
           {divider}
 
-          {/* 목차 — 섹터 버튼(2열 그리드). 클릭 시 해당 섹터 메뉴만 아래에 표시(탭 방식) */}
+          {/* 목차 — 섹터 버튼(2열 그리드, pill). 클릭 시 해당 섹터 메뉴만 아래에 표시(탭 방식) */}
           {sectionLabel("목차")}
           <div className="grid grid-cols-2 gap-1.5">
             {visibleSectors.map((sector) => {
@@ -330,23 +296,19 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
                   key={sector.name}
                   type="button"
                   onClick={() => setActiveSector(sector.name)}
-                  className={`group flex w-full items-center justify-center gap-1.5 rounded-xl px-2 py-3 transition-all duration-200 ${
-                    active ? "" : "hover:-translate-y-px hover:brightness-110"
+                  className={`group flex w-full items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all duration-200 ${
+                    active ? "" : "hover:-translate-y-px"
                   }`}
                   style={{
                     fontSize: "13px",
                     fontWeight: 800,
-                    background: active
-                      ? "linear-gradient(135deg, rgba(184,138,68,0.3), rgba(255,255,255,0.06))"
-                      : "rgba(255,255,255,0.04)",
-                    color: active ? "#F8E7BD" : "rgba(226,232,240,0.6)",
-                    boxShadow: active
-                      ? "inset 0 0 0 1.5px rgba(184,138,68,0.4), 0 8px 20px rgba(0,0,0,0.2)"
-                      : "inset 0 0 0 1px rgba(255,255,255,0.06)",
+                    background: active ? "#FFF3ED" : "#F8EEE8",
+                    color: active ? "#C7521F" : "#8B8078",
+                    boxShadow: active ? "inset 0 0 0 1.5px rgba(240,101,58,0.4)" : "none",
                   }}
                 >
                   <sector.icon className="h-[15px] w-[15px] flex-shrink-0" />
-                  <span className="truncate transition-colors duration-200 group-hover:text-slate-100">{sector.name}</span>
+                  <span className="truncate">{sector.name}</span>
                 </button>
               );
             })}
@@ -364,21 +326,12 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         </nav>
 
         {/* Footer - 공개 링크 */}
-        <div
-          className="mx-3 grid grid-cols-2 gap-1.5 pb-3 pt-3"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-        >
+        <div className="mx-3 grid grid-cols-2 gap-1.5 pb-3 pt-3" style={{ borderTop: "1px solid #F0E4DD" }}>
           <Link
             href="/survey"
             target="_blank"
-            className="flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
-            style={{
-              fontSize: "11px",
-              fontWeight: 800,
-              background: "linear-gradient(135deg, rgba(233,196,106,0.16), rgba(184,138,68,0.08))",
-              color: "#E9C46A",
-              boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.2)",
-            }}
+            className="flex items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all hover:-translate-y-px"
+            style={{ fontSize: "11px", fontWeight: 800, background: "#FFF3ED", color: "#C7521F" }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
             공개 설문
@@ -386,14 +339,8 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           <Link
             href="/booking"
             target="_blank"
-            className="flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
-            style={{
-              fontSize: "11px",
-              fontWeight: 800,
-              background: "linear-gradient(135deg, rgba(45,212,191,0.14), rgba(20,184,166,0.06))",
-              color: "#8DDAD0",
-              boxShadow: "inset 0 0 0 1px rgba(45,212,191,0.18)",
-            }}
+            className="flex items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all hover:-translate-y-px"
+            style={{ fontSize: "11px", fontWeight: 800, background: "#E7F1F1", color: "#2D6A6A" }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
             공개 예약
@@ -402,14 +349,8 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             href="https://nk-guide.vercel.app/t"
             target="_blank"
             rel="noopener noreferrer"
-            className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 transition-all hover:-translate-y-px hover:brightness-110"
-            style={{
-              fontSize: "11px",
-              fontWeight: 800,
-              background: "linear-gradient(135deg, rgba(96,165,250,0.14), rgba(59,130,246,0.06))",
-              color: "#93C5FD",
-              boxShadow: "inset 0 0 0 1px rgba(96,165,250,0.18)",
-            }}
+            className="col-span-2 flex items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all hover:-translate-y-px"
+            style={{ fontSize: "11px", fontWeight: 800, background: "#E9EFF3", color: "#355D79" }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
             학부모 안내
@@ -417,41 +358,28 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         </div>
 
         {/* User Info */}
-        <div
-          className="mx-3 mb-3 flex items-center gap-2.5 rounded-2xl px-3 py-3"
-          style={{
-            background: "linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))",
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 20px rgba(0,0,0,0.22)",
-          }}
-        >
+        <div className="mx-3 mb-3 flex items-center gap-2.5 rounded-2xl px-3 py-3" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
           <div className="relative">
             <div
               className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black"
-              style={{
-                background: "linear-gradient(135deg, rgba(233,196,106,0.28), rgba(184,138,68,0.12))",
-                color: "#F2D488",
-                boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.3)",
-              }}
+              style={{ background: "#FFF3ED", color: "#C7521F", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
             >
               {avatarInitial}
             </div>
-            <span
-              className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
-              style={{ background: "#34D399", boxShadow: "0 0 0 2px #0B1220" }}
-            />
+            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 0 2px #FFFFFF" }} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="truncate text-xs font-bold" style={{ color: "rgba(255,255,255,0.82)" }}>
+            <div className="truncate text-xs font-bold" style={{ color: "#3A342F" }}>
               {displayName}
             </div>
-            <div className="text-[10px] font-semibold" style={{ color: "rgba(233,196,106,0.45)" }}>
+            <div className="text-[10px] font-semibold" style={{ color: "#8B8078" }}>
               {displayRole}
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-white/10 hover:text-red-300"
-            style={{ color: "rgba(255,255,255,0.3)" }}
+            className="flex cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
+            style={{ color: "#A59A90" }}
             title="로그아웃"
           >
             <LogOut className="h-4 w-4" />

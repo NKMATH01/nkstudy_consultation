@@ -13,6 +13,11 @@ export default async function DashboardLayout({
 
   return (
     <>
+      {/* 코럴 스킨 폰트: Pretendard를 (dashboard) 영역에만 로드(공개 설문·V2 결과지 영향 없음). */}
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"
+      />
       {/* 대시보드에서 V2 결과지 PDF 저장 시 사이드바·헤더·overflow 클리핑을 제거한다(§13). */}
       <style
         dangerouslySetInnerHTML={{

@@ -4,7 +4,7 @@
 // 색은 .coral-shell 스코프 CSS 변수, 폰트는 Pretendard. 서브 액센트(틸/블루베리/플럼)는 CATEGORY_ACCENT.
 // 데이터는 이 단계에선 하드코딩 임시 배열(본격 mock 10건·데이터 로직 분리는 5단계).
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Bell, ChevronDown, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import {
   CATEGORIES,
@@ -62,17 +62,26 @@ export function DesignPreviewShell() {
   const items =
     activeFilter === "전체" ? SAMPLE_ITEMS : SAMPLE_ITEMS.filter((i) => i.grade === activeFilter);
 
+  // 카테고리 전환 시 이 3개 변수만 갱신 → 이를 소비하는 3곳(요약 숫자·선택 3px 라인·학년 뱃지)이
+  // .accent-anim transition으로 부드럽게 흐른다. 코럴(로고·활성 pill·CTA)은 이 변수와 무관해 불변.
+  const accentVars = {
+    "--accent": accent.color,
+    "--accent-soft": accent.soft,
+    "--accent-text": accent.text,
+  } as CSSProperties;
+
+  // 선택 메뉴: 연코럴 배경 + 진코럴 텍스트 + 왼쪽 3px 서브 액센트 라인(var(--accent)).
   const selectedStyle = {
     background: "var(--coral-soft)",
     color: "var(--coral-deep)",
-    boxShadow: `inset 3px 0 0 ${accent.color}`,
+    boxShadow: "inset 3px 0 0 var(--accent)",
   } as const;
   const subtleText = { color: "var(--text-sub)" } as const;
   // 학년 뱃지: 현재 카테고리 서브 액센트 틴트(연 배경 + 진 텍스트).
-  const badgeStyle = { background: accent.soft, color: accent.text } as const;
+  const badgeStyle = { background: "var(--accent-soft)", color: "var(--accent-text)" } as const;
 
   return (
-    <div className="coral-shell">
+    <div className="coral-shell" style={accentVars}>
       {/* ── 상단 고정 GNB ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-card)] px-6">
         <div className="flex items-center gap-8">
@@ -133,7 +142,7 @@ export function DesignPreviewShell() {
                   <button
                     type="button"
                     onClick={() => (hasChildren ? toggle(m.id) : setActiveMenu(m.id))}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-[var(--row-hover)]"
+                    className="accent-anim flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-[var(--row-hover)]"
                     style={on ? selectedStyle : subtleText}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -155,7 +164,7 @@ export function DesignPreviewShell() {
                             key={s.id}
                             type="button"
                             onClick={() => setActiveMenu(s.id)}
-                            className="rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors hover:bg-[var(--row-hover)]"
+                            className="accent-anim rounded-lg px-3 py-1.5 text-left text-[13px] hover:bg-[var(--row-hover)]"
                             style={son ? selectedStyle : subtleText}
                           >
                             {s.label}
@@ -183,8 +192,8 @@ export function DesignPreviewShell() {
                   {card.label}
                 </p>
                 <p
-                  className="mt-2 text-[28px] font-semibold leading-none"
-                  style={{ color: card.attention ? "var(--coral)" : "var(--text-main)" }}
+                  className="accent-anim mt-2 text-[28px] font-semibold leading-none"
+                  style={{ color: card.attention ? "var(--coral)" : "var(--accent)" }}
                 >
                   {card.value}
                 </p>
@@ -240,7 +249,7 @@ export function DesignPreviewShell() {
                 style={idx > 0 ? { borderTop: "1px solid var(--line-soft)" } : undefined}
               >
                 <span
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-semibold"
+                  className="accent-anim grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-semibold"
                   style={badgeStyle}
                 >
                   {item.grade}

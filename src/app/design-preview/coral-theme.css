@@ -18,6 +18,13 @@
   --line-soft: #f8eee8;
   --row-hover: #fff8f4;
 
+  /* 카테고리별 서브 액센트(4단계) — shell 루트의 inline style로 카테고리 전환 시 갱신된다.
+   * 기본값은 카테고리1(틸). 이 변수를 소비하는 요소(요약 숫자·선택 3px 라인·학년 뱃지)에
+   * .accent-anim transition을 걸어 부드럽게 흐르게 한다. 코럴은 이 변수와 무관하게 불변. */
+  --accent: #2d6a6a;
+  --accent-soft: #e7f1f1;
+  --accent-text: #245757;
+
   min-height: 100vh;
   background: var(--bg-page);
   color: var(--text-main);
@@ -26,4 +33,13 @@
     -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
   font-feature-settings: "tnum";
   -webkit-font-smoothing: antialiased;
+}
+
+/* 서브 액센트 전환 애니메이션(200~300ms). --accent* 변수를 소비하는 요소에만 적용. */
+.coral-shell .accent-anim {
+  transition:
+    color 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
 }

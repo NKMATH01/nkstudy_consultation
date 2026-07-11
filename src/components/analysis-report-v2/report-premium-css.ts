@@ -537,6 +537,8 @@ export const REPORT_PREMIUM_CSS = `
   .report-v2-band { border-radius: 0; padding: 12mm 16mm; }
   .report-v2-section { padding: 14mm 14mm; }
   #sec-learning, #sec-life, #sec-fit, #sec-solution { break-before: page; page-break-before: always; }
+  /* 단일화된 학부모 보고서: 항목별 분석·지도 계획을 새 페이지에서 시작 */
+  #sec-signals, #sec-plan { break-before: page; page-break-before: always; }
   .consultation-context-dossier { break-before: page; page-break-before: always; break-inside: avoid; page-break-inside: avoid; }
   .luxury-section-heading, .subject-dossier__head, .panel-title { break-after: avoid; page-break-after: avoid; }
   .analysis-verdict, .analysis-figure, .analysis-cross-evidence, .executive-layout, .profile-signals,

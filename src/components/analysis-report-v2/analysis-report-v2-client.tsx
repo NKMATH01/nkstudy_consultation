@@ -1,8 +1,11 @@
 "use client";
 
 // 직원 인증 화면(analyses 상세)용 V2 결과 보고서 래퍼(프리미엄 셸).
-// - 상담자/학부모 토글(직원 화면에서만). 학부모 미리보기는 서버 snapshot과 동일한 buildParentSafeProfile 결과.
-// - 학부모 공유 링크는 parent-safe snapshot만 저장한다(createReportTokenV2).
+// 단일화(방향 변경): 상담자 전용 보고서를 없애고, 직원 화면도 학부모 공유본과 동일한 보고서를 렌더한다.
+//   - 상담자/학부모 토글 제거, 항상 ParentReport(동일 parentSafe 변환)만 렌더한다.
+//   - CounselorReport 컴포넌트 파일은 삭제하지 않고 렌더 연결만 끊었다(향후 복원 대비).
+//   - 학부모 공유 링크·카카오톡·PDF 저장 액션은 그대로 유지한다. 연락처 등 상담 실무 정보는
+//     보고서 본문 밖(상위 AnalysisDetailV2Client의 액션 헤더)에 있으며 본문에는 없다.
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -12,18 +15,20 @@ import { createReportTokenV2 } from "@/lib/actions/report-token";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import { REPORT_PREMIUM_CSS, ReportToolbar, ReportSheet, ReportDock } from "./report-frame";
-import { CounselorReport, type CounselorBackground } from "./counselor-report";
+import type { CounselorBackground } from "./counselor-report";
+// NOTE(단일화): CounselorReport 렌더는 중단됨. 복원하려면 audience 토글과 <CounselorReport/>를 되살린다.
 import { ParentReport } from "./parent-report";
 
 interface Props {
   profile: ResultProfileV2;
   header: { name: string; schoolGrade: string; createdAt?: string | null };
+  // 아래 두 필드는 상담자 전용 보고서에서 쓰던 값. 단일화 후 렌더에는 사용하지 않지만
+  // 호출부 호환·향후 복원 대비를 위해 시그니처는 유지한다.
   background?: CounselorBackground | null;
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
 }
 
-export function AnalysisReportV2Client({ profile, header, background, contacts }: Props) {
-  const [audience, setAudience] = useState<"counselor" | "parent">("counselor");
+export function AnalysisReportV2Client({ profile, header }: Props) {
   const [sharing, setSharing] = useState(false);
 
   const parentSafe = useMemo(
@@ -71,27 +76,6 @@ export function AnalysisReportV2Client({ profile, header, background, contacts }
     }
   };
 
-  const audienceSlot = (
-    <div className="audience-switch" role="group" aria-label="보고서 보기 방식">
-      <button
-        type="button"
-        className={audience === "counselor" ? "is-active" : undefined}
-        aria-pressed={audience === "counselor"}
-        onClick={() => setAudience("counselor")}
-      >
-        상담자용
-      </button>
-      <button
-        type="button"
-        className={audience === "parent" ? "is-active" : undefined}
-        aria-pressed={audience === "parent"}
-        onClick={() => setAudience("parent")}
-      >
-        학부모 공유본
-      </button>
-    </div>
-  );
-
   const shareSlot = (
     <>
       <button type="button" className="report-share" onClick={handleKakao} disabled={sharing}>
@@ -106,15 +90,11 @@ export function AnalysisReportV2Client({ profile, header, background, contacts }
   );
 
   return (
-    <div className={`rptv2-doc${audience === "parent" ? " parent-mode" : ""}`}>
+    <div className="rptv2-doc parent-mode">
       <style dangerouslySetInnerHTML={{ __html: REPORT_PREMIUM_CSS }} />
-      <ReportToolbar studentName={header.name} audienceSlot={audienceSlot} shareSlot={shareSlot} />
+      <ReportToolbar studentName={header.name} shareSlot={shareSlot} />
       <ReportSheet>
-        {audience === "counselor" ? (
-          <CounselorReport profile={profile} header={header} background={background} contacts={contacts} />
-        ) : (
-          <ParentReport data={parentSafe} />
-        )}
+        <ParentReport data={parentSafe} />
       </ReportSheet>
       <ReportDock />
     </div>

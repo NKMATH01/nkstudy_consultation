@@ -262,7 +262,7 @@ async function goReport(page, baseURL) {
 
 /** 학부모 토글. SSR 마크업이 하이드레이션 전에 보이므로 전환될 때까지 클릭을 재시도한다. */
 async function toggleParent(page) {
-  const marker = page.getByText("학습 프로필 요약", { exact: false }).first();
+  const marker = page.getByText("종합 분석", { exact: false }).first();
   for (let attempt = 0; attempt < 20; attempt++) {
     await page.getByRole("button", { name: "학부모 공유본", exact: true }).click();
     if (await marker.isVisible().catch(() => false)) return;
@@ -303,7 +303,7 @@ function reportTests(baseURL, browser) {
           assertEqual(await page.getByText("핵심 지도 판정", { exact: false }).count(), 0, "상담자 판정 패널 부재");
           assertEqual(await page.getByText("상담 배경과 학생이 쓴 이야기", { exact: false }).count(), 0, "배경 교차해석 부재");
           assertEqual(await page.getByText("마음과 행동의 차이", { exact: false }).count(), 0, "심리적 간극 부재");
-          assertEqual(await page.locator(".report-v2-section").count(), 5, "학부모 보고서 섹션 수");
+          assertEqual(await page.locator(".report-v2-section").count(), 6, "학부모 보고서 섹션 수");
         } finally {
           await context.close();
         }

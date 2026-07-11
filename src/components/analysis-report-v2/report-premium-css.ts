@@ -106,6 +106,53 @@ export const REPORT_PREMIUM_CSS = `
 .report-v2-band__meta { margin-top: 7px; color: #c4cede; font-size: 12.5px; font-weight: 600; }
 .report-v2-band__summary { margin: 13px 0 0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.14); color: #d7deea; font-size: 13px; line-height: 1.62; word-break: keep-all; }
 
+/* ── 학부모 종합 분석 구조(4차): 선별 인사이트 카드·과목 노트·지도 방향 ── */
+.insight-cards { display: grid; gap: 10px; }
+.insight-cards article { display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 12px; padding: 16px 18px; background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--teal); border-radius: 10px; }
+.insight-cards.is-growth article { border-left-color: var(--coral); }
+.insight-cards__idx { width: 30px; height: 30px; display: grid; place-items: center; background: var(--teal-soft); border-radius: 8px; color: var(--teal); font-size: 12.5px; font-weight: 800; }
+.insight-cards.is-growth .insight-cards__idx { background: var(--coral-soft); color: var(--coral); }
+.insight-cards article strong { display: block; color: var(--ink-950); font-size: 14px; font-weight: 800; }
+.insight-cards article strong + p { margin-top: 4px; }
+.insight-cards article p { margin: 0; color: var(--text); font-size: 13px; line-height: 1.65; word-break: keep-all; }
+
+.signal-solo { max-width: 460px; margin: 0 auto; }
+.signal-solo .analysis-figure { padding: 22px; }
+
+/* 항목별 분석 행: 항목명 + 점수·밴드 배지 + 슬림 막대 + 특징 해설 1~2문장 */
+.analysis-rows { display: grid; gap: 8px; margin-top: 14px; }
+.analysis-rows > article { padding: 14px 16px; background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--line-strong); border-radius: 10px; }
+.analysis-rows > article.is-high { border-left-color: var(--teal); }
+.analysis-rows > article.is-mid { border-left-color: var(--blue); }
+.analysis-rows > article.is-low { border-left-color: var(--coral); }
+.analysis-rows header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.analysis-rows h4 { margin: 0; color: var(--ink-950); font-size: 13.5px; font-weight: 800; }
+.analysis-rows__badge { display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.analysis-rows__score { color: var(--navy); font-size: 15px; font-weight: 800; }
+.analysis-rows__band { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.analysis-rows__band.b-high { background: var(--teal-soft); color: var(--teal); }
+.analysis-rows__band.b-mid { background: var(--navy-soft); color: var(--blue); }
+.analysis-rows__band.b-low { background: var(--coral-soft); color: var(--coral); }
+.analysis-rows__band.b-none { background: #eef1f3; color: var(--muted); }
+.analysis-rows i { display: block; height: 6px; margin: 10px 0 0; overflow: hidden; background: #eceef0; border-radius: 999px; }
+.analysis-rows i b { display: block; height: 100%; border-radius: 999px; background: var(--line-strong); }
+.analysis-rows > article.is-high i b { background: var(--teal); }
+.analysis-rows > article.is-mid i b { background: var(--blue); }
+.analysis-rows > article.is-low i b { background: var(--coral); }
+.analysis-rows p { margin: 9px 0 0; color: var(--text); font-size: 12.5px; line-height: 1.6; word-break: keep-all; }
+
+.subject-notes { display: grid; gap: 12px; }
+.subject-notes article { padding: 18px 20px; background: var(--ivory); border-radius: 12px; border-left: 4px solid var(--brass); }
+.subject-notes article > span { color: var(--brass-dark); font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.subject-notes article > p { margin: 8px 0 0; color: var(--text); font-size: 13.5px; line-height: 1.75; word-break: keep-all; }
+
+.plan-intro { padding: 20px 22px; background: var(--navy-soft); border-radius: 12px; border-left: 4px solid var(--navy); }
+.plan-intro > span { color: var(--brass-dark); font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.plan-intro > p { margin: 8px 0 0; color: var(--text); font-size: 13.5px; line-height: 1.75; word-break: keep-all; }
+.plan-intro > b { display: inline-block; margin-top: 10px; padding: 4px 11px; background: #fff; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--navy); font-size: 12px; font-weight: 800; }
+
+.report-v2-genstamp { padding: 16px 40px 6px; color: var(--muted); font-size: 12px; font-weight: 600; text-align: right; }
+
 /* ── 표지(상담자·다크 헤더) ────────────────────────────────── */
 .report-v2-cover {
   position: relative; padding: 30px 40px 26px; overflow: hidden;
@@ -451,6 +498,7 @@ export const REPORT_PREMIUM_CSS = `
   .phone-score-block { border-right: 0; border-bottom: 1px solid var(--line); }
   .spectrum-list > div { grid-template-columns: 70px minmax(0,1fr) 70px; }
   .report-v2-caution { grid-template-columns: 1fr; gap: 6px; padding: 20px 16px; }
+  .report-v2-genstamp { padding: 14px 16px 2px; }
   .evidence-panel, .will-dossier, .coaching-dossier, .personality-panel, .relation-panel,
   .legacy-list-panel, .gap-dossier, .roadmap-dossier, .executive-statement, .fit-intro,
   .phone-analysis, .analysis-figure { padding: 16px; }

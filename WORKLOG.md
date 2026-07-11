@@ -4,30 +4,38 @@
 
 ---
 
-## ▶ 다음 세션 시작 체크리스트 (2026-07-11 세션 마감 기준)
+## ▶ 다음 세션 시작 체크리스트 (2026-07-12 세션 마감 기준)
 
-**상태**: 설문 V2 개편 **구현 완료(Phase 1~5)** — master에 커밋됨, **미푸시**. vitest 97건 통과, build 성공, 신규 Playwright E2E 13건 통과, PDF 시각검증 통과.
+**상태**: 설문 V2 전면 개편 + **결과 보고서 단일화(학부모형)** + **코럴 라이트 대시보드 스킨** 배포 완료. `origin/master = 68516c6`(feature/coral-redesign 병합 반영, 동일 트리). vitest 100 · E2E 13 · lint 0 error · build 성공. DDL 3건(V2 JSONB · report_tokens 보안 RLS 등) 적용 완료.
 
-**커밋 목록 (V2, origin/master `2c0d9e6` 이후 · 전부 미푸시)**:
-| 커밋 | 내용 |
-|---|---|
-| `7c085de` | Phase 1 — 문항 정의·결정론적 점수 엔진·단위 테스트 |
-| `bb2dd25` | Phase 2 — 학생 설문 UI·공유 검증·제출 액션 |
-| `7c0f0a5`/`156e9d7` | Phase 3 — AI-safe serializer·해석 전용 분석·fallback(+merge) |
-| `f485844` | Phase 4 — 결과 보고서(상담자/학부모)·공유 token·A4 PDF |
-| `436683e` | Phase 5 fix — 인쇄 시 섹션 제목 고아 방지·본문 10pt 보장 |
-| (이 세션) | Phase 5 — Playwright E2E·PDF 시각검증·검증 라우트·WORKLOG |
+**배포 완료 요약 (origin/master `68516c6`)**:
+- **설문 V2**(학생 자기작성형 학습운영 프로필) — 명세 `../CLAUDE-CODE-NK-SURVEY-REPORT-IMPLEMENTATION.md`. 결정론적 점수 엔진 + AI 해석(Gemini) + 규칙 기반 fallback.
+- **결과 보고서 단일화**: 상담자 전용 보고서 제거, `/analyses` 직원 화면도 학부모 공유본과 동일한 단일 보고서를 렌더(상담자/학부모 토글 제거). 구조 = 종합분석 → 강점 → **약점**(점수 근거 + 실제 나타남 + NK 도움, 낙인 없는 행동 서술) → **항목별 분석**(구간별 3문장: 상태·학습 장면 예·도움 팁, 공용 `signal-descriptions.ts`) → 과목 이야기 → NK 지도계획 → 읽는 안내. 카톡 전송용 모바일 문서(컴팩트 밴드 · 문서폭 660px) · 타이포 축소.
+- **코럴 라이트 대시보드 스킨**: 운영 대시보드(사이드바/헤더/글로벌 크롬)를 코럴(#F0653A) 웜톤으로 리스킨. `/design-preview`는 참조용 유지.
+- **report_tokens 보안 RLS**: anon 전체조회 차단 + 단일 토큰 SECURITY DEFINER RPC(`get_report_token`).
 
-**⚠ 미적용 DDL 2건 (사용자가 SQL Editor에서 실행 필요, 프로덕션 직접 적용 안 함)**:
-1. `supabase/migrations/20260711100000_survey_v2_jsonb.sql` — surveys/analyses에 V2 JSONB 컬럼. **배포 전 필수** (없으면 V2 제출·분석 실패).
-2. `supabase/migrations/20260711150000_report_tokens_v2.sql` — report_tokens RLS·만료·parent-safe snapshot 관련. **검토 후 적용**.
-
-**남은 작업 (순서)**:
-1. 위 DDL 2건 적용 → 2. 운영 DB 대상 "제출 성공"·"AI 분석 실행" E2E 검증(현재 DB에 V2 컬럼 없어 SKIP한 2항목) → 3. 임시 검증 라우트 `/dev-report-preview` 유지/삭제 결정 → 4. push.
-
-**검증 제약(현 세션)**: 운영 DB에 V2 컬럼 미적용이라 "제출 성공"·"분석 실행" E2E는 SKIP. 결과지 검증은 가상 점수 프로필+fallback 해석을 렌더하는 **비프로덕션 전용 라우트** `/dev-report-preview`로 수행(production은 notFound()+미들웨어 이중 가드).
+**남은 작업**:
+1. **E2E 가상학생 삭제**: `node scripts/cleanup-e2e-v2.mjs`(`e2e/.live-ids.json` 참조) — 사용자가 직접 실행.
+2. **SOLAPI 키 4종 + 알림톡 템플릿 등록**(카카오 승인 필요) — 기존 보류.
+3. **`/dev-report-preview` · `/design-preview` 정리(삭제) 시점 결정**.
+4. **`CounselorReport` 미사용 코드** — 단일화로 렌더만 차단하고 복원 대비 파일 보존 중. 정리 시 삭제 여부 결정.
 
 **작업 체계 리마인드**: Claude=브레인(분석·명세·검증·푸시), Opus 4.8 실행자=코드 수정·커밋. DDL은 사용자가 SQL Editor에서 실행(https://supabase.com/dashboard/project/scrliiiiexjedgzogcfo/sql/new). 운영 데이터 변경 스크립트는 사용자가 `! node scripts/...`로 직접 실행.
+
+---
+
+## 2026-07-11~12 — V2 운영 대응 + 보고서 3·4·5차 다듬기 + 단일화 + 코럴 스킨 (배포)
+
+`origin/master 1d279e6`(V2 최초 배포) → `68516c6`(현재). 보고서 다듬기는 master 기준 별도 worktree(`.claude/worktrees/report-polish`, 브랜치 report-polish)에서 작업하고, 마지막에 코럴 브랜치(feature/coral-redesign)에 병합.
+
+- **V2 배포·운영 대응**: DDL(V2 JSONB · report_tokens 보안 RLS) 적용, 실학생 3명(강현찬·방준혁·양우준) V2 분석. 서버 가드 — V2 설문에 V1 분석 차단(`afaf614`), 결과지 버튼 V2 분기(`f679fee`). 라이브 E2E 7/7(제출→분석→공유).
+- **보고서 2차 (`e6e847b`+`6a58dc4`)**: 화이트 기반+네이비·골드, 고딕(세리프 금지)·영문 라벨 금지, 카톡 학부모 공유 모바일 우선. 점수 라벨은 원래 용어 유지 + 회색 한 줄 풀이(라벨 교체는 사용자 거부).
+- **보고서 3차 (`4fc8c34`)**: 타이포 전면 축소(표지 34→28px 등), 학부모 공유본을 카톡 전송용 모바일 문서(컴팩트 밴드 + 660px 문서 카드)로 재구성.
+- **보고서 4차 (`577ec80`)**: 학부모 공유본을 **선별된 종합 분석** 구조로(설문 점수 echo 제거) — ①종합분석 ②강점 ③도와줄부분 ④항목별 분석(레이더+카드) ⑤과목 ⑥NK 계획. MBTI·NK 4영역·상황 evidence는 학부모 렌더에서 제외(parent-safe payload는 유지, 렌더만 선별).
+- **약점 명시화·해설 3문장 (`366d5d9`)**: ③을 **우리 아이의 약점**(낮은 점수 항목 선별 + 실제 나타남 + NK 도움)으로, ④ 항목별 해설을 3문장(상태·장면 예·도움 팁)으로 확장. 항목×구간 문구를 공용 매트릭스 `signal-descriptions.ts`로 추출(중복 제거).
+- **보고서 단일화 (`c50d259`)**: 사용자 결정으로 상담자 전용 보고서 폐지. `AnalysisReportV2Client` 토글 제거, 항상 `ParentReport` 렌더. `CounselorReport`는 파일 보존·렌더만 차단(복원 대비 주석). 공유·카카오톡·PDF·등록안내·삭제 액션 유지, 하단 dock 단일 섹션(종합/강점/약점/항목별/계획).
+- **테스트 정리 (`4e9a5a6`)**: E2E를 단일 보고서 구조 검사로 교체(상담자 14섹션·토글 검사 제거), 스모크 마커 갱신. vitest 100 유지.
+- **코럴 스킨 병합 (`68516c6`)**: feature/coral-redesign(코럴 라이트 대시보드 스킨)에 보고서 3~5차(origin/master) 병합 — 충돌 0(변경 파일 무겹침). 검증: lint 0 error · build 성공 · vitest 100 · E2E 13. 로그인 실렌더로 코럴 대시보드 스킨 + 운영 `/analyses` 단일 보고서(실학생 김지민, 실 AI 내용) 동시 정상 확인.
 
 ---
 

@@ -1,19 +1,17 @@
 "use client";
 
-// 직원 인증 화면(analyses 상세)용 V2 결과 보고서 래퍼.
-// - 상담자/학부모 토글(직원 화면에서만). 학부모 미리보기는 서버 snapshot과 동일한
-//   buildParentSafeProfile 결과를 그대로 렌더하므로 공개 화면과 정확히 일치한다.
+// 직원 인증 화면(analyses 상세)용 V2 결과 보고서 래퍼(프리미엄 셸).
+// - 상담자/학부모 토글(직원 화면에서만). 학부모 미리보기는 서버 snapshot과 동일한 buildParentSafeProfile 결과.
 // - 학부모 공유 링크는 parent-safe snapshot만 저장한다(createReportTokenV2).
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Link2, MessageCircle, Users, UserCog } from "lucide-react";
+import { Link2, MessageCircle } from "lucide-react";
 import { buildParentSafeProfile } from "@/lib/assessment/v2/parent-safe";
 import { createReportTokenV2 } from "@/lib/actions/report-token";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
-import { C } from "./report-theme";
-import { REPORT_PRINT_CSS, ReportToolbar, BottomDock } from "./report-frame";
+import { REPORT_PREMIUM_CSS, ReportToolbar, ReportSheet, ReportDock } from "./report-frame";
 import { CounselorReport, type CounselorBackground } from "./counselor-report";
 import { ParentReport } from "./parent-report";
 
@@ -29,11 +27,7 @@ export function AnalysisReportV2Client({ profile, header, background, contacts }
   const [sharing, setSharing] = useState(false);
 
   const parentSafe = useMemo(
-    () =>
-      buildParentSafeProfile(profile, {
-        name: header.name,
-        schoolGrade: header.schoolGrade,
-      }),
+    () => buildParentSafeProfile(profile, { name: header.name, schoolGrade: header.schoolGrade }),
     [profile, header.name, header.schoolGrade]
   );
 
@@ -77,107 +71,52 @@ export function AnalysisReportV2Client({ profile, header, background, contacts }
     }
   };
 
-  const toggle = (
-    <div
-      className="rptv2-noprint"
-      style={{ display: "inline-flex", background: C.panel, borderRadius: 8, padding: 3, border: `1px solid ${C.line}` }}
-    >
-      <ToggleBtn active={audience === "counselor"} onClick={() => setAudience("counselor")} icon={<UserCog size={14} />} label="상담자용" />
-      <ToggleBtn active={audience === "parent"} onClick={() => setAudience("parent")} icon={<Users size={14} />} label="학부모용" />
+  const audienceSlot = (
+    <div className="audience-switch" role="group" aria-label="보고서 보기 방식">
+      <button
+        type="button"
+        className={audience === "counselor" ? "is-active" : undefined}
+        aria-pressed={audience === "counselor"}
+        onClick={() => setAudience("counselor")}
+      >
+        상담자용
+      </button>
+      <button
+        type="button"
+        className={audience === "parent" ? "is-active" : undefined}
+        aria-pressed={audience === "parent"}
+        onClick={() => setAudience("parent")}
+      >
+        학부모 공유본
+      </button>
     </div>
   );
 
-  const shareBtns = (
-    <div className="rptv2-noprint" style={{ display: "inline-flex", gap: 6 }}>
-      <SmallBtn onClick={handleKakao} disabled={sharing} icon={<MessageCircle size={14} />} label="카카오톡" />
-      <SmallBtn onClick={handleCopy} disabled={sharing} icon={<Link2 size={14} />} label="공유 링크" />
-    </div>
+  const shareSlot = (
+    <>
+      <button type="button" className="report-share" onClick={handleKakao} disabled={sharing}>
+        <MessageCircle size={14} />
+        카카오톡
+      </button>
+      <button type="button" className="report-share" onClick={handleCopy} disabled={sharing}>
+        <Link2 size={14} />
+        공유 링크
+      </button>
+    </>
   );
 
   return (
-    <div className="rptv2-root">
-      <style dangerouslySetInnerHTML={{ __html: REPORT_PRINT_CSS }} />
-      <ReportToolbar studentName={header.name} left={toggle} right={shareBtns} />
-      <div className="rptv2-pages">
+    <div className={`rptv2-doc${audience === "parent" ? " parent-mode" : ""}`}>
+      <style dangerouslySetInnerHTML={{ __html: REPORT_PREMIUM_CSS }} />
+      <ReportToolbar studentName={header.name} audienceSlot={audienceSlot} shareSlot={shareSlot} />
+      <ReportSheet>
         {audience === "counselor" ? (
           <CounselorReport profile={profile} header={header} background={background} contacts={contacts} />
         ) : (
           <ParentReport data={parentSafe} />
         )}
-      </div>
-      <BottomDock />
+      </ReportSheet>
+      <ReportDock />
     </div>
-  );
-}
-
-function ToggleBtn({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "5px 11px",
-        borderRadius: 6,
-        border: "none",
-        cursor: "pointer",
-        fontSize: 12.5,
-        fontWeight: 700,
-        background: active ? C.navy : "transparent",
-        color: active ? "#fff" : C.sub,
-      }}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function SmallBtn({
-  onClick,
-  disabled,
-  icon,
-  label,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "7px 11px",
-        borderRadius: 8,
-        border: `1px solid ${C.line}`,
-        background: "#fff",
-        color: C.ink,
-        fontSize: 12.5,
-        fontWeight: 700,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }

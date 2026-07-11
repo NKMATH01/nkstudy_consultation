@@ -1,32 +1,25 @@
-// 상담자용 V2 결과 보고서 (§12.1 화면 순서 1~14). 전체 result_profile_v2를 렌더한다.
-// 학부모 공유본과 공유하는 점수 블록은 report-sections.tsx에서 온다.
+// 상담자용 V2 결과 보고서 (§12.1 순서 유지). 프로토타입 PRIVATE LEARNING DOSSIER DOM으로 렌더한다.
+// 데이터 계약·섹션 순서·점수 로직은 변경하지 않고 표현만 재작업. counselor-only 블록은 학부모 공유본에 없다.
 
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import type { CommonScores } from "@/lib/assessment/v2/types";
-import { C, SUBJECT_LABEL, formatDate, isNum } from "./report-theme";
+import { SUBJECT_LABEL, formatDate, isNum } from "./report-theme";
+import { ReportCover, ReportSection } from "./report-frame";
 import {
-  BulletList,
-  Card,
-  CoachingCoordinate,
-  InfoNote,
-  Paragraph,
-  SectionTitle,
-} from "./report-ui";
-import { ReportPage } from "./report-frame";
-import {
-  CoreSignalsBlock,
-  LearningHomeworkBlock,
-  MbtiBlock,
-  NkFitBlock,
-  PersistenceRecoveryBlock,
-  PhoneFriendsPersonalityBlock,
-  PrinciplesBlock,
-  RoadmapBlock,
-  StrengthsGrowthBlock,
-  SubjectStrategyBlock,
+  AnalysisVisualGrid,
+  CautionFooter,
+  LearningPanels,
+  NkFitSection,
+  PersonalityRelationGrid,
+  PhoneFeature,
+  ProfileSignals,
+  RoadmapLine,
+  StrengthGrowth,
+  SubjectStrategy,
+  VerifyLine,
+  WillCoachingGrid,
 } from "./report-sections";
 
-/** 상담자 배경 교차해석용 사전정보(intake_v2에서 서버가 선별). 학부모 공유본에는 전달하지 않는다. */
 export interface CounselorBackground {
   prevAcademy?: string | null;
   prevLeaveReason?: string | null;
@@ -55,285 +48,304 @@ export interface CounselorReportProps {
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
 }
 
-function computeGaps(common: CommonScores): string[] {
+/** detailedSummary를 최대 3개 컬럼용 단락으로 분할(문단 우선, 없으면 문장 그룹). */
+function splitParas(text: string, n = 3): string[] {
+  const byPara = text.split(/\n\s*\n|\n/).map((t) => t.trim()).filter(Boolean);
+  if (byPara.length >= 2) return byPara.slice(0, n);
+  const sentences = text.split(/(?<=[.!?。])\s+/).map((t) => t.trim()).filter(Boolean);
+  if (sentences.length <= 1) return [text];
+  const per = Math.ceil(sentences.length / n);
   const out: string[] = [];
-  const { longTermPersistence: lt, shortTermRecovery: sr, homeworkReliability: hr } = common;
-  if (isNum(lt) && isNum(sr) && Math.abs(lt - sr) >= 20) {
-    out.push(
-      lt > sr
-        ? "장기 의지는 높지만 단기 회복이 낮습니다 — 목표는 있으나 당일 막힘에서 다시 시작하는 구조가 필요합니다."
-        : "단기 회복은 좋지만 장기 의지가 낮습니다 — 당장은 버티나 장기 루틴을 눈에 보이게 만드는 지원이 필요합니다."
-    );
-  }
-  if (isNum(common.learningAttitude) && isNum(hr) && common.learningAttitude - hr >= 20) {
-    out.push(
-      "학습 태도에 비해 숙제 신뢰도가 낮습니다 — 의지보다 시작·제출 실행 구조의 문제일 수 있습니다."
-    );
-  }
-  if (isNum(common.phoneBoundary) && common.phoneBoundary < 50) {
-    out.push("공부 시작 시 휴대폰 자동 확인이 주의 전환 위험으로 나타날 수 있습니다(물리적 분리 권장).");
-  }
-  return out;
+  for (let i = 0; i < sentences.length; i += per) out.push(sentences.slice(i, i + per).join(" "));
+  return out.slice(0, n);
 }
 
-function BackgroundFacts({ bg }: { bg: CounselorBackground }) {
-  const facts: { label: string; value?: string | null }[] = [
-    { label: "기존 학원", value: bg.prevAcademy },
-    { label: "이전 학원 이탈 이유", value: bg.prevLeaveReason },
-    { label: "기존 학원 아쉬운 점", value: bg.prevComplaint },
-    { label: "유입 경로", value: bg.referral },
-    { label: "NK 인지 수준", value: bg.nkKnowledge },
-    { label: "희망 요일", value: bg.preferredDays },
-    { label: "등원 가능 시간", value: bg.availableTime },
-    { label: "클리닉 참여 조건", value: bg.clinicCondition },
-    { label: "미래 계획 여부", value: bg.hasFuturePlan },
-    { label: "희망 직업", value: bg.dream },
-    { label: "목표 대학·계열", value: bg.targetUniversity },
-    { label: "공부의 핵심(자기 인식)", value: bg.studyCore },
-    { label: "스스로 느끼는 문제", value: bg.problemSelf },
-    { label: "수학 어려움", value: bg.mathDifficulty },
-    { label: "영어 어려움", value: bg.englishDifficulty },
-    { label: "건강·특이사항(내부)", value: bg.healthNote },
-    { label: "학원에 바라는 점", value: bg.requests },
-  ].filter((f) => f.value && String(f.value).trim());
-
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-      {bg.nkExpectations && bg.nkExpectations.length > 0 && (
-        <div style={{ gridColumn: "1 / -1" }}>
-          <span style={{ fontSize: 11, color: C.faint, fontWeight: 600 }}>NK 기대(우선순위)</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-            {bg.nkExpectations.map((e, i) => (
-              <span key={i} style={{ fontSize: 12, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 999, padding: "3px 10px", color: C.navy }}>
-                {e}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {facts.map((f) => (
-        <div key={f.label}>
-          <span style={{ fontSize: 11, color: C.faint, fontWeight: 600 }}>{f.label}</span>
-          <p style={{ fontSize: 13, color: C.ink, margin: "2px 0 0", wordBreak: "keep-all" }}>{f.value}</p>
-        </div>
-      ))}
-      {facts.length === 0 && (bg.nkExpectations?.length ?? 0) === 0 && (
-        <p style={{ fontSize: 12.5, color: C.faint }}>사전정보 서술이 없습니다.</p>
-      )}
-    </div>
-  );
+function computeGaps(common: CommonScores): { label: string; a: [string, number]; b: [string, number]; note: string }[] {
+  const out: { label: string; a: [string, number]; b: [string, number]; note: string }[] = [];
+  const { longTermPersistence: lt, shortTermRecovery: sr, learningAttitude: la, homeworkReliability: hr } = common;
+  if (isNum(lt) && isNum(sr) && Math.abs(lt - sr) >= 20) {
+    out.push({
+      label: "장기 목표와 매일의 시작",
+      a: ["목표 의지", lt],
+      b: ["단기 회복", sr],
+      note: "공부를 잘하고 싶은 마음은 분명하지만 시작·재시작이 흔들립니다. 의지보다 시작 예약을 먼저 관리합니다.",
+    });
+  }
+  if (isNum(la) && isNum(hr) && la - hr >= 20) {
+    out.push({
+      label: "태도와 실행 구조",
+      a: ["학습 태도", la],
+      b: ["숙제 신뢰", hr],
+      note: "태도에 비해 제출·오답 복구가 약합니다. 의지보다 시작 시각·완료 기준 등 실행 구조를 관리합니다.",
+    });
+  }
+  if (isNum(common.phoneBoundary) && common.phoneBoundary < 50) {
+    out.push({
+      label: "치우려는 계획과 자동 확인",
+      a: ["보관 계획", 60],
+      b: ["확인 억제", common.phoneBoundary],
+      note: "치워야 한다는 것은 알지만 손이 닿는 거리에서는 자동 확인이 이어집니다. 실제 보관 거리를 확인합니다.",
+    });
+  }
+  return out;
 }
 
 export function CounselorReport({ profile, header, background, contacts }: CounselorReportProps) {
   const { scores: s, interpretation: i } = profile;
   const review = s.responseQuality.status === "review";
-  const sourceLabel = profile.source === "ai" ? "AI 해석" : "규칙 기반 요약";
+  const sourceLabel = profile.source === "ai" ? "AI 해석 · 행동 확인 전" : "규칙 기반 요약 · 행동 확인 전";
   const gaps = computeGaps(s.common);
+  const summaryParas = splitParas(i.detailedSummary, 3);
   const maskPhone = (p?: string | null) =>
-    p ? p.replace(/(\d{2,3})-?(\d{3,4})-?(\d{2})\d{2}/, "$1-$2-$3**") : null;
+    p ? p.replace(/(\d{2,3})-?(\d{3,4})-?(\d{2})\d{2}/, "$1-$2-$3**") : "–";
+  const genDate = formatDate(profile.generatedAt) || formatDate(header.createdAt);
+
+  const metaFacts: { label: string; value?: string | null }[] = [
+    { label: "학교·학년", value: header.schoolGrade },
+    { label: "진단 과목", value: SUBJECT_LABEL[profile.subjectSelection] },
+    { label: "희망 직업·장래 목표", value: background?.dream },
+    { label: "목표 대학·계열", value: background?.targetUniversity },
+    { label: "기존 학습환경", value: background?.prevAcademy },
+    { label: "주요 변경 이유", value: background?.prevLeaveReason },
+    { label: "NK 인지 수준", value: background?.nkKnowledge },
+    { label: "유입 경로", value: background?.referral },
+    { label: "희망 요일", value: background?.preferredDays },
+    { label: "등원 가능 시간", value: background?.availableTime },
+    { label: "클리닉 참여 조건", value: background?.clinicCondition },
+    { label: "학생·학부모 연락처(상담자 전용)", value: `${maskPhone(contacts?.studentPhone)} · ${maskPhone(contacts?.parentPhone)}` },
+  ].filter((f) => f.value && String(f.value).trim());
 
   return (
     <>
-      {/* 표지 (독립 1페이지) */}
-      <ReportPage cover>
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between" }}>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.2em", color: C.brass, margin: 0 }}>
-              NK EDUCATION
-            </p>
-            <h1 style={{ fontSize: 30, fontWeight: 900, color: C.navy, margin: "10px 0 4px", letterSpacing: "-0.02em" }}>
-              NK 학습운영 프로필
-            </h1>
-            <p style={{ fontSize: 13, color: C.sub, margin: 0 }}>
-              상담 직후 지도 결정을 위한 학생 자기작성형 학습 프로필 (상담자용)
-            </p>
-          </div>
+      <ReportCover
+        eyebrow="CONFIDENTIAL · PRIVATE LEARNING DOSSIER"
+        brandCode="NK-LP 2.0 / 2026"
+        kicker="맞춤형 심층 학습 성향 분석 보고서 (상담자용)"
+        name={`${header.name} 학생`}
+        titleEm="학습 운영 프로필"
+        meta={[header.schoolGrade, SUBJECT_LABEL[profile.subjectSelection], genDate]}
+        verdictLabel="LEARNING RESPONSE TYPE"
+        verdictType={i.studentType}
+        verdictSubtype={`지도 유형 · ${s.coaching.coachingType}`}
+        verdictNote={i.recommendedCoaching}
+        footerLeft="NK EDUCATION CONSULTING GROUP"
+        footerRight={`REPORT · ${genDate}`}
+      />
 
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 26, fontWeight: 900, color: C.ink }}>{header.name}</span>
-              <span style={{ fontSize: 15, color: C.sub }}>{header.schoolGrade}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", background: C.navy, padding: "3px 10px", borderRadius: 6 }}>
-                {SUBJECT_LABEL[profile.subjectSelection]}
-              </span>
+      <ReportSection
+        id="sec-summary"
+        index="01"
+        eyebrow="DIRECTOR'S SYNTHESIS"
+        title="학생 분석 총평"
+        aside={<b className="confidence-chip">{sourceLabel}</b>}
+      >
+        <article className="analysis-verdict">
+          <div className="analysis-verdict__title">
+            <span>CORE INTERPRETATION</span>
+            <b>{i.studentType}</b>
+          </div>
+          <h3>{i.recommendedCoaching}</h3>
+          <div className="analysis-verdict__body">
+            {summaryParas.map((p, idx) => (
+              <p key={idx}>{p}</p>
+            ))}
+          </div>
+          <dl className="analysis-chain">
+            <div>
+              <dt>관찰</dt>
+              <dd>{i.coreObservation}</dd>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: C.brass, background: "#FBF4E4", padding: "4px 12px", borderRadius: 999 }}>
-                {i.studentType}
-              </span>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: C.navy, background: "#E7ECF5", padding: "4px 12px", borderRadius: 999 }}>
-                지도 유형 · {s.coaching.coachingType}
-              </span>
+            <div>
+              <dt>작동 원인</dt>
+              <dd>{i.operatingCause}</dd>
             </div>
-            {(contacts?.studentPhone || contacts?.parentPhone) && (
-              <p style={{ fontSize: 12, color: C.faint, margin: "4px 0 0" }}>
-                연락처(상담자 전용): 학생 {maskPhone(contacts?.studentPhone) ?? "-"} · 학부모{" "}
-                {maskPhone(contacts?.parentPhone) ?? "-"}
-              </p>
-            )}
-            {review && (
-              <div style={{ marginTop: 4 }}>
-                <InfoNote tone="caution">
-                  응답 품질: 첫 14일 행동 확인 필요 — 초기 수치는 확정이 아니라 확인 대상으로 해석하세요.
-                </InfoNote>
+            <div>
+              <dt>권장 지도</dt>
+              <dd>{i.recommendedCoaching}</dd>
+            </div>
+            <div>
+              <dt>14일 검증</dt>
+              <dd>{i.verificationPlan14Days[0] ?? "첫 14일 실제 행동 확인"}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <AnalysisVisualGrid common={s.common} coaching={s.coaching} />
+
+        {i.crossEvidence.length > 0 && (
+          <div className="analysis-cross-evidence">
+            <header>
+              <span>CROSS EVIDENCE</span>
+              <h3>이 총평이 나온 이유</h3>
+            </header>
+            <div>
+              {i.crossEvidence.slice(0, 4).map((e, idx) => (
+                <article key={idx}>
+                  <span>근거 {String(idx + 1).padStart(2, "0")}</span>
+                  <p>{e}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <ProfileSignals common={s.common} />
+
+        {i.teacherBrief.length > 0 && (
+          <div className="teacher-brief counselor-only">
+            <div className="teacher-brief__title">
+              <span>TEACHER BRIEF</span>
+              <h3>담당 선생님이 첫 수업 전에 읽을 메모</h3>
+            </div>
+            <ol>
+              {i.teacherBrief.map((t, idx) => (
+                <li key={idx}>
+                  <span>{String(idx + 1).padStart(2, "0")}</span>
+                  <p>{t}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {metaFacts.length > 0 && (
+          <div className="consultation-context-dossier counselor-only">
+            <header>
+              <div>
+                <span>COUNSELING CONTEXT</span>
+                <h3>상담 배경과 서술 응답</h3>
+              </div>
+              <b>학생 직접 작성</b>
+            </header>
+            <div className="context-meta-grid">
+              {metaFacts.map((f) => (
+                <div key={f.label}>
+                  <span>{f.label}</span>
+                  <strong>{f.value}</strong>
+                </div>
+              ))}
+            </div>
+            {(background?.problemSelf || background?.prevComplaint || background?.requests) && (
+              <div className="context-consult-questions">
+                <div>
+                  <span>STUDENT VOICE</span>
+                  <strong>{background?.problemSelf || background?.prevComplaint || background?.requests}</strong>
+                </div>
+                <ol aria-label="상담에서 확인할 배경">
+                  {[background?.prevComplaint, background?.requests, background?.studyCore]
+                    .filter((x): x is string => !!x && !!x.trim())
+                    .slice(0, 3)
+                    .map((x, idx) => (
+                      <li key={idx}>
+                        <b>{String(idx + 1).padStart(2, "0")}</b>
+                        <p>{x}</p>
+                      </li>
+                    ))}
+                </ol>
               </div>
             )}
           </div>
+        )}
+      </ReportSection>
 
-          <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 12, color: C.faint }}>
-            <span>해석 출처: {sourceLabel}</span>
-            <span>생성일 {formatDate(profile.generatedAt) || formatDate(header.createdAt)}</span>
-          </div>
-        </div>
-      </ReportPage>
+      <ReportSection
+        id="sec-learning"
+        index="02"
+        eyebrow="LEARNING OPERATION"
+        title="학습태도와 실행 구조"
+        aside={<b className="section-note">최근 4주 행동 기준</b>}
+      >
+        <LearningPanels common={s.common} />
+        <WillCoachingGrid common={s.common} coaching={s.coaching} />
+      </ReportSection>
 
-      {/* §1 총평 + §2 핵심 지도 판정 */}
-      <ReportPage id="sec-summary">
-        <div>
-          <SectionTitle index="01" title="학생 분석 총평" />
-          <Card>
-            <Paragraph>{i.detailedSummary}</Paragraph>
-            {review && (
-              <InfoNote tone="caution">
-                행동 확인 전 단계입니다. 단정 표현보다 첫 14일 재확인을 전제로 읽어주세요.
-              </InfoNote>
-            )}
-          </Card>
-        </div>
-        <div>
-          <SectionTitle index="02" title="핵심 지도 판정" sub={`${s.coaching.coachingType} · ${s.coaching.autonomyStructureType}`} />
-          <Card>
-            <LabeledPara label="핵심 관찰" text={i.coreObservation} />
-            <LabeledPara label="작동 원인(가설)" text={i.operatingCause} />
-            <LabeledPara label="권장 지도" text={i.recommendedCoaching} />
-          </Card>
-        </div>
-      </ReportPage>
+      <ReportSection
+        id="sec-life"
+        index="03"
+        eyebrow="DAILY LIFE & RELATION"
+        title="핸드폰·성격·친구관계"
+        aside={<b className="section-note">생활 조건과 학습의 연결</b>}
+      >
+        <PhoneFeature common={s.common} />
+        <PersonalityRelationGrid common={s.common} coaching={s.coaching} mbtiAxes={s.mbtiAxes} />
+      </ReportSection>
 
-      {/* §3 지도 좌표 + 6 핵심 신호 */}
-      <ReportPage>
-        <div>
-          <SectionTitle index="03" title="지도 좌표와 핵심 신호" sub="강하게 밀기(직접 피드백 수용) × 안전하게 전달하기(관계 안전 요구)" />
-          <Card style={{ marginBottom: 14 }}>
-            <CoachingCoordinate
-              challenge={s.coaching.challenge}
-              safety={s.coaching.safety}
-              coachingType={s.coaching.coachingType}
-            />
-          </Card>
-          <CoreSignalsBlock common={s.common} />
-        </div>
-      </ReportPage>
+      <ReportSection
+        id="sec-fit"
+        index="04"
+        eyebrow="NK ENVIRONMENT FIT"
+        title="NK 운영 방식과의 일치"
+        aside={
+          <b className="fit-grade">
+            {s.nkFit.stage}
+            {s.nkFit.overall !== null ? ` · ${s.nkFit.overall.toFixed(0)}` : ""}
+          </b>
+        }
+      >
+        <NkFitSection nkFit={s.nkFit} interpretation={i.nkFitInterpretation} />
+        <SubjectStrategy
+          subjectSelection={profile.subjectSelection}
+          math={s.math}
+          english={s.english}
+          mathStrategy={i.mathStrategy}
+          englishStrategy={i.englishStrategy}
+        />
+      </ReportSection>
 
-      {/* §4 교사 brief + §5 배경 교차해석 */}
-      <ReportPage>
-        <div>
-          <SectionTitle index="04" title="첫 수업 전 교사 브리핑" />
-          <Card>
-            <BulletList items={i.teacherBrief} color={C.brass} />
-          </Card>
-        </div>
-        <div>
-          <SectionTitle index="05" title="배경·서술 교차해석" sub="사전정보와 행동 신호를 함께 확인" />
-          <Card style={{ marginBottom: 14 }}>
-            {background ? <BackgroundFacts bg={background} /> : <p style={{ fontSize: 12.5, color: C.faint }}>사전정보가 없습니다.</p>}
-          </Card>
-          {i.crossEvidence.length > 0 && (
-            <Card>
-              <p style={{ fontSize: 13, fontWeight: 700, color: C.navy, margin: "0 0 8px" }}>교차 관찰</p>
-              <BulletList items={i.crossEvidence} />
-            </Card>
-          )}
-        </div>
-      </ReportPage>
+      <ReportSection
+        id="sec-solution"
+        index="05"
+        eyebrow="EVIDENCE TO ACTION"
+        title="강점·간극·맞춤 솔루션"
+        aside={<b className="section-note">기존 보고서 핵심 틀 유지</b>}
+      >
+        <StrengthGrowth strengths={i.strengths} growthAreas={i.growthAreas} />
 
-      {/* §6 학습·숙제 + §7 장기·단기 */}
-      <ReportPage id="sec-learning">
-        <div>
-          <SectionTitle index="06" title="학습 태도와 숙제 흐름" />
-          <LearningHomeworkBlock common={s.common} />
-        </div>
-        <div>
-          <SectionTitle index="07" title="장기 의지와 단기 회복" />
-          <PersistenceRecoveryBlock common={s.common} />
-        </div>
-      </ReportPage>
-
-      {/* §8 휴대폰·성격·친구 + §9 MBTI */}
-      <ReportPage id="sec-life">
-        <div>
-          <SectionTitle index="08" title="휴대폰·성격 반응·친구관계" />
-          <PhoneFriendsPersonalityBlock common={s.common} coaching={s.coaching} />
-        </div>
-        <div>
-          <SectionTitle index="09" title="MBTI 보조 점수" sub="원점수 / MBTI 조정 / 최종" />
-          <MbtiBlock mbtiAxes={s.mbtiAxes} />
-        </div>
-      </ReportPage>
-
-      {/* §10 NK 적합 + §11 과목 전략 */}
-      <ReportPage id="sec-nkfit">
-        <div>
-          <SectionTitle index="10" title="NK 운영 선호·준비도·지원 조건" />
-          <NkFitBlock nkFit={s.nkFit} interpretation={i.nkFitInterpretation} />
-        </div>
-        <div>
-          <SectionTitle index="11" title="과목별 학습전략" />
-          <SubjectStrategyBlock
-            subjectSelection={profile.subjectSelection}
-            math={s.math}
-            english={s.english}
-            mathStrategy={i.mathStrategy}
-            englishStrategy={i.englishStrategy}
-          />
-        </div>
-      </ReportPage>
-
-      {/* §12 강점·개선·간극 + §13 12주·14일 + §14 원칙 */}
-      <ReportPage id="sec-solution">
-        <div>
-          <SectionTitle index="12" title="강점·개선·심리적 간극" />
-          <StrengthsGrowthBlock strengths={i.strengths} growthAreas={i.growthAreas} />
-          {gaps.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <Card>
-                <p style={{ fontSize: 13, fontWeight: 700, color: C.navy, margin: "0 0 8px" }}>심리적 간극</p>
-                <BulletList items={gaps} color={C.amber} />
-              </Card>
+        {gaps.length > 0 && (
+          <div className="gap-dossier counselor-only">
+            <div className="panel-title">
+              <span>PSYCHOLOGICAL GAP</span>
+              <h3>학생의 의도와 최근 행동 사이</h3>
             </div>
-          )}
-        </div>
-        <div>
-          <SectionTitle index="13" title="12주 솔루션과 첫 14일 지표" />
-          <RoadmapBlock roadmap={i.roadmap12Weeks} />
-          <div style={{ marginTop: 14 }}>
-            <Card style={{ borderLeft: `3px solid ${C.navy}` }}>
-              <p style={{ fontSize: 13, fontWeight: 800, color: C.navy, margin: "0 0 8px" }}>첫 14일 행동 확인 지표</p>
-              <BulletList items={i.verificationPlan14Days} color={C.navy} />
-            </Card>
-          </div>
-          {i.cautions.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <Card>
-                <p style={{ fontSize: 13, fontWeight: 700, color: C.amber, margin: "0 0 8px" }}>지도 시 유의점</p>
-                <BulletList items={i.cautions} color={C.amber} />
-              </Card>
+            <div className="gap-rows">
+              {gaps.map((g, idx) => (
+                <article key={idx}>
+                  <div>
+                    <span>GAP {String(idx + 1).padStart(2, "0")}</span>
+                    <strong>{g.label}</strong>
+                  </div>
+                  <div className="gap-values">
+                    <p>
+                      {g.a[0]} <b>{g.a[1].toFixed(0)}</b>
+                    </p>
+                    <i />
+                    <p>
+                      {g.b[0]} <b>{g.b[1].toFixed(0)}</b>
+                    </p>
+                  </div>
+                  <p>{g.note}</p>
+                </article>
+              ))}
             </div>
-          )}
+          </div>
+        )}
+
+        <RoadmapLine roadmap={i.roadmap12Weeks} />
+        <VerifyLine items={i.verificationPlan14Days} />
+
+        <div className="final-guidance">
+          <span>NK FINAL GUIDANCE</span>
+          <h3>{i.recommendedCoaching}</h3>
+          <p>
+            완료 기준은 분명히 유지하고, 미완료에는 반드시 후속조치를 연결하십시오. 동시에 공개 비교는 피하고,
+            낮은 점수 뒤에는 시작 순서를 짧게 정리해 주십시오. 이 조합이 학생의 장기 의지를 실제 성취로 바꾸는
+            핵심입니다.
+            {i.cautions.length > 0 ? ` 유의: ${i.cautions[0]}` : ""}
+          </p>
         </div>
-        <PrinciplesBlock responseQualityStatus={s.responseQuality.status} />
-      </ReportPage>
+      </ReportSection>
+
+      <CautionFooter review={review} />
     </>
-  );
-}
-
-function LabeledPara({ label, text }: { label: string; text: string }) {
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <span style={{ fontSize: 11.5, fontWeight: 800, color: C.brass, letterSpacing: "0.04em" }}>
-        {label}
-      </span>
-      <Paragraph>{text}</Paragraph>
-    </div>
   );
 }

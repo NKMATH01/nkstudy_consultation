@@ -239,31 +239,32 @@ function surveyTests(baseURL, browser) {
 // ── 결과지 테스트 (fixture 라우트) ────────────────────────────────────
 const COUNSELOR_SECTIONS = [
   "학생 분석 총평",
-  "핵심 지도 판정",
-  "지도 좌표와 핵심 신호",
-  "첫 수업 전 교사 브리핑",
-  "배경·서술 교차해석",
-  "학습 태도와 숙제 흐름",
-  "장기 의지와 단기 회복",
-  "휴대폰·성격 반응·친구관계",
-  "MBTI 보조 점수",
-  "NK 운영 선호·준비도·지원 조건",
+  "CORE INTERPRETATION",
+  "COACHING MAP",
+  "핵심 학습 신호 분포",
+  "TEACHER BRIEF",
+  "상담 배경과 서술 응답",
+  "학습태도와 실행 구조",
+  "의지의 두 얼굴",
+  "핸드폰·성격·친구관계",
+  "MBTI AUXILIARY SCORE",
+  "NK 운영 방식과의 일치",
   "과목별 학습전략",
-  "강점·개선·심리적 간극",
-  "12주 솔루션과 첫 14일 지표",
+  "강점·간극·맞춤 솔루션",
+  "12주 맞춤 솔루션",
   "해석 원칙",
 ];
 
 async function goReport(page, baseURL) {
   await page.goto(`${baseURL}/dev-report-preview`, NAV);
-  await page.getByText("NK 학습운영 프로필", { exact: false }).first().waitFor({ state: "visible", timeout: 120000 });
+  await page.getByText("학생 분석 총평", { exact: false }).first().waitFor({ state: "visible", timeout: 120000 });
 }
 
 /** 학부모 토글. SSR 마크업이 하이드레이션 전에 보이므로 전환될 때까지 클릭을 재시도한다. */
 async function toggleParent(page) {
   const marker = page.getByText("학습 프로필 요약", { exact: false }).first();
   for (let attempt = 0; attempt < 20; attempt++) {
-    await page.getByRole("button", { name: "학부모용", exact: true }).click();
+    await page.getByRole("button", { name: "학부모 공유본", exact: true }).click();
     if (await marker.isVisible().catch(() => false)) return;
     await page.waitForTimeout(300);
   }
@@ -284,7 +285,7 @@ function reportTests(baseURL, browser) {
           }
           assert((await page.getByText("수학 학습전략", { exact: false }).count()) > 0, "수학 전략 렌더");
           assert((await page.getByText("영어 학습전략", { exact: false }).count()) > 0, "영어 전략 렌더");
-          assertEqual(await page.locator(".report-page").count(), 8, "상담자 보고서 페이지 수(표지+7)");
+          assertEqual(await page.locator(".report-v2-section").count(), 5, "상담자 보고서 섹션 수(요약·학습·생활·NK적합·솔루션)");
         } finally {
           await context.close();
         }
@@ -298,11 +299,11 @@ function reportTests(baseURL, browser) {
           await goReport(page, baseURL);
           await toggleParent(page);
           // 금지: 상세 총평(원문)·교사 브리핑·배경 교차해석·심리적 간극.
-          assertEqual(await page.getByText("AI 해석을 사용할 수 없어", { exact: false }).count(), 0, "상담자 상세총평 부재");
-          assertEqual(await page.getByText("첫 수업 전 교사 브리핑", { exact: false }).count(), 0, "교사 브리핑 부재");
-          assertEqual(await page.getByText("배경·서술 교차해석", { exact: false }).count(), 0, "배경 교차해석 부재");
-          assertEqual(await page.getByText("심리적 간극", { exact: false }).count(), 0, "심리적 간극 부재");
-          assertEqual(await page.locator(".report-page").count(), 6, "학부모 보고서 페이지 수(표지+5)");
+          assertEqual(await page.getByText("TEACHER BRIEF", { exact: false }).count(), 0, "교사 브리핑 부재");
+          assertEqual(await page.getByText("CORE INTERPRETATION", { exact: false }).count(), 0, "상담자 판정 패널 부재");
+          assertEqual(await page.getByText("상담 배경과 서술 응답", { exact: false }).count(), 0, "배경 교차해석 부재");
+          assertEqual(await page.getByText("PSYCHOLOGICAL GAP", { exact: false }).count(), 0, "심리적 간극 부재");
+          assertEqual(await page.locator(".report-v2-section").count(), 5, "학부모 보고서 섹션 수");
         } finally {
           await context.close();
         }

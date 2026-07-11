@@ -3,25 +3,26 @@
 
 import type { CommonScores, Score } from "@/lib/assessment/v2/types";
 
-// ── 색상(네이비·백색·브라스 골드 + teal/coral 제한 사용) ──────────────────
+// ── 색상(프로토타입 PRIVATE LEARNING DOSSIER 팔레트: 다크 네이비·브라스 골드) ──
+// premium.css의 :root 토큰과 동일 계열. inline SVG·점수 막대가 CSS 패널과 어긋나지 않게 한다.
 export const C = {
-  navy: "#0F2B5B",
-  navyDeep: "#0A1F44",
-  brass: "#B08A46",
-  brassSoft: "#C9A867",
-  teal: "#0F8A80",
-  tealSoft: "#E1F1EF",
-  coral: "#D9614F",
-  coralSoft: "#FBE9E5",
-  amber: "#C4842B",
-  amberSoft: "#FBF0DC",
-  ink: "#1F2937",
-  sub: "#5B6472",
-  faint: "#94A3B8",
-  line: "#E4E7EC",
-  cardBg: "#FFFFFF",
-  pageBg: "#EDEEF1",
-  panel: "#F7F8FA",
+  navy: "#152033",
+  navyDeep: "#101722",
+  brass: "#b88a32",
+  brassSoft: "#f3ead8",
+  teal: "#2d776a",
+  tealSoft: "#e6f1ee",
+  coral: "#c95f55",
+  coralSoft: "#f7e8e5",
+  amber: "#8a6422",
+  amberSoft: "#f3ead8",
+  ink: "#334050",
+  sub: "#586270",
+  faint: "#94a3b8",
+  line: "#dde1e3",
+  cardBg: "#ffffff",
+  pageBg: "#e8e9e6",
+  panel: "#f4f6f6",
 } as const;
 
 // ── 핵심 축 한글 라벨 ────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ export const DOCK_ITEMS: DockItem[] = [
   { id: "sec-summary", label: "요약" },
   { id: "sec-learning", label: "학습" },
   { id: "sec-life", label: "생활·관계" },
-  { id: "sec-nkfit", label: "NK 적합" },
+  { id: "sec-fit", label: "NK 적합" },
   { id: "sec-solution", label: "솔루션" },
 ];
 

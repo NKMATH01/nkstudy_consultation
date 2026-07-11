@@ -1,96 +1,131 @@
 "use client";
 
-// A4 세로 페이지 프레임 + 인쇄 CSS + PDF 저장 버튼 + 하단 고정 메뉴 (§12.4, §13).
-// - 화면: 각 .report-page를 A4 크기로 쌓고 회색 간격·그림자로 미리보기.
-// - 인쇄: @page A4 portrait, 그림자·툴바·하단 메뉴 제거, 카드 단위 break-inside:avoid.
-//   내용이 넘치면 브라우저 native pagination으로 다음 물리 페이지에 이어진다(자르기·축소 없음, §13.2).
+// V2 결과 보고서 프리미엄 프레임(프로토타입 PRIVATE LEARNING DOSSIER 셸).
+// - 화면: 연속 문서(.report-v2-wrap) 위에 다크 표지 + 넘버 섹션들.
+// - 인쇄/PDF: report-premium-css.ts의 @media print가 A4 세로 다중페이지로 분할한다
+//   (표지=1p, sec-learning·life·fit·solution 앞에서 페이지 분할, 다크 배경 print-color-adjust 유지).
+// 데이터·문구는 counselor/parent 리포트가 결정하고 이 파일은 레이아웃 껍데기만 제공한다.
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Printer } from "lucide-react";
-import { C, DOCK_ITEMS, formatDate } from "./report-theme";
+import { DOCK_ITEMS, formatDate } from "./report-theme";
+import { REPORT_PREMIUM_CSS } from "./report-premium-css";
 
-export const REPORT_PRINT_CSS = `
-.rptv2-root { background: ${C.pageBg}; padding: 22px 12px 110px; }
-.rptv2-pages { display: flex; flex-direction: column; align-items: center; gap: 22px; }
-.report-page {
-  width: min(210mm, 100%);
-  max-width: 100%;
-  min-height: 297mm;
-  background: #fff;
-  color: ${C.ink};
-  padding: 15mm 14mm;
-  box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 10px 30px rgba(15,43,91,0.10);
-  border-radius: 2px;
-  font-size: 13.5px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.rptv2-page-body > * + * { margin-top: 18px; }
-@media (max-width: 900px) {
-  .rptv2-root { padding: 14px 10px 108px; }
-  .report-page { min-height: auto; padding: 18px 16px; }
-}
-@media print {
-  @page { size: A4 portrait; margin: 0; }
-  html, body { background: #fff !important; }
-  .rptv2-root { background: #fff !important; padding: 0 !important; }
-  .rptv2-pages { gap: 0 !important; }
-  .rptv2-toolbar, .rptv2-dock, .rptv2-noprint { display: none !important; }
-  .report-page {
-    width: 210mm !important;
-    min-height: 297mm;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    break-after: page;
-    page-break-after: always;
-  }
-  .report-page:last-child { break-after: auto; page-break-after: auto; }
-  .rpt-card { break-inside: avoid; }
-  /* 섹션 제목이 페이지 끝에 홀로 남지 않도록 제목 블록을 통째로 유지하고
-     다음 내용과 함께 이동시킨다(§15.4 제목 고립 방지). */
-  .rpt-sec { break-inside: avoid; break-after: avoid; page-break-inside: avoid; page-break-after: avoid; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-}
-`;
+export { REPORT_PREMIUM_CSS };
 
-export function ReportPage({
-  id,
-  children,
-  cover = false,
+/** 문서 시트. 표지+섹션을 감싼다(프로토타입 .report-v2-wrap). */
+export function ReportSheet({ children }: { children: ReactNode }) {
+  return <div className="report-v2-wrap">{children}</div>;
+}
+
+/** 다크 표지(프로토타입 .report-v2-cover). */
+export function ReportCover({
+  eyebrow,
+  brandCode,
+  kicker,
+  name,
+  titleEm,
+  meta,
+  verdictLabel,
+  verdictType,
+  verdictSubtype,
+  verdictNote,
+  footerLeft,
+  footerRight,
 }: {
-  id?: string;
-  children: ReactNode;
-  cover?: boolean;
+  eyebrow: string;
+  brandCode: string;
+  kicker: string;
+  name: string;
+  titleEm: string;
+  meta: string[];
+  verdictLabel: string;
+  verdictType: string;
+  verdictSubtype?: string;
+  verdictNote: string;
+  footerLeft: string;
+  footerRight: string;
 }) {
   return (
-    <section
-      id={id}
-      className="report-page"
-      style={cover ? { display: "flex", flexDirection: "column" } : undefined}
-    >
-      <div className="rptv2-page-body">{children}</div>
+    <section className="report-v2-cover" id="sec-cover">
+      <div className="cover-brand-line">
+        <span>{eyebrow}</span>
+        <b>{brandCode}</b>
+      </div>
+      <div className="cover-layout">
+        <div className="cover-copy">
+          <p>{kicker}</p>
+          <h1>
+            {name}
+            <br />
+            <em>{titleEm}</em>
+          </h1>
+          <div className="cover-meta">
+            {meta.filter(Boolean).map((m, i) => (
+              <span key={i}>{m}</span>
+            ))}
+          </div>
+        </div>
+        <aside className="cover-verdict">
+          <span>{verdictLabel}</span>
+          <strong>{verdictType}</strong>
+          {verdictSubtype && <b>{verdictSubtype}</b>}
+          <p>{verdictNote}</p>
+        </aside>
+      </div>
+      <div className="cover-footer">
+        <span>{footerLeft}</span>
+        <span>{footerRight}</span>
+      </div>
     </section>
   );
 }
 
-/** 상단 툴바: audience 표시/토글 슬롯 + PDF 저장 버튼(화면 전용). */
+/** 넘버 섹션 래퍼(프로토타입 .report-v2-section + .luxury-section-heading). */
+export function ReportSection({
+  id,
+  index,
+  eyebrow,
+  title,
+  aside,
+  children,
+}: {
+  id?: string;
+  index: string;
+  eyebrow: string;
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="report-v2-section" id={id}>
+      <header className="luxury-section-heading">
+        <div>
+          <span>{index}</span>
+          <p>{eyebrow}</p>
+          <h2>{title}</h2>
+        </div>
+        {aside}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+/** 상단 툴바(프로토타입 .report-v2-toolbar): 브랜드 + audience 스위치 + 공유 + PDF 저장. */
 export function ReportToolbar({
   studentName,
-  right,
-  left,
+  audienceSlot,
+  shareSlot,
 }: {
   studentName: string;
-  right?: ReactNode;
-  left?: ReactNode;
+  audienceSlot?: ReactNode;
+  shareSlot?: ReactNode;
 }) {
   const handlePdf = () => {
     const prev = document.title;
-    const filename = `NK_학습운영프로필_${studentName || "학생"}_${formatDate(
+    document.title = `NK_학습운영프로필_${studentName || "학생"}_${formatDate(
       new Date().toISOString()
     )}`;
-    document.title = filename;
     const restore = () => {
       document.title = prev;
       window.removeEventListener("afterprint", restore);
@@ -105,53 +140,30 @@ export function ReportToolbar({
   };
 
   return (
-    <div
-      className="rptv2-toolbar"
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 20,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 10,
-        flexWrap: "wrap",
-        padding: "10px 14px",
-        background: "rgba(255,255,255,0.92)",
-        backdropFilter: "blur(8px)",
-        borderBottom: `1px solid ${C.line}`,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>{left}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {right}
-        <button
-          type="button"
-          onClick={handlePdf}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: C.navy,
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          <Printer size={15} />
-          PDF 저장
-        </button>
+    <header className="report-v2-toolbar">
+      <div className="report-v2-toolbar__inner">
+        <span className="premium-brand">
+          <span className="premium-brand__mark">NK</span>
+          <span>
+            <strong>NK EDUCATION</strong>
+            <small>PRIVATE LEARNING DOSSIER</small>
+          </span>
+        </span>
+        <div className="report-v2-actions rptv2-noprint">
+          {audienceSlot}
+          {shareSlot}
+          <button type="button" className="report-command" onClick={handlePdf} aria-label="A4 PDF로 저장">
+            <span aria-hidden="true">PDF</span>
+            저장
+          </button>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
 
-/** 하단 고정 5메뉴(§12.4). 스크롤 위치로 현재 영역 강조. 인쇄에서 숨김. */
-export function BottomDock() {
+/** 하단 고정 5메뉴(프로토타입 .report-dock). 스크롤 위치로 현재 영역 강조. 인쇄 숨김. */
+export function ReportDock() {
   const [active, setActive] = useState(DOCK_ITEMS[0].id);
 
   useEffect(() => {
@@ -181,49 +193,18 @@ export function BottomDock() {
   };
 
   return (
-    <nav
-      className="rptv2-dock"
-      aria-label="보고서 섹션 이동"
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 30,
-        display: "flex",
-        justifyContent: "center",
-        gap: 4,
-        padding: "8px 8px calc(8px + env(safe-area-inset-bottom))",
-        background: "rgba(255,255,255,0.96)",
-        borderTop: `1px solid ${C.line}`,
-        boxShadow: "0 -2px 12px rgba(15,43,91,0.08)",
-      }}
-    >
-      {DOCK_ITEMS.map((d) => {
-        const on = active === d.id;
-        return (
-          <button
-            key={d.id}
-            type="button"
-            onClick={() => go(d.id)}
-            style={{
-              flex: "1 1 0",
-              maxWidth: 130,
-              minHeight: 44,
-              border: "none",
-              background: on ? C.navy : "transparent",
-              color: on ? "#fff" : C.sub,
-              borderRadius: 9,
-              fontSize: 12.5,
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "background .15s",
-            }}
-          >
-            {d.label}
-          </button>
-        );
-      })}
+    <nav className="report-dock rptv2-noprint" aria-label="보고서 섹션 이동">
+      {DOCK_ITEMS.map((d, idx) => (
+        <button
+          key={d.id}
+          type="button"
+          className={active === d.id ? "is-active" : undefined}
+          onClick={() => go(d.id)}
+        >
+          <b>{String(idx + 1).padStart(2, "0")}</b>
+          <span>{d.label}</span>
+        </button>
+      ))}
     </nav>
   );
 }

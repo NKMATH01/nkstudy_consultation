@@ -32,7 +32,7 @@ function parsePdf(buf) {
 /** 인쇄 미디어 상태에서 각 .report-page를 PNG로 캡처. 캡처 후 미디어를 화면으로 복원. */
 async function capturePages(page, prefix) {
   await page.emulateMedia({ media: "print" });
-  const pages = page.locator(".report-page");
+  const pages = page.locator(".report-v2-cover, .report-v2-section");
   const n = await pages.count();
   for (let i = 0; i < n; i++) {
     await pages.nth(i).screenshot({ path: path.join(OUT, `${prefix}-page-${String(i + 1).padStart(2, "0")}.png`) });
@@ -54,7 +54,7 @@ async function main() {
   try {
     const page = await browser.newPage();
     await page.goto(`${server.baseURL}/dev-report-preview`, NAV);
-    await page.getByText("NK 학습운영 프로필", { exact: false }).first().waitFor({ state: "visible", timeout: 120000 });
+    await page.getByText("학생 분석 총평", { exact: false }).first().waitFor({ state: "visible", timeout: 120000 });
     if (page.emulateMedia) await page.evaluateHandle(() => document.fonts && document.fonts.ready);
 
     // 1) 상담자용 실제 A4 PDF 생성.
@@ -76,7 +76,7 @@ async function main() {
 
     // 3) 학부모용 페이지 PNG 캡처.
     await page.goto(`${server.baseURL}/dev-report-preview`, NAV);
-    await page.getByRole("button", { name: "학부모용", exact: true }).click();
+    await page.getByRole("button", { name: "학부모 공유본", exact: true }).click();
     await page.getByText("학습 프로필 요약", { exact: false }).first().waitFor({ state: "visible" });
     const pdel = await capturePages(page, "parent");
     findings.push(`학부모 페이지 PNG: ${pdel.n}장 (인쇄 시 dock 노출=${pdel.dockVisible})`);
@@ -85,9 +85,9 @@ async function main() {
     for (const f of findings) console.log(" - " + f);
     console.log(`\n출력 폴더: ${OUT}`);
 
-    // 8개 논리 섹션(.report-page)이 내용 분량에 따라 물리 페이지로 자연 분할될 수 있으므로
-    // pageCount는 8 이상이면 정상이다(자르기·축소 없이 다음 페이지로 이어짐, §13.2).
-    const ok = pageCount >= 8 && a4 && !c.dockVisible && !c.toolbarVisible && pdel.n === 6;
+    // 표지+5섹션(.report-v2-cover/.report-v2-section)이 내용 분량에 따라 물리 페이지로 자연 분할되므로
+    // pageCount는 6 이상이면 정상이다(자르기·축소 없이 다음 페이지로 이어짐, §13.2).
+    const ok = pageCount >= 6 && a4 && !c.dockVisible && !c.toolbarVisible && pdel.n === 6;
     if (!ok) {
       console.log("\n주의: 기대와 다른 항목이 있습니다(수동 검수 필요).");
       process.exitCode = 2;

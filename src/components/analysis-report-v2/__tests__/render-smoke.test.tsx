@@ -45,10 +45,10 @@ describe("V2 결과 보고서 렌더 smoke", () => {
         contacts={{ studentPhone: "010-1234-5678", parentPhone: "010-2222-3333" }}
       />
     );
-    expect(html).toContain("NK 학습운영 프로필");
+    expect(html).toContain("학습 운영 프로필");
     expect(html).toContain("학생 분석 총평");
-    expect(html).toContain("핵심 지도 판정");
-    expect(html).toContain("첫 수업 전 교사 브리핑");
+    expect(html).toContain("CORE INTERPRETATION");
+    expect(html).toContain("TEACHER BRIEF");
     expect(html).toContain("MBTI");
     expect(html).toContain("첫 14일 행동 확인 지표");
     expect(html).toContain("해석 원칙");
@@ -81,11 +81,11 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const safe = buildParentSafeProfile(profile, { name: "가상학생", schoolGrade: "중2" });
     const html = renderToStaticMarkup(<ParentReport data={safe} />);
     expect(html).toContain("학습 프로필 요약");
-    expect(html).toContain("12주 학습 계획");
-    // 상담자 전용 섹션 제목이 학부모 화면에 없다.
-    expect(html).not.toContain("교사 브리핑");
-    expect(html).not.toContain("배경·서술 교차해석");
-    expect(html).not.toContain("핵심 지도 판정");
+    expect(html).toContain("12주 맞춤 솔루션");
+    // 상담자 전용 블록이 학부모 화면에 없다.
+    expect(html).not.toContain("TEACHER BRIEF");
+    expect(html).not.toContain("CORE INTERPRETATION");
+    expect(html).not.toContain("COUNSELING CONTEXT");
   });
 
   it("응답 품질 review이면 중립 확인 문구를 표시한다", () => {
@@ -104,6 +104,6 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const html = renderToStaticMarkup(
       <CounselorReport profile={profile} header={{ name: "가상", schoolGrade: "중2" }} />
     );
-    expect(html).toContain("첫 14일 행동 확인 필요");
+    expect(html).toContain("초기 응답 품질이 낮아");
   });
 });

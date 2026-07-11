@@ -80,10 +80,11 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const profile = resultFor("both");
     const safe = buildParentSafeProfile(profile, { name: "가상학생", schoolGrade: "중2" });
     const html = renderToStaticMarkup(<ParentReport data={safe} />);
-    // 4차 재설계: 선별된 종합 분석 구조.
+    // 재설계: 선별된 종합 분석 구조(약점 섹션 포함).
     expect(html).toContain("종합 분석");
     expect(html).toContain("우리 아이의 강점");
-    expect(html).toContain("함께 도와줄 부분");
+    expect(html).toContain("우리 아이의 약점");
+    expect(html).toContain("항목별 분석");
     expect(html).toContain("NK의 지도 계획");
     expect(html).toContain("12주 맞춤 계획");
     // 상담자 전용 블록이 학부모 화면에 없다.

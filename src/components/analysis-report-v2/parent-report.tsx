@@ -1,8 +1,8 @@
 // 학부모 공유용 V2 결과 보고서. parent-safe snapshot만 렌더한다(화이트 톤·쉬운 우리말).
-// 4차 재설계: 설문 점수 echo(전 항목 막대 나열)를 제거하고, 전문가의 "선별된 종합 분석"으로 재구성.
-// 종합 분석 → 강점 → 도와줄 부분 → 학습 신호(레이더 1개) → 과목 이야기 → NK 지도 계획 → 읽는 안내.
+// 단일화(방향 변경): 상담자/학부모 보고서를 이 학부모 공유본 하나로 통일한다.
+// 구조: 종합 분석 → 강점 → 우리 아이의 약점 → 항목별 분석(레이더+구간별 3문장 해설) → 과목 이야기 → NK 지도 계획 → 읽는 안내.
 // parent-safe payload(allowlist)는 그대로 두고 렌더만 선별한다(§12.3, 기존 공유 snapshot 호환).
-// 상담자용(counselor-report)·공용 컴포넌트·점수 로직은 변경하지 않는다.
+// 항목별 특징·약점 해설은 공용 매트릭스(signal-descriptions)를 사용한다(중복 정의 금지, 낙인 표현 금지).
 
 import type { ParentSafeProfile } from "@/lib/assessment/v2/parent-safe";
 import type { CommonScores, Score } from "@/lib/assessment/v2/types";
@@ -10,13 +10,24 @@ import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report
 import { ReportSection } from "./report-frame";
 import { CoreSignalsRadar } from "./report-ui";
 import { CautionFooter, RoadmapLine, VerifyLine } from "./report-sections";
+import {
+  SIGNAL_BAND_LABEL,
+  SIGNAL_DESC,
+  SIGNAL_INSUFFICIENT,
+  SUBJECT_SIGNAL_DESC,
+  describeBand,
+  signalBandOf,
+  signalToneOf,
+  type BandDesc,
+  type SignalBand,
+} from "./signal-descriptions";
 
 function firstSentence(text: string): string {
   const m = text.split(/(?<=[.!?。])\s+/)[0];
   return m && m.trim() ? m.trim() : text;
 }
 
-// 규칙 기반(fallback) 강점/개선 문자열은 "라벨: 설명 (점수점)" 꼴 → 앞부분을 소제목으로.
+// 규칙 기반(fallback) 강점 문자열은 "라벨: 설명 (점수점)" 꼴 → 앞부분을 소제목으로.
 // AI 생성 자유 문장(콜론 없음)은 통째로 설명으로 렌더한다.
 function splitInsight(text: string): { head: string | null; body: string } {
   const idx = text.indexOf(":");
@@ -26,10 +37,10 @@ function splitInsight(text: string): { head: string | null; body: string } {
   return { head: null, body: text };
 }
 
-function InsightCards({ items, tone }: { items: string[]; tone: "strength" | "growth" }) {
+function StrengthCards({ items }: { items: string[] }) {
   const shown = items.slice(0, 3);
   return (
-    <div className={`insight-cards${tone === "growth" ? " is-growth" : ""}`}>
+    <div className="insight-cards">
       {shown.map((t, i) => {
         const { head, body } = splitInsight(t);
         return (
@@ -55,81 +66,23 @@ const RADAR_KEYS: (keyof CommonScores)[] = [
   "peerLearningResource",
 ];
 
-// ── 항목별 분석: 점수 구간(밴드)별 결정론적 특징 해설 ────────────────────────
-// 모든 common 점수는 높을수록 안정적(§8.1). 밴드: high≥65 / mid 45~64 / low<45.
-type Band = "high" | "mid" | "low";
-const BAND_LABEL: Record<Band, string> = { high: "안정적", mid: "보통", low: "먼저 도와줄 부분" };
+type AnalysisItem = { label: string; score: Score; desc: Record<SignalBand, BandDesc> };
 
-function bandOf(score: Score): Band | null {
-  if (!isNum(score)) return null;
-  if (score >= 65) return "high";
-  if (score >= 45) return "mid";
-  return "low";
-}
-
-// 항목 × 밴드별 구체적 행동 특징(1~2문장). 단순 밴드 문구 반복이 아니라 구간별 서술.
-const ITEM_DESC: Record<string, Record<Band, string>> = {
-  learningAttitude: {
-    high: "수업에 집중해 들어오고 중요한 내용을 스스로 챙겨요. 선생님 설명이 그대로 공부 자료가 됩니다.",
-    mid: "수업은 대체로 따라오지만 아는 내용이 반복되면 집중이 흔들리는 날이 있어요. 짧은 질문으로 참여를 이어 주면 좋습니다.",
-    low: "수업 집중이 자주 끊겨요. 설명을 시켜 보거나 확인 질문을 자주 던지면 참여가 살아납니다.",
-  },
-  homeworkReliability: {
-    high: "숙제를 기한 안에 해오는 습관이 잘 잡혀 있어요. 시작을 미루는 날이 드뭅니다.",
-    mid: "숙제는 하지만 마감에 몰아서 하는 편이에요. 시작 시각을 정해 주면 흐름이 안정됩니다.",
-    low: "숙제 시작을 자주 미뤄요. 양을 늘리기보다 시작 시각을 함께 정하는 것이 먼저입니다.",
-  },
-  phoneBoundary: {
-    high: "공부할 때 휴대폰을 스스로 정리하는 편이에요. 집중을 크게 방해받지 않습니다.",
-    mid: "휴대폰이 곁에 있으면 가끔 집중이 흔들려요. 시작 전에 눈에서 치우면 도움이 됩니다.",
-    low: "공부를 시작할 때 휴대폰을 자동으로 확인하는 습관이 있어요. 처음에는 옆에서 정리를 도와주면 좋습니다.",
-  },
-  longTermPersistence: {
-    high: "목표를 향해 꾸준히 버티는 힘이 좋아요. 세운 계획을 오래 이어 갑니다.",
-    mid: "목표는 뚜렷하지만 중간에 흐트러질 때가 있어요. 주간 점검이 버팀목이 됩니다.",
-    low: "목표를 오래 유지하기 어려워해요. 큰 목표를 짧게 쪼개 주면 끝까지 가기 쉬워집니다.",
-  },
-  shortTermRecovery: {
-    high: "점수가 낮거나 문제가 막혀도 금방 다시 시작해요. 회복 탄력이 좋습니다.",
-    mid: "실수한 뒤 다시 시작하기까지 시간이 조금 걸려요. 무엇부터 할지 정해 주면 빨라집니다.",
-    low: "막히거나 틀린 뒤 오래 멈춰 있는 편이에요. 바로 다음 한 걸음을 함께 정해 주는 것이 중요합니다.",
-  },
-  peerLearningResource: {
-    high: "친구와 함께 공부하는 것이 서로에게 힘이 되는 편이에요. 좋은 자극을 주고받습니다.",
-    mid: "친구의 영향이 상황에 따라 달라요. 짝 확인 시간과 혼자 집중 시간을 나눠 주면 좋습니다.",
-    low: "아직 친구가 공부에 큰 힘이 되지는 않아요. 혼자 집중할 수 있는 환경이 더 잘 맞습니다.",
-  },
-};
-
-const SUBJECT_DESC: Record<"math" | "english", Record<Band, string>> = {
-  math: {
-    high: "수학 학습 방법이 자리 잡혀 있어요. 개념을 자기 말로 설명하고 틀린 이유를 나눠 봅니다.",
-    mid: "기본 방법은 있지만 꾸준함이 필요해요. 오답 정리를 루틴으로 굳히면 점수로 이어집니다.",
-    low: "수학 학습 방법을 함께 잡아 가야 해요. 개념 설명과 오답 정리부터 작게 시작하면 좋습니다.",
-  },
-  english: {
-    high: "영어 학습 방법이 자리 잡혀 있어요. 단어를 꾸준히 복습하고 근거를 찾아 읽습니다.",
-    mid: "기본 방법은 있지만 꾸준함이 필요해요. 단어 복습과 구조 읽기를 루틴으로 굳히면 좋습니다.",
-    low: "영어 학습 방법을 함께 잡아 가야 해요. 단어 복습과 문장 구조 표시부터 작게 시작하면 좋습니다.",
-  },
-};
-
-type AnalysisItem = { label: string; score: Score; desc: Record<Band, string> };
-
+// ④ 항목별 분석: 항목명 + 점수·밴드 배지 + 슬림 막대 + 구간별 3문장 해설.
 function ItemAnalysisRows({ items }: { items: AnalysisItem[] }) {
   return (
     <div className="analysis-rows">
       {items.map((it) => {
-        const band = bandOf(it.score);
-        const tone = band ? `is-${band}` : undefined;
+        const band = signalBandOf(it.score);
+        const tone = signalToneOf(band);
         return (
-          <article key={it.label} className={tone}>
+          <article key={it.label} className={band ? `is-${tone}` : undefined}>
             <header>
               <h4>{it.label}</h4>
               <span className="analysis-rows__badge">
                 <b className="analysis-rows__score">{isNum(it.score) ? it.score.toFixed(1) : "–"}점</b>
-                <span className={`analysis-rows__band b-${band ?? "none"}`}>
-                  {band ? BAND_LABEL[band] : "정보 부족"}
+                <span className={`analysis-rows__band b-${tone}`}>
+                  {band ? SIGNAL_BAND_LABEL[band] : "정보 부족"}
                 </span>
               </span>
             </header>
@@ -138,14 +91,51 @@ function ItemAnalysisRows({ items }: { items: AnalysisItem[] }) {
                 <b style={{ width: `${pct(it.score)}%` }} />
               </i>
             )}
-            <p>
-              {band
-                ? it.desc[band]
-                : "응답이 적어 이번에는 점수 표시를 미뤘어요. 처음 몇 주간 실제 모습으로 함께 살펴볼게요."}
-            </p>
+            <p>{band ? describeBand(it.desc[band]) : SIGNAL_INSUFFICIENT}</p>
           </article>
         );
       })}
+    </div>
+  );
+}
+
+// ③ 약점 카드: 약점 명칭 + 점수 근거 + 실제 나타남 + NK 도움.
+type Weakness = { label: string; score: number; band: SignalBand; manifest: string; help: string };
+
+function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boolean }) {
+  if (items.length === 0) {
+    return (
+      <div className="weakness-cards">
+        <article className="is-none">
+          <p className="weak-manifest">
+            아직 점수로 뚜렷한 약점을 꼽기는 일러요. 처음 몇 주간 실제 모습으로 함께 확인하며 보완점을 찾아갈게요.
+          </p>
+        </article>
+      </div>
+    );
+  }
+  return (
+    <div className="weakness-cards">
+      {relative && (
+        <p className="weakness-note">
+          지금 뚜렷한 약점은 없어요. 다른 강점에 비해 상대적으로 먼저 챙기면 좋은 부분을 짚어 둘게요.
+        </p>
+      )}
+      {items.map((w) => (
+        <article key={w.label} className={`is-${w.band}`}>
+          <header>
+            <h4>{w.label}</h4>
+            <span className="weakness-cards__badge">
+              <b>{w.score.toFixed(1)}점</b>
+              <span className={`analysis-rows__band b-${w.band}`}>{SIGNAL_BAND_LABEL[w.band]}</span>
+            </span>
+          </header>
+          <p className="weak-manifest">{w.manifest}</p>
+          <p className="weak-help">
+            <b>NK의 도움</b> {w.help}
+          </p>
+        </article>
+      ))}
     </div>
   );
 }
@@ -178,14 +168,34 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const analysisItems: AnalysisItem[] = RADAR_KEYS.map((k) => ({
     label: CONSTRUCT_LABEL[k],
     score: s.common[k],
-    desc: ITEM_DESC[k],
+    desc: SIGNAL_DESC[k],
   }));
   if (showMath && s.math) {
-    analysisItems.push({ label: "수학 학습전략", score: s.math.mathStrategy, desc: SUBJECT_DESC.math });
+    analysisItems.push({ label: "수학 학습전략", score: s.math.mathStrategy, desc: SUBJECT_SIGNAL_DESC.math });
   }
   if (showEnglish && s.english) {
-    analysisItems.push({ label: "영어 학습전략", score: s.english.englishStrategy, desc: SUBJECT_DESC.english });
+    analysisItems.push({
+      label: "영어 학습전략",
+      score: s.english.englishStrategy,
+      desc: SUBJECT_SIGNAL_DESC.english,
+    });
   }
+
+  // 약점: 낮은 점수 항목(45 미만)을 결정론적으로 뽑는다. 없으면 최하위 2개(상대적 보완점).
+  const scored = analysisItems.filter((it) => isNum(it.score));
+  const ascending = [...scored].sort((a, b) => (a.score as number) - (b.score as number));
+  const lowOnes = ascending.filter((it) => (it.score as number) < 45).slice(0, 3);
+  const relativeWeak = lowOnes.length === 0;
+  const pickedWeak = relativeWeak ? ascending.slice(0, 2) : lowOnes;
+  const weaknesses: Weakness[] = pickedWeak.map((it) => {
+    const band = signalBandOf(it.score) as SignalBand;
+    const bd = it.desc[band];
+    const manifest =
+      band === "high"
+        ? "지금은 안정적인 편이에요. 다만 다른 강점에 비하면 상대적으로 먼저 챙겨 두면 좋습니다."
+        : bd.example;
+    return { label: it.label, score: it.score as number, band, manifest, help: bd.help };
+  });
 
   return (
     <>
@@ -228,26 +238,26 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         title="우리 아이의 강점"
         caption="지금 학습에서 이미 잘 작동하고 있는, 앞으로 더 키워 갈 힘입니다."
       >
-        <InsightCards items={i.strengths} tone="strength" />
+        <StrengthCards items={i.strengths} />
       </ReportSection>
 
-      {/* ③ 함께 도와줄 부분 */}
+      {/* ③ 우리 아이의 약점 — 점수 근거 + 실제 나타남 + NK 도움 */}
       <ReportSection
-        id="sec-growth"
+        id="sec-weakness"
         index="03"
-        title="함께 도와줄 부분"
-        caption="부족한 점이 아니라, 처음 몇 주 동안 학원과 가정이 먼저 채워 줄 부분입니다."
+        title="우리 아이의 약점"
+        caption="약점은 혼낼 점이 아니라 함께 보완할 지점입니다. 실제로 어떻게 나타나는지와 도울 방법을 함께 적었어요."
         aside={<b className="section-note">낙인 없이</b>}
       >
-        <InsightCards items={i.growthAreas} tone="growth" />
+        <WeaknessCards items={weaknesses} relative={relativeWeak} />
       </ReportSection>
 
-      {/* ④ 항목별 분석 — 상단 레이더 + 항목별 점수·밴드·특징 해설 */}
+      {/* ④ 항목별 분석 — 상단 레이더 + 항목별 점수·밴드·3문장 해설 */}
       <ReportSection
         id="sec-signals"
         index="04"
         title="항목별 분석"
-        caption="핵심 학습 신호를 점수와 함께, 항목별 특징으로 풀어 정리했습니다."
+        caption="핵심 학습 신호를 점수와 함께, 항목별로 상태·실제 모습·도울 방법까지 풀어 정리했습니다."
       >
         <div className="signal-solo">
           <figure className="analysis-figure">

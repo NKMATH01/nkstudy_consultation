@@ -141,6 +141,22 @@ export const REPORT_PREMIUM_CSS = `
 .analysis-rows > article.is-low i b { background: var(--coral); }
 .analysis-rows p { margin: 9px 0 0; color: var(--text); font-size: 12.5px; line-height: 1.6; word-break: keep-all; }
 
+/* ③ 약점 카드: 실제 나타남(점수 근거) + NK 도움 2단 */
+.weakness-cards { display: grid; gap: 8px; }
+.weakness-note { margin: 0 0 2px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.weakness-cards > article { padding: 15px 16px; background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--coral); border-radius: 10px; }
+.weakness-cards > article.is-high { border-left-color: var(--teal); }
+.weakness-cards > article.is-mid { border-left-color: var(--blue); }
+.weakness-cards > article.is-none { border-left-color: var(--line-strong); }
+.weakness-cards header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.weakness-cards h4 { margin: 0; color: var(--ink-950); font-size: 13.5px; font-weight: 800; }
+.weakness-cards__badge { display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.weakness-cards__badge > b { color: var(--navy); font-size: 14px; font-weight: 800; }
+.weakness-cards .weak-manifest { margin: 9px 0 0; color: var(--text); font-size: 12.5px; line-height: 1.6; word-break: keep-all; }
+.weakness-cards > article.is-none .weak-manifest { margin: 0; }
+.weakness-cards .weak-help { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; line-height: 1.55; word-break: keep-all; }
+.weakness-cards .weak-help > b { margin-right: 5px; color: var(--brass-dark); font-weight: 800; }
+
 .subject-notes { display: grid; gap: 12px; }
 .subject-notes article { padding: 18px 20px; background: var(--ivory); border-radius: 12px; border-left: 4px solid var(--brass); }
 .subject-notes article > span { color: var(--brass-dark); font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }

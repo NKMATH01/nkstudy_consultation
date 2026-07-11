@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { callGeminiAPI, extractJSON, surveyToText, buildAnalysisPrompt } from "@/lib/gemini";
 import { buildAnalysisReportHTML } from "@/lib/claude";
+import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
 import type { Analysis, Survey, PaginatedResponse } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -93,8 +94,17 @@ export async function getAnalysis(id: string): Promise<Analysis | null> {
   return data as Analysis;
 }
 
+// analyzeSurvey/reAnalyzeSurvey의 공용 반환 타입.
+// 기존 V1 추론 유니온과 동일하게 성공 분기에 error?: undefined를 명시한다
+// (이게 없으면 호출부 else 분기의 result.error 접근이 타입 에러가 난다).
+// analyzeSurveyV2의 추론 반환형은 success가 boolean으로 넓혀져 있어 가드에서 as로 좁혀 반환한다.
+type AnalyzeSurveyResult =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | { success: true; data: any; source?: "ai" | "fallback"; warning?: string; error?: undefined }
+  | { success: false; error: string };
+
 // ========== 설문 → AI 분석 실행 ==========
-export async function analyzeSurvey(surveyId: string) {
+export async function analyzeSurvey(surveyId: string): Promise<AnalyzeSurveyResult> {
   const supabase = await createClient();
 
   // 1. 설문 데이터 조회
@@ -109,6 +119,15 @@ export async function analyzeSurvey(surveyId: string) {
   }
 
   const surveyData = survey as Survey;
+
+  // V2 설문은 V1 분석 로직(q1~35 기반)을 절대 실행하지 않는다.
+  // 배포 전 열려 있던 stale 클라이언트가 V1 액션을 호출해도 서버에서 V2 해석으로 위임한다
+  // (강현찬 사고 재발 방지). instrument_version은 위에서 select("*")로 이미 조회됨.
+  if (surveyData.instrument_version === "v2") {
+    // analyzeSurveyV2의 추론 반환형은 success가 boolean으로 넓혀져 있어 그대로는 대입되지 않는다.
+    // 런타임 형태는 {success, data/error} 계약과 동일하므로 명시적으로 좁혀 반환한다.
+    return analyzeSurveyV2(surveyId) as Promise<AnalyzeSurveyResult>;
+  }
 
   // 2. 설문 텍스트 변환 + 프롬프트 생성
   const surveyText = surveyToText(surveyData);
@@ -238,7 +257,7 @@ export async function regenerateAnalysisReport(id: string) {
 // ========== 재분석 ==========
 // analyzeSurvey가 survey_id upsert로 중복을 원천 차단하므로, 재분석은 동일 호출로 충분하다.
 // (기존 "옛 분석 조회→새 분석→삭제" 로직 불필요) export 시그니처는 클라이언트 호환을 위해 유지.
-export async function reAnalyzeSurvey(surveyId: string) {
+export async function reAnalyzeSurvey(surveyId: string): Promise<AnalyzeSurveyResult> {
   return analyzeSurvey(surveyId);
 }
 

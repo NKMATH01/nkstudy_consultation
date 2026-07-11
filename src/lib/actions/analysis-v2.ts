@@ -18,6 +18,7 @@ import {
   buildFallbackInterpretation,
   buildResultProfileV2,
 } from "@/lib/assessment/v2/interpretation";
+import { applyStudentNameToInterpretation } from "@/lib/assessment/v2/name-substitution";
 import type { AiInterpretation } from "@/lib/assessment/v2/ai-contract";
 import type { ScoreProfile } from "@/lib/assessment/v2/types";
 
@@ -107,21 +108,25 @@ export async function analyzeSurveyV2(surveyId: string) {
     };
   }
 
-  const { interpretation, source } = await interpretWithAiOrFallback(
+  const { interpretation: rawInterpretation, source } = await interpretWithAiOrFallback(
     scoreProfile,
     row.intake_v2,
     row.responses_v2,
     surveyId
   );
 
+  // 이름은 서버 로컬로만 합성(analyses.name NOT NULL). AI에는 전송하지 않았다.
+  const name = row.intake_v2?.name ?? row.name ?? "(이름 미상)";
+
+  // AI/fallback 해석의 "{{학생}}" 토큰을 실제 이름(예: 강현찬 학생)으로 치환하고,
+  // AI가 지시를 어겨 쓴 따님/아드님/아이/자녀도 교정한다. 저장 전에 수행해 화면·PDF·공유 모두 일관.
+  const interpretation = applyStudentNameToInterpretation(rawInterpretation, name);
+
   const resultProfile = buildResultProfileV2({
     scoreProfile,
     interpretation,
     source,
   });
-
-  // 이름은 서버 로컬로만 합성(analyses.name NOT NULL). AI에는 전송하지 않았다.
-  const name = row.intake_v2?.name ?? row.name ?? "(이름 미상)";
 
   const insertData = {
     survey_id: surveyId,

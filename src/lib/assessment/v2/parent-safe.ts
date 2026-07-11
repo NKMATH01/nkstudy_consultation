@@ -17,6 +17,7 @@
 // 서버(공유 token snapshot 생성)가 동일 함수를 호출하므로 두 화면이 항상 일치한다.
 
 import type { ResultProfileV2 } from "./interpretation";
+import { applyStudentNameToInterpretation } from "./name-substitution";
 import type {
   CommonScores,
   EnglishScores,
@@ -107,7 +108,9 @@ export function buildParentSafeProfile(
   display: { name: string; schoolGrade: string }
 ): ParentSafeProfile {
   const s = full.scores;
-  const i = full.interpretation;
+  // 저장 경로(analysis-v2)에서 이미 치환됐더라도, 미저장·프리뷰 렌더까지 일관되게
+  // 학생 호칭을 실제 이름으로 확정한다(멱등: 토큰·따님/아이가 없으면 그대로).
+  const i = applyStudentNameToInterpretation(full.interpretation, display.name);
 
   return {
     instrumentVersion: "v2",

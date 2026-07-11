@@ -82,8 +82,15 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const html = renderToStaticMarkup(<ParentReport data={safe} />);
     // 재설계: 선별된 종합 분석 구조(약점 섹션 포함).
     expect(html).toContain("종합 분석");
-    expect(html).toContain("우리 아이의 강점");
-    expect(html).toContain("우리 아이의 약점");
+    // 실명 호칭 치환: "OO 학생의 강점/약점"(가상학생 → "가상학생 학생").
+    expect(html).toContain("학생의 강점");
+    expect(html).toContain("학생의 약점");
+    // AI/fallback의 "{{학생}}" 토큰이 렌더에 그대로 노출되지 않는다.
+    expect(html).not.toContain("{{학생}}");
+    // 강점 카드에도 관련 construct 점수 배지가 붙는다(약점 카드와 동일 스타일).
+    expect(html).toContain("insight-cards__badge");
+    // 본문에 실제 점수 수치가 인용된다(예: "81.3점").
+    expect(html).toMatch(/\d+\.\d+점/);
     expect(html).toContain("항목별 분석");
     expect(html).toContain("NK의 지도 계획");
     expect(html).toContain("12주 맞춤 계획");

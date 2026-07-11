@@ -114,6 +114,10 @@ export const REPORT_PREMIUM_CSS = `
 .insight-cards.is-growth .insight-cards__idx { background: var(--coral-soft); color: var(--coral); }
 .insight-cards article strong { display: block; color: var(--ink-950); font-size: 14px; font-weight: 800; }
 .insight-cards article strong + p { margin-top: 4px; }
+.insight-cards__head { display: flex; align-items: baseline; gap: 8px; }
+.insight-cards__head + p { margin-top: 4px; }
+.insight-cards__badge { margin-left: auto; display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.insight-cards__badge > b { color: var(--navy); font-size: 13.5px; font-weight: 800; }
 .insight-cards article p { margin: 0; color: var(--text); font-size: 13px; line-height: 1.65; word-break: keep-all; }
 
 .signal-solo { max-width: 460px; margin: 0 auto; }

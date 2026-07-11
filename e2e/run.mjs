@@ -240,8 +240,8 @@ function surveyTests(baseURL, browser) {
 // 단일화된 학부모 공유본 섹션(종합·강점·약점·항목별·과목·계획 + 읽는 원칙).
 const REPORT_SECTIONS = [
   "종합 분석",
-  "우리 아이의 강점",
-  "우리 아이의 약점",
+  "학생의 강점",
+  "학생의 약점",
   "항목별 분석",
   "과목 이야기",
   "NK의 지도 계획",
@@ -292,7 +292,7 @@ function reportTests(baseURL, browser) {
           for (const t of COUNSELOR_ONLY) {
             assertEqual(await page.getByText(t, { exact: false }).count(), 0, `상담자 전용 노출: ${t}`);
           }
-          assert((await page.getByText("우리 아이의 약점", { exact: false }).count()) > 0, "약점 섹션 존재");
+          assert((await page.getByText("학생의 약점", { exact: false }).count()) > 0, "약점 섹션 존재");
           // 상담자/학부모 토글이 없다(단일 보고서).
           assertEqual(
             await page.getByRole("button", { name: "학부모 공유본", exact: true }).count(),

@@ -1,10 +1,13 @@
 // 학부모 공유용 V2 결과 보고서. parent-safe snapshot만 렌더한다(화이트 톤·쉬운 우리말).
 // 단일화(방향 변경): 상담자/학부모 보고서를 이 학부모 공유본 하나로 통일한다.
-// 구조: 종합 분석 → 강점 → 우리 아이의 약점 → 항목별 분석(레이더+구간별 3문장 해설) → 과목 이야기 → NK 지도 계획 → 읽는 안내.
+// 구조: 종합 분석 → 강점 → 약점 → 항목별 분석(레이더+구간별 3문장 해설) → 과목 이야기 → NK 지도 계획 → 읽는 안내.
+// 학생 호칭은 "OO 학생"(실명+학생)으로 통일한다. 결정론 문구는 렌더가 이름을 받아 조립하고,
+// AI/fallback 해석 문구는 name-substitution이 "{{학생}}" 토큰·따님/아이 등을 치환한다.
 // parent-safe payload(allowlist)는 그대로 두고 렌더만 선별한다(§12.3, 기존 공유 snapshot 호환).
 // 항목별 특징·약점 해설은 공용 매트릭스(signal-descriptions)를 사용한다(중복 정의 금지, 낙인 표현 금지).
 
 import type { ParentSafeProfile, ParentSafeScores } from "@/lib/assessment/v2/parent-safe";
+import { studentLabel } from "@/lib/assessment/v2/name-substitution";
 import type { CommonScores, Score } from "@/lib/assessment/v2/types";
 import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
 import { ReportSection } from "./report-frame";
@@ -47,8 +50,8 @@ function splitParagraphs(text: string): string[] {
   return out.slice(0, 8);
 }
 
-// "영역별 한눈에": 전 영역을 종합 분석 안에서 한 번씩 짚는 결정론적 요약.
-// signal-descriptions의 band별 state(첫 문장)만 압축 조합한다(④ 항목별 분석과 문구 중복 최소화).
+// "영역별 한눈에": 전 영역을 종합 분석 안에서 한 번씩 짚는 결정론적 요약(구획당 1문장).
+// 각 구획에서 먼저 도와줄(점수가 낮은) 항목의 state 첫 문장만 뽑아 ④ 항목별 분석과 중복을 최소화한다.
 const DIGEST_INSUFFICIENT = "아직 응답이 부족해 상담에서 함께 확인할 부분이에요.";
 
 function commonState(key: keyof CommonScores, score: Score): string | null {
@@ -63,6 +66,17 @@ function subjectState(subject: "math" | "english", score: Score): string | null 
 }
 
 type DigestArea = { key: string; label: string; text: string };
+type DigestCand = { state: string | null; score: Score };
+
+// 구획 안에서 점수가 가장 낮은(먼저 도와줄) 항목의 문장 1개만 남긴다.
+function lowestState(cands: DigestCand[]): string {
+  const scored = cands.filter(
+    (c): c is { state: string; score: number } => isNum(c.score) && !!c.state
+  );
+  if (scored.length === 0) return DIGEST_INSUFFICIENT;
+  scored.sort((a, b) => a.score - b.score);
+  return scored[0].state;
+}
 
 function buildAreaDigest(
   scores: ParentSafeScores,
@@ -70,42 +84,42 @@ function buildAreaDigest(
   showEnglish: boolean
 ): DigestArea[] {
   const c = scores.common;
-  const join = (parts: (string | null)[]) =>
-    parts.filter((p): p is string => !!p).join(" ") || DIGEST_INSUFFICIENT;
-
   const areas: DigestArea[] = [
     {
       key: "learning",
       label: "학습 · 수업과 숙제",
-      text: join([
-        commonState("learningAttitude", c.learningAttitude),
-        commonState("homeworkReliability", c.homeworkReliability),
+      text: lowestState([
+        { state: commonState("learningAttitude", c.learningAttitude), score: c.learningAttitude },
+        { state: commonState("homeworkReliability", c.homeworkReliability), score: c.homeworkReliability },
       ]),
     },
     {
       key: "life",
       label: "생활 · 휴대폰과 친구",
-      text: join([
-        commonState("phoneBoundary", c.phoneBoundary),
-        commonState("peerLearningResource", c.peerLearningResource),
+      text: lowestState([
+        { state: commonState("phoneBoundary", c.phoneBoundary), score: c.phoneBoundary },
+        { state: commonState("peerLearningResource", c.peerLearningResource), score: c.peerLearningResource },
       ]),
     },
     {
       key: "mind",
       label: "마음 · 의지와 회복",
-      text: join([
-        commonState("longTermPersistence", c.longTermPersistence),
-        commonState("shortTermRecovery", c.shortTermRecovery),
+      text: lowestState([
+        { state: commonState("longTermPersistence", c.longTermPersistence), score: c.longTermPersistence },
+        { state: commonState("shortTermRecovery", c.shortTermRecovery), score: c.shortTermRecovery },
       ]),
     },
   ];
 
-  const subjectParts: (string | null)[] = [];
-  if (showMath && scores.math) subjectParts.push(subjectState("math", scores.math.mathStrategy));
+  const subjectCands: DigestCand[] = [];
+  if (showMath && scores.math)
+    subjectCands.push({ state: subjectState("math", scores.math.mathStrategy), score: scores.math.mathStrategy });
   if (showEnglish && scores.english)
-    subjectParts.push(subjectState("english", scores.english.englishStrategy));
-  const subjectText = subjectParts.filter((p): p is string => !!p).join(" ");
-  if (subjectText) areas.push({ key: "subject", label: "과목 · 학습 방법", text: subjectText });
+    subjectCands.push({
+      state: subjectState("english", scores.english.englishStrategy),
+      score: scores.english.englishStrategy,
+    });
+  if (subjectCands.length) areas.push({ key: "subject", label: "과목 · 학습 방법", text: lowestState(subjectCands) });
 
   return areas;
 }
@@ -120,17 +134,44 @@ function splitInsight(text: string): { head: string | null; body: string } {
   return { head: null, body: text };
 }
 
-function StrengthCards({ items }: { items: string[] }) {
+type LabeledScore = { label: string; score: Score };
+
+// 강점 문장에 등장하는 항목 라벨을 찾아 관련 construct 점수·밴드를 매핑한다(약점 카드와 동일 배지).
+// 매칭이 안 되면(라벨 미언급) 배지를 생략한다.
+function matchStrengthScore(text: string, items: LabeledScore[]): { score: number; band: SignalBand } | null {
+  for (const it of items) {
+    if (isNum(it.score) && text.includes(it.label)) {
+      const band = signalBandOf(it.score);
+      if (band) return { score: it.score, band };
+    }
+  }
+  return null;
+}
+
+function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: LabeledScore[] }) {
   const shown = items.slice(0, 3);
   return (
     <div className="insight-cards">
       {shown.map((t, i) => {
         const { head, body } = splitInsight(t);
+        const matched = matchStrengthScore(t, scoreItems);
         return (
           <article key={i}>
             <span className="insight-cards__idx">{String(i + 1).padStart(2, "0")}</span>
             <div>
-              {head && <strong>{head}</strong>}
+              {(head || matched) && (
+                <div className="insight-cards__head">
+                  {head && <strong>{head}</strong>}
+                  {matched && (
+                    <span className="insight-cards__badge">
+                      <b>{matched.score.toFixed(1)}점</b>
+                      <span className={`analysis-rows__band b-${matched.band}`}>
+                        {SIGNAL_BAND_LABEL[matched.band]}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              )}
               <p>{body}</p>
             </div>
           </article>
@@ -252,6 +293,9 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const summaryParas = i.detailedSummary ? splitParagraphs(i.detailedSummary) : [];
   const areaDigest = buildAreaDigest(s, showMath, showEnglish);
 
+  // 결정론 UI 문구의 학생 호칭(예: "강현찬 학생"). 렌더가 이미 이름을 알고 있어 "OO 학생"으로 쓴다.
+  const who = studentLabel(data.display.name);
+
   // 항목별 분석: 핵심 6신호 + 선택 과목 학습전략 신호(6~8개).
   const analysisItems: AnalysisItem[] = RADAR_KEYS.map((k) => ({
     label: CONSTRUCT_LABEL[k],
@@ -305,7 +349,7 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         id="sec-summary"
         index="01"
         title="종합 분석"
-        caption="아이가 직접 쓴 최근 4주 응답을 바탕으로, 지금 학습 상태를 종합해 정리했습니다."
+        caption={`${who}이 직접 쓴 최근 4주 응답으로 지금 학습 상태를 정리했습니다.`}
         aside={<b className="section-note">전문 분석 총평</b>}
       >
         <div className="executive-statement">
@@ -339,21 +383,21 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         </div>
       </ReportSection>
 
-      {/* ② 우리 아이의 강점 */}
+      {/* ② OO 학생의 강점 */}
       <ReportSection
         id="sec-strength"
         index="02"
-        title="우리 아이의 강점"
+        title={`${who}의 강점`}
         caption="지금 학습에서 이미 잘 작동하고 있는, 앞으로 더 키워 갈 힘입니다."
       >
-        <StrengthCards items={i.strengths} />
+        <StrengthCards items={i.strengths} scoreItems={analysisItems} />
       </ReportSection>
 
-      {/* ③ 우리 아이의 약점 — 점수 근거 + 실제 나타남 + NK 도움 */}
+      {/* ③ OO 학생의 약점 — 점수 근거 + 실제 나타남 + NK 도움 */}
       <ReportSection
         id="sec-weakness"
         index="03"
-        title="우리 아이의 약점"
+        title={`${who}의 약점`}
         caption="약점은 혼낼 점이 아니라 함께 보완할 지점입니다. 실제로 어떻게 나타나는지와 도울 방법을 함께 적었어요."
         aside={<b className="section-note">낙인 없이</b>}
       >

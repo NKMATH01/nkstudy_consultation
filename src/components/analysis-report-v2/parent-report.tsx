@@ -4,7 +4,7 @@
 // parent-safe payload(allowlist)는 그대로 두고 렌더만 선별한다(§12.3, 기존 공유 snapshot 호환).
 // 항목별 특징·약점 해설은 공용 매트릭스(signal-descriptions)를 사용한다(중복 정의 금지, 낙인 표현 금지).
 
-import type { ParentSafeProfile } from "@/lib/assessment/v2/parent-safe";
+import type { ParentSafeProfile, ParentSafeScores } from "@/lib/assessment/v2/parent-safe";
 import type { CommonScores, Score } from "@/lib/assessment/v2/types";
 import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
 import { ReportSection } from "./report-frame";
@@ -25,6 +25,89 @@ import {
 function firstSentence(text: string): string {
   const m = text.split(/(?<=[.!?。])\s+/)[0];
   return m && m.trim() ? m.trim() : text;
+}
+
+// detailedSummary(전 영역 상세 총평)를 문단으로 나눈다. AI는 빈 줄로 문단을 구분하지만,
+// 규칙 기반 fallback은 한 덩어리로 오므로 문장 2개씩 묶어 모바일 가독(문단 간격)을 확보한다.
+function splitParagraphs(text: string): string[] {
+  const byPara = text
+    .split(/\n\s*\n|\n/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (byPara.length >= 2) return byPara.slice(0, 8);
+  const sentences = text
+    .split(/(?<=[.!?。])\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (sentences.length <= 2) return [text.trim()];
+  const out: string[] = [];
+  for (let idx = 0; idx < sentences.length; idx += 2) {
+    out.push(sentences.slice(idx, idx + 2).join(" "));
+  }
+  return out.slice(0, 8);
+}
+
+// "영역별 한눈에": 전 영역을 종합 분석 안에서 한 번씩 짚는 결정론적 요약.
+// signal-descriptions의 band별 state(첫 문장)만 압축 조합한다(④ 항목별 분석과 문구 중복 최소화).
+const DIGEST_INSUFFICIENT = "아직 응답이 부족해 상담에서 함께 확인할 부분이에요.";
+
+function commonState(key: keyof CommonScores, score: Score): string | null {
+  const band = signalBandOf(score);
+  const desc = SIGNAL_DESC[key];
+  return band && desc ? firstSentence(desc[band].state) : null;
+}
+
+function subjectState(subject: "math" | "english", score: Score): string | null {
+  const band = signalBandOf(score);
+  return band ? firstSentence(SUBJECT_SIGNAL_DESC[subject][band].state) : null;
+}
+
+type DigestArea = { key: string; label: string; text: string };
+
+function buildAreaDigest(
+  scores: ParentSafeScores,
+  showMath: boolean,
+  showEnglish: boolean
+): DigestArea[] {
+  const c = scores.common;
+  const join = (parts: (string | null)[]) =>
+    parts.filter((p): p is string => !!p).join(" ") || DIGEST_INSUFFICIENT;
+
+  const areas: DigestArea[] = [
+    {
+      key: "learning",
+      label: "학습 · 수업과 숙제",
+      text: join([
+        commonState("learningAttitude", c.learningAttitude),
+        commonState("homeworkReliability", c.homeworkReliability),
+      ]),
+    },
+    {
+      key: "life",
+      label: "생활 · 휴대폰과 친구",
+      text: join([
+        commonState("phoneBoundary", c.phoneBoundary),
+        commonState("peerLearningResource", c.peerLearningResource),
+      ]),
+    },
+    {
+      key: "mind",
+      label: "마음 · 의지와 회복",
+      text: join([
+        commonState("longTermPersistence", c.longTermPersistence),
+        commonState("shortTermRecovery", c.shortTermRecovery),
+      ]),
+    },
+  ];
+
+  const subjectParts: (string | null)[] = [];
+  if (showMath && scores.math) subjectParts.push(subjectState("math", scores.math.mathStrategy));
+  if (showEnglish && scores.english)
+    subjectParts.push(subjectState("english", scores.english.englishStrategy));
+  const subjectText = subjectParts.filter((p): p is string => !!p).join(" ");
+  if (subjectText) areas.push({ key: "subject", label: "과목 · 학습 방법", text: subjectText });
+
+  return areas;
 }
 
 // 규칙 기반(fallback) 강점 문자열은 "라벨: 설명 (점수점)" 꼴 → 앞부분을 소제목으로.
@@ -164,6 +247,11 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const showEnglish = data.subjectSelection === "english" || data.subjectSelection === "both";
   const hasSubjectNote = (showMath && i.mathStrategy) || (showEnglish && i.englishStrategy);
 
+  // 01 종합 분석 본문: AI 상세 총평(문단 분할) + 전 영역 결정론적 요약.
+  // detailedSummary는 과거 공유 snapshot에 없을 수 있어 optional 처리(없으면 상세 본문 생략).
+  const summaryParas = i.detailedSummary ? splitParagraphs(i.detailedSummary) : [];
+  const areaDigest = buildAreaDigest(s, showMath, showEnglish);
+
   // 항목별 분석: 핵심 6신호 + 선택 과목 학습전략 신호(6~8개).
   const analysisItems: AnalysisItem[] = RADAR_KEYS.map((k) => ({
     label: CONSTRUCT_LABEL[k],
@@ -223,7 +311,27 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         <div className="executive-statement">
           <span>학습 유형</span>
           <h3>{i.studentType}</h3>
-          <p>{i.parentSummary}</p>
+          <p className="executive-statement__lead">{i.parentSummary}</p>
+          {summaryParas.length > 0 && (
+            <div className="executive-statement__detail">
+              {summaryParas.map((p, idx) => (
+                <p key={idx}>{p}</p>
+              ))}
+            </div>
+          )}
+          {areaDigest.length > 0 && (
+            <div className="summary-areas">
+              <b className="summary-areas__title">영역별 한눈에</b>
+              <div className="summary-areas__grid">
+                {areaDigest.map((a) => (
+                  <article key={a.key}>
+                    <span>{a.label}</span>
+                    <p>{a.text}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
           <ul>
             <li>점수는 다른 학생과의 우열이 아니라, 먼저 도와줄 순서를 뜻합니다.</li>
             <li>처음 2주 동안 학원과 가정이 실제 모습으로 함께 확인해 맞춰 갑니다.</li>

@@ -64,14 +64,25 @@ describe("buildParentSafeProfile allowlist (§12.3)", () => {
     expect(safe.display.name).toBe("가상학생");
   });
 
-  it("연락처·raw 서술·상담자 전용 문구를 담지 않는다", () => {
+  it("연락처·상담자 전용 문구를 담지 않는다", () => {
     const full = resultProfileFor("both");
     const safe = buildParentSafeProfile(full, DISPLAY);
     const json = JSON.stringify(safe);
-    // 상담자 전용 detailedSummary 문자열이 그대로 흘러들어가지 않는다.
-    expect(json).not.toContain(full.interpretation.detailedSummary);
+    // 상담자 전용 키(교사 브리핑·14일 확인 계획)는 흘러들어가지 않는다.
     expect(json).not.toContain("teacherBrief");
     expect(json).not.toContain("verificationPlan14Days");
+    expect(json).not.toContain("coreObservation");
+    expect(json).not.toContain("recommendedCoaching");
+  });
+
+  it("상세 총평(detailedSummary)을 학부모 총평으로 허용한다(전 영역 쉬운말 총평)", () => {
+    const full = resultProfileFor("both");
+    const safe = buildParentSafeProfile(full, DISPLAY);
+    // detailedSummary는 이제 학부모 공유본 01 종합 분석 본문에 쓰이므로 허용·전달된다.
+    expect(safe.interpretation.detailedSummary).toBe(full.interpretation.detailedSummary);
+    expect((safe.interpretation.detailedSummary ?? "").length).toBeGreaterThan(0);
+    // 허용 후에도 forbidden 감사에서 걸리지 않는다.
+    expect(findForbiddenKeys(safe)).toEqual([]);
   });
 
   it("점수는 서버 원본과 동일하다(값 변조 없음)", () => {

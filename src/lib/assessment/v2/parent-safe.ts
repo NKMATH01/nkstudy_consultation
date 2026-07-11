@@ -7,8 +7,10 @@
 //   - 연락처(학생/학부모 전화번호), DB id, report token
 //   - 내부 확인질문·교사 brief(teacherBrief)·근거 코드(crossEvidence)·운영 메모(cautions)
 //   - 상황문항 raw evidence 코드·태그(situations)
-//   - 상담자용 상세 총평/원인/권장 지도(detailedSummary, coreObservation,
-//     operatingCause, recommendedCoaching, verificationPlan14Days)
+//   - 상담자용 원인/권장 지도(coreObservation, operatingCause,
+//     recommendedCoaching, verificationPlan14Days)
+//   ※ detailedSummary(상세 총평)는 학부모용으로 허용한다: "쉬운 한국어" 프롬프트로 생성되어
+//     전 영역(태도·숙제·휴대폰·의지·회복·친구·과목·NK 적합)을 아우르므로 01 종합 분석 본문에 쓴다.
 //   - 응답 품질 상세 사유(reasons) — status만 중립 문구로 전달
 //
 // 이 함수는 순수 함수다. 클라이언트(상담자 화면의 학부모 미리보기 토글)와
@@ -64,6 +66,8 @@ interface NkAreaSafe {
 export interface ParentSafeInterpretation {
   studentType: string;
   parentSummary: string;
+  /** 전 영역 상세 총평(쉬운 한국어). 과거 공유 snapshot에는 없을 수 있어 optional로 둔다. */
+  detailedSummary?: string;
   strengths: string[];
   growthAreas: string[];
   roadmap12Weeks: { weeks: string; focus: string; actions: string[] }[];
@@ -148,6 +152,7 @@ export function buildParentSafeProfile(
     interpretation: {
       studentType: i.studentType,
       parentSummary: i.parentSummary,
+      detailedSummary: i.detailedSummary,
       strengths: [...i.strengths],
       growthAreas: [...i.growthAreas],
       roadmap12Weeks: i.roadmap12Weeks.map((r) => ({
@@ -170,7 +175,6 @@ export const PARENT_FORBIDDEN_KEYS = [
   "operatingCause",
   "recommendedCoaching",
   "verificationPlan14Days",
-  "detailedSummary",
   "cautions",
   "situations",
   "reasons",

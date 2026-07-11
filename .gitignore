@@ -55,3 +55,6 @@ next-env.d.ts
 .vercel
 
 supabase/.temp/
+
+# 라이브 E2E가 기록하는 운영 테스트데이터 id(커밋 제외)
+e2e/.live-ids.json

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "node e2e/run.mjs",
+    "test:e2e:live": "node e2e/live-v2.mjs",
     "verify:pdf": "node e2e/pdf-verify.mjs"
   },
   "dependencies": {

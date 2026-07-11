@@ -11,21 +11,21 @@ import type {
 } from "./types";
 import type { AiInterpretation } from "./ai-contract";
 
-// 리포트 UI(report-theme.ts CONSTRUCT_LABEL)와 동일한 쉬운 말 라벨을 사용한다.
+// 리포트 UI(report-theme.ts CONSTRUCT_LABEL)와 동일한 라벨(기존 라벨 유지).
 const CONSTRUCT_LABEL_KO: Record<keyof CommonScores, string> = {
-  learningAttitude: "수업에 임하는 태도",
-  homeworkReliability: "숙제를 해오는 힘",
-  phoneBoundary: "휴대폰 조절력",
-  longTermPersistence: "목표를 오래 붙드는 힘",
-  shortTermRecovery: "흔들린 뒤 다시 시작하는 힘",
-  peerLearningResource: "친구와 함께 공부하는 힘",
-  peerFocusBoundary: "친구 사이에서 집중을 지키는 힘",
-  reflectiveProcessingNeed: "혼자 차분히 정리하는 편",
-  directFeedbackAcceptance: "직설적인 피드백을 받아들이는 힘",
-  relationshipSafetyNeed: "편안한 관계가 필요한 정도",
-  autonomyNeed: "스스로 정하고 싶은 정도",
-  structureNeed: "정해진 틀을 선호하는 정도",
-  conscientiousness: "성실하게 공부하는 힘",
+  learningAttitude: "학습 태도",
+  homeworkReliability: "숙제 신뢰도",
+  phoneBoundary: "휴대폰 자기조절",
+  longTermPersistence: "장기 의지",
+  shortTermRecovery: "단기 회복력",
+  peerLearningResource: "또래 학습 자원",
+  peerFocusBoundary: "또래 집중 경계",
+  reflectiveProcessingNeed: "숙고 처리 선호",
+  directFeedbackAcceptance: "직접 피드백 수용",
+  relationshipSafetyNeed: "관계 안전 요구",
+  autonomyNeed: "자율성 요구",
+  structureNeed: "구조 요구",
+  conscientiousness: "학습 성실성",
 };
 
 function isNum(s: Score): s is number {
@@ -85,12 +85,12 @@ export function buildFallbackInterpretation(
   const noteSuffix = note ? ` (${note})` : "";
 
   const conscientiousnessText = isNum(c.conscientiousness)
-    ? `성실하게 공부하는 힘은 ${c.conscientiousness.toFixed(1)}점이에요. 수업에 임하는 태도 ${scoreText(
+    ? `학습 성실성은 ${c.conscientiousness.toFixed(1)}점이에요. 학습 태도 ${scoreText(
         c.learningAttitude
-      )}, 숙제를 해오는 힘 ${scoreText(c.homeworkReliability)}, 목표를 오래 붙드는 힘 ${scoreText(
+      )}, 숙제 신뢰도 ${scoreText(c.homeworkReliability)}, 장기 의지 ${scoreText(
         c.longTermPersistence
       )}을 함께 본 값이에요.`
-    : "성실하게 공부하는 힘은 응답이 부족해 상담에서 함께 확인하면 좋겠어요.";
+    : "학습 성실성은 응답이 부족해 상담에서 함께 확인하면 좋겠어요.";
 
   const detailedSummary = [
     "학생이 직접 작성한 응답을 바탕으로 기본 요약을 정리했어요.",

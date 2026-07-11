@@ -255,6 +255,9 @@ export const REPORT_PREMIUM_CSS = `
 .bullet-bars i, .coaching-lines i, .phone-bars i { height: 8px; overflow: hidden; background: #eceef0; border-radius: 999px; }
 .bullet-bars i b, .coaching-lines i b, .phone-bars i b { display: block; height: 100%; background: var(--teal); border-radius: 999px; }
 .bullet-bars > div > strong, .coaching-lines > div > strong, .phone-bars > div > strong { color: var(--navy); font-size: 13px; font-weight: 800; text-align: right; }
+/* 라벨 아래 한 줄 풀이(작은 회색 글씨). 3열 그리드에서 전체 너비로 줄바꿈. */
+.bullet-bars > div > small, .coaching-lines > div > small, .phone-bars > div > small { grid-column: 1 / -1; margin-top: 1px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.phone-bars > div > small { color: var(--muted); }
 .bullet-bars .is-caution i b, .phone-bars .is-caution i b { background: var(--coral); }
 .coaching-lines i b { background: var(--blue); }
 .evidence-explain { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--text); font-size: 13.5px; line-height: 1.7; }

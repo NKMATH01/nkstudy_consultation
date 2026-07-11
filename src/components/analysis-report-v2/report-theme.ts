@@ -25,30 +25,55 @@ export const C = {
   panel: "#f4f6f6",
 } as const;
 
-// ── 핵심 축 한글 라벨(학부모·상담자가 바로 이해하는 쉬운 말) ──────────────
+// ── 핵심 축 한글 라벨(기존 라벨 유지) ────────────────────────────────────
 // 라벨은 여기 한 곳에서만 관리한다(리포트 전역에서 이 상수를 참조).
 export const CONSTRUCT_LABEL: Record<keyof CommonScores, string> = {
-  learningAttitude: "수업에 임하는 태도",
-  homeworkReliability: "숙제를 해오는 힘",
-  phoneBoundary: "휴대폰 조절력",
-  longTermPersistence: "목표를 오래 붙드는 힘",
-  shortTermRecovery: "흔들린 뒤 다시 시작하는 힘",
-  peerLearningResource: "친구와 함께 공부하는 힘",
-  peerFocusBoundary: "친구 사이에서 집중을 지키는 힘",
-  reflectiveProcessingNeed: "혼자 차분히 정리하는 편",
-  directFeedbackAcceptance: "직설적인 피드백을 받아들이는 힘",
-  relationshipSafetyNeed: "편안한 관계가 필요한 정도",
-  autonomyNeed: "스스로 정하고 싶은 정도",
-  structureNeed: "정해진 틀을 선호하는 정도",
-  conscientiousness: "성실하게 공부하는 힘",
+  learningAttitude: "학습 태도",
+  homeworkReliability: "숙제 신뢰도",
+  phoneBoundary: "휴대폰 자기조절",
+  longTermPersistence: "장기 의지",
+  shortTermRecovery: "단기 회복력",
+  peerLearningResource: "또래 학습 자원",
+  peerFocusBoundary: "또래 집중 경계",
+  reflectiveProcessingNeed: "숙고 처리 선호",
+  directFeedbackAcceptance: "직접 피드백 수용",
+  relationshipSafetyNeed: "관계 안전 요구",
+  autonomyNeed: "자율성 요구",
+  structureNeed: "구조 요구",
+  conscientiousness: "학습 성실성",
 };
 
-// ── 지도 반응축(코칭) 쉬운 라벨 ─────────────────────────────────────────
+// ── 지도 반응축(코칭) 라벨(기존 라벨 유지) ───────────────────────────────
 export const COACHING_LABEL = {
-  challenge: "직설적인 피드백을 받아들이는 힘",
-  safety: "편안한 관계가 필요한 정도",
-  autonomy: "스스로 정하고 싶은 정도",
-  structure: "정해진 틀을 선호하는 정도",
+  challenge: "직접 피드백 수용",
+  safety: "관계 안전 요구",
+  autonomy: "자율성 요구",
+  structure: "구조 요구",
+} as const;
+
+// ── 점수 항목 한 줄 풀이(라벨 아래 작은 회색 글씨) ────────────────────────
+// 기존 라벨은 그대로 두고, 학부모·상담자가 라벨 뜻을 바로 알도록 쉬운 설명만 덧붙인다.
+export const CONSTRUCT_GLOSS: Record<keyof CommonScores, string> = {
+  learningAttitude: "수업 준비·집중·질문처럼 수업에서 보이는 태도",
+  homeworkReliability: "정한 대로 숙제를 시작하고 끝내는 정도",
+  phoneBoundary: "공부할 때 휴대폰을 스스로 멀리하는 정도",
+  longTermPersistence: "목표와 계획을 오래 유지하는 힘",
+  shortTermRecovery: "낮은 점수·막힘 이후 다시 공부로 돌아오는 힘",
+  peerLearningResource: "친구가 공부에 도움이 되는 정도",
+  peerFocusBoundary: "친구와 있을 때 집중을 지키는 정도",
+  reflectiveProcessingNeed: "혼자 차분히 정리하며 생각하는 편",
+  directFeedbackAcceptance: "직설적인 지적을 받아들이는 정도",
+  relationshipSafetyNeed: "편안한 관계 속에서 더 잘 배우는 정도",
+  autonomyNeed: "스스로 정하고 싶어 하는 정도",
+  structureNeed: "정해진 틀과 마감을 선호하는 정도",
+  conscientiousness: "태도·숙제·의지를 합쳐 본 성실함",
+};
+
+export const COACHING_GLOSS = {
+  challenge: CONSTRUCT_GLOSS.directFeedbackAcceptance,
+  safety: CONSTRUCT_GLOSS.relationshipSafetyNeed,
+  autonomy: CONSTRUCT_GLOSS.autonomyNeed,
+  structure: CONSTRUCT_GLOSS.structureNeed,
 } as const;
 
 export function isNum(s: Score): s is number {

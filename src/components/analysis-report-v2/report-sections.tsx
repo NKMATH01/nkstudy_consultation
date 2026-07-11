@@ -11,7 +11,14 @@ import type {
   Score,
   SubjectSelection,
 } from "@/lib/assessment/v2/types";
-import { COACHING_LABEL, CONSTRUCT_LABEL, isNum, pct } from "./report-theme";
+import {
+  COACHING_GLOSS,
+  COACHING_LABEL,
+  CONSTRUCT_GLOSS,
+  CONSTRUCT_LABEL,
+  isNum,
+  pct,
+} from "./report-theme";
 import { CoachingCoordinate, CoreSignalsRadar } from "./report-ui";
 
 type CoachingLite = {
@@ -44,13 +51,13 @@ function caution(s: Score, threshold = 50, reverse = false): boolean {
 
 // ── 핵심 신호 카드 6개 ──────────────────────────────────────────────────────
 export function ProfileSignals({ common }: { common: CommonScores }) {
-  const cards: { key: keyof CommonScores; state: string; note: string; risk?: boolean }[] = [
-    { key: "learningAttitude", state: "수업 신호", note: "준비와 핵심 정리" },
-    { key: "homeworkReliability", state: "숙제 신호", note: "제출과 오답 복습" },
-    { key: "phoneBoundary", state: "생활 습관", note: "자동 확인·취침 지연", risk: true },
-    { key: "longTermPersistence", state: "목표 유지", note: "목표와 반복을 오래" },
-    { key: "shortTermRecovery", state: "회복", note: "막힌 뒤 다시 시작", risk: true },
-    { key: "peerLearningResource", state: "친구 관계", note: "친구가 학습에 도움" },
+  const cards: { key: keyof CommonScores; state: string; risk?: boolean }[] = [
+    { key: "learningAttitude", state: "수업 신호" },
+    { key: "homeworkReliability", state: "숙제 신호" },
+    { key: "phoneBoundary", state: "생활 습관", risk: true },
+    { key: "longTermPersistence", state: "목표 유지" },
+    { key: "shortTermRecovery", state: "회복", risk: true },
+    { key: "peerLearningResource", state: "친구 관계" },
   ];
   return (
     <div className="profile-signals" aria-label="핵심 학습 신호">
@@ -62,7 +69,7 @@ export function ProfileSignals({ common }: { common: CommonScores }) {
             <span>{CONSTRUCT_LABEL[c.key]}</span>
             <strong>{c.state}</strong>
             <b>{numText(s)}</b>
-            <p>{c.note}</p>
+            <p>{CONSTRUCT_GLOSS[c.key]}</p>
           </article>
         );
       })}
@@ -120,8 +127,8 @@ export function AnalysisVisualGrid({
   );
 }
 
-// ── 공용 막대 세트 ──────────────────────────────────────────────────────────
-function Bars({ rows }: { rows: { label: string; score: Score; risk?: boolean }[] }) {
+// ── 공용 막대 세트(라벨 + 막대 + 점수 + 한 줄 풀이) ─────────────────────────
+function Bars({ rows }: { rows: { label: string; score: Score; gloss?: string; risk?: boolean }[] }) {
   return (
     <div className="bullet-bars">
       {rows.map((r) => (
@@ -131,6 +138,7 @@ function Bars({ rows }: { rows: { label: string; score: Score; risk?: boolean }[
             <b style={{ width: w(r.score) }} />
           </i>
           <strong>{numText(r.score)}</strong>
+          {r.gloss && <small>{r.gloss}</small>}
         </div>
       ))}
     </div>
@@ -144,13 +152,21 @@ export function LearningPanels({ common }: { common: CommonScores }) {
       <article className="evidence-panel">
         <div className="panel-title">
           <span>수업 참여</span>
-          <h3>수업에 임하는 태도</h3>
+          <h3>{CONSTRUCT_LABEL.learningAttitude}</h3>
           <b>{numText(common.learningAttitude)}</b>
         </div>
         <Bars
           rows={[
-            { label: CONSTRUCT_LABEL.learningAttitude, score: common.learningAttitude },
-            { label: CONSTRUCT_LABEL.longTermPersistence, score: common.longTermPersistence },
+            {
+              label: CONSTRUCT_LABEL.learningAttitude,
+              score: common.learningAttitude,
+              gloss: CONSTRUCT_GLOSS.learningAttitude,
+            },
+            {
+              label: CONSTRUCT_LABEL.longTermPersistence,
+              score: common.longTermPersistence,
+              gloss: CONSTRUCT_GLOSS.longTermPersistence,
+            },
           ]}
         />
         <p className="evidence-explain">
@@ -161,13 +177,22 @@ export function LearningPanels({ common }: { common: CommonScores }) {
       <article className="evidence-panel">
         <div className="panel-title">
           <span>숙제 흐름</span>
-          <h3>숙제를 해오는 힘</h3>
+          <h3>{CONSTRUCT_LABEL.homeworkReliability}</h3>
           <b>{numText(common.homeworkReliability)}</b>
         </div>
         <Bars
           rows={[
-            { label: CONSTRUCT_LABEL.homeworkReliability, score: common.homeworkReliability },
-            { label: CONSTRUCT_LABEL.shortTermRecovery, score: common.shortTermRecovery, risk: true },
+            {
+              label: CONSTRUCT_LABEL.homeworkReliability,
+              score: common.homeworkReliability,
+              gloss: CONSTRUCT_GLOSS.homeworkReliability,
+            },
+            {
+              label: CONSTRUCT_LABEL.shortTermRecovery,
+              score: common.shortTermRecovery,
+              gloss: CONSTRUCT_GLOSS.shortTermRecovery,
+              risk: true,
+            },
           ]}
         />
         <p className="evidence-explain">
@@ -201,8 +226,17 @@ export function WillCoachingGrid({
         </div>
         <Bars
           rows={[
-            { label: CONSTRUCT_LABEL.longTermPersistence, score: lt },
-            { label: CONSTRUCT_LABEL.shortTermRecovery, score: sr, risk: true },
+            {
+              label: CONSTRUCT_LABEL.longTermPersistence,
+              score: lt,
+              gloss: CONSTRUCT_GLOSS.longTermPersistence,
+            },
+            {
+              label: CONSTRUCT_LABEL.shortTermRecovery,
+              score: sr,
+              gloss: CONSTRUCT_GLOSS.shortTermRecovery,
+              risk: true,
+            },
           ]}
         />
         <p>
@@ -222,6 +256,7 @@ export function WillCoachingGrid({
               <b style={{ width: w(coaching.challenge) }} />
             </i>
             <strong>{numText(coaching.challenge)}</strong>
+            <small>{COACHING_GLOSS.challenge}</small>
           </div>
           <div>
             <span>{COACHING_LABEL.safety}</span>
@@ -229,6 +264,7 @@ export function WillCoachingGrid({
               <b style={{ width: w(coaching.safety) }} />
             </i>
             <strong>{numText(coaching.safety)}</strong>
+            <small>{COACHING_GLOSS.safety}</small>
           </div>
           <div>
             <span>{COACHING_LABEL.autonomy}</span>
@@ -236,6 +272,7 @@ export function WillCoachingGrid({
               <b style={{ width: w(coaching.autonomy) }} />
             </i>
             <strong>{numText(coaching.autonomy)}</strong>
+            <small>{COACHING_GLOSS.autonomy}</small>
           </div>
           <div>
             <span>{COACHING_LABEL.structure}</span>
@@ -243,6 +280,7 @@ export function WillCoachingGrid({
               <b style={{ width: w(coaching.structure) }} />
             </i>
             <strong>{numText(coaching.structure)}</strong>
+            <small>{COACHING_GLOSS.structure}</small>
           </div>
         </div>
         <blockquote>
@@ -263,7 +301,7 @@ export function PhoneFeature({ common }: { common: CommonScores }) {
   return (
     <div className="phone-feature">
       <div className="phone-score-block">
-        <span>휴대폰 조절</span>
+        <span>휴대폰 자기조절</span>
         <strong>{numText(s)}</strong>
         <b>{isNum(s) && s < 50 ? "옆에서 도와주면 좋아요" : "스스로 조절하는 편이에요"}</b>
         <p>공부 시작할 때 자동으로 확인하거나 늦게 자는 습관이 집중을 흔드는지 살펴봐요.</p>
@@ -276,6 +314,7 @@ export function PhoneFeature({ common }: { common: CommonScores }) {
               <b style={{ width: w(s) }} />
             </i>
             <strong>{numText(s)}</strong>
+            <small>{CONSTRUCT_GLOSS.phoneBoundary}</small>
           </div>
         </div>
       </div>
@@ -286,10 +325,10 @@ export function PhoneFeature({ common }: { common: CommonScores }) {
 // ── §생활: 성격(MBTI 참고) + 친구 ───────────────────────────────────────────
 type MbtiAxisKey = "interactionAxis" | "conceptAxis" | "relationalFeedbackAxis" | "flexibilityAxis";
 const MBTI_ROWS: { label: string; key: MbtiAxisKey }[] = [
-  { label: "혼자 정리하고 1:1로 생각하는 편", key: "interactionAxis" },
-  { label: "예시와 순서로 설명해 주면 좋은 편", key: "conceptAxis" },
-  { label: "기준과 이유를 먼저 짚어 주면 좋은 편", key: "relationalFeedbackAxis" },
-  { label: "정해진 틀과 마감을 선호하는 편", key: "flexibilityAxis" },
+  { label: "혼자 정리·1:1 숙고", key: "interactionAxis" },
+  { label: "사례·순서·구체 설명", key: "conceptAxis" },
+  { label: "기준·원인 중심 피드백", key: "relationalFeedbackAxis" },
+  { label: "구조·마감·중간 점검", key: "flexibilityAxis" },
 ];
 
 export function PersonalityRelationGrid({
@@ -338,18 +377,18 @@ export function PersonalityRelationGrid({
         </div>
         <div className="spectrum-list">
           <div role="img" aria-label={`${COACHING_LABEL.challenge} ${numText(coaching.challenge)}`}>
-            <span>다 같이 앞에서</span>
+            <span>공개 피드백</span>
             <i>
               <b style={{ left: w(coaching.challenge) }} />
             </i>
-            <span>1:1로 조용히</span>
+            <span>1:1 피드백</span>
           </div>
           <div role="img" aria-label={`${COACHING_LABEL.structure} ${numText(coaching.structure)}`}>
-            <span>자유롭게</span>
+            <span>완전 자율</span>
             <i>
               <b style={{ left: w(coaching.structure) }} />
             </i>
-            <span>정해진 틀로</span>
+            <span>구조 선호</span>
           </div>
         </div>
         <small>
@@ -363,14 +402,14 @@ export function PersonalityRelationGrid({
         </div>
         <div className="relation-signals">
           <div>
-            <span>함께 공부하는 힘</span>
+            <span>{CONSTRUCT_LABEL.peerLearningResource}</span>
             <strong>{numText(common.peerLearningResource)}</strong>
-            <p>서로 질문하는 반에서 참여가 늘어요</p>
+            <p>{CONSTRUCT_GLOSS.peerLearningResource}</p>
           </div>
           <div className={caution(common.peerFocusBoundary, 0, true) ? "is-caution" : undefined}>
-            <span>집중을 지키는 힘</span>
+            <span>{CONSTRUCT_LABEL.peerFocusBoundary}</span>
             <strong>{numText(common.peerFocusBoundary)}</strong>
-            <p>친한 친구와 집중 시간은 나눠 주면 좋아요</p>
+            <p>{CONSTRUCT_GLOSS.peerFocusBoundary}</p>
           </div>
         </div>
         <p className="relation-note">
@@ -478,9 +517,9 @@ export function SubjectStrategy({
           <div className="subject-v2-details">
             <div className="subject-v2-metrics">
               <SubjectMetric label="학습전략" score={math.mathStrategy} />
-              <SubjectMetric label="할 수 있다는 마음" score={math.mathSelfEfficacy} />
-              <SubjectMetric label="낯선 문제 피하기" score={math.mathNoveltyAvoidance} risk />
-              <SubjectMetric label="시험 때 긴장" score={math.mathTestInterference} risk />
+              <SubjectMetric label="자기효능감" score={math.mathSelfEfficacy} />
+              <SubjectMetric label="낯선 유형 회피" score={math.mathNoveltyAvoidance} risk />
+              <SubjectMetric label="시험 긴장 방해" score={math.mathTestInterference} risk />
             </div>
           </div>
         </div>
@@ -499,9 +538,9 @@ export function SubjectStrategy({
           <div className="subject-v2-details">
             <div className="subject-v2-metrics">
               <SubjectMetric label="학습전략" score={english.englishStrategy} />
-              <SubjectMetric label="할 수 있다는 마음" score={english.englishSelfEfficacy} />
-              <SubjectMetric label="긴 지문 피하기" score={english.englishReadingAvoidance} risk />
-              <SubjectMetric label="시험 때 긴장" score={english.englishTestInterference} risk />
+              <SubjectMetric label="자기효능감" score={english.englishSelfEfficacy} />
+              <SubjectMetric label="긴 지문 회피" score={english.englishReadingAvoidance} risk />
+              <SubjectMetric label="시험 긴장 방해" score={english.englishTestInterference} risk />
             </div>
           </div>
         </div>

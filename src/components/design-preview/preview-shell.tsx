@@ -1,12 +1,11 @@
 "use client";
 
-// 코럴 리디자인 2단계 — 디자인 시스템(토큰·Pretendard) 적용 뼈대(미리보기 전용).
-// 색은 .coral-shell 스코프 CSS 변수(var(--...)), 폰트는 layout의 Pretendard. 카테고리 서브 액센트만
-// JS 상수(CATEGORY_ACCENT)로 inline. 공통 규칙: pill 버튼, 얇은 라인, 여백·배경 위주 구분.
-// 서브 액센트 전환 로직·메인 콘텐츠는 이후 단계. 여기선 시스템 적용 결과만 확인.
+// 코럴 리디자인 3단계 — 메인 콘텐츠(요약 카드 · 필터 바 · 목록)까지 포함한 미리보기.
+// 색은 .coral-shell 스코프 CSS 변수, 폰트는 Pretendard. 서브 액센트(틸/블루베리/플럼)는 CATEGORY_ACCENT.
+// 데이터는 이 단계에선 하드코딩 임시 배열(본격 mock 10건·데이터 로직 분리는 5단계).
 
 import { useState } from "react";
-import { Bell, ChevronDown, ChevronRight } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import {
   CATEGORIES,
   CATEGORY_ACCENT,
@@ -14,14 +13,42 @@ import {
   type CategoryId,
 } from "@/constants/menu";
 
+// ── 임시 데이터(3단계 전용, 5단계에서 mock/데이터 로직으로 분리) ──────────────
+const SUMMARY_CARDS: { label: string; value: number; attention?: boolean }[] = [
+  { label: "전체 OO", value: 128 },
+  { label: "이번 주 OO", value: 12 },
+  { label: "대기 중 OO", value: 5, attention: true },
+  { label: "완료 OO", value: 111 },
+];
+
+const GRADE_FILTERS = ["전체", "초", "중", "고"] as const;
+type GradeFilter = (typeof GRADE_FILTERS)[number];
+
+interface ListItem {
+  id: string;
+  grade: "초" | "중" | "고";
+  title: string;
+  isNew?: boolean;
+  subtitle: string;
+  date: string;
+}
+
+const SAMPLE_ITEMS: ListItem[] = [
+  { id: "1", grade: "중", title: "[목록 제목 자리표시자 1]", isNew: true, subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-11" },
+  { id: "2", grade: "고", title: "[목록 제목 자리표시자 2]", subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-10" },
+  { id: "3", grade: "초", title: "[목록 제목 자리표시자 3]", isNew: true, subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-09" },
+  { id: "4", grade: "중", title: "[목록 제목 자리표시자 4]", subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-08" },
+  { id: "5", grade: "고", title: "[목록 제목 자리표시자 5]", subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-07" },
+];
+
 export function DesignPreviewShell() {
   const [activeCat, setActiveCat] = useState<CategoryId>("cat1");
   const [activeMenu, setActiveMenu] = useState<string>("cat1-a-1");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ "cat1-a": true });
+  const [activeFilter, setActiveFilter] = useState<GradeFilter>("전체");
 
   const accent = CATEGORY_ACCENT[activeCat];
   const menus = SIDEBAR_MENUS[activeCat];
-  const activeCategoryLabel = CATEGORIES.find((c) => c.id === activeCat)?.label;
 
   const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -32,13 +59,17 @@ export function DesignPreviewShell() {
     setExpanded(first.children ? { [first.id]: true } : {});
   };
 
-  // 선택 메뉴: 연코럴 배경 + 진코럴 텍스트 + 왼쪽 3px 카테고리 서브 액센트 라인.
+  const items =
+    activeFilter === "전체" ? SAMPLE_ITEMS : SAMPLE_ITEMS.filter((i) => i.grade === activeFilter);
+
   const selectedStyle = {
     background: "var(--coral-soft)",
     color: "var(--coral-deep)",
     boxShadow: `inset 3px 0 0 ${accent.color}`,
   } as const;
   const subtleText = { color: "var(--text-sub)" } as const;
+  // 학년 뱃지: 현재 카테고리 서브 액센트 틴트(연 배경 + 진 텍스트).
+  const badgeStyle = { background: accent.soft, color: accent.text } as const;
 
   return (
     <div className="coral-shell">
@@ -65,11 +96,7 @@ export function DesignPreviewShell() {
                   type="button"
                   onClick={() => switchCategory(c.id)}
                   className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                  style={
-                    on
-                      ? { background: "var(--coral-soft)", color: "var(--coral-deep)" }
-                      : subtleText
-                  }
+                  style={on ? { background: "var(--coral-soft)", color: "var(--coral-deep)" } : subtleText}
                 >
                   <Icon className="h-4 w-4" />
                   {c.label}
@@ -88,11 +115,7 @@ export function DesignPreviewShell() {
           >
             <Bell className="h-5 w-5" />
           </button>
-          <div
-            className="h-9 w-9 rounded-full"
-            style={{ background: "var(--coral-soft)" }}
-            aria-label="사용자"
-          />
+          <div className="h-9 w-9 rounded-full" style={{ background: "var(--coral-soft)" }} aria-label="사용자" />
         </div>
       </header>
 
@@ -147,18 +170,120 @@ export function DesignPreviewShell() {
           </nav>
         </aside>
 
-        {/* ── 메인(빈 placeholder — 3단계에서 구현) ─────────────────── */}
+        {/* ── 메인 콘텐츠 ───────────────────────────────────────────── */}
         <main className="flex-1 p-6">
-          <div className="grid min-h-[420px] place-items-center rounded-2xl border border-[var(--line)] bg-[var(--bg-card)] p-5 text-center shadow-sm">
-            <div>
-              <p className="text-sm font-medium" style={{ color: accent.color }}>
-                {activeCategoryLabel} · 서브 액센트 {accent.name}
-              </p>
-              <p className="mt-1.5 text-[13px]" style={{ color: "var(--text-hint)" }}>
-                메인 콘텐츠 영역 — 3단계에서 구현 (요약 카드 · 필터 바 · 목록)
-              </p>
+          {/* 현황 요약 카드 */}
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {SUMMARY_CARDS.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-[var(--line)] bg-[var(--bg-card)] p-5 shadow-sm"
+              >
+                <p className="text-[13px]" style={subtleText}>
+                  {card.label}
+                </p>
+                <p
+                  className="mt-2 text-[28px] font-semibold leading-none"
+                  style={{ color: card.attention ? "var(--coral)" : "var(--text-main)" }}
+                >
+                  {card.value}
+                </p>
+              </div>
+            ))}
+          </section>
+
+          {/* 필터 바 */}
+          <section className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1 rounded-full bg-[var(--line-soft)] p-1">
+              {GRADE_FILTERS.map((f) => {
+                const on = activeFilter === f;
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setActiveFilter(f)}
+                    className="rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors"
+                    style={on ? { background: "var(--coral-soft)", color: "var(--coral-deep)" } : subtleText}
+                  >
+                    {f}
+                  </button>
+                );
+              })}
             </div>
-          </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--bg-card)] px-4 py-2">
+                <Search className="h-4 w-4" style={{ color: "var(--text-hint)" }} />
+                <input
+                  type="text"
+                  placeholder="검색"
+                  className="w-40 bg-transparent text-sm outline-none placeholder:text-[var(--text-hint)]"
+                />
+              </div>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition-colors"
+                style={{ background: "var(--coral)" }}
+              >
+                <Plus className="h-4 w-4" />
+                만들기
+              </button>
+            </div>
+          </section>
+
+          {/* 목록 카드 */}
+          <section className="mt-6 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg-card)] shadow-sm">
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[var(--row-hover)]"
+                style={idx > 0 ? { borderTop: "1px solid var(--line-soft)" } : undefined}
+              >
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-semibold"
+                  style={badgeStyle}
+                >
+                  {item.grade}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-[15px] font-medium">{item.title}</p>
+                    {item.isNew && (
+                      <span
+                        className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold"
+                        style={{ background: "#E7F1F1", color: "var(--teal)" }}
+                      >
+                        NEW
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 truncate text-[13px]" style={subtleText}>
+                    {item.subtitle}
+                  </p>
+                </div>
+
+                <span className="hidden shrink-0 text-[13px] sm:block" style={{ color: "var(--text-hint)" }}>
+                  {item.date}
+                </span>
+
+                <button
+                  type="button"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--line-soft)]"
+                  style={subtleText}
+                  aria-label="더보기"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+
+            {items.length === 0 && (
+              <div className="px-5 py-10 text-center text-[13px]" style={{ color: "var(--text-hint)" }}>
+                해당 학년의 항목이 없습니다.
+              </div>
+            )}
+          </section>
         </main>
       </div>
     </div>

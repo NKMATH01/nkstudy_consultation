@@ -133,6 +133,7 @@ export async function analyzeSurveyV2(surveyId: string) {
     response_quality_v2: scoreProfile.responseQuality,
     student_type: interpretation.studentType,
     summary: interpretation.detailedSummary,
+    // V1→V2 전환(upsert) 시 예전 V1 결과지 HTML 잔존물을 제거해 어떤 경로로도 열리지 않게 한다.
     report_html: null as string | null,
   };
 

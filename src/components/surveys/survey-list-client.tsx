@@ -124,6 +124,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [previewSurvey, setPreviewSurvey] = useState<Survey | null>(null);
   // 설문지 미리보기의 결과지 HTML은 목록에서 미리 받지 않고 열 때 개별 조회한다.
   const [previewReportHtml, setPreviewReportHtml] = useState<string | null>(null);
+  // V2 미리보기에서 결과지 대신 V2 분석 페이지로 안내하기 위한 analysis id.
+  const [previewAnalysisId, setPreviewAnalysisId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Survey | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
@@ -354,8 +356,15 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     }
   };
 
-  const handleViewReport = async (surveyId: string) => {
-    const analysis = analysisMap.get(surveyId);
+  const handleViewReport = async (survey: Survey) => {
+    const analysis = analysisMap.get(survey.id);
+    const analysisId = survey.analysis_id || analysis?.id;
+    // V2 설문은 report_html(V1 시절 잔존 가능)을 열지 않고 V2 분석 페이지를 새 탭으로 연다.
+    if (survey.instrument_version === "v2") {
+      if (!analysisId) return;
+      window.open(`/analyses/${analysisId}`, "_blank");
+      return;
+    }
     if (!analysis?.has_report) return;
     // 팝업 차단 방지: 서버 조회(await) 전에 클릭 컨텍스트에서 먼저 새 창을 연다
     const win = window.open("", "_blank");
@@ -382,6 +391,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     setPreviewSurvey(survey);
     setPreviewReportHtml(null);
     const analysis = analysisMap.get(survey.id);
+    setPreviewAnalysisId(survey.analysis_id || analysis?.id || null);
     if (!analysis?.has_report) return;
     try {
       const data = await getAnalysis(analysis.id);
@@ -598,7 +608,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             <button onClick={() => handleOpenPreview(item)} className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-colors" title="설문지">
                               <ClipboardList className="h-3 w-3" />
                             </button>
-                            <button onClick={() => handleViewReport(item.id)} disabled={!analysis?.has_report} className="p-1 rounded text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
+                            <button onClick={() => handleViewReport(item)} disabled={item.instrument_version === "v2" ? !analysisId : !analysis?.has_report} className="p-1 rounded text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
                               <Sparkles className="h-3 w-3" />
                             </button>
                             <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="p-1 rounded text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "분석"}>
@@ -658,8 +668,9 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
       <SurveyPreviewDialog
         survey={previewSurvey}
         analysisReportHtml={previewReportHtml}
+        analysisId={previewAnalysisId}
         open={!!previewSurvey}
-        onOpenChange={(open) => { if (!open) { setPreviewSurvey(null); setPreviewReportHtml(null); } }}
+        onOpenChange={(open) => { if (!open) { setPreviewSurvey(null); setPreviewReportHtml(null); setPreviewAnalysisId(null); } }}
       />
 
       {/* Delete Dialog */}

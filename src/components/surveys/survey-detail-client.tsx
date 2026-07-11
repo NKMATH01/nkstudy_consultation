@@ -392,8 +392,8 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
 
       </div>
 
-      {/* 성향분석 결과 보고서 */}
-      {analysisReportHtml && (
+      {/* 성향분석 결과 보고서 (V1 전용). V2는 report_html 잔존물 대신 상단 "분석 보기"로 /analyses/[id] 안내. */}
+      {!isV2 && analysisReportHtml && (
         <div
           className="bg-white rounded-2xl p-6"
           style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}

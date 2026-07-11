@@ -30,11 +30,12 @@ const BASE_FACTOR_KEYS = ["attitude", "self_directed", "assignment", "willingnes
 interface Props {
   survey: Survey | null;
   analysisReportHtml?: string | null;
+  analysisId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenChange }: Props) {
+export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, open, onOpenChange }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
@@ -185,6 +186,18 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, open, onOpenCh
             <p className="text-[11px] mt-0.5 text-violet-900">
               V2 설문입니다. 상세 점수·결과지는 별도 화면에서 제공됩니다.
             </p>
+            {analysisId && (
+              // V2 결과지는 report_html이 아니라 V2 분석 페이지에서 확인한다.
+              <a
+                href={`/analyses/${analysisId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                V2 분석 결과지 열기
+              </a>
+            )}
           </div>
         )}
 

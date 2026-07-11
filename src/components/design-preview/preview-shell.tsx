@@ -1,10 +1,10 @@
 "use client";
 
-// 코럴 리디자인 3단계 — 메인 콘텐츠(요약 카드 · 필터 바 · 목록)까지 포함한 미리보기.
-// 색은 .coral-shell 스코프 CSS 변수, 폰트는 Pretendard. 서브 액센트(틸/블루베리/플럼)는 CATEGORY_ACCENT.
-// 데이터는 이 단계에선 하드코딩 임시 배열(본격 mock 10건·데이터 로직 분리는 5단계).
+// 코럴 리디자인 5단계 — mock 데이터·데이터 로직 분리·인터랙션 마무리(미리보기 전용).
+// 데이터는 src/lib/design-preview/data.ts의 getListItems/getSummary로만 접근(API 교체 지점).
+// 인터랙션: 카테고리 전환 · 사이드바 메뉴 선택(목록 헤더 반영) · 학년 필터 · 실시간 검색 · 빈 결과 안내.
 
-import { useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Bell, ChevronDown, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import {
   CATEGORIES,
@@ -12,43 +12,48 @@ import {
   SIDEBAR_MENUS,
   type CategoryId,
 } from "@/constants/menu";
-
-// ── 임시 데이터(3단계 전용, 5단계에서 mock/데이터 로직으로 분리) ──────────────
-const SUMMARY_CARDS: { label: string; value: number; attention?: boolean }[] = [
-  { label: "전체 OO", value: 128 },
-  { label: "이번 주 OO", value: 12 },
-  { label: "대기 중 OO", value: 5, attention: true },
-  { label: "완료 OO", value: 111 },
-];
+import { getListItems, getSummary } from "@/lib/design-preview/data";
 
 const GRADE_FILTERS = ["전체", "초", "중", "고"] as const;
 type GradeFilter = (typeof GRADE_FILTERS)[number];
-
-interface ListItem {
-  id: string;
-  grade: "초" | "중" | "고";
-  title: string;
-  isNew?: boolean;
-  subtitle: string;
-  date: string;
-}
-
-const SAMPLE_ITEMS: ListItem[] = [
-  { id: "1", grade: "중", title: "[목록 제목 자리표시자 1]", isNew: true, subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-11" },
-  { id: "2", grade: "고", title: "[목록 제목 자리표시자 2]", subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-10" },
-  { id: "3", grade: "초", title: "[목록 제목 자리표시자 3]", isNew: true, subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-09" },
-  { id: "4", grade: "중", title: "[목록 제목 자리표시자 4]", subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-08" },
-  { id: "5", grade: "고", title: "[목록 제목 자리표시자 5]", subtitle: "부제목 첫째 줄 자리표시자입니다. / 부제목 둘째 줄 자리표시자입니다.", date: "2026-07-07" },
-];
 
 export function DesignPreviewShell() {
   const [activeCat, setActiveCat] = useState<CategoryId>("cat1");
   const [activeMenu, setActiveMenu] = useState<string>("cat1-a-1");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ "cat1-a": true });
   const [activeFilter, setActiveFilter] = useState<GradeFilter>("전체");
+  const [search, setSearch] = useState("");
 
   const accent = CATEGORY_ACCENT[activeCat];
   const menus = SIDEBAR_MENUS[activeCat];
+
+  // 선택 메뉴 라벨(목록 헤더에 반영).
+  const activeMenuLabel = useMemo(() => {
+    for (const m of menus) {
+      if (m.id === activeMenu) return m.label;
+      const child = m.children?.find((s) => s.id === activeMenu);
+      if (child) return child.label;
+    }
+    return menus[0]?.label ?? "";
+  }, [menus, activeMenu]);
+
+  // 데이터 접근은 함수로만(★ API 교체 지점). 필터·검색은 클라이언트에서 파생.
+  const summary = getSummary(activeCat);
+  const items = useMemo(() => {
+    const q = search.trim();
+    return getListItems(activeCat).filter((it) => {
+      if (activeFilter !== "전체" && it.grade !== activeFilter) return false;
+      if (q && !it.title.includes(q) && !it.subtitle.includes(q)) return false;
+      return true;
+    });
+  }, [activeCat, activeFilter, search]);
+
+  const summaryCards: { label: string; value: number; attention?: boolean }[] = [
+    { label: "전체", value: summary.total },
+    { label: "이번 주", value: summary.thisWeek },
+    { label: "대기 중", value: summary.waiting, attention: true },
+    { label: "완료", value: summary.done },
+  ];
 
   const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -57,27 +62,22 @@ export function DesignPreviewShell() {
     const first = SIDEBAR_MENUS[id][0];
     setActiveMenu(first.children?.[0]?.id ?? first.id);
     setExpanded(first.children ? { [first.id]: true } : {});
+    setActiveFilter("전체");
+    setSearch("");
   };
 
-  const items =
-    activeFilter === "전체" ? SAMPLE_ITEMS : SAMPLE_ITEMS.filter((i) => i.grade === activeFilter);
-
-  // 카테고리 전환 시 이 3개 변수만 갱신 → 이를 소비하는 3곳(요약 숫자·선택 3px 라인·학년 뱃지)이
-  // .accent-anim transition으로 부드럽게 흐른다. 코럴(로고·활성 pill·CTA)은 이 변수와 무관해 불변.
   const accentVars = {
     "--accent": accent.color,
     "--accent-soft": accent.soft,
     "--accent-text": accent.text,
   } as CSSProperties;
 
-  // 선택 메뉴: 연코럴 배경 + 진코럴 텍스트 + 왼쪽 3px 서브 액센트 라인(var(--accent)).
   const selectedStyle = {
     background: "var(--coral-soft)",
     color: "var(--coral-deep)",
     boxShadow: "inset 3px 0 0 var(--accent)",
   } as const;
   const subtleText = { color: "var(--text-sub)" } as const;
-  // 학년 뱃지: 현재 카테고리 서브 액센트 틴트(연 배경 + 진 텍스트).
   const badgeStyle = { background: "var(--accent-soft)", color: "var(--accent-text)" } as const;
 
   return (
@@ -183,7 +183,7 @@ export function DesignPreviewShell() {
         <main className="flex-1 p-6">
           {/* 현황 요약 카드 */}
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {SUMMARY_CARDS.map((card) => (
+            {summaryCards.map((card) => (
               <div
                 key={card.label}
                 className="rounded-2xl border border-[var(--line)] bg-[var(--bg-card)] p-5 shadow-sm"
@@ -225,7 +225,9 @@ export function DesignPreviewShell() {
                 <Search className="h-4 w-4" style={{ color: "var(--text-hint)" }} />
                 <input
                   type="text"
-                  placeholder="검색"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="제목·부제 검색"
                   className="w-40 bg-transparent text-sm outline-none placeholder:text-[var(--text-hint)]"
                 />
               </div>
@@ -240,8 +242,16 @@ export function DesignPreviewShell() {
             </div>
           </section>
 
+          {/* 목록 헤더(선택 메뉴 + 건수) */}
+          <div className="mt-6 mb-2 flex items-baseline gap-2 px-1">
+            <span className="text-[15px] font-semibold">{activeMenuLabel}</span>
+            <span className="text-[13px]" style={subtleText}>
+              {items.length}건
+            </span>
+          </div>
+
           {/* 목록 카드 */}
-          <section className="mt-6 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg-card)] shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg-card)] shadow-sm">
             {items.map((item, idx) => (
               <div
                 key={item.id}
@@ -288,8 +298,11 @@ export function DesignPreviewShell() {
             ))}
 
             {items.length === 0 && (
-              <div className="px-5 py-10 text-center text-[13px]" style={{ color: "var(--text-hint)" }}>
-                해당 학년의 항목이 없습니다.
+              <div className="px-5 py-12 text-center">
+                <p className="text-sm font-medium">검색 결과가 없어요</p>
+                <p className="mt-1 text-[13px]" style={{ color: "var(--text-hint)" }}>
+                  다른 학년 필터나 검색어로 다시 시도해 보세요.
+                </p>
               </div>
             )}
           </section>

@@ -1,9 +1,9 @@
-// 상담자용 V2 결과 보고서 (§12.1 순서 유지). 프로토타입 PRIVATE LEARNING DOSSIER DOM으로 렌더한다.
+// 상담자용 V2 결과 보고서 (§12.1 순서 유지). 화이트 톤·쉬운 우리말로 렌더한다.
 // 데이터 계약·섹션 순서·점수 로직은 변경하지 않고 표현만 재작업. counselor-only 블록은 학부모 공유본에 없다.
 
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import type { CommonScores } from "@/lib/assessment/v2/types";
-import { SUBJECT_LABEL, formatDate, isNum } from "./report-theme";
+import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum } from "./report-theme";
 import { ReportCover, ReportSection } from "./report-frame";
 import {
   AnalysisVisualGrid,
@@ -65,26 +65,26 @@ function computeGaps(common: CommonScores): { label: string; a: [string, number]
   const { longTermPersistence: lt, shortTermRecovery: sr, learningAttitude: la, homeworkReliability: hr } = common;
   if (isNum(lt) && isNum(sr) && Math.abs(lt - sr) >= 20) {
     out.push({
-      label: "장기 목표와 매일의 시작",
-      a: ["목표 의지", lt],
-      b: ["단기 회복", sr],
-      note: "공부를 잘하고 싶은 마음은 분명하지만 시작·재시작이 흔들립니다. 의지보다 시작 예약을 먼저 관리합니다.",
+      label: "목표는 크지만 매일의 시작은 흔들림",
+      a: [CONSTRUCT_LABEL.longTermPersistence, lt],
+      b: [CONSTRUCT_LABEL.shortTermRecovery, sr],
+      note: "잘하고 싶은 마음은 분명한데 시작·다시 시작이 흔들려요. 마음보다 시작 시각을 먼저 정해 줘요.",
     });
   }
   if (isNum(la) && isNum(hr) && la - hr >= 20) {
     out.push({
-      label: "태도와 실행 구조",
-      a: ["학습 태도", la],
-      b: ["숙제 신뢰", hr],
-      note: "태도에 비해 제출·오답 복구가 약합니다. 의지보다 시작 시각·완료 기준 등 실행 구조를 관리합니다.",
+      label: "태도는 좋은데 실행은 아직",
+      a: [CONSTRUCT_LABEL.learningAttitude, la],
+      b: [CONSTRUCT_LABEL.homeworkReliability, hr],
+      note: "태도에 비해 제출·오답 복습이 약해요. 마음보다 시작 시각·끝내는 기준 같은 구조를 챙겨 줘요.",
     });
   }
   if (isNum(common.phoneBoundary) && common.phoneBoundary < 50) {
     out.push({
-      label: "치우려는 계획과 자동 확인",
-      a: ["보관 계획", 60],
-      b: ["확인 억제", common.phoneBoundary],
-      note: "치워야 한다는 것은 알지만 손이 닿는 거리에서는 자동 확인이 이어집니다. 실제 보관 거리를 확인합니다.",
+      label: "치우려는 마음과 자동으로 확인하는 습관",
+      a: ["치우려는 마음", 60],
+      b: ["확인 참기", common.phoneBoundary],
+      note: "치워야 한다는 건 알지만 손 닿는 곳에 있으면 자꾸 확인해요. 실제 보관 거리를 확인해 줘요.",
     });
   }
   return out;
@@ -93,7 +93,7 @@ function computeGaps(common: CommonScores): { label: string; a: [string, number]
 export function CounselorReport({ profile, header, background, contacts }: CounselorReportProps) {
   const { scores: s, interpretation: i } = profile;
   const review = s.responseQuality.status === "review";
-  const sourceLabel = profile.source === "ai" ? "AI 해석 · 행동 확인 전" : "규칙 기반 요약 · 행동 확인 전";
+  const sourceLabel = profile.source === "ai" ? "AI 해석 · 첫 2주 확인 전" : "기본 요약 · 첫 2주 확인 전";
   const gaps = computeGaps(s.common);
   const summaryParas = splitParas(i.detailedSummary, 3);
   const maskPhone = (p?: string | null) =>
@@ -102,46 +102,46 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
 
   const metaFacts: { label: string; value?: string | null }[] = [
     { label: "학교·학년", value: header.schoolGrade },
-    { label: "진단 과목", value: SUBJECT_LABEL[profile.subjectSelection] },
-    { label: "희망 직업·장래 목표", value: background?.dream },
+    { label: "분석 과목", value: SUBJECT_LABEL[profile.subjectSelection] },
+    { label: "장래 희망", value: background?.dream },
     { label: "목표 대학·계열", value: background?.targetUniversity },
-    { label: "기존 학습환경", value: background?.prevAcademy },
-    { label: "주요 변경 이유", value: background?.prevLeaveReason },
-    { label: "NK 인지 수준", value: background?.nkKnowledge },
-    { label: "유입 경로", value: background?.referral },
-    { label: "희망 요일", value: background?.preferredDays },
-    { label: "등원 가능 시간", value: background?.availableTime },
+    { label: "이전 학원", value: background?.prevAcademy },
+    { label: "옮긴 이유", value: background?.prevLeaveReason },
+    { label: "NK를 알던 정도", value: background?.nkKnowledge },
+    { label: "알게 된 경로", value: background?.referral },
+    { label: "원하는 요일", value: background?.preferredDays },
+    { label: "올 수 있는 시간", value: background?.availableTime },
     { label: "클리닉 참여 조건", value: background?.clinicCondition },
-    { label: "학생·학부모 연락처(상담자 전용)", value: `${maskPhone(contacts?.studentPhone)} · ${maskPhone(contacts?.parentPhone)}` },
+    { label: "학생·학부모 연락처(상담용)", value: `${maskPhone(contacts?.studentPhone)} · ${maskPhone(contacts?.parentPhone)}` },
   ].filter((f) => f.value && String(f.value).trim());
 
   return (
     <>
       <ReportCover
-        eyebrow="CONFIDENTIAL · PRIVATE LEARNING DOSSIER"
-        brandCode="NK-LP 2.0 / 2026"
-        kicker="맞춤형 심층 학습 성향 분석 보고서 (상담자용)"
+        eyebrow="상담자용 · 학습 성향 분석 보고서"
+        brandCode="NK 학습 프로필 2.0"
+        kicker="맞춤 학습 성향 분석 (상담 선생님용)"
         name={`${header.name} 학생`}
         titleEm="학습 운영 프로필"
         meta={[header.schoolGrade, SUBJECT_LABEL[profile.subjectSelection], genDate]}
-        verdictLabel="LEARNING RESPONSE TYPE"
+        verdictLabel="한 줄 요약"
         verdictType={i.studentType}
         verdictSubtype={`지도 유형 · ${s.coaching.coachingType}`}
         verdictNote={i.recommendedCoaching}
-        footerLeft="NK EDUCATION CONSULTING GROUP"
-        footerRight={`REPORT · ${genDate}`}
+        footerLeft="NK EDUCATION"
+        footerRight={`작성일 ${genDate}`}
       />
 
       <ReportSection
         id="sec-summary"
         index="01"
-        eyebrow="DIRECTOR'S SYNTHESIS"
         title="학생 분석 총평"
+        caption="학생이 쓴 최근 4주 응답으로 계산한 점수예요. 75점 이상이면 안정적, 40점 미만이면 처음에 도와줄 부분입니다."
         aside={<b className="confidence-chip">{sourceLabel}</b>}
       >
         <article className="analysis-verdict">
           <div className="analysis-verdict__title">
-            <span>CORE INTERPRETATION</span>
+            <span>핵심 지도 판정</span>
             <b>{i.studentType}</b>
           </div>
           <h3>{i.recommendedCoaching}</h3>
@@ -152,20 +152,20 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
           </div>
           <dl className="analysis-chain">
             <div>
-              <dt>관찰</dt>
+              <dt>무엇을 봤나</dt>
               <dd>{i.coreObservation}</dd>
             </div>
             <div>
-              <dt>작동 원인</dt>
+              <dt>왜 그럴까</dt>
               <dd>{i.operatingCause}</dd>
             </div>
             <div>
-              <dt>권장 지도</dt>
+              <dt>이렇게 지도해요</dt>
               <dd>{i.recommendedCoaching}</dd>
             </div>
             <div>
-              <dt>14일 검증</dt>
-              <dd>{i.verificationPlan14Days[0] ?? "첫 14일 실제 행동 확인"}</dd>
+              <dt>첫 14일 확인</dt>
+              <dd>{i.verificationPlan14Days[0] ?? "첫 2주 동안 실제 모습으로 확인"}</dd>
             </div>
           </dl>
         </article>
@@ -175,8 +175,7 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
         {i.crossEvidence.length > 0 && (
           <div className="analysis-cross-evidence">
             <header>
-              <span>CROSS EVIDENCE</span>
-              <h3>이 총평이 나온 이유</h3>
+              <h3>이렇게 본 이유</h3>
             </header>
             <div>
               {i.crossEvidence.slice(0, 4).map((e, idx) => (
@@ -194,8 +193,8 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
         {i.teacherBrief.length > 0 && (
           <div className="teacher-brief counselor-only">
             <div className="teacher-brief__title">
-              <span>TEACHER BRIEF</span>
-              <h3>담당 선생님이 첫 수업 전에 읽을 메모</h3>
+              <span>선생님 메모</span>
+              <h3>첫 수업 전에 읽어 보면 좋은 메모</h3>
             </div>
             <ol>
               {i.teacherBrief.map((t, idx) => (
@@ -211,11 +210,8 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
         {metaFacts.length > 0 && (
           <div className="consultation-context-dossier counselor-only">
             <header>
-              <div>
-                <span>COUNSELING CONTEXT</span>
-                <h3>상담 배경과 서술 응답</h3>
-              </div>
-              <b>학생 직접 작성</b>
+              <h3>상담 배경과 학생이 쓴 이야기</h3>
+              <b>학생이 직접 작성</b>
             </header>
             <div className="context-meta-grid">
               {metaFacts.map((f) => (
@@ -228,7 +224,7 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
             {(background?.problemSelf || background?.prevComplaint || background?.requests) && (
               <div className="context-consult-questions">
                 <div>
-                  <span>STUDENT VOICE</span>
+                  <span>학생이 쓴 말</span>
                   <strong>{background?.problemSelf || background?.prevComplaint || background?.requests}</strong>
                 </div>
                 <ol aria-label="상담에서 확인할 배경">
@@ -251,9 +247,9 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
       <ReportSection
         id="sec-learning"
         index="02"
-        eyebrow="LEARNING OPERATION"
-        title="학습태도와 실행 구조"
-        aside={<b className="section-note">최근 4주 행동 기준</b>}
+        title="수업 태도와 숙제 습관"
+        caption="최근 4주 동안 수업과 숙제에서 보인 실제 모습이에요."
+        aside={<b className="section-note">최근 4주 기준</b>}
       >
         <LearningPanels common={s.common} />
         <WillCoachingGrid common={s.common} coaching={s.coaching} />
@@ -262,9 +258,9 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
       <ReportSection
         id="sec-life"
         index="03"
-        eyebrow="DAILY LIFE & RELATION"
-        title="핸드폰·성격·친구관계"
-        aside={<b className="section-note">생활 조건과 학습의 연결</b>}
+        title="휴대폰·성격·친구관계"
+        caption="공부에 영향을 주는 생활 습관과 관계를 함께 봐요."
+        aside={<b className="section-note">생활과 공부의 연결</b>}
       >
         <PhoneFeature common={s.common} />
         <PersonalityRelationGrid common={s.common} coaching={s.coaching} mbtiAxes={s.mbtiAxes} />
@@ -273,8 +269,8 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
       <ReportSection
         id="sec-fit"
         index="04"
-        eyebrow="NK ENVIRONMENT FIT"
-        title="NK 운영 방식과의 일치"
+        title="NK 학원과 잘 맞는 부분"
+        caption="합격·불합격이 아니라, 학원이 무엇을 도와주면 좋을지 보는 값이에요."
         aside={
           <b className="fit-grade">
             {s.nkFit.stage}
@@ -295,23 +291,23 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
       <ReportSection
         id="sec-solution"
         index="05"
-        eyebrow="EVIDENCE TO ACTION"
-        title="강점·간극·맞춤 솔루션"
-        aside={<b className="section-note">기존 보고서 핵심 틀 유지</b>}
+        title="강점과 12주 계획"
+        caption="잘하는 점을 살리고, 처음에 도와줄 부분을 12주에 나눠 채워 가요."
+        aside={<b className="section-note">실행 계획</b>}
       >
         <StrengthGrowth strengths={i.strengths} growthAreas={i.growthAreas} />
 
         {gaps.length > 0 && (
           <div className="gap-dossier counselor-only">
             <div className="panel-title">
-              <span>PSYCHOLOGICAL GAP</span>
-              <h3>학생의 의도와 최근 행동 사이</h3>
+              <span>마음과 행동의 차이</span>
+              <h3>하고 싶은 마음과 실제 행동 사이</h3>
             </div>
             <div className="gap-rows">
               {gaps.map((g, idx) => (
                 <article key={idx}>
                   <div>
-                    <span>GAP {String(idx + 1).padStart(2, "0")}</span>
+                    <span>차이 {String(idx + 1).padStart(2, "0")}</span>
                     <strong>{g.label}</strong>
                   </div>
                   <div className="gap-values">
@@ -334,13 +330,13 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
         <VerifyLine items={i.verificationPlan14Days} />
 
         <div className="final-guidance">
-          <span>NK FINAL GUIDANCE</span>
+          <span>NK 최종 의견</span>
           <h3>{i.recommendedCoaching}</h3>
           <p>
-            완료 기준은 분명히 유지하고, 미완료에는 반드시 후속조치를 연결하십시오. 동시에 공개 비교는 피하고,
-            낮은 점수 뒤에는 시작 순서를 짧게 정리해 주십시오. 이 조합이 학생의 장기 의지를 실제 성취로 바꾸는
-            핵심입니다.
-            {i.cautions.length > 0 ? ` 유의: ${i.cautions[0]}` : ""}
+            끝내는 기준은 분명히 지키고, 못한 부분은 꼭 다시 챙겨 주세요. 대신 여러 학생 앞에서 비교하지 말고,
+            점수가 낮은 날에는 무엇부터 다시 시작할지 짧게 정리해 주세요. 이 조합이 학생의 목표를 실제 성과로
+            바꾸는 핵심이에요.
+            {i.cautions.length > 0 ? ` 참고: ${i.cautions[0]}` : ""}
           </p>
         </div>
       </ReportSection>

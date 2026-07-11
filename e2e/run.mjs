@@ -239,20 +239,20 @@ function surveyTests(baseURL, browser) {
 // ── 결과지 테스트 (fixture 라우트) ────────────────────────────────────
 const COUNSELOR_SECTIONS = [
   "학생 분석 총평",
-  "CORE INTERPRETATION",
-  "COACHING MAP",
-  "핵심 학습 신호 분포",
-  "TEACHER BRIEF",
-  "상담 배경과 서술 응답",
-  "학습태도와 실행 구조",
-  "의지의 두 얼굴",
-  "핸드폰·성격·친구관계",
-  "MBTI AUXILIARY SCORE",
-  "NK 운영 방식과의 일치",
+  "핵심 지도 판정",
+  "지도 방법",
+  "핵심 학습 신호",
+  "선생님 메모",
+  "상담 배경과 학생이 쓴 이야기",
+  "수업 태도와 숙제 습관",
+  "버티는 힘과 다시 시작하는 힘",
+  "휴대폰·성격·친구관계",
+  "MBTI 참고 조정",
+  "NK 학원과 잘 맞는 부분",
   "과목별 학습전략",
-  "강점·간극·맞춤 솔루션",
-  "12주 맞춤 솔루션",
-  "해석 원칙",
+  "강점과 12주 계획",
+  "12주 맞춤 계획",
+  "읽는 원칙",
 ];
 
 async function goReport(page, baseURL) {
@@ -299,10 +299,10 @@ function reportTests(baseURL, browser) {
           await goReport(page, baseURL);
           await toggleParent(page);
           // 금지: 상세 총평(원문)·교사 브리핑·배경 교차해석·심리적 간극.
-          assertEqual(await page.getByText("TEACHER BRIEF", { exact: false }).count(), 0, "교사 브리핑 부재");
-          assertEqual(await page.getByText("CORE INTERPRETATION", { exact: false }).count(), 0, "상담자 판정 패널 부재");
-          assertEqual(await page.getByText("상담 배경과 서술 응답", { exact: false }).count(), 0, "배경 교차해석 부재");
-          assertEqual(await page.getByText("PSYCHOLOGICAL GAP", { exact: false }).count(), 0, "심리적 간극 부재");
+          assertEqual(await page.getByText("선생님 메모", { exact: false }).count(), 0, "교사 브리핑 부재");
+          assertEqual(await page.getByText("핵심 지도 판정", { exact: false }).count(), 0, "상담자 판정 패널 부재");
+          assertEqual(await page.getByText("상담 배경과 학생이 쓴 이야기", { exact: false }).count(), 0, "배경 교차해석 부재");
+          assertEqual(await page.getByText("마음과 행동의 차이", { exact: false }).count(), 0, "심리적 간극 부재");
           assertEqual(await page.locator(".report-v2-section").count(), 5, "학부모 보고서 섹션 수");
         } finally {
           await context.close();

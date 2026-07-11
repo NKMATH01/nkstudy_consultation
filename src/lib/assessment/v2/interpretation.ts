@@ -11,20 +11,21 @@ import type {
 } from "./types";
 import type { AiInterpretation } from "./ai-contract";
 
+// 리포트 UI(report-theme.ts CONSTRUCT_LABEL)와 동일한 쉬운 말 라벨을 사용한다.
 const CONSTRUCT_LABEL_KO: Record<keyof CommonScores, string> = {
-  learningAttitude: "학습 태도",
-  homeworkReliability: "숙제 신뢰도",
-  phoneBoundary: "휴대폰 자기조절",
-  longTermPersistence: "장기 의지",
-  shortTermRecovery: "단기 회복력",
-  peerLearningResource: "또래 학습 자원",
-  peerFocusBoundary: "또래 집중 경계",
-  reflectiveProcessingNeed: "숙고 처리 선호",
-  directFeedbackAcceptance: "직접 피드백 수용",
-  relationshipSafetyNeed: "관계 안전 요구",
-  autonomyNeed: "자율성 요구",
-  structureNeed: "구조 요구",
-  conscientiousness: "학습 성실성",
+  learningAttitude: "수업에 임하는 태도",
+  homeworkReliability: "숙제를 해오는 힘",
+  phoneBoundary: "휴대폰 조절력",
+  longTermPersistence: "목표를 오래 붙드는 힘",
+  shortTermRecovery: "흔들린 뒤 다시 시작하는 힘",
+  peerLearningResource: "친구와 함께 공부하는 힘",
+  peerFocusBoundary: "친구 사이에서 집중을 지키는 힘",
+  reflectiveProcessingNeed: "혼자 차분히 정리하는 편",
+  directFeedbackAcceptance: "직설적인 피드백을 받아들이는 힘",
+  relationshipSafetyNeed: "편안한 관계가 필요한 정도",
+  autonomyNeed: "스스로 정하고 싶은 정도",
+  structureNeed: "정해진 틀을 선호하는 정도",
+  conscientiousness: "성실하게 공부하는 힘",
 };
 
 function isNum(s: Score): s is number {
@@ -84,51 +85,51 @@ export function buildFallbackInterpretation(
   const noteSuffix = note ? ` (${note})` : "";
 
   const conscientiousnessText = isNum(c.conscientiousness)
-    ? `학습 성실성 종합 ${c.conscientiousness.toFixed(1)}점 — 학습 태도 ${scoreText(
+    ? `성실하게 공부하는 힘은 ${c.conscientiousness.toFixed(1)}점이에요. 수업에 임하는 태도 ${scoreText(
         c.learningAttitude
-      )}, 숙제 신뢰 ${scoreText(c.homeworkReliability)}, 장기 의지 ${scoreText(
+      )}, 숙제를 해오는 힘 ${scoreText(c.homeworkReliability)}, 목표를 오래 붙드는 힘 ${scoreText(
         c.longTermPersistence
-      )}로 구성됩니다.`
-    : "학습 성실성은 유효 응답이 부족해 상담에서 직접 확인이 필요합니다.";
+      )}을 함께 본 값이에요.`
+    : "성실하게 공부하는 힘은 응답이 부족해 상담에서 함께 확인하면 좋겠어요.";
 
   const detailedSummary = [
-    "AI 해석을 사용할 수 없어 서버 점수 기반 규칙 요약으로 제공합니다.",
+    "학생이 직접 작성한 응답을 바탕으로 기본 요약을 정리했어요.",
     conscientiousnessText,
-    `지도 방식 신호: ${profile.coaching.coachingType} / ${profile.coaching.autonomyStructureType}.`,
-    `NK 운영 적합도: ${profile.nkFit.stage}.`,
+    `지도할 때 참고할 점은 ${profile.coaching.coachingType} · ${profile.coaching.autonomyStructureType}이에요.`,
+    `NK 운영 방식과는 "${profile.nkFit.stage}" 관계예요.`,
     strengths.length
-      ? `상대적 강점 신호는 ${strengths.map((s) => s.split(":")[0]).join(", ")} 영역입니다.`
-      : "뚜렷한 강점 신호를 특정하기 어려워 초기 관찰이 필요합니다.",
+      ? `잘하고 있는 부분은 ${strengths.map((s) => s.split(":")[0]).join(", ")}이에요.`
+      : "뚜렷한 강점을 아직 꼽기 어려워 처음 몇 주간 함께 살펴보면 좋겠어요.",
     growthAreas.length
-      ? `초기 확인이 필요한 영역은 ${growthAreas
+      ? `처음에 도와주면 좋은 부분은 ${growthAreas
           .map((s) => s.split(":")[0])
-          .join(", ")}입니다.`
+          .join(", ")}이에요.`
       : "",
-    `모든 수치는 최근 4주 자기보고 기반이며 첫 14일 행동으로 재확인하는 것을 전제로 해석하세요.${noteSuffix}`,
+    `모든 점수는 학생이 쓴 최근 4주 응답이고, 첫 2주 동안 실제 모습으로 함께 확인해 나가요.${noteSuffix}`,
   ]
     .filter(Boolean)
     .join(" ");
 
   return {
-    studentType: `관찰 기반 프로필 (${profile.coaching.coachingType})`,
+    studentType: `${profile.coaching.coachingType} 학생`,
     detailedSummary,
-    coreObservation: `핵심 지도 신호: ${profile.coaching.coachingType}. ${conscientiousnessText}`,
+    coreObservation: `이 학생을 지도할 때 가장 참고할 점은 ${profile.coaching.coachingType}이에요. ${conscientiousnessText}`,
     operatingCause:
-      "자기보고 점수만으로는 원인을 단정할 수 없어, 첫 수업과 초기 과제 수행으로 원인을 확인하는 것을 권합니다.",
-    recommendedCoaching: `${profile.coaching.coachingType}에 맞춰 전달 방식을 조정하고, ${profile.coaching.autonomyStructureType} 특성을 고려해 구조와 선택권의 균형을 잡으세요.`,
+      "점수만으로 이유를 단정하긴 어려워요. 첫 수업과 초기 과제를 보며 원인을 함께 확인하면 좋겠어요.",
+    recommendedCoaching: `${profile.coaching.coachingType}에 맞게 말하는 방식을 조금 바꾸고, ${profile.coaching.autonomyStructureType} 특성을 고려해 정해진 틀과 선택권의 균형을 잡아 주세요.`,
     verificationPlan14Days: buildVerificationPlan(profile),
     teacherBrief: [
-      `지도 유형: ${profile.coaching.coachingType}`,
-      `자율·구조 성향: ${profile.coaching.autonomyStructureType}`,
-      `NK 적합도 단계: ${profile.nkFit.stage}`,
-      ...(note ? [`응답 품질: ${note}`] : []),
+      `지도할 때 참고할 유형은 ${profile.coaching.coachingType}이에요.`,
+      `${profile.coaching.autonomyStructureType} 특성이 있어요.`,
+      `NK 운영 방식과는 "${profile.nkFit.stage}" 관계예요.`,
+      ...(note ? [`응답이 한쪽으로 치우쳐, 첫 2주 실제 모습으로 함께 확인하면 좋아요.`] : []),
     ],
-    strengths: strengths.length ? strengths : ["초기 관찰 후 강점 확정 필요"],
+    strengths: strengths.length ? strengths : ["처음 몇 주간 살펴본 뒤 강점을 정리할게요"],
     growthAreas: growthAreas.length
       ? growthAreas
-      : ["초기 관찰 후 개선 영역 확정 필요"],
+      : ["처음 몇 주간 살펴본 뒤 도와줄 부분을 정리할게요"],
     crossEvidence: buildCrossEvidence(profile),
-    nkFitInterpretation: `NK 운영 적합도는 "${profile.nkFit.stage}" 단계입니다. 등록 판정이 아니라 제공해야 할 지원 조건을 함께 확인하세요.`,
+    nkFitInterpretation: `NK 운영 방식과는 "${profile.nkFit.stage}" 관계예요. 합격·불합격을 가리는 게 아니라, 학원이 어떤 부분을 도와주면 학생과 잘 맞을지 함께 보는 값이에요.`,
     mathStrategy: buildSubjectStrategy(profile, "math"),
     englishStrategy: buildSubjectStrategy(profile, "english"),
     roadmap12Weeks: [
@@ -152,9 +153,9 @@ export function buildFallbackInterpretation(
       },
     ],
     parentSummary:
-      "학생이 작성한 학습 프로필을 바탕으로 초기 지도 방향을 정리했습니다. 수치는 최근 4주 자기보고이며, 처음 2주 동안의 실제 행동으로 함께 확인해 나갈 예정입니다.",
+      "아이가 직접 작성한 응답을 바탕으로 학습 성향을 정리했어요. 지금 점수는 최근 4주 동안의 모습이고, 처음 2주 동안 학원과 가정이 함께 실제 행동을 살펴보며 맞춰 나갈게요. 부족해 보이는 부분도 혼내야 할 점이 아니라 먼저 도와줄 부분으로 봐 주시면 좋겠습니다.",
     cautions: note
-      ? [`${note}: 초기 수치는 확정이 아니라 확인 대상으로 해석`]
+      ? [`응답이 한쪽으로 치우쳐 있어, 지금 점수는 확정이 아니라 첫 2주 동안 함께 확인할 부분이에요.`]
       : [],
   };
 }

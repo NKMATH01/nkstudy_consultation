@@ -263,9 +263,9 @@ export function CoachingCoordinate({
       role="img"
       aria-labelledby={`${titleId} ${descId}`}
     >
-      <title id={titleId}>지도 좌표: 직접 피드백 수용 × 관계 안전 요구</title>
+      <title id={titleId}>지도 방법: 직설 피드백 수용 × 편안한 관계 필요</title>
       <desc id={descId}>
-        가로축은 직접 피드백 수용({scoreText(challenge)}), 세로축은 관계 안전 요구(
+        가로축은 직설적인 피드백을 받아들이는 힘({scoreText(challenge)}), 세로축은 편안한 관계가 필요한 정도(
         {scoreText(safety)})이며 현재 판정은 {coachingType}입니다.
       </desc>
       {/* 사분면 배경 */}
@@ -278,8 +278,8 @@ export function CoachingCoordinate({
       <text x={pad + inner * 0.72} y={size - pad - 6} fontSize="9" fill={C.faint}>직접 도전형</text>
       <text x={pad + 4} y={size - pad - 6} fontSize="9" fill={C.faint}>구조 관찰형</text>
       {/* 축 이름 */}
-      <text x={size / 2} y={size - 8} fontSize="10" fill={C.sub} textAnchor="middle">직접 피드백 수용 →</text>
-      <text x={12} y={size / 2} fontSize="10" fill={C.sub} textAnchor="middle" transform={`rotate(-90 12 ${size / 2})`}>관계 안전 요구 →</text>
+      <text x={size / 2} y={size - 8} fontSize="10" fill={C.sub} textAnchor="middle">직설 피드백 수용 →</text>
+      <text x={12} y={size / 2} fontSize="10" fill={C.sub} textAnchor="middle" transform={`rotate(-90 12 ${size / 2})`}>편안한 관계 필요 →</text>
       {/* 현재 위치 */}
       {known ? (
         <>

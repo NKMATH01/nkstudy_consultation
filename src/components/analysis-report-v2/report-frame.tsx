@@ -80,31 +80,34 @@ export function ReportCover({
   );
 }
 
-/** 넘버 섹션 래퍼(프로토타입 .report-v2-section + .luxury-section-heading). */
+/** 넘버 섹션 래퍼(.report-v2-section + .luxury-section-heading).
+ * 영문 eyebrow 대신 제목 아래 한국어 안내 캡션을 둔다(쉬운말·모바일 우선). */
 export function ReportSection({
   id,
   index,
-  eyebrow,
   title,
+  caption,
   aside,
   children,
 }: {
   id?: string;
   index: string;
-  eyebrow: string;
   title: string;
+  caption?: string;
   aside?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="report-v2-section" id={id}>
       <header className="luxury-section-heading">
-        <div>
-          <span>{index}</span>
-          <p>{eyebrow}</p>
-          <h2>{title}</h2>
+        <div className="luxury-section-heading__row">
+          <div className="luxury-section-heading__title">
+            <span className="luxury-section-heading__num">{index}</span>
+            <h2>{title}</h2>
+          </div>
+          {aside}
         </div>
-        {aside}
+        {caption && <p className="luxury-section-heading__caption">{caption}</p>}
       </header>
       {children}
     </section>
@@ -146,7 +149,7 @@ export function ReportToolbar({
           <span className="premium-brand__mark">NK</span>
           <span>
             <strong>NK EDUCATION</strong>
-            <small>PRIVATE LEARNING DOSSIER</small>
+            <small>학습 성향 분석 보고서</small>
           </span>
         </span>
         <div className="report-v2-actions rptv2-noprint">

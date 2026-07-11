@@ -11,7 +11,7 @@ const NAV = { waitUntil: "networkidle", timeout: 120000 };
 const OUT = path.resolve(
   process.cwd(),
   "..",
-  "docs/prototypes/2026-07-10-learning-profile-v2/screenshots/v2-final/redesign"
+  "docs/prototypes/2026-07-10-learning-profile-v2/screenshots/v2-final/redesign2"
 );
 
 function parsePdf(buf) {

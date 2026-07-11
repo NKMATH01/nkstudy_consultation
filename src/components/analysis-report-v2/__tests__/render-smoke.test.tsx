@@ -47,11 +47,11 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     );
     expect(html).toContain("학습 운영 프로필");
     expect(html).toContain("학생 분석 총평");
-    expect(html).toContain("CORE INTERPRETATION");
-    expect(html).toContain("TEACHER BRIEF");
+    expect(html).toContain("핵심 지도 판정");
+    expect(html).toContain("선생님 메모");
     expect(html).toContain("MBTI");
-    expect(html).toContain("첫 14일 행동 확인 지표");
-    expect(html).toContain("해석 원칙");
+    expect(html).toContain("첫 14일 확인 지표");
+    expect(html).toContain("읽는 원칙");
     // 연락처는 마스킹되어 원본 뒷자리가 노출되지 않는다.
     expect(html).not.toContain("010-1234-5678");
     expect(html).toContain("가상학생");
@@ -81,11 +81,11 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const safe = buildParentSafeProfile(profile, { name: "가상학생", schoolGrade: "중2" });
     const html = renderToStaticMarkup(<ParentReport data={safe} />);
     expect(html).toContain("학습 프로필 요약");
-    expect(html).toContain("12주 맞춤 솔루션");
+    expect(html).toContain("12주 맞춤 계획");
     // 상담자 전용 블록이 학부모 화면에 없다.
-    expect(html).not.toContain("TEACHER BRIEF");
-    expect(html).not.toContain("CORE INTERPRETATION");
-    expect(html).not.toContain("COUNSELING CONTEXT");
+    expect(html).not.toContain("선생님 메모");
+    expect(html).not.toContain("핵심 지도 판정");
+    expect(html).not.toContain("상담 배경과 학생이 쓴 이야기");
   });
 
   it("응답 품질 review이면 중립 확인 문구를 표시한다", () => {
@@ -104,6 +104,6 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const html = renderToStaticMarkup(
       <CounselorReport profile={profile} header={{ name: "가상", schoolGrade: "중2" }} />
     );
-    expect(html).toContain("초기 응답 품질이 낮아");
+    expect(html).toContain("응답이 한쪽으로 치우쳐 있어");
   });
 });

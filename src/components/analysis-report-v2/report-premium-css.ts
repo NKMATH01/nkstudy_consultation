@@ -36,8 +36,10 @@ export const REPORT_PREMIUM_CSS = `
   -webkit-font-smoothing: antialiased;
 }
 .rptv2-doc *, .rptv2-doc *::before, .rptv2-doc *::after { box-sizing: border-box; }
-.rptv2-doc button { color: inherit; font: inherit; cursor: pointer; }
-.rptv2-doc a { color: inherit; text-decoration: none; }
+/* :where()로 리셋 특이도를 0으로 낮춰, .report-command 등 컴포넌트 색상이 항상 이긴다
+   (그렇지 않으면 다크 툴바 색을 상속해 "저장" 텍스트가 어둡게 묻힌다). */
+:where(.rptv2-doc) button { color: inherit; font: inherit; cursor: pointer; }
+:where(.rptv2-doc) a { color: inherit; text-decoration: none; }
 .rptv2-doc .counselor-only { display: block; }
 .rptv2-doc.parent-mode .counselor-only { display: none; }
 

@@ -126,12 +126,13 @@ export interface DockItem {
   id: string;
   label: string;
 }
+// 단일화된 학부모 공유본 섹션으로 하단 메뉴를 맞춘다(과목 섹션은 선택 노출이라 제외).
 export const DOCK_ITEMS: DockItem[] = [
-  { id: "sec-summary", label: "요약" },
-  { id: "sec-learning", label: "학습" },
-  { id: "sec-life", label: "생활·관계" },
-  { id: "sec-fit", label: "NK 적합" },
-  { id: "sec-solution", label: "솔루션" },
+  { id: "sec-summary", label: "종합" },
+  { id: "sec-strength", label: "강점" },
+  { id: "sec-weakness", label: "약점" },
+  { id: "sec-signals", label: "항목별" },
+  { id: "sec-plan", label: "계획" },
 ];
 
 export const SUBJECT_LABEL: Record<string, string> = {

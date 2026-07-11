@@ -80,12 +80,19 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const profile = resultFor("both");
     const safe = buildParentSafeProfile(profile, { name: "가상학생", schoolGrade: "중2" });
     const html = renderToStaticMarkup(<ParentReport data={safe} />);
-    expect(html).toContain("학습 프로필 요약");
+    // 재설계: 선별된 종합 분석 구조(약점 섹션 포함).
+    expect(html).toContain("종합 분석");
+    expect(html).toContain("우리 아이의 강점");
+    expect(html).toContain("우리 아이의 약점");
+    expect(html).toContain("항목별 분석");
+    expect(html).toContain("NK의 지도 계획");
     expect(html).toContain("12주 맞춤 계획");
     // 상담자 전용 블록이 학부모 화면에 없다.
     expect(html).not.toContain("선생님 메모");
     expect(html).not.toContain("핵심 지도 판정");
     expect(html).not.toContain("상담 배경과 학생이 쓴 이야기");
+    // 점수 echo 제거: MBTI 조정 패널이 학부모 화면에 없다(레이더 축 라벨은 정상 노출).
+    expect(html).not.toContain("MBTI");
   });
 
   it("응답 품질 review이면 중립 확인 문구를 표시한다", () => {

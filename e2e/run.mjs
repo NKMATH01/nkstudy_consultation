@@ -237,73 +237,68 @@ function surveyTests(baseURL, browser) {
 }
 
 // ── 결과지 테스트 (fixture 라우트) ────────────────────────────────────
-const COUNSELOR_SECTIONS = [
+// 단일화된 학부모 공유본 섹션(종합·강점·약점·항목별·과목·계획 + 읽는 원칙).
+const REPORT_SECTIONS = [
+  "종합 분석",
+  "우리 아이의 강점",
+  "우리 아이의 약점",
+  "항목별 분석",
+  "과목 이야기",
+  "NK의 지도 계획",
+  "읽는 원칙",
+];
+
+// 단일화 후 결과지에 절대 노출되면 안 되는 상담자 전용 문구.
+const COUNSELOR_ONLY = [
   "학생 분석 총평",
   "핵심 지도 판정",
-  "지도 방법",
-  "핵심 학습 신호",
   "선생님 메모",
   "상담 배경과 학생이 쓴 이야기",
-  "수업 태도와 숙제 습관",
-  "버티는 힘과 다시 시작하는 힘",
-  "휴대폰·성격·친구관계",
+  "마음과 행동의 차이",
   "MBTI 참고 조정",
-  "NK 학원과 잘 맞는 부분",
-  "과목별 학습전략",
-  "강점과 12주 계획",
-  "12주 맞춤 계획",
-  "읽는 원칙",
 ];
 
 async function goReport(page, baseURL) {
   await page.goto(`${baseURL}/dev-report-preview`, NAV);
-  await page.getByText("학생 분석 총평", { exact: false }).first().waitFor({ state: "visible", timeout: 120000 });
-}
-
-/** 학부모 토글. SSR 마크업이 하이드레이션 전에 보이므로 전환될 때까지 클릭을 재시도한다. */
-async function toggleParent(page) {
-  const marker = page.getByText("종합 분석", { exact: false }).first();
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await page.getByRole("button", { name: "학부모 공유본", exact: true }).click();
-    if (await marker.isVisible().catch(() => false)) return;
-    await page.waitForTimeout(300);
-  }
-  await marker.waitFor({ state: "visible" });
+  await page.getByText("종합 분석", { exact: false }).first().waitFor({ state: "visible", timeout: 120000 });
 }
 
 function reportTests(baseURL, browser) {
   return [
     {
-      name: "상담자용 14개 섹션 + 수학·영어 전략 모두 렌더",
+      name: "단일 보고서: 학부모 공유본 섹션 + 과목 신호 렌더",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
           await goReport(page, baseURL);
-          for (const title of COUNSELOR_SECTIONS) {
+          for (const title of REPORT_SECTIONS) {
             const n = await page.getByText(title, { exact: false }).count();
             assert(n > 0, `섹션 누락: ${title}`);
           }
-          assert((await page.getByText("수학 학습전략", { exact: false }).count()) > 0, "수학 전략 렌더");
-          assert((await page.getByText("영어 학습전략", { exact: false }).count()) > 0, "영어 전략 렌더");
-          assertEqual(await page.locator(".report-v2-section").count(), 5, "상담자 보고서 섹션 수(요약·학습·생활·NK적합·솔루션)");
+          assert((await page.getByText("수학 학습전략", { exact: false }).count()) > 0, "수학 전략 신호 렌더");
+          assert((await page.getByText("영어 학습전략", { exact: false }).count()) > 0, "영어 전략 신호 렌더");
+          assertEqual(await page.locator(".report-v2-section").count(), 6, "단일 보고서 섹션 수(종합·강점·약점·항목별·과목·계획)");
         } finally {
           await context.close();
         }
       },
     },
     {
-      name: "학부모 토글 시 상담자 전용 섹션 DOM 부재",
+      name: "단일 보고서: 상담자 전용 정보·토글 부재",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
           await goReport(page, baseURL);
-          await toggleParent(page);
-          // 금지: 상세 총평(원문)·교사 브리핑·배경 교차해석·심리적 간극.
-          assertEqual(await page.getByText("선생님 메모", { exact: false }).count(), 0, "교사 브리핑 부재");
-          assertEqual(await page.getByText("핵심 지도 판정", { exact: false }).count(), 0, "상담자 판정 패널 부재");
-          assertEqual(await page.getByText("상담 배경과 학생이 쓴 이야기", { exact: false }).count(), 0, "배경 교차해석 부재");
-          assertEqual(await page.getByText("마음과 행동의 차이", { exact: false }).count(), 0, "심리적 간극 부재");
-          assertEqual(await page.locator(".report-v2-section").count(), 6, "학부모 보고서 섹션 수");
+          for (const t of COUNSELOR_ONLY) {
+            assertEqual(await page.getByText(t, { exact: false }).count(), 0, `상담자 전용 노출: ${t}`);
+          }
+          assert((await page.getByText("우리 아이의 약점", { exact: false }).count()) > 0, "약점 섹션 존재");
+          // 상담자/학부모 토글이 없다(단일 보고서).
+          assertEqual(
+            await page.getByRole("button", { name: "학부모 공유본", exact: true }).count(),
+            0,
+            "토글 부재"
+          );
         } finally {
           await context.close();
         }
@@ -317,7 +312,7 @@ function reportTests(baseURL, browser) {
           await goReport(page, baseURL);
           const dock = page.locator('nav[aria-label="보고서 섹션 이동"]');
           assertEqual(await dock.locator("button").count(), 5, "하단 메뉴 5개");
-          for (const label of ["요약", "학습", "생활·관계", "NK 적합", "솔루션"]) {
+          for (const label of ["종합", "강점", "약점", "항목별", "계획"]) {
             assert((await dock.getByText(label, { exact: true }).count()) > 0, `메뉴 누락: ${label}`);
           }
           const pos = await dock.evaluate((el) => getComputedStyle(el).position);
@@ -328,16 +323,14 @@ function reportTests(baseURL, browser) {
       },
     },
     {
-      name: "모바일 390×844 가로 넘침 없음(상담자·학부모)",
+      name: "모바일 390×844 가로 넘침 없음",
       fn: async () => {
         const { context, page } = await newPage(browser, { viewport: { width: 390, height: 844 } });
         try {
           await goReport(page, baseURL);
           const overflow = async () =>
             await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-          assert((await overflow()) <= 1, `상담자 가로 넘침: ${await overflow()}px`);
-          await toggleParent(page);
-          assert((await overflow()) <= 1, `학부모 가로 넘침: ${await overflow()}px`);
+          assert((await overflow()) <= 1, `가로 넘침: ${await overflow()}px`);
         } finally {
           await context.close();
         }
@@ -349,7 +342,6 @@ function reportTests(baseURL, browser) {
         const { context, page, consoleErrors, pageErrors } = await newPage(browser);
         try {
           await goReport(page, baseURL);
-          await toggleParent(page);
           await page.waitForTimeout(400);
           const noise = /favicon|Download the React DevTools|Lighthouse/i;
           const ce = consoleErrors.filter((m) => !noise.test(m));

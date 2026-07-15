@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import type { Analysis } from "@/types";
 import { FACTOR_LABELS } from "@/types";
 import Link from "next/link";
+import { getV2CoreMetrics } from "@/lib/assessment/v2/display";
 
 interface Props {
   initialData: Analysis[];
@@ -40,6 +41,23 @@ function MiniScore({ value }: { value: number | null }) {
   return (
     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${color}`}>
       {v.toFixed(1)}
+    </span>
+  );
+}
+
+function MiniV2Score({ value }: { value: number | null }) {
+  const color = value === null
+    ? "text-slate-400 bg-slate-50"
+    : value >= 75
+      ? "text-emerald-700 bg-emerald-50"
+      : value >= 60
+        ? "text-blue-700 bg-blue-50"
+        : value >= 40
+          ? "text-amber-700 bg-amber-50"
+          : "text-rose-700 bg-rose-50";
+  return (
+    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${color}`}>
+      {value === null ? "-" : Math.round(value)}
     </span>
   );
 }
@@ -111,7 +129,7 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
                 <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학교/학년</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">학생 유형</TableHead>
-                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 text-center">6-Factor</TableHead>
+                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 text-center">학습 프로필</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -127,7 +145,12 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
                       href={`/analyses/${item.id}`}
                       className="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition-colors block py-1"
                     >
-                      {item.name}
+                      <span className="inline-flex items-center gap-1.5">
+                        {item.name}
+                        {item.analysis_version === "v2" && (
+                          <span className="rounded border border-violet-200 bg-violet-50 px-1 py-0.5 text-[8px] font-black text-violet-700">V2</span>
+                        )}
+                      </span>
                     </Link>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell text-sm text-slate-500">
@@ -145,12 +168,18 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
                     </Link>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    <Link href={`/analyses/${item.id}`} className="flex items-center gap-1.5 justify-center py-1">
-                      {(["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const).map((key) => (
-                        <div key={key} title={FACTOR_LABELS[key]}>
-                          <MiniScore value={item[`score_${key}` as keyof Analysis] as number | null} />
-                        </div>
-                      ))}
+                    <Link href={`/analyses/${item.id}`} className="flex flex-wrap items-center gap-1.5 justify-center py-1">
+                      {item.analysis_version === "v2" && item.result_profile_v2
+                        ? getV2CoreMetrics(item.result_profile_v2.scores).slice(0, 4).map((metric) => (
+                            <div key={metric.key} title={metric.label}>
+                              <MiniV2Score value={metric.score} />
+                            </div>
+                          ))
+                        : (["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const).map((key) => (
+                            <div key={key} title={FACTOR_LABELS[key]}>
+                              <MiniScore value={item[`score_${key}` as keyof Analysis] as number | null} />
+                            </div>
+                          ))}
                     </Link>
                   </TableCell>
                 </TableRow>

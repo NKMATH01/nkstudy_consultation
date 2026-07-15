@@ -1,6 +1,11 @@
 import type { Analysis, Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
 import { env } from "@/lib/env";
+import {
+  getV2CoreMetrics,
+  surveyV2ToText,
+  v2PositiveBandLabel,
+} from "@/lib/assessment/v2/display";
 
 function getClaudeApiKey() {
   return env.ANTHROPIC_API_KEY;
@@ -61,6 +66,8 @@ export async function callClaudeAPI(prompt: string, retryCount = 0): Promise<str
 
 // ========== 설문 데이터 → 텍스트 변환 ==========
 export function surveyToText(survey: Survey): string {
+  if (survey.instrument_version === "v2") return surveyV2ToText(survey);
+
   let text = "";
 
   text += `학생 이름: ${survey.name}\n`;
@@ -119,12 +126,58 @@ export interface RegistrationAdminData {
   tuitionFee: number;
 }
 
+type RegistrationProfileRow = {
+  factor: string;
+  score: number | null;
+  grade: string;
+  insight: string;
+};
+
+/** V2 등록안내 숫자를 AI 응답이 아닌 result_profile_v2 서버 점수로 다시 고정한다. */
+export function normalizeRegistrationReportData(
+  reportData: Record<string, unknown>,
+  analysis: Analysis
+): Record<string, unknown> {
+  if (analysis.analysis_version !== "v2" || !analysis.result_profile_v2) {
+    return { ...reportData, instrumentVersion: "v1" };
+  }
+
+  const page1 = reportData.page1 && typeof reportData.page1 === "object"
+    ? (reportData.page1 as Record<string, unknown>)
+    : {};
+  const aiRows = Array.isArray(page1.sixFactorScores)
+    ? (page1.sixFactorScores as Array<Record<string, unknown>>)
+    : [];
+  const rows: RegistrationProfileRow[] = getV2CoreMetrics(analysis.result_profile_v2.scores).map((metric) => {
+    const aiRow = aiRows.find((row) => row.factor === metric.label);
+    const insight = typeof aiRow?.insight === "string" && aiRow.insight.trim()
+      ? aiRow.insight.trim()
+      : `${metric.label}은 ${v2PositiveBandLabel(metric.score)} 상태로, 첫 2주 실제 행동과 함께 확인합니다.`;
+    return {
+      factor: metric.label,
+      score: metric.score,
+      grade: v2PositiveBandLabel(metric.score),
+      insight,
+    };
+  });
+
+  return {
+    ...reportData,
+    instrumentVersion: "v2",
+    page1: { ...page1, sixFactorScores: rows },
+  };
+}
+
 // ========== 등록 보고서 프롬프트 ==========
 export function buildRegistrationPrompt(
   surveyText: string,
   analysis: Analysis,
   adminData: RegistrationAdminData
 ): string {
+  if (analysis.analysis_version === "v2" && analysis.result_profile_v2) {
+    return buildRegistrationPromptV2(surveyText, analysis, adminData);
+  }
+
   const vehicleFeeRaw = env.NK_ACADEMY_VEHICLE_FEE || "20000";
   const vehicleFeeVal = vehicleFeeRaw.includes("만")
     ? parseInt(vehicleFeeRaw.replace(/[^0-9]/g, "")) * 10000 || 20000
@@ -256,8 +309,107 @@ ${surveyText}
 }`;
 }
 
+function buildRegistrationPromptV2(
+  surveyText: string,
+  analysis: Analysis,
+  adminData: RegistrationAdminData
+): string {
+  const profile = analysis.result_profile_v2!;
+  const { scores, interpretation } = profile;
+  const metrics = getV2CoreMetrics(scores).map((metric) => ({
+    factor: metric.label,
+    score: metric.score,
+    grade: v2PositiveBandLabel(metric.score),
+  }));
+  const subjectInstruction = adminData.subject === "영어수학"
+    ? "수학과 영어를 모두 다루되 각 과목 전략과 시간 배분을 구분하세요."
+    : adminData.subject === "영어"
+      ? "영어 학습만 다루고 수학 내용은 넣지 마세요."
+      : "수학 학습만 다루고 영어 내용은 넣지 마세요.";
+  const classInfo = adminData.subject === "영어수학"
+    ? `수학 ${adminData.assignedClass}(${adminData.teacher}T) / 영어 ${adminData.assignedClass2 || "미정"}(${adminData.teacher2 || "미정"}T)`
+    : `${adminData.assignedClass}(${adminData.teacher}T)`;
+
+  return `# 역할
+당신은 NK EDUCATION의 신입생 인수인계·등록 안내문 작성자입니다.
+
+# 절대 규칙
+1. 이 학생은 최신 V2 학습 프로필 대상입니다. V1의 q1~q35, 6-Factor, 7-Factor, 1~5점 체계를 절대 사용하지 마세요.
+2. 모든 수치는 아래 서버 계산 0~100 점수만 그대로 사용하세요. 새 점수를 계산·추정·변환하지 마세요.
+3. 위험축은 높을수록 지원이 필요한 신호이며, 학생을 낙인찍거나 합격/부적합으로 표현하지 마세요.
+4. 첫 14일 실제 행동으로 설문 결과를 확인한다는 관점을 유지하세요.
+5. ${subjectInstruction}
+
+# V2 서버 계산 핵심 점수 (factor/score 수정 금지)
+${JSON.stringify(metrics)}
+
+# V2 해석 결과
+- 학생 유형: ${interpretation.studentType}
+- 상세 요약: ${interpretation.detailedSummary}
+- 핵심 관찰: ${interpretation.coreObservation}
+- 권장 코칭: ${interpretation.recommendedCoaching}
+- 담임 브리프: ${interpretation.teacherBrief.join(" / ")}
+- 강점: ${interpretation.strengths.join(" / ")}
+- 성장 지원 영역: ${interpretation.growthAreas.join(" / ")}
+- 첫 14일 확인 계획: ${interpretation.verificationPlan14Days.join(" / ")}
+- NK 운영 적합: ${scores.nkFit.stage} (${scores.nkFit.overall ?? "정보 부족"}점)
+- 수학 전략: ${interpretation.mathStrategy ?? "미선택 과목"}
+- 영어 전략: ${interpretation.englishStrategy ?? "미선택 과목"}
+- 응답 품질: ${scores.responseQuality.status}
+
+# 최신 V2 설문 원문
+${surveyText}
+
+# 행정 정보
+- 등록일: ${adminData.registrationDate}
+- 등록 과목: ${adminData.subject}
+- 배정: ${classInfo}
+- 희망요일: ${adminData.preferredDays}
+- 차량 이용: ${adminData.useVehicle || "미사용"}
+- 테스트 점수: ${adminData.testScore || "미입력"}
+- 테스트 특이사항: ${adminData.testNote || "없음"}
+- 수업 장소: ${adminData.location || "미정"}
+- 학부모 상담 예정일: ${adminData.consultDate || "미정"}
+- 추가 조치사항: ${adminData.additionalNote || "없음"}
+- 수업료: ${adminData.tuitionFee.toLocaleString()}원 (교재비 별도)
+
+# 출력 형식
+아래 JSON 구조만 반환하세요. sixFactorScores라는 키 이름은 기존 템플릿 호환용일 뿐이며 내용은 반드시 위 V2 0~100 핵심 점수 6개입니다.
+{
+  "page1": {
+    "docNo": "YYYYMMDD-이니셜",
+    "deptLabel": "Math Dept / English Dept / Math & English Dept 중 하나",
+    "profileSummary": "V2 학습 프로필과 테스트 결과를 연결한 핵심 요약 1~2문장",
+    "studentBackground": "최신 설문의 학습 이력·NK 기대·일정·자기 인식을 반영한 2~3문장",
+    "sixFactorScores": [
+      {"factor": "위 서버 점수의 factor 그대로", "score": 0, "grade": "위 서버 점수의 grade 그대로", "insight": "해당 신호에 맞는 실행 관점 1문장"}
+    ],
+    "managementGuide": [
+      {"title": "담임 실행 가이드", "description": "V2 지도 유형과 첫 14일 확인 계획에 맞는 구체 행동 2문장"},
+      {"title": "과제·복습 가이드", "description": "구체 행동 2문장"},
+      {"title": "과목별 전략", "description": "등록 과목에 맞는 구체 행동 2문장"},
+      {"title": "소통·피드백", "description": "구체 행동 2문장"}
+    ]
+  },
+  "page2": {
+    "welcomeTitle": "등록 과목에 맞는 환영 제목",
+    "welcomeSubtitle": "NK 교육 입학 환영 부제",
+    "expertDiagnosis": "V2 결과와 첫 14일 지원 계획을 담은 3~4문장",
+    "focusPoints": [
+      {"number": "01", "title": "핵심 포인트", "description": "구체 설명"},
+      {"number": "02", "title": "핵심 포인트", "description": "구체 설명"},
+      {"number": "03", "title": "핵심 포인트", "description": "구체 설명"},
+      {"number": "04", "title": "핵심 포인트", "description": "구체 설명"}
+    ],
+    "parentMessage": "가정 지원과 학원 소통 안내 3~4문장",
+    "academyRules": ["출결 규칙", "과제 규칙", "평가 안내", "상담 안내"]
+  }
+}`;
+}
+
 // ========== HTML 템플릿 생성 ==========
 export interface ReportTemplateData {
+  profileVersion?: "v1" | "v2";
   // 학생 정보
   name: string;
   school: string;
@@ -283,7 +435,7 @@ export interface ReportTemplateData {
     deptLabel: string;
     profileSummary: string;
     studentBackground?: string;
-    sixFactorScores?: { factor: string; score: number; grade: string; insight: string }[];
+    sixFactorScores?: RegistrationProfileRow[];
     tendencyAnalysis?: { title: string; score: number; color: string; comment: string }[];
     managementGuide: { title: string; description: string }[];
     actionChecklist?: string[];
@@ -335,6 +487,7 @@ export function buildReportHTML(data: ReportTemplateData): string {
     : parseInt(vehicleFeeRaw.replace(/[^0-9]/g, "")) || 20000;
   const vehicleFeeLabel = vehicleFeeNum >= 10000 ? `${vehicleFeeNum / 10000}만원` : `${vehicleFeeNum.toLocaleString()}원`;
   const { page1, page2 } = data;
+  const isV2Profile = data.profileVersion === "v2";
   const totalFee = data.useVehicle !== "미사용" ? data.tuitionFee + vehicleFeeNum : data.tuitionFee;
   const feeBreakdown = data.useVehicle !== "미사용"
     ? `수업료 ${formatFee(data.tuitionFee)}원 + 차량비 ${vehicleFeeLabel} (교재비 별도)`
@@ -378,8 +531,15 @@ export function buildReportHTML(data: ReportTemplateData): string {
     return `${mathScheduleCard(math1Label, data.assignedClass, data.teacher, data.classDays, data.classTime, data.clinicTime, data.testDays, data.testTime)}${math2Block}`;
   }
 
-  // 7대 핵심 학습 성향 점수 HTML
-  function ratingGrade(score: number): { label: string; color: string; bg: string } {
+  // V1은 1~5, V2는 최신 결과지와 동일한 0~100 밴드로 표시한다.
+  function ratingGrade(score: number | null): { label: string; color: string; bg: string } {
+    if (score === null) return { label: "확인 필요", color: "#64748b", bg: "#f1f5f9" };
+    if (isV2Profile) {
+      if (score >= 75) return { label: "안정적", color: "#0d9488", bg: "#f0fdfa" };
+      if (score >= 60) return { label: "대체로 잘 됨", color: "#0284c7", bg: "#f0f9ff" };
+      if (score >= 40) return { label: "들쭉날쭉", color: "#d97706", bg: "#fffbeb" };
+      return { label: "먼저 도와줄 부분", color: "#dc2626", bg: "#fef2f2" };
+    }
     if (score >= 4) return { label: "우수", color: "#0d9488", bg: "#f0fdfa" };
     if (score >= 3) return { label: "양호", color: "#0284c7", bg: "#f0f9ff" };
     if (score >= 2) return { label: "보통", color: "#d97706", bg: "#fffbeb" };
@@ -387,13 +547,13 @@ export function buildReportHTML(data: ReportTemplateData): string {
   }
 
   const sixFactorHTML = (page1.sixFactorScores || []).map((item) => {
-    const pct = Math.min((item.score / 5) * 100, 100);
+    const pct = item.score === null ? 0 : Math.min(isV2Profile ? item.score : (item.score / 5) * 100, 100);
     const r = ratingGrade(item.score);
     return `<div style="padding:16px 0;border-bottom:1px solid var(--border-light)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:14px;font-weight:700;color:var(--text-main)">${item.factor}</span>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:17px;font-weight:800;color:var(--primary-dark)">${item.score.toFixed(1)}</span>
+          <span style="font-size:17px;font-weight:800;color:var(--primary-dark)">${item.score === null ? "정보 부족" : `${item.score.toFixed(1)}${isV2Profile ? "" : " / 5"}`}</span>
           <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:${r.bg};color:${r.color}">${r.label}</span>
         </div>
       </div>
@@ -507,7 +667,7 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
 <div class="wrap">
   <header class="hdr animate-up">
     <div class="brand-wrap"><div class="brand-logo">NK</div><span class="brand-name">NK 교육컨설팅</span></div>
-    <span class="hdr-sub">NK 심층 학습 성향 분석 기반</span>
+    <span class="hdr-sub">${isV2Profile ? "NK 학습 프로필 2.0 기반" : "NK 심층 학습 성향 분석 기반"}</span>
     <h1 class="hdr-title">신입생 등록 안내서</h1>
     <p class="hdr-desc">${page2.welcomeTitle}<br>${page2.welcomeSubtitle}</p>
     <div class="profile-card">
@@ -534,10 +694,10 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
       </div>
     </section>
     <section class="sec animate-up" id="diagnosis" style="animation-delay:.2s">
-      <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg><h2>NK 심층 성향 분석</h2></div>
+      <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg><h2>${isV2Profile ? "NK 학습 프로필 분석" : "NK 심층 성향 분석"}</h2></div>
       <div class="summary-box"><div class="type-tag"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>${page1.profileSummary || ""}</div><p>${page2.expertDiagnosis}</p></div>
       ${backgroundHTML}
-      ${sixFactorHTML ? '<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark)">7대 핵심 학습 성향</h3></div>' + sixFactorHTML + '</div>' : ''}
+      ${sixFactorHTML ? '<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark)">' + (isV2Profile ? 'V2 핵심 학습 프로필 (0~100)' : '7대 핵심 학습 성향') + '</h3></div>' + sixFactorHTML + '</div>' : ''}
       <div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark)">핵심 학습 포인트</h3></div><div class="num-list">${focusHTML}</div></div>
       ${page2.parentMessage ? '<div class="msg-box"><div class="msg-header"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><h4>학부모님께 드리는 말씀</h4></div><p>' + page2.parentMessage + '</p></div>' : ""}
     </section>

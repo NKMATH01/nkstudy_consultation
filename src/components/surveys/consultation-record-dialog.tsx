@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { updateConsultationField } from "@/lib/actions/consultation";
 import type { Consultation, Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS, PREFERRED_DAYS } from "@/types";
+import { PREFERRED_DAYS_V2 } from "@/lib/assessment/v2/validation";
+import { SurveyV2ResponseView } from "@/components/surveys/survey-v2-response-view";
 
 const ADVANCE_LEVELS = ["없음", "1개월", "3개월", "6개월", "1년", "2년 이상"] as const;
 const STUDY_GOALS = ["내신 향상", "선행 학습", "기초 보강", "상위권 유지", "수능 대비", "기타"] as const;
@@ -41,6 +43,14 @@ const AUTOFILL_FIELDS = [
   "requests",
 ] as const;
 
+// V2가 수집하지 않는 내신점수·선행정도를 과거 호환 컬럼에서 잘못 복사하지 않는다.
+const V2_AUTOFILL_FIELDS = [
+  "prev_academy",
+  "prev_complaint",
+  "prefer_days",
+  "requests",
+] as const;
+
 function withCurrentOption(options: readonly string[], current?: string | null) {
   if (!current) return [...options];
   return options.includes(current) ? [...options] : [current, ...options];
@@ -60,12 +70,13 @@ function surveyAutofillValue(survey: Survey, field: (typeof AUTOFILL_FIELDS)[num
 }
 
 function buildInitialForm(survey: Survey, consultation: Consultation) {
+  const isV2 = survey.instrument_version === "v2";
   return {
     prev_academy: firstValue(consultation.prev_academy, survey.prev_academy),
     prev_complaint: firstValue(consultation.prev_complaint, survey.prev_complaint),
-    school_score: firstValue(consultation.school_score, survey.school_score),
+    school_score: firstValue(consultation.school_score, isV2 ? null : survey.school_score),
     test_score: consultation.test_score ?? "",
-    advance_level: firstValue(consultation.advance_level, survey.advance_level),
+    advance_level: firstValue(consultation.advance_level, isV2 ? null : survey.advance_level),
     study_goal: consultation.study_goal ?? "",
     prefer_days: firstValue(consultation.prefer_days, survey.prefer_days),
     plan_date: consultation.plan_date ?? "",
@@ -85,6 +96,7 @@ interface Props {
 }
 
 export function ConsultationRecordDialog({ survey, consultation, open, onOpenChange, classes = [] }: Props) {
+  const isV2 = survey.instrument_version === "v2";
   const [form, setForm] = useState(() => buildInitialForm(survey, consultation));
   const [saving, setSaving] = useState<string | null>(null);
 
@@ -110,7 +122,8 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
   useEffect(() => {
     if (!open) return;
 
-    AUTOFILL_FIELDS.forEach((field) => {
+    const fields = isV2 ? V2_AUTOFILL_FIELDS : AUTOFILL_FIELDS;
+    fields.forEach((field) => {
       const current = (consultation[field as keyof Consultation] as string | null) ?? "";
       const surveyValue = surveyAutofillValue(survey, field);
 
@@ -118,7 +131,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
         saveField(field, surveyValue);
       }
     });
-  }, [consultation, open, saveField, survey]);
+  }, [consultation, isV2, open, saveField, survey]);
 
   const handleBlur = (field: string) => {
     const value = form[field as keyof typeof form];
@@ -158,6 +171,10 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
               설문 응답
             </h3>
 
+            {isV2 ? (
+              <SurveyV2ResponseView survey={survey} variant="compact" />
+            ) : (
+            <>
             {/* 7-Factor */}
             <div className="p-3 rounded-xl bg-slate-50">
               <h4 className="text-xs font-bold text-slate-700 mb-2.5">7-Factor 학습 성향</h4>
@@ -241,6 +258,8 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                 ))}
               </div>
             </div>
+            </>
+            )}
           </div>
 
           {/* RIGHT: Consultation Record + Detail Memo (editable) */}
@@ -330,7 +349,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                     className={sel}
                   >
                     <option value="">선택</option>
-                    {withCurrentOption(PREFERRED_DAYS, form.prefer_days).map((d) => <option key={d} value={d}>{d}</option>)}
+                    {withCurrentOption(isV2 ? PREFERRED_DAYS_V2 : PREFERRED_DAYS, form.prefer_days).map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
               </div>

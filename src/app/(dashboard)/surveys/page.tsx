@@ -17,7 +17,7 @@ export default async function SurveysPage({
   const supabase = await createClient();
   // report_html 본문(~3MB)은 목록에서 로드하지 않고 존재 여부만 파악한다.
   // 쿼리 A: 전체 분석의 id/survey_id, 쿼리 B: report_html이 있는 분석 id 집합
-  const [result, classes, teachers, { data: analysesBase }, { data: analysesWithReport }, { data: registrations }, { data: consultations }] = await Promise.all([
+  const [result, classes, teachers, { data: analysesBase }, { data: analysesWithReport }, { data: registrations }, { data: consultations }, { data: surveyNames, count: surveyNameTotal }] = await Promise.all([
     getSurveys({ page, search, limit: 20 }),
     getClasses(),
     getTeachers(),
@@ -37,10 +37,12 @@ export default async function SurveysPage({
       // 그렇지 않으면 한 학생의 여러 상담 중 "고민중"으로 마크된 건을 놓쳐 설문분석에서 상태 미표시됨.
     supabase
       .from("consultations")
-      .select("id, name, result_status, test_score, subject")
+      .select("id, name, parent_phone, analysis_id, result_status, test_score, subject")
       .order("consult_date", { ascending: false, nullsFirst: false })
       .order("consult_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
+    // 현재 페이지 밖의 동명이인도 이름 fallback을 막을 수 있도록 전체 이름을 확인한다.
+    supabase.from("surveys").select("name", { count: "exact" }),
   ]);
 
   const reportIds = new Set(((analysesWithReport ?? []) as { id: string }[]).map((a) => a.id));
@@ -49,6 +51,20 @@ export default async function SurveysPage({
     survey_id: a.survey_id,
     has_report: reportIds.has(a.id),
   }));
+  const surveyNameCounts = new Map<string, number>();
+  for (const survey of (surveyNames ?? []) as { name: string }[]) {
+    const name = survey.name.trim();
+    surveyNameCounts.set(name, (surveyNameCounts.get(name) ?? 0) + 1);
+  }
+  const hasCompleteSurveyNameIndex =
+    surveyNameTotal !== null &&
+    surveyNameTotal !== undefined &&
+    (surveyNames?.length ?? 0) >= surveyNameTotal;
+  const ambiguousSurveyNames = hasCompleteSurveyNameIndex
+    ? [...surveyNameCounts]
+        .filter(([, count]) => count > 1)
+        .map(([name]) => name)
+    : [...new Set(result.data.map((survey) => survey.name.trim()))];
 
   return (
     <SurveyListClient
@@ -56,7 +72,8 @@ export default async function SurveysPage({
       initialPagination={result.pagination}
       analyses={analyses}
       registrations={(registrations ?? []) as { id: string; analysis_id: string | null }[]}
-      consultations={(consultations ?? []) as { id: string; name: string; result_status: string; test_score: string | null; subject: string | null }[]}
+      consultations={(consultations ?? []) as { id: string; name: string; parent_phone: string | null; analysis_id: string | null; result_status: string; test_score: string | null; subject: string | null }[]}
+      ambiguousSurveyNames={ambiguousSurveyNames}
       classes={classes}
       teachers={teachers}
     />

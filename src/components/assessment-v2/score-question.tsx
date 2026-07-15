@@ -10,16 +10,10 @@ import type {
   AssessmentItem,
   LikertItem,
   LikertResponse,
-  Scale,
   ScenarioItem,
 } from "@/lib/assessment/v2/types";
 import { isLikert } from "@/lib/assessment/v2/definition";
-
-const SCALE_LABELS: Record<Scale, string[]> = {
-  frequency: ["거의 없었다", "한두 번", "절반 정도", "자주", "거의 매번"],
-  agreement: ["전혀 맞지 않다", "별로 맞지 않다", "반반이다", "대체로 맞다", "매우 잘 맞다"],
-  fit: ["전혀 아니다", "별로 아니다", "반반이다", "대체로 그렇다", "매우 그렇다"],
-};
+import { SCALE_LABELS_V2 } from "@/lib/assessment/v2/display";
 
 export type ScoreValue = LikertResponse | number;
 
@@ -124,7 +118,7 @@ function LikertOptions({
   value: ScoreValue | null | undefined;
   onSelect: (value: ScoreValue, viaPointer: boolean) => void;
 }) {
-  const labels = SCALE_LABELS[item.scale];
+  const labels = SCALE_LABELS_V2[item.scale];
   return (
     <div role="radiogroup" aria-label={item.text} className="space-y-2">
       {[1, 2, 3, 4, 5].map((v) => (

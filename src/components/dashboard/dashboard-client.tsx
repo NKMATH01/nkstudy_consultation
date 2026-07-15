@@ -43,6 +43,8 @@ type SurveyItem = {
   name: string;
   grade: string | null;
   analysis_id: string | null;
+  instrument_version: string | null;
+  subject_selection: "math" | "english" | "both" | null;
   created_at: string;
 };
 
@@ -492,7 +494,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
             <div className="text-[14.5px] font-bold mb-4" style={{ color: "#1E293B" }}>빠른 액션</div>
             {[
               { label: "새 상담 등록", href: "/consultations", icon: Plus, color: "#2563EB" },
-              { label: "설문 입력", href: "/surveys", icon: ClipboardList, color: "#059669" },
+              { label: "V2 설문 열기", href: "/survey", icon: ClipboardList, color: "#059669" },
               { label: "성향분석 보기", href: "/analyses", icon: Sparkles, color: "#7C3AED" },
             ].map((a) => (
               <Link
@@ -523,8 +525,17 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
                 >
                   <Avatar name={s.name} size={28} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12.5px] font-semibold" style={{ color: "#1E293B" }}>{s.name}</div>
-                    <div className="text-[10.5px]" style={{ color: "#94A3B8" }}>{s.grade || "-"}</div>
+                    <div className="flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: "#1E293B" }}>
+                      {s.name}
+                      {s.instrument_version === "v2" && (
+                        <span className="rounded border border-violet-200 bg-violet-50 px-1 py-0.5 text-[8px] font-black text-violet-700">V2</span>
+                      )}
+                    </div>
+                    <div className="text-[10.5px]" style={{ color: "#94A3B8" }}>
+                      {s.grade || "-"}
+                      {s.instrument_version === "v2" && s.subject_selection &&
+                        ` · ${{ math: "수학", english: "영어", both: "수학+영어" }[s.subject_selection]}`}
+                    </div>
                   </div>
                   <Badge color={s.analysis_id ? "green" : "yellow"}>
                     {s.analysis_id ? "완료" : "미분석"}

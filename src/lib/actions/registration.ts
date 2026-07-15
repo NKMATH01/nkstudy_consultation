@@ -6,6 +6,7 @@ import {
   surveyToText,
   buildRegistrationPrompt,
   buildReportHTML,
+  normalizeRegistrationReportData,
   type RegistrationAdminData,
   type ReportTemplateData,
 } from "@/lib/claude";
@@ -13,6 +14,14 @@ import { extractJSON } from "@/lib/gemini";
 import type { Registration, Analysis, Survey, PaginatedResponse } from "@/types";
 import { TUITION_TABLE } from "@/types";
 import { revalidatePath } from "next/cache";
+import {
+  escapeLikePattern,
+  nextStudentDisplayName,
+  selectConsultationIdentity,
+  selectStudentIdentity,
+  type ConsultationIdentityRecord,
+  type StudentIdentityRecord,
+} from "@/lib/student-identity";
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토"] as const;
 
@@ -215,47 +224,61 @@ export async function generateRegistration(
     return { success: false, error: "설문 데이터를 찾을 수 없습니다" };
   }
 
-  // 3. 수업료 계산
-  const { data: studentMatches, error: studentLookupError, count: studentCount } = await supabase
+  // 3. 이름 + 연락처로 기존 학생/상담 식별
+  // 이름만 같은 행을 갱신하면 동명이인의 학생 마스터를 덮어쓸 수 있다.
+  const namePattern = `${escapeLikePattern(analysisData.name)}%`;
+  const { data: studentCandidates, error: studentLookupError } = await supabase
     .from("students")
-    .select("id", { count: "exact" })
-    .eq("name", analysisData.name)
-    .limit(2);
+    .select("id, name, phone, parent_phone")
+    .ilike("name", namePattern)
+    .limit(100);
 
   if (studentLookupError) {
     return { success: false, error: studentLookupError.message };
   }
 
-  const duplicateStudentCount = studentCount ?? studentMatches?.length ?? 0;
-  if (duplicateStudentCount > 1) {
+  const typedStudentCandidates = (studentCandidates ?? []) as StudentIdentityRecord[];
+  const studentSelection = selectStudentIdentity(typedStudentCandidates, {
+    name: analysisData.name,
+    studentPhone: surveyData.student_phone,
+    parentPhone: surveyData.parent_phone,
+  });
+  if (studentSelection.kind === "ambiguous") {
     return {
       success: false,
-      error: `동명이인 학생이 ${duplicateStudentCount}건 있어 자동 갱신할 수 없습니다`,
+      error: `이름과 연락처가 같은 학생이 ${studentSelection.records.length}건 있어 자동 갱신할 수 없습니다`,
     };
   }
 
-  const { data: consultationMatches, error: consultationLookupError, count: consultationCount } = await supabase
-    .from("consultations")
-    .select("id", { count: "exact" })
-    .eq("name", analysisData.name)
-    .neq("result_status", "registered")
-    .order("consult_date", { ascending: false, nullsFirst: false })
-    .order("consult_time", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(2);
-
-  if (consultationLookupError) {
-    return { success: false, error: consultationLookupError.message };
+  let consultationCandidates: ConsultationIdentityRecord[] = [];
+  if (surveyData.parent_phone) {
+    const { data, error } = await supabase
+      .from("consultations")
+      .select("id, name, parent_phone, registration_id")
+      .ilike("name", namePattern)
+      .is("registration_id", null)
+      .order("consult_date", { ascending: false, nullsFirst: false })
+      .order("consult_time", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    consultationCandidates = (data ?? []) as ConsultationIdentityRecord[];
   }
 
-  const duplicateConsultationCount = consultationCount ?? consultationMatches?.length ?? 0;
-  if (duplicateConsultationCount > 1) {
+  const consultationSelection = selectConsultationIdentity(consultationCandidates, {
+    name: analysisData.name,
+    parentPhone: surveyData.parent_phone,
+  });
+  if (consultationSelection.kind === "ambiguous") {
     return {
       success: false,
-      error: `동명이인 상담이 ${duplicateConsultationCount}건 있어 자동 갱신할 수 없습니다`,
+      error: `이름과 학부모 연락처가 같은 상담이 ${consultationSelection.records.length}건 있어 자동 갱신할 수 없습니다`,
     };
   }
 
+  // 4. 수업료 계산
   const tuitionFee =
     adminFormData.tuition_fee ||
     TUITION_TABLE[adminFormData.grade || analysisData.grade || ""] ||
@@ -328,7 +351,7 @@ export async function generateRegistration(
   let reportData: Record<string, unknown>;
   try {
     const response = await callClaudeAPI(prompt);
-    reportData = extractJSON(response);
+    reportData = normalizeRegistrationReportData(extractJSON(response), analysisData);
   } catch (e) {
     console.error("[Claude API] 등록 안내문 생성 실패:", { analysisId, error: e instanceof Error ? e.message : e });
     const msg = e instanceof Error ? e.message : "등록 안내문 생성 실패";
@@ -340,6 +363,7 @@ export async function generateRegistration(
   const page2Data = (reportData.page2 || {}) as ReportTemplateData["page2"];
 
   const templateData: ReportTemplateData = {
+    profileVersion: reportData.instrumentVersion === "v2" ? "v2" : "v1",
     name: analysisData.name,
     school: analysisData.school || "",
     grade: adminFormData.grade || analysisData.grade || "",
@@ -473,6 +497,8 @@ export async function generateRegistration(
   let warning: string | undefined;
 
   // 8. 학생 관리에 자동 등록/업데이트
+  let syncedStudentId =
+    studentSelection.kind === "existing" ? studentSelection.record.id : null;
   try {
     // 선생님 이름 → teacher_id 조회
     let teacherId: string | null = null;
@@ -486,11 +512,13 @@ export async function generateRegistration(
       teacherId = teacherRow?.id || null;
     }
 
-    // 기존 학생 확인 (이름 기준)
-    const existingStudent = studentMatches?.[0] ?? null;
+    const studentName =
+      studentSelection.kind === "existing"
+        ? studentSelection.record.name
+        : nextStudentDisplayName(analysisData.name, typedStudentCandidates);
 
     const studentData: Record<string, unknown> = {
-      name: analysisData.name,
+      name: studentName,
       school: analysisData.school || null,
       grade: adminFormData.grade || analysisData.grade || null,
       phone: surveyData.student_phone || null,
@@ -501,13 +529,23 @@ export async function generateRegistration(
       registration_date: adminFormData.registration_date || null,
     };
 
-    if (existingStudent) {
-      await supabase
+    if (studentSelection.kind === "existing") {
+      const { data, error } = await supabase
         .from("students")
         .update(studentData)
-        .eq("id", existingStudent.id);
+        .eq("id", studentSelection.record.id)
+        .select("id")
+        .single();
+      if (error) throw error;
+      syncedStudentId = data.id;
     } else {
-      await supabase.from("students").insert(studentData);
+      const { data, error } = await supabase
+        .from("students")
+        .insert(studentData)
+        .select("id")
+        .single();
+      if (error) throw error;
+      syncedStudentId = data.id;
     }
   } catch (e) {
     console.error("[Student] 학생 자동 등록/업데이트 실패:", e instanceof Error ? e.message : e);
@@ -516,11 +554,19 @@ export async function generateRegistration(
 
   // 9. 상담 result_status → "registered" 자동 변경
   try {
-    const targetConsultation = consultationMatches?.[0] ?? null;
+    const targetConsultation =
+      consultationSelection.kind === "existing" ? consultationSelection.record : null;
     if (targetConsultation) {
+      const consultationUpdate: Record<string, unknown> = {
+        result_status: "registered",
+        registration_id: registration.id,
+        analysis_id: analysisId,
+      };
+      if (syncedStudentId) consultationUpdate.student_id = syncedStudentId;
+
       const { error: consultationUpdateError } = await supabase
         .from("consultations")
-        .update({ result_status: "registered", registration_id: registration.id })
+        .update(consultationUpdate)
         .eq("id", targetConsultation.id);
 
       if (consultationUpdateError) {
@@ -658,7 +704,7 @@ export async function regenerateRegistration(id: string) {
   let reportData: Record<string, unknown>;
   try {
     const response = await callClaudeAPI(prompt);
-    reportData = extractJSON(response);
+    reportData = normalizeRegistrationReportData(extractJSON(response), analysisData);
   } catch (e) {
     console.error("[Claude API] 등록 보고서 재생성 실패:", { id, error: e instanceof Error ? e.message : e });
     const msg = e instanceof Error ? e.message : "보고서 재생성 실패";
@@ -670,6 +716,7 @@ export async function regenerateRegistration(id: string) {
   const page2Data = (reportData.page2 || {}) as ReportTemplateData["page2"];
 
   const templateData: ReportTemplateData = {
+    profileVersion: reportData.instrumentVersion === "v2" ? "v2" : "v1",
     name: registration.name,
     school: registration.school || "",
     grade: registration.grade || "",
@@ -829,7 +876,7 @@ export async function updateRegistrationFields(
   // 분석 결과 조회 (설문 연결용)
   const { data: analysis } = await supabase
     .from("analyses")
-    .select("survey_id")
+    .select("survey_id, analysis_version, result_profile_v2")
     .eq("id", registration.analysis_id)
     .single();
 
@@ -901,11 +948,17 @@ export async function updateRegistrationFields(
   }
 
   // 기존 report_data에서 AI 콘텐츠 복원
-  const reportData = registration.report_data as Record<string, unknown>;
+  const reportData = analysis?.analysis_version === "v2" && analysis.result_profile_v2
+    ? normalizeRegistrationReportData(
+        registration.report_data as Record<string, unknown>,
+        analysis as unknown as Analysis
+      )
+    : (registration.report_data as Record<string, unknown>);
   const page1Data = (reportData.page1 || {}) as ReportTemplateData["page1"];
   const page2Data = (reportData.page2 || {}) as ReportTemplateData["page2"];
 
   const templateData: ReportTemplateData = {
+    profileVersion: reportData.instrumentVersion === "v2" ? "v2" : "v1",
     name: registration.name,
     school: registration.school || "",
     grade: registration.grade || "",
@@ -986,7 +1039,7 @@ export async function updateRegistrationFields(
   // HTML 업데이트
   await supabase
     .from("registrations")
-    .update({ report_html: reportHTML })
+    .update({ report_html: reportHTML, report_data: reportData })
     .eq("id", id);
 
   revalidatePath(`/registrations/${id}`);

@@ -9,6 +9,10 @@ import type {
 } from "@/types";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  escapeLikePattern,
+  selectSurveyConsultation,
+} from "@/lib/student-identity";
 
 const BOOKING_SYNC_WARNING = "상담은 저장되었으나 예약 현황판 반영에 실패했습니다";
 
@@ -169,34 +173,54 @@ export async function getConsultation(
 }
 
 export async function getConsultationByName(
-  name: string
+  name: string,
+  identity?: {
+    parentPhone?: string | null;
+    analysisId?: string | null;
+    allowNameFallback?: boolean;
+  }
 ): Promise<Consultation | null> {
   const supabase = await createClient();
 
-  // 이름 공백 차이("김혜원" vs "김혜원 ") 방어: exact match 실패 시 trim 기준으로 재시도
-  // 같은 이름의 상담이 여러 건(재상담 등)이면 분석 상세 페이지와 동일하게 가장 최근 1건을 사용
+  // 분석 ID/학부모 연락처가 있으면 이름만 같은 동명이인의 상담을 절대 반환하지 않는다.
   const trimmed = (name ?? "").trim();
-  const tryFetch = async (nameValue: string) =>
-    supabase
+  if (!trimmed) return null;
+
+  const fetchRows = async (analysisId?: string | null) => {
+    let query = supabase
       .from("consultations")
       .select("*")
-      .eq("name", nameValue)
+      .ilike("name", `${escapeLikePattern(trimmed)}%`)
       .order("consult_date", { ascending: false, nullsFirst: false })
       .order("consult_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(100);
+    if (analysisId) query = query.eq("analysis_id", analysisId);
+    const result = await query;
+    if (result.error) return [];
+    return result.data ?? [];
+  };
 
-  let { data, error } = await tryFetch(name);
-  if ((!data || error) && trimmed !== name) {
-    ({ data, error } = await tryFetch(trimmed));
+  if (identity?.analysisId) {
+    const analysisRows = await fetchRows(identity.analysisId);
+    const analysisMatch = selectSurveyConsultation(analysisRows, {
+      name: trimmed,
+      analysisId: identity.analysisId,
+      parentPhone: identity.parentPhone,
+    });
+    if (analysisMatch) return analysisMatch as Consultation;
   }
 
-  if (error || !data) {
-    return null;
-  }
-
-  return data as Consultation;
+  const nameRows = await fetchRows();
+  return selectSurveyConsultation(
+    nameRows,
+    {
+      name: trimmed,
+      analysisId: identity?.analysisId,
+      parentPhone: identity?.parentPhone,
+    },
+    { allowNameFallback: identity?.allowNameFallback ?? true },
+  ) as Consultation | null;
 }
 
 export async function createConsultation(formData: FormData): Promise<ConsultationMutationResult> {
@@ -516,53 +540,23 @@ export async function updateConsultationField(
   }
 }
 
-/** 학생 이름 기준으로 등록 상태 + 추가 정보 업데이트 */
+/** 식별된 상담 ID 기준으로 등록 상태 + 추가 정보 업데이트 */
 export async function updateRegistrationInfo(
-  studentName: string,
+  consultationId: string,
   data: {
     result_status: string;
     plan_date?: string;
     plan_class?: string;
     reserve_deposit?: boolean;
-  },
-  consultationId?: string
+  }
 ) {
   try {
     const supabase = await createClient();
-    let targetConsultationId = consultationId;
-
-    if (!targetConsultationId) {
-    // 가장 최근 상담 찾기 — 상담관리/설문분석 표시 기준과 동일하게 consult_date 우선 정렬
-    // 이름 공백 차이(예: "김혜원 " vs "김혜원") 방어: exact 실패 시 trim 으로 재시도
-    const trimmedName = (studentName ?? "").trim();
-    const findMatches = (nameValue: string) =>
-      supabase
-        .from("consultations")
-        .select("id", { count: "exact" })
-        .eq("name", nameValue)
-        .order("consult_date", { ascending: false, nullsFirst: false })
-        .order("consult_time", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .limit(2);
-
-    let { data: consultations, error: findErr, count } = await findMatches(studentName);
-    if ((!consultations?.length || findErr) && trimmedName !== studentName) {
-      ({ data: consultations, error: findErr, count } = await findMatches(trimmedName));
-    }
-
-    if (findErr || !consultations?.length) {
-      return { success: false, error: "해당 학생의 상담 정보를 찾을 수 없습니다" };
-    }
-
-      const duplicateCount = count ?? consultations.length;
-      if (duplicateCount > 1) {
-        return {
-          success: false,
-          error: `동명이인 상담이 ${duplicateCount}건 있어 자동 갱신할 수 없습니다`,
-        };
-      }
-
-      targetConsultationId = consultations[0].id;
+    if (!consultationId) {
+      return {
+        success: false,
+        error: "학생을 안전하게 식별할 상담 정보가 없습니다",
+      };
     }
 
     const updateData: Record<string, unknown> = {
@@ -575,7 +569,7 @@ export async function updateRegistrationInfo(
     const { error } = await supabase
       .from("consultations")
       .update(updateData)
-      .eq("id", targetConsultationId);
+      .eq("id", consultationId);
 
     if (error) {
       return { success: false, error: error.message };

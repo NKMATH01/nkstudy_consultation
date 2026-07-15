@@ -3,10 +3,9 @@
 import { useState, useTransition, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { Plus, ClipboardList, Search, Sparkles, Brain, Trash2, Loader2, FileCheck, FileEdit } from "lucide-react";
+import { Plus, ClipboardList, Search, Sparkles, Brain, Trash2, Loader2, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/common/empty-state";
-import { SurveyFormDialog } from "@/components/surveys/survey-form-client";
 import { SurveyPreviewDialog } from "@/components/surveys/survey-preview-dialog";
 import { toast } from "sonner";
 import { analyzeSurvey, reAnalyzeSurvey, getAnalysis } from "@/lib/actions/analysis";
@@ -27,10 +25,16 @@ import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import { ConsultationRecordDialog } from "@/components/surveys/consultation-record-dialog";
 import type { Survey, Class, Teacher, Consultation } from "@/types";
-import { RESULT_STATUS_LABELS } from "@/types";
 import type { ResultStatus } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
 import Link from "next/link";
+import {
+  getSurveyV2Subject,
+  getV2CoreMetrics,
+  SUBJECT_LABEL_V2,
+  v2PositiveBandLabel,
+} from "@/lib/assessment/v2/display";
+import { selectSurveyConsultation } from "@/lib/student-identity";
 
 interface Props {
   initialData: Survey[];
@@ -42,7 +46,8 @@ interface Props {
   };
   analyses: { id: string; survey_id: string | null; has_report: boolean }[];
   registrations: { id: string; analysis_id: string | null }[];
-  consultations: { id: string; name: string; result_status: string; test_score: string | null; subject: string | null }[];
+  consultations: { id: string; name: string; parent_phone: string | null; analysis_id: string | null; result_status: string; test_score: string | null; subject: string | null }[];
+  ambiguousSurveyNames: string[];
   classes: Class[];
   teachers: Teacher[];
 }
@@ -72,17 +77,40 @@ function FactorScore({ value }: { value: number | null }) {
   return <span className={`inline-flex min-w-8 justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-black ${color}`}>{value.toFixed(1)}</span>;
 }
 
-function ResultStatusBadge({ status }: { status: ResultStatus }) {
-  if (status === "none") return <span className="text-[10px] text-slate-300">-</span>;
-  const styles: Record<string, string> = {
-    registered: "bg-teal-600 text-white",
-    hold: "bg-accent-warm text-accent-warm-foreground",
-    other: "bg-slate-600 text-white line-through",
-  };
+function SurveyProfileSummary({ survey }: { survey: Survey }) {
+  if (survey.instrument_version === "v2") {
+    const metrics = getV2CoreMetrics(survey.score_profile_v2);
+    const stage = survey.score_profile_v2?.nkFit?.stage;
+    if (!metrics.length) return <span className="text-[10px] text-slate-300">V2 점수 확인 필요</span>;
+    return (
+      <div className="flex min-w-[250px] flex-wrap items-center gap-1">
+        {metrics.slice(0, 4).map((metric) => (
+          <span
+            key={metric.key}
+            className="rounded-md border border-violet-100 bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold text-violet-700"
+            title={`${metric.label}: ${v2PositiveBandLabel(metric.score)}`}
+          >
+            {metric.label} {metric.score === null ? "-" : Math.round(metric.score)}
+          </span>
+        ))}
+        {stage && (
+          <span className="rounded-md border border-teal-100 bg-teal-50 px-1.5 py-0.5 text-[9px] font-bold text-teal-700">
+            NK {stage}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <Badge className={`text-[10px] border-0 ${styles[status] || "bg-slate-100 text-slate-500"}`}>
-      {RESULT_STATUS_LABELS[status]}
-    </Badge>
+    <div className="flex min-w-[220px] flex-wrap items-center gap-1">
+      {FACTOR_KEYS.map((key) => (
+        <span key={key} className="inline-flex items-center gap-0.5" title={SHORT_LABELS[key]}>
+          <span className="text-[8px] font-semibold text-slate-400">{SHORT_LABELS[key]}</span>
+          <FactorScore value={survey[`factor_${key}` as keyof Survey] as number | null} />
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -114,13 +142,12 @@ function getSubjectBadgeClass(subject?: string): string {
   return "border-slate-200 bg-slate-50 text-slate-500";
 }
 
-export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations, classes, teachers }: Props) {
+export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations, ambiguousSurveyNames, classes, teachers }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
   const [searchValue, setSearchValue] = useState(searchParams.get("search") || "");
-  const [showForm, setShowForm] = useState(false);
   const [previewSurvey, setPreviewSurvey] = useState<Survey | null>(null);
   // 설문지 미리보기의 결과지 HTML은 목록에서 미리 받지 않고 열 때 개별 조회한다.
   const [previewReportHtml, setPreviewReportHtml] = useState<string | null>(null);
@@ -133,7 +160,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [localAnalyzedIds, setLocalAnalyzedIds] = useState<Set<string>>(new Set());
 
   // 등록 다이얼로그 상태
-  const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId?: string } | null>(null);
+  const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId: string } | null>(null);
   const [regForm, setRegForm] = useState({ plan_date: "", plan_class: "", deposit: false });
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -147,7 +174,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const handleOpenRecord = async (survey: Survey) => {
     setRecordLoading(survey.id);
     try {
-      const consultation = await getConsultationByName(survey.name);
+      const consultation = await getConsultationByName(survey.name, {
+        parentPhone: survey.parent_phone,
+        analysisId: survey.analysis_id || analysisMap.get(survey.id)?.id,
+        allowNameFallback: !ambiguousSurveyNameSet.has(survey.name.trim()),
+      });
       if (!consultation) {
         toast.error("해당 학생의 상담 기록이 없습니다");
         return;
@@ -181,12 +212,12 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     if (!regTarget) return;
     setIsRegistering(true);
     try {
-      const result = await updateRegistrationInfo(regTarget.name, {
+      const result = await updateRegistrationInfo(regTarget.consultationId, {
         result_status: "registered",
         plan_date: regForm.plan_date || undefined,
         plan_class: regForm.plan_class || undefined,
         reserve_deposit: regForm.deposit,
-      }, regTarget.consultationId);
+      });
       if (result.success) {
         toast.success(`${regTarget.name} 학생이 등록 처리되었습니다`);
         setRegTarget(null);
@@ -201,11 +232,15 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   };
 
   const handleStatusChange = async (name: string, status: ResultStatus, consultationId?: string) => {
+    if (!consultationId) {
+      toast.error("이 학생과 연결된 상담을 안전하게 식별할 수 없습니다");
+      return;
+    }
     if (status === "registered") {
       setRegTarget({ name, currentStatus: status, consultationId });
       return;
     }
-    const result = await updateRegistrationInfo(name, { result_status: status }, consultationId);
+    const result = await updateRegistrationInfo(consultationId, { result_status: status });
     if (result.success) {
       toast.success("상태가 변경되었습니다");
       router.refresh();
@@ -236,52 +271,28 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     return map;
   }, [registrations]);
 
-  // 상담 result_status 맵 (이름 → result_status) - 가장 최근 상담 기준
-  // 이름은 trim()으로 정규화 — 설문/상담 입력 시 공백 유입 케이스(예: "김혜원 ")를 방어
-  const consultationStatusMap = useMemo(() => {
-    const map = new Map<string, ResultStatus>();
-    for (const c of consultations) {
-      const key = (c.name ?? "").trim();
-      if (key && !map.has(key)) {
-        map.set(key, c.result_status as ResultStatus);
-      }
-    }
-    return map;
-  }, [consultations]);
+  // 상담은 분석 ID → 학부모 연락처 → 이름(전체 설문에서 동명이인 없음) 순으로 찾는다.
+  // 한 이름 맵을 공유하던 과거 방식은 동명이인의 상태·점수·수정 대상을 섞을 수 있었다.
+  const ambiguousSurveyNameSet = useMemo(
+    () => new Set(ambiguousSurveyNames.map((name) => name.trim())),
+    [ambiguousSurveyNames],
+  );
 
-  // 상담 테스트 점수 + 과목 맵 (이름 trim 정규화 동일 적용)
-  const consultationIdMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of consultations) {
-      const key = (c.name ?? "").trim();
-      if (key && !map.has(key)) {
-        map.set(key, c.id);
-      }
-    }
-    return map;
-  }, [consultations]);
-
-  const testScoreMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of consultations) {
-      const key = (c.name ?? "").trim();
-      if (key && !map.has(key) && c.test_score) {
-        map.set(key, c.test_score);
-      }
-    }
-    return map;
-  }, [consultations]);
-
-  const subjectMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of consultations) {
-      const key = (c.name ?? "").trim();
-      if (key && !map.has(key) && c.subject) {
-        map.set(key, c.subject);
-      }
-    }
-    return map;
-  }, [consultations]);
+  const findConsultation = useCallback(
+    (survey: Survey, analysisId?: string | null) =>
+      selectSurveyConsultation(
+        consultations,
+        {
+          name: survey.name,
+          parentPhone: survey.parent_phone,
+          analysisId,
+        },
+        {
+          allowNameFallback: !ambiguousSurveyNameSet.has(survey.name.trim()),
+        },
+      ) ?? undefined,
+    [ambiguousSurveyNameSet, consultations],
+  );
 
   const updateFilters = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -403,10 +414,13 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
 
   const summary = useMemo(() => {
     const analyzed = initialData.filter((item) => !!item.analysis_id || analysisMap.has(item.id)).length;
-    const registered = initialData.filter((item) => consultationStatusMap.get((item.name ?? "").trim()) === "registered").length;
+    const registered = initialData.filter((item) => {
+      const analysisId = item.analysis_id || analysisMap.get(item.id)?.id;
+      return findConsultation(item, analysisId)?.result_status === "registered";
+    }).length;
     const waiting = initialData.length - analyzed;
     return { analyzed, registered, waiting };
-  }, [initialData, analysisMap, consultationStatusMap]);
+  }, [initialData, analysisMap, findConsultation]);
 
   return (
     <div className="space-y-5">
@@ -425,13 +439,15 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
             총 {initialPagination.total}건
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
+        <Link
+          href="/survey"
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-lg bg-accent-warm px-3.5 py-2 text-[12.5px] font-black text-accent-warm-foreground shadow-[0_12px_28px_rgba(245,197,126,0.25)] transition-all hover:-translate-y-px"
         >
           <Plus className="h-3.5 w-3.5" />
-          설문 입력
-        </button>
+          V2 설문 열기
+        </Link>
         </div>
         <div className="grid grid-cols-3 divide-x divide-slate-100 bg-white">
           {[
@@ -466,13 +482,15 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           title="등록된 설문이 없습니다"
           description="새로운 설문을 등록해보세요"
           action={
-            <button
-              onClick={() => setShowForm(true)}
+            <Link
+              href="/survey"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg bg-accent-warm px-3.5 py-2 text-[12.5px] font-black text-accent-warm-foreground shadow-[0_12px_28px_rgba(245,197,126,0.25)]"
             >
               <Plus className="h-4 w-4" />
-              설문 입력
-            </button>
+              V2 설문 열기
+            </Link>
           }
         />
       ) : (
@@ -491,7 +509,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                       { label: "학생전화", align: "left" },
                       { label: "학부모전화", align: "left" },
                       { label: "테스트", align: "center" },
-                      ...FACTOR_KEYS.map((key) => ({ label: SHORT_LABELS[key], align: "center" as const })),
+                      { label: "학습 프로필", align: "left" },
                       { label: "분석", align: "center" },
                       { label: "등록", align: "center" },
                       { label: "", align: "right" },
@@ -513,10 +531,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     const isAnalyzing = analyzingId === item.id;
                     const nameHref = hasAnalysis ? `/analyses/${analysisId}` : `/surveys/${item.id}`;
                     const regId = analysisId ? registrationMap.get(analysisId) : undefined;
-                    // 맵 조회 키도 trim으로 정규화 (설문 name에 트레일링 공백이 들어간 케이스 대응)
-                    const normalizedName = (item.name ?? "").trim();
-                    const consultStatus = consultationStatusMap.get(normalizedName) || "none";
-                    const subject = subjectMap.get(normalizedName) || "";
+                    const matchedConsultation = findConsultation(item, analysisId);
+                    const consultStatus = (matchedConsultation?.result_status as ResultStatus | undefined) || "none";
+                    const subject = item.instrument_version === "v2"
+                      ? SUBJECT_LABEL_V2[getSurveyV2Subject(item)]
+                      : matchedConsultation?.subject || "";
                     const vb = "border-r border-slate-100";
 
                     return (
@@ -553,12 +572,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                           {formatPhone(item.parent_phone) || <span className="text-slate-200">-</span>}
                         </td>
                         <td className={`px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 whitespace-nowrap ${vb}`}>
-                          {testScoreMap.get(normalizedName) || <span className="text-slate-200">-</span>}
+                          {matchedConsultation?.test_score || <span className="text-slate-200">-</span>}
                         </td>
-                        {FACTOR_KEYS.map((key) => {
-                          const val = item[`factor_${key}` as keyof Survey] as number | null;
-                          return <td key={key} className={`px-1 py-2.5 text-center ${vb}`}><FactorScore value={val} /></td>;
-                        })}
+                        <td className={`px-2 py-2.5 ${vb}`}>
+                          <SurveyProfileSummary survey={item} />
+                        </td>
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           {hasAnalysis ? (
                             <span className="rounded-md border border-teal-100 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-700">완료</span>
@@ -569,8 +587,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           <select
                             value={consultStatus}
-                            onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus, consultationIdMap.get(normalizedName))}
-                            className={`cursor-pointer rounded-md border-0 px-1.5 py-0.5 text-[9px] font-black outline-none ${
+                            onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus, matchedConsultation?.id)}
+                            disabled={!matchedConsultation}
+                            title={matchedConsultation ? "상담 상태 변경" : "연결된 상담을 안전하게 식별할 수 없습니다"}
+                            className={`cursor-pointer rounded-md border-0 px-1.5 py-0.5 text-[9px] font-black outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                               consultStatus === "registered" ? "bg-teal-600 text-white" :
                               consultStatus === "hold" ? "bg-accent-warm text-accent-warm-foreground" :
                               consultStatus === "other" ? "bg-slate-600 text-white" :
@@ -591,7 +611,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                                   if (regId) { router.push(`/registrations/${regId}`); }
                                   else {
                                     try {
-                                      const consultation = await getConsultationByName(item.name);
+                                      const consultation = await getConsultationByName(item.name, {
+                                        parentPhone: item.parent_phone,
+                                        analysisId,
+                                        allowNameFallback: !ambiguousSurveyNameSet.has(item.name.trim()),
+                                      });
                                       setRegFormTarget({ analysisId: analysisId!, grade: item.grade, consultationData: consultation as Record<string, string | null> | null });
                                     } catch (e) {
                                       toast.error(e instanceof Error ? e.message : "상담 정보를 불러오는데 실패했습니다");
@@ -660,9 +684,6 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           )}
         </>
       )}
-
-      {/* Survey Form Dialog */}
-      <SurveyFormDialog open={showForm} onOpenChange={setShowForm} />
 
       {/* Survey Preview Dialog */}
       <SurveyPreviewDialog

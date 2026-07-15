@@ -8,6 +8,11 @@ import {
   ENTITY_LABELS,
   OPERATION_LABELS,
 } from "@/lib/chat-tools";
+import {
+  getSurveyV2Subject,
+  getV2CoreMetrics,
+  SUBJECT_LABEL_V2,
+} from "@/lib/assessment/v2/display";
 
 const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
@@ -87,6 +92,122 @@ function mapConsultationForPrompt(c: Record<string, unknown>) {
   };
 }
 
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function mapSurveyForPrompt(s: Record<string, unknown>) {
+  if (s.instrument_version !== "v2") {
+    return {
+      버전: "V1 과거 설문",
+      이름: s.name,
+      학교: s.school,
+      학년: s.grade,
+      수업태도: s.factor_attitude,
+      자기주도: s.factor_self_directed,
+      과제수행: s.factor_assignment,
+      학업의지: s.factor_willingness,
+      사회성: s.factor_social,
+      관리선호: s.factor_management,
+      심리자신감: s.factor_emotion,
+      날짜: stringValue(s.created_at)?.split("T")[0],
+    };
+  }
+
+  const intake = recordValue(s.intake_v2);
+  const profile = recordValue(s.score_profile_v2);
+  const nkFit = recordValue(profile.nkFit);
+  const quality = recordValue(profile.responseQuality);
+  const subject = getSurveyV2Subject(s);
+  const metrics = Object.fromEntries(
+    getV2CoreMetrics(profile).map((metric) => [metric.label, metric.score])
+  );
+  return {
+    버전: "V2 학습 프로필",
+    이름: s.name,
+    학교: s.school,
+    학년: s.grade,
+    진단과목: SUBJECT_LABEL_V2[subject],
+    학습이력: {
+      기존학원: intake.prev_academy,
+      재원기간: intake.prev_academy_duration,
+      이동이유: intake.prev_leave_reason,
+      아쉬운점: intake.prev_complaint,
+      유입경로: intake.referral,
+      NK인지: intake.nk_knowledge,
+    },
+    기대일정: {
+      NK기대: intake.nk_expectations,
+      희망요일: intake.preferred_days,
+      등원시간: intake.available_time,
+      주중자습: intake.weekday_selfstudy,
+      클리닉조건: intake.clinic_condition,
+      통학수단: intake.commute_method,
+      통원시간: intake.commute_time,
+    },
+    자기인식: {
+      미래계획: intake.has_future_plan,
+      장래희망: intake.dream,
+      목표대학계열: intake.target_university,
+      공부핵심: intake.study_core,
+      스스로느끼는문제: intake.problem_self,
+      수학어려움: intake.math_difficulty,
+      영어어려움: intake.english_difficulty,
+      요청사항: intake.requests,
+      첫14일약속: intake.commitment14,
+    },
+    핵심점수_0_100: metrics,
+    NK운영적합: { 단계: nkFit.stage, 점수: nkFit.overall },
+    응답품질: quality.status,
+    날짜: stringValue(s.created_at)?.split("T")[0],
+  };
+}
+
+function mapAnalysisForPrompt(a: Record<string, unknown>) {
+  if (a.analysis_version !== "v2") {
+    return {
+      버전: "V1 과거 분석",
+      이름: a.name,
+      유형: a.student_type,
+      요약: stringValue(a.summary)?.slice(0, 100),
+      수업태도: a.score_attitude,
+      자기주도: a.score_self_directed,
+      과제수행: a.score_assignment,
+      학업의지: a.score_willingness,
+      사회성: a.score_social,
+      관리선호: a.score_management,
+      날짜: stringValue(a.created_at)?.split("T")[0],
+    };
+  }
+
+  const result = recordValue(a.result_profile_v2);
+  const scores = recordValue(result.scores);
+  const coaching = recordValue(scores.coaching);
+  const nkFit = recordValue(scores.nkFit);
+  const quality = recordValue(scores.responseQuality);
+  return {
+    버전: "V2 학습 프로필 분석",
+    이름: a.name,
+    유형: a.student_type,
+    요약: stringValue(a.summary)?.slice(0, 300),
+    진단과목: result.subjectSelection,
+    핵심점수_0_100: Object.fromEntries(
+      getV2CoreMetrics(scores).map((metric) => [metric.label, metric.score])
+    ),
+    지도유형: coaching.coachingType,
+    자율구조유형: coaching.autonomyStructureType,
+    NK운영적합: { 단계: nkFit.stage, 점수: nkFit.overall },
+    응답품질: quality.status,
+    날짜: stringValue(a.created_at)?.split("T")[0],
+  };
+}
+
 const CONSULTATION_RECORD_FIELDS = new Set([
   "prev_academy",
   "prev_complaint",
@@ -151,8 +272,8 @@ async function buildDataContext() {
     db.from("teachers").select("*").eq("is_active", true).order("name"),
     db.from("classes").select("*").eq("is_active", true).order("name"),
     db.from("consultations").select("*").order("consult_date", { ascending: false }).limit(100),
-    db.from("surveys").select("id, name, school, grade, factor_attitude, factor_self_directed, factor_assignment, factor_willingness, factor_social, factor_management, factor_emotion, created_at").order("created_at", { ascending: false }).limit(50),
-    db.from("analyses").select("id, survey_id, name, student_type, summary, score_attitude, score_self_directed, score_assignment, score_willingness, score_social, score_management, created_at").order("created_at", { ascending: false }).limit(30),
+    db.from("surveys").select("id, name, school, grade, instrument_version, subject_selection, intake_v2, score_profile_v2, factor_attitude, factor_self_directed, factor_assignment, factor_willingness, factor_social, factor_management, factor_emotion, created_at").order("created_at", { ascending: false }).limit(50),
+    db.from("analyses").select("id, survey_id, name, analysis_version, result_profile_v2, student_type, summary, score_attitude, score_self_directed, score_assignment, score_willingness, score_social, score_management, created_at").order("created_at", { ascending: false }).limit(30),
     db.from("registrations").select("id, name, assigned_class, teacher, subject, tuition_fee, created_at").order("created_at", { ascending: false }).limit(30),
     db.from("bookings").select("*").gte("booking_date", monthStart).order("booking_date"),
     db.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(30),
@@ -179,10 +300,10 @@ ${JSON.stringify(thisMonthConsults.map(c => mapConsultationForPrompt(c)), null, 
 ${JSON.stringify((consultations.data || []).map(c => mapConsultationForPrompt(c)), null, 0)}
 
 ### 설문 최근 50건
-${JSON.stringify((surveys.data || []).map(s => ({ 이름: s.name, 학교: s.school, 학년: s.grade, 수업태도: s.factor_attitude, 자기주도: s.factor_self_directed, 과제수행: s.factor_assignment, 학업의지: s.factor_willingness, 사회성: s.factor_social, 관리선호: s.factor_management, 심리자신감: s.factor_emotion, 날짜: s.created_at?.split("T")[0] })), null, 0)}
+${JSON.stringify((surveys.data || []).map(s => mapSurveyForPrompt(s as Record<string, unknown>)), null, 0)}
 
 ### AI 성향분석 최근 30건
-${JSON.stringify((analyses.data || []).map(a => ({ 이름: a.name, 유형: a.student_type, 요약: a.summary?.slice(0, 100), 수업태도: a.score_attitude, 자기주도: a.score_self_directed, 과제수행: a.score_assignment, 학업의지: a.score_willingness, 사회성: a.score_social, 관리선호: a.score_management, 날짜: a.created_at?.split("T")[0] })), null, 0)}
+${JSON.stringify((analyses.data || []).map(a => mapAnalysisForPrompt(a as Record<string, unknown>)), null, 0)}
 
 ### 등록안내 최근 30건
 ${JSON.stringify((registrations.data || []).map(r => ({ 이름: r.name, 배정반: r.assigned_class, 담임: r.teacher, 과목: r.subject, 수강료: r.tuition_fee, 날짜: r.created_at?.split("T")[0] })), null, 0)}
@@ -253,7 +374,8 @@ NK EDUCATION은 수학/영어 학원입니다.
 - 상담 상태: pending(대기) → active(진행중) → completed(완료) / cancelled(취소)
 - 상담 결과: none(미결정) → registered(등록) / hold(고민중) / other(미등록)
 - 상담 결과 한국어 매핑: "등록"→registered, "고민"/"고민중"→hold, "미등록"→other, "미결정"/"미정"→none
-- 설문 7-Factor (1~5점): 수업태도, 자기주도성, 과제수행력, 학업의지, 사회성, 관리선호, 심리·자신감
+- 설문/분석은 버전 구분이 필수입니다. V1 과거 자료만 7-Factor(1~5점)를 사용합니다.
+- V2 최신 학습 프로필은 0~100 서버 점수(학습 태도, 숙제 신뢰도, 장기 의지, 단기 회복력, 휴대폰 자기조절, 학습 성실성), 지도 유형, NK 운영 적합 단계, 첫 14일 확인 계획을 사용합니다. V2를 V1 지표로 바꾸거나 빈 V1 점수를 해석하지 마세요.
 
 ## 데이터 한계
 - 재원생: 전체 (is_active=true)

@@ -246,3 +246,58 @@ export interface ScoreProfile {
   situations: Record<string, SituationEvidence>;
   responseQuality: ResponseQuality;
 }
+
+/**
+ * surveys.intake_v2에 저장되는 실제 JSONB 구조.
+ *
+ * 학생 설문 입력 상태(IntakeData)는 필수 문자열을 사용하지만, DB의 과거·부분 저장
+ * 데이터까지 안전하게 읽기 위해 표시 계층에서는 모든 필드를 optional/nullable로 본다.
+ */
+export interface StoredIntakeV2 {
+  subject_selection?: SubjectSelection | null;
+  prev_academy?: string | null;
+  prev_academy_duration?: string | null;
+  prev_leave_reason?: string | null;
+  prev_complaint?: string | null;
+  referral?: string | null;
+  referral_friend?: string | null;
+  nk_knowledge?: string | null;
+  nk_expectations?: string[] | null;
+  preferred_days?: string | null;
+  available_time?: string | null;
+  weekday_selfstudy?: string | null;
+  clinic_condition?: string | null;
+  commute_method?: string | null;
+  commute_time?: string | null;
+  has_future_plan?: string | null;
+  dream?: string | null;
+  target_university?: string | null;
+  study_core?: string | null;
+  problem_self?: string | null;
+  math_difficulty?: string | null;
+  english_difficulty?: string | null;
+  health_note?: string | null;
+  requests?: string | null;
+  mbti?: string | null;
+  mbti_confidence?: MbtiConfidence | null;
+  commitment14?: string | null;
+}
+
+/** surveys.responses_v2에 저장되는 raw 응답 JSONB 구조. */
+export interface StoredResponsesV2 {
+  responses?: Record<string, LikertResponse | null | undefined> | null;
+  scenarios?: Record<string, number | null | undefined> | null;
+  supplements?: Record<string, string | null | undefined> | null;
+}
+
+/** surveys.response_meta_v2에 저장되는 응답 메타데이터. */
+export interface StoredResponseMetaV2 extends ScoringMeta {
+  items?: Record<
+    string,
+    {
+      exposedAt?: number;
+      firstSelectAt?: number;
+      lastEditAt?: number;
+    }
+  >;
+}

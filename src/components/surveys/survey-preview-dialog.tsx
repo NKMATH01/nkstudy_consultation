@@ -14,6 +14,7 @@ import { downloadElementAsPdf } from "@/lib/pdf";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 import { createReportToken } from "@/lib/actions/report-token";
 import { toast } from "sonner";
+import { SurveyV2ResponseView } from "@/components/surveys/survey-v2-response-view";
 
 const FACTOR_COLORS: Record<string, { bar: string; text: string }> = {
   attitude: { bar: "bg-blue-500", text: "text-blue-600" },
@@ -132,7 +133,7 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
                 <Download className="h-3.5 w-3.5" />
                 {pdfLoading ? "생성 중..." : "PDF"}
               </button>
-              <button
+              {!isV2 && <button
                 onClick={handleKakaoShare}
                 disabled={shareLoading}
                 className="h-8 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100 disabled:opacity-50"
@@ -140,20 +141,41 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 {shareLoading ? "공유 중..." : "카카오톡"}
-              </button>
-              <button
+              </button>}
+              {!isV2 && <button
                 onClick={handleCopyLink}
                 className="h-8 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all hover:shadow-sm bg-slate-50 text-slate-700 hover:bg-slate-100"
                 title="링크 복사"
               >
                 <Link2 className="h-3.5 w-3.5" />
                 링크복사
-              </button>
+              </button>}
             </div>
           </div>
         </DialogHeader>
 
         <div ref={contentRef}>
+        {isV2 && (
+          <>
+            {analysisId && (
+              <div className="mb-3 rounded-xl border border-violet-100 bg-violet-50 p-3">
+                <a
+                  href={`/analyses/${analysisId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-violet-600 px-3 text-[11px] font-bold text-white transition-colors hover:bg-violet-700"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  V2 분석 결과지 열기
+                </a>
+              </div>
+            )}
+            <SurveyV2ResponseView survey={survey} variant="compact" />
+          </>
+        )}
+
+        {!isV2 && (
+        <>
         {/* 기본 정보 */}
         <div className="grid grid-cols-2 gap-3 mt-2">
           {[
@@ -177,27 +199,6 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
           <div className="p-2.5 rounded-lg mt-1" style={{ background: "#FFF7ED", borderLeft: "3px solid #F59E0B" }}>
             <span className="text-[10px] font-semibold text-amber-600">기존 학원 아쉬운점</span>
             <p className="text-xs mt-0.5 text-amber-900">{survey.prev_complaint}</p>
-          </div>
-        )}
-
-        {isV2 && (
-          <div className="mt-3 p-3 rounded-xl bg-violet-50 border border-violet-100">
-            <span className="text-[10px] font-black text-violet-700">V2 학습 프로필</span>
-            <p className="text-[11px] mt-0.5 text-violet-900">
-              V2 설문입니다. 상세 점수·결과지는 별도 화면에서 제공됩니다.
-            </p>
-            {analysisId && (
-              // V2 결과지는 report_html이 아니라 V2 분석 페이지에서 확인한다.
-              <a
-                href={`/analyses/${analysisId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors"
-              >
-                <Link2 className="h-3.5 w-3.5" />
-                V2 분석 결과지 열기
-              </a>
-            )}
           </div>
         )}
 
@@ -286,6 +287,8 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
             ))}
           </div>
         </div>
+        </>
+        )}
         </div>
       </DialogContent>
     </Dialog>

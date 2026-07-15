@@ -274,11 +274,11 @@ export interface Survey {
   // ── 설문 V2 (learning profile, versioned JSONB) ──
   // V1 행에서는 모두 null. instrument_version='v2'만 V2 제출을 뜻한다.
   instrument_version?: string | null;
-  subject_selection?: string | null;
-  intake_v2?: Record<string, unknown> | null;
-  responses_v2?: Record<string, unknown> | null;
-  response_meta_v2?: Record<string, unknown> | null;
-  score_profile_v2?: Record<string, unknown> | null;
+  subject_selection?: import("@/lib/assessment/v2/types").SubjectSelection | null;
+  intake_v2?: import("@/lib/assessment/v2/types").StoredIntakeV2 | null;
+  responses_v2?: import("@/lib/assessment/v2/types").StoredResponsesV2 | null;
+  response_meta_v2?: import("@/lib/assessment/v2/types").StoredResponseMetaV2 | null;
+  score_profile_v2?: import("@/lib/assessment/v2/types").ScoreProfile | null;
   created_at: string;
   updated_at: string;
 }

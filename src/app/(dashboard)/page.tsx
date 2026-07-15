@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   // All surveys with date info for monthly filtering
   const { data: allSurveys } = await supabase
     .from("surveys")
-    .select("id, name, grade, analysis_id, created_at")
+    .select("id, name, grade, analysis_id, instrument_version, subject_selection, created_at")
     .order("created_at", { ascending: false });
 
   // All analyses with date info for monthly filtering

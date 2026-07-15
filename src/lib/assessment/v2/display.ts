@@ -87,6 +87,77 @@ export interface V2Metric {
   score: number | null;
 }
 
+export type SurveyManagementFactorKey =
+  | "attitude"
+  | "self_directed"
+  | "assignment"
+  | "willingness"
+  | "social"
+  | "management";
+
+export interface SurveyManagementFactorScore {
+  key: SurveyManagementFactorKey;
+  label: string;
+  value: number | null;
+  scale: 5 | 100;
+  sourceLabel: string;
+}
+
+export interface SurveyManagementScoreSource extends SurveyV2Source {
+  instrument_version?: string | null;
+  factor_attitude?: number | null;
+  factor_self_directed?: number | null;
+  factor_assignment?: number | null;
+  factor_willingness?: number | null;
+  factor_social?: number | null;
+  factor_management?: number | null;
+}
+
+const MANAGEMENT_FACTOR_CONFIG = [
+  {
+    key: "attitude",
+    label: "태도",
+    legacyField: "factor_attitude",
+    v2Field: "learningAttitude",
+    v2SourceLabel: "학습 태도",
+  },
+  {
+    key: "self_directed",
+    label: "자주",
+    legacyField: "factor_self_directed",
+    v2Field: "conscientiousness",
+    v2SourceLabel: "학습 성실성",
+  },
+  {
+    key: "assignment",
+    label: "과제",
+    legacyField: "factor_assignment",
+    v2Field: "homeworkReliability",
+    v2SourceLabel: "숙제 신뢰도",
+  },
+  {
+    key: "willingness",
+    label: "의지",
+    legacyField: "factor_willingness",
+    v2Field: "longTermPersistence",
+    v2SourceLabel: "장기 의지",
+  },
+  {
+    key: "social",
+    label: "사회",
+    legacyField: "factor_social",
+    v2Field: "peerLearningResource",
+    v2SourceLabel: "또래 학습 자원",
+  },
+  {
+    key: "management",
+    label: "관리",
+    legacyField: "factor_management",
+    v2Field: "structureNeed",
+    v2SourceLabel: "구조·관리 필요",
+  },
+] as const;
+
 export interface SurveyV2DisplayData {
   subject: SubjectSelection;
   subjectLabel: string;
@@ -324,6 +395,37 @@ export function getV2CoreMetrics(profile: ScoreProfile | Record<string, unknown>
   ];
 }
 
+/**
+ * 설문 관리 목록의 기존 6개 열을 V1/V2 모두에서 채운다.
+ * V2는 임의 평균을 만들지 않고 의미가 대응되는 서버 계산 0~100 원점수를 그대로 사용한다.
+ */
+export function getSurveyManagementFactorScores(
+  survey: SurveyManagementScoreSource
+): SurveyManagementFactorScore[] {
+  if (survey.instrument_version === "v2") {
+    const profile = survey.score_profile_v2;
+    const common = isRecord(profile) && isRecord(profile.common)
+      ? (profile.common as Record<string, unknown>)
+      : {};
+
+    return MANAGEMENT_FACTOR_CONFIG.map((factor) => ({
+      key: factor.key,
+      label: factor.label,
+      value: numericScore(common[factor.v2Field]),
+      scale: 100,
+      sourceLabel: factor.v2SourceLabel,
+    }));
+  }
+
+  return MANAGEMENT_FACTOR_CONFIG.map((factor) => ({
+    key: factor.key,
+    label: factor.label,
+    value: numericScore(survey[factor.legacyField]),
+    scale: 5,
+    sourceLabel: factor.label,
+  }));
+}
+
 export function v2PositiveBandLabel(score: number | null): string {
   if (score === null) return "확인 필요";
   if (score >= 75) return "안정적";
@@ -375,4 +477,3 @@ export function surveyV2ToText(survey: SurveyV2Source): string {
   }
   return lines.join("\n");
 }
-

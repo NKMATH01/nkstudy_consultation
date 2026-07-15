@@ -34,23 +34,6 @@ const BASE_FACTOR_KEYS = ["attitude", "self_directed", "assignment", "willingnes
 const sel = "w-full h-9 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 const inp = "rounded-lg border-slate-200 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
 
-const AUTOFILL_FIELDS = [
-  "prev_academy",
-  "prev_complaint",
-  "school_score",
-  "advance_level",
-  "prefer_days",
-  "requests",
-] as const;
-
-// V2가 수집하지 않는 내신점수·선행정도를 과거 호환 컬럼에서 잘못 복사하지 않는다.
-const V2_AUTOFILL_FIELDS = [
-  "prev_academy",
-  "prev_complaint",
-  "prefer_days",
-  "requests",
-] as const;
-
 function withCurrentOption(options: readonly string[], current?: string | null) {
   if (!current) return [...options];
   return options.includes(current) ? [...options] : [current, ...options];
@@ -62,11 +45,6 @@ function firstValue(...values: Array<string | null | undefined>): string {
     if (normalized) return normalized;
   }
   return "";
-}
-
-function surveyAutofillValue(survey: Survey, field: (typeof AUTOFILL_FIELDS)[number]): string {
-  const value = survey[field];
-  return typeof value === "string" ? value.trim() : "";
 }
 
 function buildInitialForm(survey: Survey, consultation: Consultation) {
@@ -119,20 +97,6 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
     }
   }, [consultation.id]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const fields = isV2 ? V2_AUTOFILL_FIELDS : AUTOFILL_FIELDS;
-    fields.forEach((field) => {
-      const current = (consultation[field as keyof Consultation] as string | null) ?? "";
-      const surveyValue = surveyAutofillValue(survey, field);
-
-      if (!current.trim() && surveyValue) {
-        saveField(field, surveyValue);
-      }
-    });
-  }, [consultation, isV2, open, saveField, survey]);
-
   const handleBlur = (field: string) => {
     const value = form[field as keyof typeof form];
     const original = (consultation[field as keyof Consultation] as string) ?? "";
@@ -165,7 +129,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
 
         <div className="flex overflow-hidden" style={{ height: "calc(90vh - 80px)" }}>
           {/* LEFT: Survey Preview (read-only) */}
-          <div className="w-1/2 border-r border-slate-100 overflow-y-auto p-5 space-y-3">
+          <div data-testid="consultation-survey-responses" className="w-1/2 border-r border-slate-100 overflow-y-auto p-5 space-y-3">
             <h3 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
               <ClipboardList className="h-4 w-4 text-blue-600" />
               설문 응답
@@ -175,6 +139,37 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
               <SurveyV2ResponseView survey={survey} variant="compact" />
             ) : (
             <>
+            {/* 기본·배경 응답 */}
+            <div>
+              <h4 className="mb-2 text-xs font-bold text-slate-700">기본·배경 응답</h4>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {[
+                  { label: "학생 연락처", value: survey.student_phone },
+                  { label: "학부모 연락처", value: survey.parent_phone },
+                  { label: "유입경로", value: survey.referral },
+                  { label: "기존 학원", value: survey.prev_academy },
+                  { label: "기존 학원 아쉬운 점", value: survey.prev_complaint },
+                  { label: "내신점수", value: survey.school_score },
+                  { label: "모의고사/전국단위 성적", value: survey.mock_exam_score },
+                  { label: "현재 진도/선행 정도", value: survey.advance_level },
+                  { label: "목표 대학/계열", value: survey.target_university },
+                  { label: "주중 자습 가능 시간", value: survey.weekly_study_hours },
+                  { label: "등원 가능 시간대", value: survey.available_time },
+                  { label: "통학 수단", value: survey.commute_method },
+                  { label: "통원 소요 시간/거리", value: survey.commute_distance },
+                  { label: "형제·자매", value: survey.sibling_enrolled },
+                  { label: "MBTI", value: survey.mbti },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-lg bg-slate-50 p-2.5">
+                    <span className="text-[10px] font-semibold text-slate-400">{label}</span>
+                    <p className={`mt-0.5 whitespace-pre-wrap text-[11px] font-medium ${value ? "text-slate-800" : "text-slate-300"}`}>
+                      {value || "-"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* 7-Factor */}
             <div className="p-3 rounded-xl bg-slate-50">
               <h4 className="text-xs font-bold text-slate-700 mb-2.5">7-Factor 학습 성향</h4>
@@ -206,7 +201,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                   const qNum = idx + 1;
                   const score = survey[`q${qNum}` as keyof Survey] as number | null;
                   return (
-                    <div key={qNum} className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-slate-50">
+                    <div key={qNum} data-testid={`v1-question-${qNum}`} className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-slate-50">
                       <span className="text-[10px] font-bold w-5 text-right shrink-0 text-slate-300">{qNum}</span>
                       <span className="flex-1 text-[11px] text-slate-600">{q}</span>
                       <div className="flex gap-0.5 shrink-0">
@@ -241,13 +236,18 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                 {[
                   { label: "공부의 핵심", value: survey.study_core },
                   { label: "본인의 학습 문제점", value: survey.problem_self },
+                  { label: "목표 대학/계열", value: survey.target_university },
                   { label: "희망 직업", value: survey.dream },
+                  { label: "주중 자습 가능 시간", value: survey.weekly_study_hours },
+                  { label: "등원 가능 시간대", value: survey.available_time },
                   { label: "선호 요일", value: survey.prefer_days },
                   { label: "내신점수", value: survey.school_score },
                   { label: "현재 진도/선행 정도", value: survey.advance_level },
+                  { label: "학부모 기대치/요청", value: survey.parent_expectation },
                   { label: "NK학원에 바라는 점", value: survey.requests },
                   { label: "수학 어려운 영역", value: survey.math_difficulty },
                   { label: "영어 어려운 영역", value: survey.english_difficulty },
+                  { label: "건강·특이사항", value: survey.health_note },
                 ].map(({ label, value }) => (
                   <div key={label} className="p-2.5 rounded-lg bg-slate-50">
                     <span className="text-[10px] font-semibold text-slate-400 uppercase">{label}</span>
@@ -263,7 +263,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
           </div>
 
           {/* RIGHT: Consultation Record + Detail Memo (editable) */}
-          <div className="w-1/2 overflow-y-auto p-5 space-y-4">
+          <div data-testid="consultation-editor" className="w-1/2 overflow-y-auto p-5 space-y-4">
             {/* 상담 기록지 */}
             <section className="rounded-xl border border-amber-100 bg-amber-50/30 p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">

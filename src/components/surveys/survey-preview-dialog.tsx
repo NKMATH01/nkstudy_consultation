@@ -111,7 +111,7 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="!max-w-[90vw] w-[90vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -154,7 +154,7 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
           </div>
         </DialogHeader>
 
-        <div ref={contentRef}>
+        <div ref={contentRef} data-testid="survey-full-response" data-survey-version={isV2 ? "v2" : "v1"}>
         {isV2 && (
           <>
             {analysisId && (
@@ -177,16 +177,26 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
         {!isV2 && (
         <>
         {/* 기본 정보 */}
-        <div className="grid grid-cols-2 gap-3 mt-2">
+        <h4 className="mt-2 text-xs font-bold text-slate-700">기본·배경 응답</h4>
+        <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {[
             { label: "학생 연락처", value: survey.student_phone },
             { label: "학부모 연락처", value: survey.parent_phone },
             { label: "유입경로", value: survey.referral },
             { label: "기존 학원", value: survey.prev_academy },
+            { label: "기존 학원 아쉬운 점", value: survey.prev_complaint },
             { label: "내신점수", value: survey.school_score },
+            { label: "모의고사/전국단위 성적", value: survey.mock_exam_score },
             { label: "현재 진도/선행 정도", value: survey.advance_level },
+            { label: "목표 대학/계열", value: survey.target_university },
+            { label: "주중 자습 가능 시간", value: survey.weekly_study_hours },
+            { label: "등원 가능 시간대", value: survey.available_time },
+            { label: "통학 수단", value: survey.commute_method },
+            { label: "통원 소요 시간/거리", value: survey.commute_distance },
+            { label: "형제·자매", value: survey.sibling_enrolled },
+            { label: "MBTI", value: survey.mbti },
           ].map(({ label, value }) => (
-            <div key={label}>
+            <div key={label} className="rounded-lg bg-slate-50 p-2.5">
               <span className="text-[10px] font-semibold text-slate-400 uppercase">{label}</span>
               <p className="text-xs font-semibold mt-0.5" style={{ color: value ? "#1E293B" : "#CBD5E1" }}>
                 {value || "-"}
@@ -235,7 +245,7 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
               const qNum = idx + 1;
               const score = survey[`q${qNum}` as keyof Survey] as number | null;
               return (
-                <div key={qNum} className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-slate-50">
+                <div key={qNum} data-testid={`v1-question-${qNum}`} className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-slate-50">
                   <span className="text-[10px] font-bold w-5 text-right shrink-0 text-slate-300">{qNum}</span>
                   <span className="flex-1 text-[11px] text-slate-600">{q}</span>
                   <div className="flex gap-0.5 shrink-0">
@@ -274,9 +284,11 @@ export function SurveyPreviewDialog({ survey, analysisReportHtml, analysisId, op
               { label: "본인의 학습 문제점", value: survey.problem_self },
               { label: "희망 직업", value: survey.dream },
               { label: "선호 요일", value: survey.prefer_days },
+              { label: "학부모 기대치/요청", value: survey.parent_expectation },
               { label: "NK학원에 바라는 점", value: survey.requests },
               { label: "수학 어려운 영역", value: survey.math_difficulty },
               { label: "영어 어려운 영역", value: survey.english_difficulty },
+              { label: "건강·특이사항", value: survey.health_note },
             ].map(({ label, value }) => (
               <div key={label} className="p-2.5 rounded-lg bg-slate-50">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase">{label}</span>

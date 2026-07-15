@@ -25,7 +25,7 @@ export function SurveyV2ResponseView({ survey, variant = "cards" }: Props) {
               {data.subjectLabel} · 최신 설문 원문
             </h3>
           </div>
-          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black text-violet-700">
+          <span data-testid="v2-response-count" className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black text-violet-700">
             {data.answeredCount}/{data.questionCount}문항 응답
           </span>
         </div>
@@ -62,7 +62,7 @@ export function SurveyV2ResponseView({ survey, variant = "cards" }: Props) {
           </div>
           <div className="mt-3 divide-y divide-slate-100">
             {group.questions.map((question) => (
-              <div key={question.id} className="py-3 first:pt-0 last:pb-0">
+              <div key={question.id} data-testid={`v2-question-${question.id}`} className="py-3 first:pt-0 last:pb-0">
                 <div className="flex items-start gap-2.5">
                   <span className="mt-0.5 min-w-8 rounded-md bg-slate-100 px-1.5 py-0.5 text-center text-[9px] font-black text-slate-500">
                     {question.id}
@@ -72,7 +72,7 @@ export function SurveyV2ResponseView({ survey, variant = "cards" }: Props) {
                       {question.question}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${question.answer ? "bg-violet-50 text-violet-700" : "bg-slate-50 text-slate-300"}`}>
+                      <span data-testid={`v2-answer-${question.id}`} className={`rounded-md px-2 py-1 text-[10px] font-bold ${question.answer ? "bg-violet-50 text-violet-700" : "bg-slate-50 text-slate-300"}`}>
                         {question.answer ?? "미응답"}
                       </span>
                       <span className="text-[9px] font-semibold text-slate-400">근거: {question.evidenceLabel}</span>

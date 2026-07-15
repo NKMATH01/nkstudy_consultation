@@ -19,7 +19,7 @@ import { SurveyPreviewDialog } from "@/components/surveys/survey-preview-dialog"
 import { toast } from "sonner";
 import { analyzeSurvey, reAnalyzeSurvey, getAnalysis } from "@/lib/actions/analysis";
 import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
-import { deleteSurvey } from "@/lib/actions/survey";
+import { deleteSurvey, getSurvey } from "@/lib/actions/survey";
 import { updateRegistrationInfo, getConsultationByName } from "@/lib/actions/consultation";
 import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
@@ -29,10 +29,10 @@ import type { ResultStatus } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
 import Link from "next/link";
 import {
+  getSurveyManagementFactorScores,
   getSurveyV2Subject,
-  getV2CoreMetrics,
   SUBJECT_LABEL_V2,
-  v2PositiveBandLabel,
+  type SurveyManagementFactorScore,
 } from "@/lib/assessment/v2/display";
 import { selectSurveyConsultation } from "@/lib/student-identity";
 
@@ -70,47 +70,22 @@ function formatPhone(phone: string | null): string {
   return phone;
 }
 
-function FactorScore({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-[10px] text-slate-200">-</span>;
-  const color =
-    value >= 4 ? "bg-teal-50 text-teal-700 border-teal-100" : value >= 3 ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-rose-50 text-rose-700 border-rose-100";
-  return <span className={`inline-flex min-w-8 justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-black ${color}`}>{value.toFixed(1)}</span>;
-}
-
-function SurveyProfileSummary({ survey }: { survey: Survey }) {
-  if (survey.instrument_version === "v2") {
-    const metrics = getV2CoreMetrics(survey.score_profile_v2);
-    const stage = survey.score_profile_v2?.nkFit?.stage;
-    if (!metrics.length) return <span className="text-[10px] text-slate-300">V2 점수 확인 필요</span>;
-    return (
-      <div className="flex min-w-[250px] flex-wrap items-center gap-1">
-        {metrics.slice(0, 4).map((metric) => (
-          <span
-            key={metric.key}
-            className="rounded-md border border-violet-100 bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold text-violet-700"
-            title={`${metric.label}: ${v2PositiveBandLabel(metric.score)}`}
-          >
-            {metric.label} {metric.score === null ? "-" : Math.round(metric.score)}
-          </span>
-        ))}
-        {stage && (
-          <span className="rounded-md border border-teal-100 bg-teal-50 px-1.5 py-0.5 text-[9px] font-bold text-teal-700">
-            NK {stage}
-          </span>
-        )}
-      </div>
-    );
-  }
-
+function FactorScore({ score }: { score: SurveyManagementFactorScore }) {
+  if (score.value == null) return <span className="text-[10px] text-slate-200">-</span>;
+  const normalized = score.scale === 100 ? score.value / 20 : score.value;
+  const color = normalized >= 4
+    ? "bg-teal-50 text-teal-700 border-teal-100"
+    : normalized >= 3
+      ? "bg-amber-50 text-amber-700 border-amber-100"
+      : "bg-rose-50 text-rose-700 border-rose-100";
+  const displayValue = score.scale === 100 ? Math.round(score.value).toString() : score.value.toFixed(1);
   return (
-    <div className="flex min-w-[220px] flex-wrap items-center gap-1">
-      {FACTOR_KEYS.map((key) => (
-        <span key={key} className="inline-flex items-center gap-0.5" title={SHORT_LABELS[key]}>
-          <span className="text-[8px] font-semibold text-slate-400">{SHORT_LABELS[key]}</span>
-          <FactorScore value={survey[`factor_${key}` as keyof Survey] as number | null} />
-        </span>
-      ))}
-    </div>
+    <span
+      className={`inline-flex min-w-8 justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-black ${color}`}
+      title={`${score.sourceLabel} · ${score.scale === 100 ? "V2 0~100" : "V1 1~5"}`}
+    >
+      {displayValue}
+    </span>
   );
 }
 
@@ -151,6 +126,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [previewSurvey, setPreviewSurvey] = useState<Survey | null>(null);
   // 설문지 미리보기의 결과지 HTML은 목록에서 미리 받지 않고 열 때 개별 조회한다.
   const [previewReportHtml, setPreviewReportHtml] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   // V2 미리보기에서 결과지 대신 V2 분석 페이지로 안내하기 위한 analysis id.
   const [previewAnalysisId, setPreviewAnalysisId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Survey | null>(null);
@@ -174,16 +150,23 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const handleOpenRecord = async (survey: Survey) => {
     setRecordLoading(survey.id);
     try {
-      const consultation = await getConsultationByName(survey.name, {
-        parentPhone: survey.parent_phone,
-        analysisId: survey.analysis_id || analysisMap.get(survey.id)?.id,
-        allowNameFallback: !ambiguousSurveyNameSet.has(survey.name.trim()),
-      });
+      const [fullSurvey, consultation] = await Promise.all([
+        getSurvey(survey.id),
+        getConsultationByName(survey.name, {
+          parentPhone: survey.parent_phone,
+          analysisId: survey.analysis_id || analysisMap.get(survey.id)?.id,
+          allowNameFallback: !ambiguousSurveyNameSet.has(survey.name.trim()),
+        }),
+      ]);
+      if (!fullSurvey) {
+        toast.error("설문 전체 응답을 불러오지 못했습니다");
+        return;
+      }
       if (!consultation) {
         toast.error("해당 학생의 상담 기록이 없습니다");
         return;
       }
-      setRecordTarget({ survey, consultation });
+      setRecordTarget({ survey: fullSurvey, consultation });
     } catch (e) {
       if (e instanceof Error) {
         toast.error(e.message);
@@ -399,16 +382,25 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
 
   // 설문지 미리보기 열기 — 결과지 HTML은 이 시점에 lazy 조회
   const handleOpenPreview = async (survey: Survey) => {
-    setPreviewSurvey(survey);
-    setPreviewReportHtml(null);
-    const analysis = analysisMap.get(survey.id);
-    setPreviewAnalysisId(survey.analysis_id || analysis?.id || null);
-    if (!analysis?.has_report) return;
+    setPreviewLoading(survey.id);
     try {
-      const data = await getAnalysis(analysis.id);
-      setPreviewReportHtml(data?.report_html ?? null);
-    } catch {
+      const fullSurvey = await getSurvey(survey.id);
+      if (!fullSurvey) {
+        toast.error("설문 전체 응답을 불러오지 못했습니다");
+        return;
+      }
+      setPreviewSurvey(fullSurvey);
       setPreviewReportHtml(null);
+      const analysis = analysisMap.get(survey.id);
+      setPreviewAnalysisId(fullSurvey.analysis_id || analysis?.id || null);
+      if (analysis?.has_report) {
+        const data = await getAnalysis(analysis.id);
+        setPreviewReportHtml(data?.report_html ?? null);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "설문 전체 응답을 불러오지 못했습니다");
+    } finally {
+      setPreviewLoading(null);
     }
   };
 
@@ -497,7 +489,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         <>
           <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(94,147,172,0.08)]">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" style={{ minWidth: "900px" }}>
+              <table data-testid="survey-management-table" className="w-full text-sm" style={{ minWidth: "1250px" }}>
                 <thead>
                   <tr className="border-y border-slate-200 bg-gradient-to-b from-slate-50 to-slate-100">
                     <th className="w-1 p-0" />
@@ -509,7 +501,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                       { label: "학생전화", align: "left" },
                       { label: "학부모전화", align: "left" },
                       { label: "테스트", align: "center" },
-                      { label: "학습 프로필", align: "left" },
+                      ...FACTOR_KEYS.map((key) => ({ label: SHORT_LABELS[key], align: "center" as const })),
                       { label: "분석", align: "center" },
                       { label: "등록", align: "center" },
                       { label: "", align: "right" },
@@ -536,6 +528,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     const subject = item.instrument_version === "v2"
                       ? SUBJECT_LABEL_V2[getSurveyV2Subject(item)]
                       : matchedConsultation?.subject || "";
+                    const factorScores = getSurveyManagementFactorScores(item);
                     const vb = "border-r border-slate-100";
 
                     return (
@@ -574,9 +567,15 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                         <td className={`px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 whitespace-nowrap ${vb}`}>
                           {matchedConsultation?.test_score || <span className="text-slate-200">-</span>}
                         </td>
-                        <td className={`px-2 py-2.5 ${vb}`}>
-                          <SurveyProfileSummary survey={item} />
-                        </td>
+                        {factorScores.map((score) => (
+                          <td
+                            key={score.key}
+                            data-testid={`survey-factor-${item.id}-${score.key}`}
+                            className={`px-1 py-2.5 text-center ${vb}`}
+                          >
+                            <FactorScore score={score} />
+                          </td>
+                        ))}
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           {hasAnalysis ? (
                             <span className="rounded-md border border-teal-100 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-700">완료</span>
@@ -626,11 +625,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                                 title={regId ? "안내문 보기" : "안내문 생성"}
                               >안내문</button>
                             )}
-                            <button onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="p-1 rounded text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50" title="상담기록">
+                            <button data-testid={`survey-record-${item.id}`} onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="p-1 rounded text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50" title="상담기록">
                               {recordLoading === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileEdit className="h-3 w-3" />}
                             </button>
-                            <button onClick={() => handleOpenPreview(item)} className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-colors" title="설문지">
-                              <ClipboardList className="h-3 w-3" />
+                            <button data-testid={`survey-preview-${item.id}`} onClick={() => handleOpenPreview(item)} disabled={previewLoading === item.id} className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-colors disabled:opacity-50" title="설문지 전체 응답">
+                              {previewLoading === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ClipboardList className="h-3 w-3" />}
                             </button>
                             <button onClick={() => handleViewReport(item)} disabled={item.instrument_version === "v2" ? !analysisId : !analysis?.has_report} className="p-1 rounded text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
                               <Sparkles className="h-3 w-3" />

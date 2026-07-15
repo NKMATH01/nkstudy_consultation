@@ -4,6 +4,7 @@ import {
   buildSurveyV2DisplayData,
   buildV2IntakeSections,
   formatLikertResponseV2,
+  getSurveyManagementFactorScores,
   getV2CoreMetrics,
   surveyV2ToText,
 } from "../display";
@@ -111,6 +112,52 @@ describe("설문 V2 표시 어댑터", () => {
       ["단기 회복력", 87.5],
       ["휴대폰 자기조절", 25],
       ["학습 성실성", 64],
+    ]);
+  });
+
+  it("설문 관리의 태도·자주·과제·의지·사회·관리 열에 V2 서버 원점수를 연결한다", () => {
+    const scores = getSurveyManagementFactorScores({
+      instrument_version: "v2",
+      score_profile_v2: {
+        common: {
+          learningAttitude: 75,
+          conscientiousness: 64,
+          homeworkReliability: 62.5,
+          longTermPersistence: 50,
+          peerLearningResource: 81.25,
+          structureNeed: 87.5,
+        },
+      },
+    });
+
+    expect(scores.map(({ label, value, scale }) => [label, value, scale])).toEqual([
+      ["태도", 75, 100],
+      ["자주", 64, 100],
+      ["과제", 62.5, 100],
+      ["의지", 50, 100],
+      ["사회", 81.25, 100],
+      ["관리", 87.5, 100],
+    ]);
+  });
+
+  it("V1 설문 관리 점수는 기존 1~5 factor 값을 그대로 유지한다", () => {
+    const scores = getSurveyManagementFactorScores({
+      instrument_version: "v1",
+      factor_attitude: 4.2,
+      factor_self_directed: 3.8,
+      factor_assignment: 4.4,
+      factor_willingness: 4,
+      factor_social: 3.5,
+      factor_management: 4.5,
+    });
+
+    expect(scores.map(({ value, scale }) => [value, scale])).toEqual([
+      [4.2, 5],
+      [3.8, 5],
+      [4.4, 5],
+      [4, 5],
+      [3.5, 5],
+      [4.5, 5],
     ]);
   });
 

@@ -34,11 +34,11 @@ const TABLE_MAP: Record<string, string> = {
 };
 
 /** 엔티티별 허용 필드 (화이트리스트) */
-const ALLOWED_FIELDS: Record<string, string[]> = {
+export const ALLOWED_FIELDS: Record<string, string[]> = {
   consultation: [
     "name", "school", "grade", "parent_phone",
-    "consult_date", "consult_time", "subject", "location",
-    "consult_type", "memo", "status", "result_status",
+    "subject", "location",
+    "consult_type", "memo", "result_status",
     "prev_academy", "prev_complaint", "school_score", "test_score",
     "advance_level", "study_goal", "prefer_days",
     "plan_date", "plan_class", "requests",
@@ -82,14 +82,21 @@ const ALLOWED_FIELDS: Record<string, string[]> = {
 };
 
 /** 엔티티별 허용 작업 */
-const ALLOWED_OPERATIONS: Record<string, string[]> = {
-  consultation: ["create", "update", "delete"],
+export const ALLOWED_OPERATIONS: Record<string, string[]> = {
+  consultation: ["create", "update"],
   student: ["create", "update"],
-  booking: ["update", "delete"],
+  booking: [],
   withdrawal: ["create", "update", "delete"],
   teacher: ["create", "update", "delete"],
   class: ["create", "update", "delete"],
 };
+
+export function isChatMutationAllowed(
+  entity: string,
+  operation: "create" | "update" | "delete",
+): boolean {
+  return ALLOWED_OPERATIONS[entity]?.includes(operation) ?? false;
+}
 
 /**
  * DB 컬럼 매핑: 사용자 친화적 필드명 → 실제 DB 컬럼명
@@ -247,9 +254,12 @@ export async function createProposal(params: {
   const { entity, operation, targetName, targetId, changes, reason } = params;
 
   // 작업 허용 여부 확인
-  const allowed = ALLOWED_OPERATIONS[entity];
-  if (!allowed?.includes(operation)) {
-    throw new Error(`${ENTITY_LABELS[entity] || entity}에 대한 ${OPERATION_LABELS[operation] || operation} 작업은 지원하지 않습니다.`);
+  if (!isChatMutationAllowed(entity, operation)) {
+    const lifecycleHint =
+      entity === "booking" || entity === "consultation"
+        ? " 예약·상담의 취소·삭제·일정 변경은 해당 관리 화면에서 처리해주세요."
+        : "";
+    throw new Error(`${ENTITY_LABELS[entity] || entity}에 대한 ${OPERATION_LABELS[operation] || operation} 작업은 지원하지 않습니다.${lifecycleHint}`);
   }
 
   // 필드 화이트리스트 검증 — 비지원 필드는 에러로 알림 (silent drop 방지)
@@ -340,6 +350,15 @@ export async function createProposal(params: {
 
 export async function executeMutation(proposal: Proposal): Promise<{ success: boolean; message: string }> {
   const { entity, operation, targetId, targetName, changes } = proposal;
+  if (!isChatMutationAllowed(entity, operation)) {
+    return {
+      success: false,
+      message:
+        entity === "booking" || entity === "consultation"
+          ? "예약·상담의 취소·삭제·일정 변경은 해당 관리 화면에서 처리해주세요."
+          : "허용되지 않은 작업입니다.",
+    };
+  }
   const db = createAdminClient();
   const table = TABLE_MAP[entity];
 

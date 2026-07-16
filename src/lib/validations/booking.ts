@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { getSlotCodesForDate } from "@/lib/booking-slots";
 
-// DB의 booking_hour CHECK가 토요일 교시(1~4)를 허용하도록 교체된 뒤 true로 전환한다.
-export const SATURDAY_BOOKING_ENABLED = false;
+// 운영 DB의 booking_hour CHECK가 토요일 교시(1~4)를 허용하도록 교체되어 활성화한다.
+export const SATURDAY_BOOKING_ENABLED = true;
 
 const bookingFormBaseSchema = z.object({
   branch: z.enum(["gojan-math", "gojan-eng", "zai-both"], {

@@ -4,47 +4,84 @@ import { createClient } from "@/lib/supabase/server";
 import { bookingFormSchema } from "@/lib/validations/booking";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { Booking, BlockedSlot } from "@/types";
+import { slotToConsultTime } from "@/lib/booking-slots";
 import { revalidatePath } from "next/cache";
+
+const BRANCH_TO_LOCATION: Record<string, string> = {
+  "gojan-math": "NK학원(폴리타운 B동 4층)",
+  "gojan-eng": "NK학원(폴리타운 B동 4층)",
+  "zai-both": "자이센터프라자 801호",
+};
+
+const SUBJECT_LABELS: Record<string, string> = {
+  math: "수학",
+  eng: "영어",
+  both: "영수",
+};
+
+type SubmitBookingResult = {
+  success: boolean;
+  error?: string;
+  warning?: string;
+  bookingId?: string;
+  consultationId?: string;
+};
+
+function parseLocalDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export async function getActorLabel(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.email ?? "system";
+}
 
 // ========== 공개 액션 (학부모용) ==========
 
 export async function getBookingSlots(startDate: string, endDate: string) {
   try {
     const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_public_booking_slots", {
+      p_start: startDate,
+      p_end: endDate,
+    });
 
-    const [bookingsRes, blockedRes] = await Promise.all([
-      supabase
-        .from("bookings")
-        .select("id, booking_date, booking_hour, branch, consult_type, paid")
-        .gte("booking_date", startDate)
-        .lte("booking_date", endDate),
-      supabase
-        .from("blocked_slots")
-        .select("*")
-        .gte("slot_date", startDate)
-        .lte("slot_date", endDate),
-    ]);
-
-    if (bookingsRes.error) {
-      console.error("[Booking] 예약 슬롯 조회 실패:", bookingsRes.error.message);
+    if (error) {
+      console.error("[Booking] 공개 슬롯 RPC 실패:", error.message);
       return { bookings: [], blocked: [] };
     }
-    if (blockedRes.error) {
-      console.error("[Booking] 차단 슬롯 조회 실패:", blockedRes.error.message);
-      return { bookings: bookingsRes.data ?? [], blocked: [] };
-    }
 
-    return {
-      bookings: bookingsRes.data ?? [],
-      blocked: (blockedRes.data as BlockedSlot[]) ?? [],
+    const payload = (data ?? {}) as {
+      bookings?: Array<{
+        booking_date: string;
+        booking_hour: number;
+        branch: string;
+        consult_type: string;
+        paid: boolean;
+      }>;
+      blocked?: Array<{
+        slot_date: string;
+        slot_hour: number;
+        branch: string;
+      }>;
     };
+
+    return { bookings: payload.bookings ?? [], blocked: payload.blocked ?? [] };
   } catch (e) {
     console.error("[Booking] 슬롯 조회 예외:", e);
     return { bookings: [], blocked: [] };
   }
 }
 
-export async function submitBooking(data: Record<string, unknown>) {
+export async function submitBooking(
+  data: Record<string, unknown>,
+): Promise<SubmitBookingResult> {
   try {
     // Rate limit: 전화번호 기반 분당 3회 제한
     const phone = typeof data.phone === "string" ? data.phone : "unknown";
@@ -59,130 +96,77 @@ export async function submitBooking(data: Record<string, unknown>) {
     }
 
     const supabase = await createClient();
-
-    // 중복 예약 체크
-    const { data: existing } = await supabase
-      .from("bookings")
-      .select("id, consult_type")
-      .eq("booking_date", parsed.data.booking_date)
-      .eq("booking_hour", parsed.data.booking_hour)
-      .eq("branch", parsed.data.branch);
-
-    if (existing && existing.length > 0) {
-      const hasInperson = existing.some((b: { consult_type: string }) => b.consult_type === "inperson");
-      // 대면상담이 있으면 무조건 차단
-      if (hasInperson) {
-        return { success: false, error: "이미 대면상담이 예약된 시간입니다. 다른 시간을 선택해주세요." };
-      }
-      // 새 예약이 대면상담이면 기존 예약과 충돌
-      if (parsed.data.consult_type === "inperson") {
-        return { success: false, error: "이미 예약이 있는 시간입니다. 다른 시간을 선택해주세요." };
-      }
-      // 유선상담 + 유선상담 → 중복 허용
+    const bookingDate = parseLocalDate(parsed.data.booking_date);
+    if (!bookingDate) {
+      return { success: false, error: "올바른 예약 날짜가 아닙니다." };
     }
 
-    // 차단 슬롯 체크
-    const { data: blocked } = await supabase
-      .from("blocked_slots")
-      .select("id")
-      .eq("slot_date", parsed.data.booking_date)
-      .eq("slot_hour", parsed.data.booking_hour)
-      .eq("branch", parsed.data.branch)
-      .limit(1);
-
-    if (blocked && blocked.length > 0) {
-      return { success: false, error: "해당 시간은 예약이 불가합니다. 다른 시간을 선택해주세요." };
+    const consultTime = slotToConsultTime(
+      parsed.data.booking_hour,
+      bookingDate,
+      parsed.data.consult_type,
+    );
+    if (!consultTime) {
+      return { success: false, error: "선택한 예약 시간이 유효하지 않습니다." };
     }
 
-    const { data: myBooking, error } = await supabase
-      .from("bookings")
-      .insert({
-        branch: parsed.data.branch,
-        consult_type: parsed.data.consult_type,
-        booking_date: parsed.data.booking_date,
-        booking_hour: parsed.data.booking_hour,
-        student_name: parsed.data.student_name,
-        parent_name: parsed.data.parent_name,
-        phone: parsed.data.phone,
-        school: parsed.data.school || null,
-        grade: parsed.data.grade || null,
-        subject: parsed.data.subject,
-        progress: parsed.data.progress || null,
-        paid: parsed.data.pay_method === "done",
-        pay_method: parsed.data.pay_method,
-      })
-      .select("id, created_at")
-      .single();
+    const consultTypeLabel =
+      parsed.data.consult_type === "inperson"
+        ? `대면 (${consultTime})`
+        : "유선 상담";
 
-    if (error || !myBooking) {
-      console.error("[DB] 예약 생성 실패:", error?.message);
+    const { data: rpcData, error: rpcError } = await supabase.rpc("book_slot", {
+      p_branch: parsed.data.branch,
+      p_consult_type: parsed.data.consult_type,
+      p_booking_date: parsed.data.booking_date,
+      p_booking_hour: parsed.data.booking_hour,
+      p_student_name: parsed.data.student_name,
+      p_parent_name: parsed.data.parent_name,
+      p_phone: parsed.data.phone,
+      p_school: parsed.data.school || null,
+      p_grade: parsed.data.grade || null,
+      p_progress: parsed.data.progress || null,
+      p_subject: parsed.data.subject,
+      p_pay_method: parsed.data.pay_method,
+      p_consult_time: consultTime,
+      p_consult_type_label: consultTypeLabel,
+      p_location: BRANCH_TO_LOCATION[parsed.data.branch] || null,
+      p_subject_label:
+        SUBJECT_LABELS[parsed.data.subject] || parsed.data.subject,
+    });
+
+    if (rpcError) {
+      console.error("[Booking] book_slot RPC 실패:", rpcError.message);
       return { success: false, error: "예약 저장에 실패했습니다. 다시 시도해주세요." };
     }
 
-    // 삽입 후 재검증(트랜잭션 부재 대응): 같은 슬롯을 재조회해 나보다 먼저 접수된 행과의 충돌을 확인.
-    // 충돌이면 내가 방금 넣은 행을 스스로 취소(delete)하고 실패 반환한다.
-    const { data: sameSlot } = await supabase
-      .from("bookings")
-      .select("id, consult_type, created_at")
-      .eq("booking_date", parsed.data.booking_date)
-      .eq("booking_hour", parsed.data.booking_hour)
-      .eq("branch", parsed.data.branch);
-
-    const earlier = (sameSlot ?? []).filter((b) => {
-      if (b.id === myBooking.id) return false;
-      // created_at이 더 이르면 먼저인 행. 동률이면 id 문자열 비교로 순서 확정.
-      if (b.created_at < myBooking.created_at) return true;
-      if (b.created_at === myBooking.created_at) return b.id < myBooking.id;
-      return false;
-    });
-
-    const iAmInperson = parsed.data.consult_type === "inperson";
-    const conflict = iAmInperson
-      ? earlier.length > 0
-      : earlier.some((b) => b.consult_type === "inperson");
-
-    if (conflict) {
-      await supabase.from("bookings").delete().eq("id", myBooking.id);
-      return { success: false, error: "죄송합니다. 방금 다른 예약이 먼저 접수되어 해당 시간이 마감되었습니다. 다른 시간을 선택해주세요." };
+    const result = (rpcData ?? {}) as {
+      success?: boolean;
+      error?: "blocked" | "taken";
+      booking_id?: string;
+      consultation_id?: string;
+    };
+    if (!result.success) {
+      if (result.error === "blocked") {
+        return {
+          success: false,
+          error: "해당 시간은 예약이 불가합니다. 다른 시간을 선택해주세요.",
+        };
+      }
+      if (result.error === "taken") {
+        return {
+          success: false,
+          error: "이미 예약된 시간입니다. 다른 시간을 선택해주세요.",
+        };
+      }
+      return { success: false, error: "예약 처리 중 오류가 발생했습니다." };
     }
 
-    // 상담관리 자동 연동: 예약 → 상담 레코드 생성
-    const branchToLocation: Record<string, string> = {
-      "gojan-math": "NK학원(폴리타운 B동 4층)",
-      "gojan-eng": "NK학원(폴리타운 B동 4층)",
-      "zai-both": "자이센터프라자 801호",
+    return {
+      success: true,
+      bookingId: result.booking_id,
+      consultationId: result.consultation_id,
     };
-    const subjectMap: Record<string, string> = {
-      math: "수학",
-      eng: "영어",
-      both: "영수",
-    };
-    const hour = parsed.data.booking_hour;
-    const consultTimeStr = `${String(hour).padStart(2, "0")}:00`;
-    const consultTypeStr =
-      parsed.data.consult_type === "inperson"
-        ? `대면 (${String(hour).padStart(2, "0")}:30)`
-        : "유선 상담";
-
-    const { error: consultError } = await supabase.from("consultations").insert({
-      name: parsed.data.student_name,
-      school: parsed.data.school || null,
-      grade: parsed.data.grade || null,
-      parent_phone: parsed.data.phone,
-      consult_date: parsed.data.booking_date,
-      consult_time: consultTimeStr,
-      subject: subjectMap[parsed.data.subject] || parsed.data.subject,
-      location: branchToLocation[parsed.data.branch] || null,
-      consult_type: consultTypeStr,
-      reserve_text_sent: true,
-      reserve_deposit: parsed.data.pay_method === "done",
-    });
-    if (consultError) {
-      console.error("[Booking] 상담 연동 실패:", consultError.message);
-      return { success: true, warning: "예약은 완료되었으나 상담 자동 등록에 실패했습니다. 관리자에게 문의하세요." };
-    }
-
-    return { success: true };
   } catch (e) {
     console.error("[Booking] 예약 생성 예외:", e);
     return { success: false, error: "예약 처리 중 오류가 발생했습니다." };
@@ -392,40 +376,141 @@ export async function toggleBlockedDate(date: string, branch: string, hours: num
   }
 }
 
-export async function deleteBooking(id: string) {
+export async function cancelBooking(id: string, reason?: string) {
   try {
     const supabase = await createClient();
-
-    // 예약 정보 조회 (연동 상담 삭제 조건용)
-    const { data: booking } = await supabase
-      .from("bookings")
-      .select("student_name, booking_date, booking_hour")
-      .eq("id", id)
-      .single();
-
-    // 예약을 먼저 삭제한다. (상담을 먼저 지우면 예약 삭제 실패 시 상담만 유실됨)
-    const { error } = await supabase.from("bookings").delete().eq("id", id);
+    const actorLabel = await getActorLabel();
+    const { data, error } = await supabase.rpc("cancel_booking", {
+      p_booking_id: id,
+      p_reason: reason?.trim() || null,
+      p_actor_label: actorLabel,
+    });
 
     if (error) {
       return { success: false, error: error.message };
     }
 
-    // 예약 삭제 성공 후 연동된 상담 삭제
-    if (booking) {
-      const consultTime = `${String(booking.booking_hour).padStart(2, "0")}:00`;
-      const { error: consultError } = await supabase
-        .from("consultations")
-        .delete()
-        .eq("name", booking.student_name)
-        .eq("consult_date", booking.booking_date)
-        .eq("consult_time", consultTime);
+    const result = (data ?? {}) as {
+      success?: boolean;
+      error?: "not_found" | "already_cancelled";
+      consultation_id?: string | null;
+      mirrored?: boolean;
+    };
+    if (!result.success) {
+      const message =
+        result.error === "already_cancelled"
+          ? "이미 취소된 예약입니다."
+          : "예약을 찾을 수 없습니다.";
+      return { success: false, error: message, code: result.error };
+    }
 
-      if (consultError) {
-        console.error("[Booking] 연동 상담 삭제 실패:", consultError.message);
-        revalidatePath("/bookings");
-        revalidatePath("/consultations");
-        return { success: true, warning: "예약은 삭제되었으나 연동 상담 삭제에 실패했습니다." };
-      }
+    revalidatePath("/bookings");
+    revalidatePath("/consultations");
+    return {
+      success: true,
+      consultationId: result.consultation_id,
+      mirrored: result.mirrored,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "예약 취소 실패";
+    return { success: false, error: msg };
+  }
+}
+
+export async function rescheduleBooking(
+  id: string,
+  newDate: string,
+  newHour: number,
+) {
+  try {
+    const supabase = await createClient();
+    const { data: booking, error: bookingError } = await supabase
+      .from("bookings")
+      .select("consult_type")
+      .eq("id", id)
+      .single();
+
+    if (bookingError || !booking) {
+      return { success: false, error: "예약을 찾을 수 없습니다." };
+    }
+
+    const parsedDate = parseLocalDate(newDate);
+    if (!parsedDate) {
+      return { success: false, error: "올바른 변경 날짜가 아닙니다." };
+    }
+
+    const consultType =
+      booking.consult_type === "inperson" ? "inperson" : "phone";
+    const newConsultTime = slotToConsultTime(
+      newHour,
+      parsedDate,
+      consultType,
+    );
+    if (!newConsultTime) {
+      return { success: false, error: "선택한 변경 시간이 유효하지 않습니다." };
+    }
+
+    const actorLabel = await getActorLabel();
+    const { data, error } = await supabase.rpc("reschedule_booking", {
+      p_booking_id: id,
+      p_new_date: newDate,
+      p_new_hour: newHour,
+      p_new_consult_time: newConsultTime,
+      p_new_consult_type_label:
+        consultType === "inperson" ? `대면 (${newConsultTime})` : null,
+      p_actor_label: actorLabel,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    const result = (data ?? {}) as {
+      success?: boolean;
+      error?: "blocked" | "taken" | "cancelled_booking";
+    };
+    if (!result.success) {
+      const messages = {
+        blocked: "해당 시간은 예약이 불가합니다.",
+        taken: "이미 예약된 시간입니다.",
+        cancelled_booking: "취소된 예약은 시간변경할 수 없습니다.",
+      } as const;
+      return {
+        success: false,
+        error: result.error ? messages[result.error] : "시간변경에 실패했습니다.",
+        code: result.error,
+      };
+    }
+
+    revalidatePath("/bookings");
+    revalidatePath("/consultations");
+    return { success: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "예약 시간변경 실패";
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteBooking(id: string) {
+  try {
+    const supabase = await createClient();
+    const actorLabel = await getActorLabel();
+    const { data, error } = await supabase.rpc("delete_booking_with_event", {
+      p_booking_id: id,
+      p_actor_label: actorLabel,
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    const result = (data ?? {}) as { success?: boolean; error?: string };
+    if (!result.success) {
+      return {
+        success: false,
+        error:
+          result.error === "not_found"
+            ? "예약을 찾을 수 없습니다."
+            : result.error || "예약 삭제 실패",
+      };
     }
 
     revalidatePath("/bookings");

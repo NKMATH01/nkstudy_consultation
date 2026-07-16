@@ -15,6 +15,8 @@ import {
 } from "@/lib/student-identity";
 import { consultTimeToSlot } from "@/lib/booking-slots";
 import { roundTimeTo10 } from "@/lib/time-utils";
+import { getActorLabel } from "@/lib/actions/booking";
+import type { ConsultationEvent } from "@/types";
 
 const BOOKING_SYNC_WARNING = "상담은 저장되었으나 예약 현황판 반영에 실패했습니다";
 
@@ -33,6 +35,8 @@ function normalizeConsultTypeTime(value: string): string {
 
 // 상담 → 예약 동기화 헬퍼
 async function syncConsultationToBooking(consultation: {
+  id: string;
+  booking_id: string | null;
   name: string;
   consult_date: string | null;
   consult_time: string | null;
@@ -79,7 +83,25 @@ async function syncConsultationToBooking(consultation: {
     subjectCode = "eng";
   }
 
-  // 기존 예약 존재 여부 확인 (이름+날짜+시간으로). 동일 조건이 2건 이상이어도 에러 없이 첫 건 사용.
+  if (consultation.booking_id) {
+    const { error } = await admin
+      .from("bookings")
+      .update({
+        booking_date: consultation.consult_date,
+        booking_hour: slotCode,
+        consult_type: bookingType,
+        branch,
+        subject: subjectCode,
+        phone: consultation.parent_phone || "",
+        school: consultation.school || null,
+        grade: consultation.grade || null,
+      })
+      .eq("id", consultation.booking_id);
+    if (error) throw error;
+    return;
+  }
+
+  // booking_id가 없는 레거시 상담만 이름+날짜+시간으로 보조 매칭한다.
   const { data: existing } = await admin
     .from("bookings")
     .select("id")
@@ -91,7 +113,7 @@ async function syncConsultationToBooking(consultation: {
 
   if (existing && existing.length > 0) {
     // 기존 예약 업데이트
-    await admin
+    const { error } = await admin
       .from("bookings")
       .update({
         consult_type: bookingType,
@@ -102,22 +124,40 @@ async function syncConsultationToBooking(consultation: {
         grade: consultation.grade || null,
       })
       .eq("id", existing[0].id);
+    if (error) throw error;
+
+    const { error: linkError } = await admin
+      .from("consultations")
+      .update({ booking_id: existing[0].id })
+      .eq("id", consultation.id);
+    if (linkError) throw linkError;
   } else {
     // 새 예약 생성
-    await admin.from("bookings").insert({
-      student_name: consultation.name,
-      parent_name: consultation.name,
-      phone: consultation.parent_phone || "",
-      booking_date: consultation.consult_date,
-      booking_hour: slotCode,
-      consult_type: bookingType,
-      branch,
-      subject: subjectCode,
-      school: consultation.school || null,
-      grade: consultation.grade || null,
-      paid: false,
-      pay_method: "later",
-    });
+    const { data: booking, error } = await admin
+      .from("bookings")
+      .insert({
+        student_name: consultation.name,
+        parent_name: consultation.name,
+        phone: consultation.parent_phone || "",
+        booking_date: consultation.consult_date,
+        booking_hour: slotCode,
+        consult_type: bookingType,
+        branch,
+        subject: subjectCode,
+        school: consultation.school || null,
+        grade: consultation.grade || null,
+        paid: false,
+        pay_method: "later",
+      })
+      .select("id")
+      .single();
+    if (error || !booking) throw error ?? new Error("예약 생성 결과가 없습니다.");
+
+    const { error: linkError } = await admin
+      .from("consultations")
+      .update({ booking_id: booking.id })
+      .eq("id", consultation.id);
+    if (linkError) throw linkError;
   }
 }
 
@@ -329,6 +369,8 @@ export async function createConsultation(formData: FormData): Promise<Consultati
     // 예약 현황판 동기화
     try {
       await syncConsultationToBooking({
+        id: data.id,
+        booking_id: data.booking_id ?? null,
         name: parsed.data.name,
         consult_date: parsed.data.consult_date || null,
         consult_time: normalizedConsultTime,
@@ -405,35 +447,57 @@ export async function updateConsultation(
       parsed.data.consult_type || "유선 상담",
     );
 
+    const { data: previous, error: previousError } = await supabase
+      .from("consultations")
+      .select("consult_date, consult_time, booking_id")
+      .eq("id", id)
+      .single();
+    if (previousError || !previous) {
+      return {
+        success: false,
+        error: previousError?.message || "상담을 찾을 수 없습니다.",
+      };
+    }
+
+    const nextConsultDate = parsed.data.consult_date || null;
+    const previousTime = previous.consult_time?.slice(0, 5) ?? null;
+    const nextTime = normalizedConsultTime?.slice(0, 5) ?? null;
+    const scheduleChanged =
+      previous.consult_date !== nextConsultDate || previousTime !== nextTime;
+    const updatePayload: Record<string, unknown> = {
+      name: parsed.data.name,
+      school: parsed.data.school || null,
+      grade: parsed.data.grade || null,
+      parent_phone: parsed.data.parent_phone || null,
+      consult_date: nextConsultDate,
+      consult_time: normalizedConsultTime,
+      subject: parsed.data.subject || null,
+      location: parsed.data.location || null,
+      consult_type: normalizedConsultType,
+      memo: parsed.data.memo || null,
+      prev_academy: parsed.data.prev_academy || null,
+      prev_complaint: parsed.data.prev_complaint || null,
+      school_score: parsed.data.school_score || null,
+      test_score: parsed.data.test_score || null,
+      advance_level: parsed.data.advance_level || null,
+      study_goal: parsed.data.study_goal || null,
+      prefer_days: parsed.data.prefer_days || null,
+      plan_date: parsed.data.plan_date || null,
+      plan_class: parsed.data.plan_class || null,
+      requests: parsed.data.requests || null,
+      student_consult_note: parsed.data.student_consult_note || null,
+      parent_consult_note: parsed.data.parent_consult_note || null,
+      parent_consult_date: parsed.data.parent_consult_date || null,
+      parent_consult_time: normalizedParentConsultTime,
+      parent_location: parsed.data.parent_location || null,
+    };
+    if (scheduleChanged) {
+      updatePayload.rescheduled_at = new Date().toISOString();
+    }
+
     const { data, error } = await supabase
       .from("consultations")
-      .update({
-        name: parsed.data.name,
-        school: parsed.data.school || null,
-        grade: parsed.data.grade || null,
-        parent_phone: parsed.data.parent_phone || null,
-        consult_date: parsed.data.consult_date || null,
-        consult_time: normalizedConsultTime,
-        subject: parsed.data.subject || null,
-        location: parsed.data.location || null,
-        consult_type: normalizedConsultType,
-        memo: parsed.data.memo || null,
-        prev_academy: parsed.data.prev_academy || null,
-        prev_complaint: parsed.data.prev_complaint || null,
-        school_score: parsed.data.school_score || null,
-        test_score: parsed.data.test_score || null,
-        advance_level: parsed.data.advance_level || null,
-        study_goal: parsed.data.study_goal || null,
-        prefer_days: parsed.data.prefer_days || null,
-        plan_date: parsed.data.plan_date || null,
-        plan_class: parsed.data.plan_class || null,
-        requests: parsed.data.requests || null,
-        student_consult_note: parsed.data.student_consult_note || null,
-        parent_consult_note: parsed.data.parent_consult_note || null,
-        parent_consult_date: parsed.data.parent_consult_date || null,
-        parent_consult_time: normalizedParentConsultTime,
-        parent_location: parsed.data.parent_location || null,
-      })
+      .update(updatePayload)
       .eq("id", id)
       .select()
       .single();
@@ -443,9 +507,35 @@ export async function updateConsultation(
       return { success: false, error: error.message };
     }
 
+    if (scheduleChanged) {
+      const actorLabel = await getActorLabel();
+      const { error: eventError } = await supabase
+        .from("consultation_events")
+        .insert({
+          booking_id: previous.booking_id,
+          consultation_id: id,
+          event_type: "rescheduled",
+          old_value: {
+            date: previous.consult_date,
+            time: previous.consult_time,
+          },
+          new_value: {
+            date: nextConsultDate,
+            time: normalizedConsultTime,
+          },
+          created_by_label: actorLabel,
+        });
+      if (eventError) {
+        console.error("[Consultation] 시간변경 이벤트 기록 실패:", eventError.message);
+        warning = "상담 일정은 수정되었으나 변경 이력 기록에 실패했습니다.";
+      }
+    }
+
     // 예약 현황판 동기화
     try {
       await syncConsultationToBooking({
+        id,
+        booking_id: previous.booking_id ?? data.booking_id ?? null,
         name: parsed.data.name,
         consult_date: parsed.data.consult_date || null,
         consult_time: normalizedConsultTime,
@@ -475,34 +565,26 @@ export async function updateConsultation(
 export async function deleteConsultation(id: string) {
   try {
     const supabase = await createClient();
-
-    // 상담 정보 조회 → 연동된 예약 삭제
-    const { data: consultation } = await supabase
-      .from("consultations")
-      .select("name, consult_date, consult_time")
-      .eq("id", id)
-      .single();
-
-    if (consultation?.consult_date && consultation?.consult_time) {
-      const hour = parseInt(consultation.consult_time.split(":")[0]);
-      if (!isNaN(hour)) {
-        await supabase
-          .from("bookings")
-          .delete()
-          .eq("student_name", consultation.name)
-          .eq("booking_date", consultation.consult_date)
-          .eq("booking_hour", hour);
-      }
-    }
-
-    const { error } = await supabase
-      .from("consultations")
-      .delete()
-      .eq("id", id);
-
+    const actorLabel = await getActorLabel();
+    const { data, error } = await supabase.rpc(
+      "delete_consultation_with_event",
+      {
+        p_consultation_id: id,
+        p_actor_label: actorLabel,
+      },
+    );
     if (error) {
-      console.error("[DB] 상담 삭제 실패:", { id, error: error.message });
       return { success: false, error: error.message };
+    }
+    const result = (data ?? {}) as { success?: boolean; error?: string };
+    if (!result.success) {
+      return {
+        success: false,
+        error:
+          result.error === "not_found"
+            ? "상담을 찾을 수 없습니다."
+            : result.error || "상담 삭제 실패",
+      };
     }
 
     revalidatePath("/consultations");
@@ -517,28 +599,75 @@ export async function deleteConsultation(id: string) {
 
 export async function updateConsultationStatus(
   id: string,
-  status: string
+  status: string,
+  reason?: string | null,
 ) {
   const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("consultations")
-    .update({ status })
-    .eq("id", id);
-
+  const actorLabel = await getActorLabel();
+  const { data, error } = await supabase.rpc("update_consultation_status", {
+    p_consultation_id: id,
+    p_status: status,
+    p_reason: reason?.trim() || null,
+    p_actor_label: actorLabel,
+  });
   if (error) {
     return { success: false, error: error.message };
   }
+  const result = (data ?? {}) as {
+    success?: boolean;
+    error?: string;
+    event?: string;
+  };
+  if (!result.success) {
+    return { success: false, error: result.error || "상태 변경 실패" };
+  }
 
   revalidatePath("/consultations");
+  revalidatePath("/bookings");
   revalidatePath(`/consultations/${id}`);
-  return { success: true };
+  return { success: true, event: result.event };
+}
+
+export async function cancelConsultation(id: string, reason?: string) {
+  return updateConsultationStatus(id, "cancelled", reason);
+}
+
+export async function getConsultationEvents(
+  consultationId: string,
+): Promise<ConsultationEvent[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("consultation_events")
+    .select("*")
+    .eq("consultation_id", consultationId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[Consultation] 변경 이력 조회 실패:", error.message);
+    return [];
+  }
+  return (data as ConsultationEvent[]) ?? [];
+}
+
+export async function getBookingEvents(
+  bookingId: string,
+): Promise<ConsultationEvent[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("consultation_events")
+    .select("*")
+    .eq("booking_id", bookingId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[Booking] 변경 이력 조회 실패:", error.message);
+    return [];
+  }
+  return (data as ConsultationEvent[]) ?? [];
 }
 
 // 보안: 동적 업데이트 허용 필드 화이트리스트
 const ALLOWED_UPDATE_FIELDS = [
   "doc_sent", "call_done", "notify_sent", "consult_done",
-  "reserve_text_sent", "reserve_deposit", "status", "result_status",
+  "reserve_text_sent", "reserve_deposit", "result_status",
   "memo", "attitude", "willingness", "parent_level", "student_level",
   "prev_academy", "school_score", "test_score", "plan_date", "plan_class",
   "prefer_days", "requests", "payment_type", "prev_complaint", "referral",

@@ -13,6 +13,7 @@ export type ConsultationStatus =
   | "completed"
   | "cancelled"
   | "pending";
+export type BookingStatus = "active" | "cancelled";
 export type ResultStatus = "none" | "registered" | "hold" | "other";
 
 export interface Consultation {
@@ -59,6 +60,10 @@ export interface Consultation {
   parent_location: string | null;
   test_fee_paid: boolean;
   test_fee_method: string | null;
+  booking_id: string | null;
+  status_changed_at: string | null;
+  cancel_reason: string | null;
+  rescheduled_at: string | null;
   analysis_id: string | null;
   registration_id: string | null;
   student_id: string | null;
@@ -590,9 +595,37 @@ export interface Booking {
   progress: string | null;
   paid: boolean;
   pay_method: string | null;
+  status: BookingStatus;
+  status_changed_at: string | null;
+  cancel_reason: string | null;
+  rescheduled_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface ConsultationEvent {
+  id: string;
+  booking_id: string | null;
+  consultation_id: string | null;
+  event_type:
+    | "cancelled"
+    | "rescheduled"
+    | "reactivated"
+    | "status_changed"
+    | "deleted";
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
+  reason: string | null;
+  created_by_label: string | null;
+  created_at: string;
+}
+
+export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
+  active: "진행",
+  cancelled: "취소됨",
+};
+
+export const RESCHEDULED_LABEL = "시간변경";
 
 export interface BlockedSlot {
   id: string;

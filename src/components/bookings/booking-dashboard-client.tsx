@@ -3,8 +3,9 @@
 import { useState, useCallback, useTransition, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Copy, Check, Trash2 } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, Copy, Check, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ import {
   toggleBlockedSlot,
   toggleBlockedDate,
   deleteBooking,
+  cancelBooking,
+  rescheduleBooking,
 } from "@/lib/actions/booking";
 import {
   ALL_SLOT_CODES,
@@ -31,6 +34,7 @@ import {
   SATURDAY_LABELS,
 } from "@/lib/booking-slots";
 import { BRANCHES, BOOKING_SUBJECTS, type Booking, type BlockedSlot } from "@/types";
+import { RESCHEDULED_LABEL } from "@/types";
 
 // ========== 유틸 ==========
 
@@ -72,6 +76,8 @@ interface Props {
 }
 
 export function BookingDashboardClient({ initialBookings, initialBlocked, initialTotal }: Props) {
+  // 서버 페이지의 기존 props 계약은 유지하되 상태별 통계는 현재 로드된 행에서 다시 계산한다.
+  void initialTotal;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -79,12 +85,21 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showNotice, setShowNotice] = useState<Booking | null>(null);
   const [showDelete, setShowDelete] = useState<Booking | null>(null);
+  const [showCancel, setShowCancel] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [showReschedule, setShowReschedule] = useState<Booking | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleHour, setRescheduleHour] = useState<number | null>(null);
+  const [showCancelled, setShowCancelled] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [blocked, setBlocked] = useState<BlockedSlot[]>(initialBlocked);
 
   const dates = getWeekDates(weekOffset);
+  const rescheduleSlots = rescheduleDate
+    ? getSlotCodesForDate(new Date(`${rescheduleDate}T00:00:00`))
+    : [];
 
   // 데이터 새로고침
   const refreshData = useCallback(async (offset: number) => {
@@ -107,6 +122,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
   // 예약→슬롯 맵
   const bookingMap: Record<string, Booking> = {};
   for (const b of bookings) {
+    if (b.status === "cancelled") continue;
     bookingMap[sKey(b.booking_date, b.booking_hour, b.branch)] = b;
   }
 
@@ -117,16 +133,18 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
 
   // 통계
   const stats = {
-    total: initialTotal,
-    paid: bookings.filter((b) => b.paid).length,
-    unpaid: bookings.filter((b) => !b.paid).length,
+    total: bookings.filter((b) => b.status !== "cancelled").length,
+    paid: bookings.filter((b) => b.status !== "cancelled" && b.paid).length,
+    unpaid: bookings.filter((b) => b.status !== "cancelled" && !b.paid).length,
+    cancelled: bookings.filter((b) => b.status === "cancelled").length,
   };
 
   // 필터
   const today = new Date().toISOString().split("T")[0];
   const filteredBookings = bookings
     .filter((b) => {
-      if (filter === "unpaid") return !b.paid;
+      if (!showCancelled && b.status === "cancelled") return false;
+      if (filter === "unpaid") return b.status !== "cancelled" && !b.paid;
       if (filter === "today") return b.booking_date === today;
       return true;
     })
@@ -212,6 +230,67 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
     });
   };
 
+  const handleCancel = () => {
+    if (!showCancel) return;
+    startTransition(async () => {
+      const target = showCancel;
+      const result = await cancelBooking(target.id, cancelReason);
+      if (!result.success) {
+        toast.error(result.error || "예약 취소 실패");
+        return;
+      }
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.id === target.id
+            ? {
+                ...booking,
+                status: "cancelled",
+                status_changed_at: new Date().toISOString(),
+                cancel_reason: cancelReason.trim() || null,
+              }
+            : booking,
+        ),
+      );
+      setShowCancel(null);
+      setCancelReason("");
+      toast.success("예약이 취소되었습니다");
+      router.refresh();
+    });
+  };
+
+  const handleReschedule = () => {
+    if (!showReschedule || !rescheduleDate || rescheduleHour === null) return;
+    startTransition(async () => {
+      const target = showReschedule;
+      const result = await rescheduleBooking(
+        target.id,
+        rescheduleDate,
+        rescheduleHour,
+      );
+      if (!result.success) {
+        toast.error(result.error || "시간변경 실패");
+        return;
+      }
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.id === target.id
+            ? {
+                ...booking,
+                booking_date: rescheduleDate,
+                booking_hour: rescheduleHour,
+                rescheduled_at: new Date().toISOString(),
+              }
+            : booking,
+        ),
+      );
+      setShowReschedule(null);
+      setRescheduleDate("");
+      setRescheduleHour(null);
+      toast.success("예약 시간이 변경되었습니다");
+      router.refresh();
+    });
+  };
+
   // 안내문 텍스트
   const getNoticeText = (b: Booking) => {
     const br = BRANCHES.find((x) => x.id === b.branch);
@@ -240,16 +319,17 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
           예약 현황판
         </h1>
         <p className="text-[12.5px]" style={{ color: "#64748B" }}>
-          총 {stats.total}건 (확정 {stats.paid} / 대기 {stats.unpaid})
+          진행 {stats.total}건 (확정 {stats.paid} / 대기 {stats.unpaid}) · 취소 {stats.cancelled}건
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "전체", val: stats.total, color: "#6366f1", bg: "rgba(99,102,241,0.06)" },
+          { label: "진행", val: stats.total, color: "#6366f1", bg: "rgba(99,102,241,0.06)" },
           { label: "확정", val: stats.paid, color: "#059669", bg: "rgba(5,150,105,0.06)" },
           { label: "대기", val: stats.unpaid, color: "#dc2626", bg: "rgba(220,38,38,0.05)" },
+          { label: "취소", val: stats.cancelled, color: "#64748b", bg: "rgba(100,116,139,0.06)" },
         ].map((s) => (
           <div
             key={s.label}
@@ -381,7 +461,16 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-sm font-bold text-slate-800">예약 목록</h3>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+              <input
+                type="checkbox"
+                checked={showCancelled}
+                onChange={(event) => setShowCancelled(event.target.checked)}
+              />
+              취소 표시
+            </label>
+            <div className="flex gap-1">
             {[
               { id: "all", label: "전체" },
               { id: "today", label: "오늘" },
@@ -399,6 +488,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                 {f.label}
               </button>
             ))}
+            </div>
           </div>
         </div>
 
@@ -416,7 +506,9 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               return (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between flex-wrap gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+                  className={`flex items-center justify-between flex-wrap gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors ${
+                    b.status === "cancelled" ? "opacity-55 line-through" : ""
+                  }`}
                   onClick={() => setSelectedBooking(b)}
                 >
                   <div className="flex items-center gap-2 flex-wrap flex-1">
@@ -441,6 +533,15 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                     >
                       {b.consult_type === "inperson" ? "대면" : "유선"}
                     </span>
+                    {b.status === "cancelled" ? (
+                      <span className="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 no-underline">
+                        취소됨
+                      </span>
+                    ) : b.rescheduled_at ? (
+                      <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 no-underline">
+                        {RESCHEDULED_LABEL}
+                      </span>
+                    ) : null}
                     <span className="text-[11px] text-slate-400">{b.booking_date} {SATURDAY_LABELS[b.booking_hour] ? SATURDAY_LABELS[b.booking_hour] : `${b.booking_hour}:00`}</span>
                   </div>
                   <div className="flex gap-1.5 items-center">
@@ -454,7 +555,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                     </Button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleTogglePaid(b); }}
-                      disabled={isPending}
+                      disabled={isPending || b.status === "cancelled"}
                       className="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
                       style={{
                         background: b.paid ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)",
@@ -482,6 +583,18 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
             const br = BRANCHES.find((x) => x.id === b.branch);
             return (
               <div className="space-y-4">
+                <div className="flex gap-2">
+                  {b.status === "cancelled" && (
+                    <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">
+                      취소됨
+                    </span>
+                  )}
+                  {b.status !== "cancelled" && b.rescheduled_at && (
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                      {RESCHEDULED_LABEL}
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   {[
                     { l: "학생명", v: b.student_name },
@@ -502,24 +615,55 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                     </div>
                   ))}
                 </div>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="rounded-xl flex-1"
+                    className="rounded-xl"
                     onClick={() => { setShowNotice(b); setSelectedBooking(null); }}
                   >
                     <Copy className="h-4 w-4 mr-1.5" />
                     안내문
                   </Button>
+                  {b.status !== "cancelled" && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl text-amber-700"
+                        onClick={() => {
+                          setShowReschedule(b);
+                          setRescheduleDate(b.booking_date);
+                          setRescheduleHour(b.booking_hour);
+                          setSelectedBooking(null);
+                        }}
+                      >
+                        <CalendarClock className="h-4 w-4 mr-1.5" />
+                        시간변경
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl text-slate-700"
+                        onClick={() => {
+                          setShowCancel(b);
+                          setCancelReason("");
+                          setSelectedBooking(null);
+                        }}
+                      >
+                        <XCircle className="h-4 w-4 mr-1.5" />
+                        취소
+                      </Button>
+                    </>
+                  )}
                   <Button
-                    variant="destructive"
+                    variant="ghost"
                     size="sm"
-                    className="rounded-xl"
+                    className="rounded-xl text-red-500"
                     onClick={() => { setShowDelete(b); setSelectedBooking(null); }}
                   >
                     <Trash2 className="h-4 w-4 mr-1.5" />
-                    삭제
+                    완전삭제
                   </Button>
                 </div>
               </div>
@@ -595,13 +739,110 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={!!showCancel}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCancel(null);
+            setCancelReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>예약 취소</DialogTitle>
+            <DialogDescription>
+              예약과 연결된 상담을 취소 상태로 변경하고 이력을 보존합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={cancelReason}
+            onChange={(event) => setCancelReason(event.target.value)}
+            placeholder="취소 사유(선택)"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancel(null)}>
+              닫기
+            </Button>
+            <Button onClick={handleCancel} disabled={isPending}>
+              {isPending ? "취소 처리 중..." : "예약 취소"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!showReschedule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowReschedule(null);
+            setRescheduleDate("");
+            setRescheduleHour(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>예약 시간변경</DialogTitle>
+            <DialogDescription>
+              새 날짜와 슬롯을 선택하면 연결된 상담 일정도 함께 변경됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              type="date"
+              value={rescheduleDate}
+              onChange={(event) => {
+                setRescheduleDate(event.target.value);
+                setRescheduleHour(null);
+              }}
+            />
+            <div className="grid grid-cols-3 gap-2">
+              {rescheduleSlots.map((code) => (
+                <button
+                  type="button"
+                  key={code}
+                  onClick={() => setRescheduleHour(code)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                    rescheduleHour === code
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {getSlotLabel(code)}
+                </button>
+              ))}
+            </div>
+            {rescheduleDate && rescheduleSlots.length === 0 && (
+              <p className="text-xs font-semibold text-red-500">
+                선택한 날짜에는 예약 가능한 슬롯이 없습니다.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReschedule(null)}>
+              닫기
+            </Button>
+            <Button
+              onClick={handleReschedule}
+              disabled={
+                isPending || !rescheduleDate || rescheduleHour === null
+              }
+            >
+              {isPending ? "변경 중..." : "시간변경"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* 삭제 확인 */}
       <Dialog open={!!showDelete} onOpenChange={() => setShowDelete(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>예약 삭제</DialogTitle>
+            <DialogTitle>예약 완전삭제</DialogTitle>
             <DialogDescription>
-              &quot;{showDelete?.student_name}&quot; 예약을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              &quot;{showDelete?.student_name}&quot; 예약을 완전히 삭제하시겠습니까?
+              기록이 화면에서 사라지며 삭제 이력만 보존됩니다. 이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -609,7 +850,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               취소
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isPending} className="rounded-xl">
-              {isPending ? "삭제 중..." : "삭제"}
+              {isPending ? "삭제 중..." : "완전삭제"}
             </Button>
           </DialogFooter>
         </DialogContent>

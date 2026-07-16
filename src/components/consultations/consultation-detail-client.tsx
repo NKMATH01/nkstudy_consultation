@@ -25,6 +25,7 @@ import {
 import { StatusBadge, ResultBadge } from "@/components/common/status-badge";
 import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import {
+  cancelConsultation,
   deleteConsultation,
   updateConsultationStatus,
   updateConsultationField,
@@ -96,8 +97,17 @@ export function ConsultationDetailClient({ consultation }: Props) {
   };
 
   const handleStatusChange = (value: string) => {
+    const reason =
+      value === "cancelled"
+        ? window.prompt("상담 취소 사유를 입력해주세요. (선택)")
+        : null;
+    if (value === "cancelled" && reason === null) return;
+
     startTransition(async () => {
-      const result = await updateConsultationStatus(consultation.id, value);
+      const result =
+        value === "cancelled"
+          ? await cancelConsultation(consultation.id, reason || undefined)
+          : await updateConsultationStatus(consultation.id, value);
       if (result.success) {
         toast.success("상태가 변경되었습니다");
         router.refresh();
@@ -179,6 +189,19 @@ export function ConsultationDetailClient({ consultation }: Props) {
               {consultation.consult_date &&
                 ` | ${format(new Date(consultation.consult_date), "yyyy-MM-dd")}`}
             </p>
+            <div className="mt-1 flex gap-1.5">
+              {consultation.status === "cancelled" && (
+                <span className="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                  취소됨
+                </span>
+              )}
+              {consultation.status !== "cancelled" &&
+                consultation.rescheduled_at && (
+                  <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                    시간변경
+                  </span>
+                )}
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -460,10 +483,10 @@ export function ConsultationDetailClient({ consultation }: Props) {
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>상담 삭제</DialogTitle>
+            <DialogTitle>상담 완전삭제</DialogTitle>
             <DialogDescription>
-              &quot;{consultation.name}&quot; 학생의 상담 데이터를 삭제하시겠습니까?
-              이 작업은 되돌릴 수 없습니다.
+              &quot;{consultation.name}&quot; 학생의 상담을 완전히 삭제하시겠습니까?
+              화면에서는 사라지고 삭제 이력만 보존됩니다. 이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -476,7 +499,7 @@ export function ConsultationDetailClient({ consultation }: Props) {
               disabled={isPending}
               className="rounded-xl"
             >
-              {isPending ? "삭제 중..." : "삭제"}
+              {isPending ? "삭제 중..." : "완전삭제"}
             </Button>
           </DialogFooter>
         </DialogContent>

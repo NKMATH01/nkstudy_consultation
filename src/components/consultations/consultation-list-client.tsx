@@ -20,10 +20,15 @@ import {
   Link2,
   MessageCircle,
   Send,
+  XCircle,
 } from "lucide-react";
 import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import { TextParseModal } from "@/components/consultations/text-parse-modal";
-import { updateConsultationField, deleteConsultation } from "@/lib/actions/consultation";
+import {
+  cancelConsultation,
+  updateConsultationField,
+  deleteConsultation,
+} from "@/lib/actions/consultation";
 import { previewAlimtalk, sendAlimtalk } from "@/lib/actions/alimtalk";
 import { createDripInvitation } from "@/lib/actions/drip-survey";
 import {
@@ -37,6 +42,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import type { Consultation, ResultStatus } from "@/types";
 
 interface Props {
@@ -163,6 +169,8 @@ export function ConsultationListClient({ initialData, initialPagination, classes
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ResultStatus | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Consultation | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
   const [alimtalkTarget, setAlimtalkTarget] = useState<Consultation | null>(null);
   const [alimtalkPreview, setAlimtalkPreview] = useState<AlimtalkPreviewState>({
     loading: false,
@@ -427,7 +435,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
 
   const handleDelete = useCallback(
     (id: string, name: string) => {
-      if (!confirm(`"${name}" 상담을 삭제하시겠습니까?`)) return;
+      if (!confirm(`"${name}" 상담을 완전히 삭제하시겠습니까? 화면에서는 사라지고 삭제 이력만 보존됩니다.`)) return;
       setLocalData((prev) => prev.filter((c) => c.id !== id));
       startTransition(async () => {
         const result = await deleteConsultation(id);
@@ -466,6 +474,34 @@ export function ConsultationListClient({ initialData, initialPagination, classes
       </tr>
     </thead>
   );
+
+  const handleCancel = useCallback(() => {
+    if (!cancelTarget) return;
+    const target = cancelTarget;
+    startTransition(async () => {
+      const result = await cancelConsultation(target.id, cancelReason);
+      if (!result.success) {
+        toast.error(result.error || "상담 취소 실패");
+        return;
+      }
+      setLocalData((prev) =>
+        prev.map((consultation) =>
+          consultation.id === target.id
+            ? {
+                ...consultation,
+                status: "cancelled",
+                status_changed_at: new Date().toISOString(),
+                cancel_reason: cancelReason.trim() || null,
+              }
+            : consultation,
+        ),
+      );
+      setCancelTarget(null);
+      setCancelReason("");
+      toast.success("상담이 취소되었습니다");
+      router.refresh();
+    });
+  }, [cancelReason, cancelTarget, router, startTransition]);
 
   const alimtalkMissing = alimtalkPreview.data?.missing ?? [];
   const alimtalkTemplateUnapproved =
@@ -633,7 +669,8 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                       const subj = subjectBadge(item.subject);
                       const method = formatMethod(item.consult_type);
                       const isUnregistered = item.result_status === "other";
-                      const cellStrike = isUnregistered ? "line-through" : "";
+                      const isCancelled = item.status === "cancelled";
+                      const cellStrike = isUnregistered || isCancelled ? "line-through" : "";
                       const vBorder = "border-r border-slate-100";
                       const vBorderDark = "border-r border-neutral-700";
                       const vb = isUnregistered ? vBorderDark : vBorder;
@@ -642,13 +679,23 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                       return (
                         <Fragment key={item.id}>
                         <tr
-                          className={`border-t border-slate-100 transition-colors ${rowStyleByResult(item.result_status)} ${!isUnregistered ? "hover:bg-slate-50/80" : ""}`}
+                          className={`border-t border-slate-100 transition-colors ${rowStyleByResult(item.result_status)} ${!isUnregistered ? "hover:bg-slate-50/80" : ""} ${isCancelled ? "opacity-50" : ""}`}
                         >
                           <td className={`py-2 px-1.5 font-semibold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-700"}`}>
                             {item.consult_time?.slice(0, 5) || "-"}
                           </td>
                           <td className={`py-2 px-1.5 font-bold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-400" : "text-slate-800"}`}>
                             {item.name}
+                            {isCancelled && (
+                              <span className="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">
+                                취소됨
+                              </span>
+                            )}
+                            {!isCancelled && item.rescheduled_at && (
+                              <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                                시간변경
+                              </span>
+                            )}
                           </td>
                           <td className={`py-2 px-1.5 text-xs whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
                             {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
@@ -887,10 +934,22 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
+                              {!isCancelled && (
+                                <button
+                                  onClick={() => {
+                                    setCancelTarget(item);
+                                    setCancelReason("");
+                                  }}
+                                  className="p-1.5 rounded transition-colors text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                  title="취소"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleDelete(item.id, item.name)}
                                 className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-100 hover:text-red-600"
-                                title="삭제"
+                                title="완전삭제"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -946,6 +1005,47 @@ export function ConsultationListClient({ initialData, initialPagination, classes
           <p className="text-sm">텍스트 등록 또는 일정 추가로 상담을 등록해보세요</p>
         </div>
       )}
+
+      <Dialog
+        open={!!cancelTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelTarget(null);
+            setCancelReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>상담 취소</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500">
+            상담을 취소 상태로 변경하고 예약과 변경 이력을 함께 보존합니다.
+          </p>
+          <Input
+            value={cancelReason}
+            onChange={(event) => setCancelReason(event.target.value)}
+            placeholder="취소 사유(선택)"
+          />
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setCancelTarget(null)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600"
+            >
+              닫기
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={isPending}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {isPending ? "취소 처리 중..." : "상담 취소"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConsultationFormDialog
         open={showForm}

@@ -42,10 +42,16 @@ describe("bookingFormSchema slot validation", () => {
     ).toBe(false);
   });
 
-  it("토요일 기능 플래그가 false인 동안 교시 예약을 거부한다", () => {
-    expect(SATURDAY_BOOKING_ENABLED).toBe(false);
+  it.each([1, 2, 3, 4])("토요일 %i교시는 허용한다", (hour) => {
+    expect(SATURDAY_BOOKING_ENABLED).toBe(true);
     expect(
-      bookingFormSchema.safeParse(bookingData("2026-07-18", 1)).success,
+      bookingFormSchema.safeParse(bookingData("2026-07-18", hour)).success,
+    ).toBe(true);
+  });
+
+  it.each([5, 15])("토요일 슬롯 코드 %i는 거부한다", (hour) => {
+    expect(
+      bookingFormSchema.safeParse(bookingData("2026-07-18", hour)).success,
     ).toBe(false);
   });
 });

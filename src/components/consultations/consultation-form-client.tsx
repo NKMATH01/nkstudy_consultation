@@ -20,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { TimeField10 } from "@/components/common/time-field-10";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -223,7 +224,7 @@ export function ConsultationFormDialog({
                 <FormField control={form.control} name="consult_time" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs text-slate-500">시간</FormLabel>
-                    <FormControl><Input type="time" className={inp} {...field} /></FormControl>
+                    <FormControl><TimeField10 className={inp} {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="consult_type" render={({ field }) => (
@@ -236,7 +237,7 @@ export function ConsultationFormDialog({
                       </select>
                     </FormControl>
                     {field.value === "대면 상담" && (
-                      <Input type="time" className={`${inp} mt-1.5`} value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} />
+                      <TimeField10 className={`${inp} mt-1.5`} value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} />
                     )}
                   </FormItem>
                 )} />
@@ -302,7 +303,7 @@ export function ConsultationFormDialog({
                   <FormField control={form.control} name="parent_consult_time" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs text-slate-500">학부모 시간</FormLabel>
-                      <FormControl><Input type="time" className={inp} {...field} /></FormControl>
+                      <FormControl><TimeField10 className={inp} {...field} /></FormControl>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="parent_location" render={({ field }) => (

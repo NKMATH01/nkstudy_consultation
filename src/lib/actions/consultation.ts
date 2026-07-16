@@ -13,6 +13,8 @@ import {
   escapeLikePattern,
   selectSurveyConsultation,
 } from "@/lib/student-identity";
+import { consultTimeToSlot } from "@/lib/booking-slots";
+import { roundTimeTo10 } from "@/lib/time-utils";
 
 const BOOKING_SYNC_WARNING = "상담은 저장되었으나 예약 현황판 반영에 실패했습니다";
 
@@ -22,6 +24,12 @@ type ConsultationMutationResult = {
   error?: string;
   warning?: string;
 };
+
+function normalizeConsultTypeTime(value: string): string {
+  const match = /^(대면 상담)\s+(\d{2}:\d{2}(?::\d{2})?)$/.exec(value);
+  if (!match) return value;
+  return `${match[1]} ${roundTimeTo10(match[2])}`;
+}
 
 // 상담 → 예약 동기화 헬퍼
 async function syncConsultationToBooking(consultation: {
@@ -37,8 +45,18 @@ async function syncConsultationToBooking(consultation: {
 }) {
   if (!consultation.consult_date || !consultation.consult_time) return;
 
-  const hour = parseInt(consultation.consult_time.split(":")[0]);
-  if (isNaN(hour) || hour < 13 || hour > 20) return;
+  const slotCode = consultTimeToSlot(
+    consultation.consult_date,
+    consultation.consult_time,
+  );
+  if (slotCode === null) {
+    console.warn("[Consultation] 슬롯 비대응 시간 — 예약 동기화 생략", {
+      name: consultation.name,
+      consultDate: consultation.consult_date,
+      consultTime: consultation.consult_time,
+    });
+    return;
+  }
 
   const admin = createAdminClient();
 
@@ -67,7 +85,7 @@ async function syncConsultationToBooking(consultation: {
     .select("id")
     .eq("student_name", consultation.name)
     .eq("booking_date", consultation.consult_date)
-    .eq("booking_hour", hour)
+    .eq("booking_hour", slotCode)
     .order("created_at", { ascending: true })
     .limit(1);
 
@@ -91,7 +109,7 @@ async function syncConsultationToBooking(consultation: {
       parent_name: consultation.name,
       phone: consultation.parent_phone || "",
       booking_date: consultation.consult_date,
-      booking_hour: hour,
+      booking_hour: slotCode,
       consult_type: bookingType,
       branch,
       subject: subjectCode,
@@ -261,6 +279,16 @@ export async function createConsultation(formData: FormData): Promise<Consultati
       return { success: false, error: parsed.error.issues[0].message };
     }
 
+    const normalizedConsultTime = parsed.data.consult_time
+      ? roundTimeTo10(parsed.data.consult_time)
+      : null;
+    const normalizedParentConsultTime = parsed.data.parent_consult_time
+      ? roundTimeTo10(parsed.data.parent_consult_time)
+      : null;
+    const normalizedConsultType = normalizeConsultTypeTime(
+      parsed.data.consult_type || "유선 상담",
+    );
+
     const { data, error } = await supabase
       .from("consultations")
       .insert({
@@ -269,10 +297,10 @@ export async function createConsultation(formData: FormData): Promise<Consultati
         grade: parsed.data.grade || null,
         parent_phone: parsed.data.parent_phone || null,
         consult_date: parsed.data.consult_date || null,
-        consult_time: parsed.data.consult_time || null,
+        consult_time: normalizedConsultTime,
         subject: parsed.data.subject || null,
         location: parsed.data.location || null,
-        consult_type: parsed.data.consult_type,
+        consult_type: normalizedConsultType,
         memo: parsed.data.memo || null,
         prev_academy: parsed.data.prev_academy || null,
         prev_complaint: parsed.data.prev_complaint || null,
@@ -287,7 +315,7 @@ export async function createConsultation(formData: FormData): Promise<Consultati
         student_consult_note: parsed.data.student_consult_note || null,
         parent_consult_note: parsed.data.parent_consult_note || null,
         parent_consult_date: parsed.data.parent_consult_date || null,
-        parent_consult_time: parsed.data.parent_consult_time || null,
+        parent_consult_time: normalizedParentConsultTime,
         parent_location: parsed.data.parent_location || null,
       })
       .select()
@@ -303,8 +331,8 @@ export async function createConsultation(formData: FormData): Promise<Consultati
       await syncConsultationToBooking({
         name: parsed.data.name,
         consult_date: parsed.data.consult_date || null,
-        consult_time: parsed.data.consult_time || null,
-        consult_type: parsed.data.consult_type || "유선 상담",
+        consult_time: normalizedConsultTime,
+        consult_type: normalizedConsultType,
         location: parsed.data.location || null,
         subject: parsed.data.subject || null,
         parent_phone: parsed.data.parent_phone || null,
@@ -367,6 +395,16 @@ export async function updateConsultation(
       return { success: false, error: parsed.error.issues[0].message };
     }
 
+    const normalizedConsultTime = parsed.data.consult_time
+      ? roundTimeTo10(parsed.data.consult_time)
+      : null;
+    const normalizedParentConsultTime = parsed.data.parent_consult_time
+      ? roundTimeTo10(parsed.data.parent_consult_time)
+      : null;
+    const normalizedConsultType = normalizeConsultTypeTime(
+      parsed.data.consult_type || "유선 상담",
+    );
+
     const { data, error } = await supabase
       .from("consultations")
       .update({
@@ -375,10 +413,10 @@ export async function updateConsultation(
         grade: parsed.data.grade || null,
         parent_phone: parsed.data.parent_phone || null,
         consult_date: parsed.data.consult_date || null,
-        consult_time: parsed.data.consult_time || null,
+        consult_time: normalizedConsultTime,
         subject: parsed.data.subject || null,
         location: parsed.data.location || null,
-        consult_type: parsed.data.consult_type,
+        consult_type: normalizedConsultType,
         memo: parsed.data.memo || null,
         prev_academy: parsed.data.prev_academy || null,
         prev_complaint: parsed.data.prev_complaint || null,
@@ -393,7 +431,7 @@ export async function updateConsultation(
         student_consult_note: parsed.data.student_consult_note || null,
         parent_consult_note: parsed.data.parent_consult_note || null,
         parent_consult_date: parsed.data.parent_consult_date || null,
-        parent_consult_time: parsed.data.parent_consult_time || null,
+        parent_consult_time: normalizedParentConsultTime,
         parent_location: parsed.data.parent_location || null,
       })
       .eq("id", id)
@@ -410,8 +448,8 @@ export async function updateConsultation(
       await syncConsultationToBooking({
         name: parsed.data.name,
         consult_date: parsed.data.consult_date || null,
-        consult_time: parsed.data.consult_time || null,
-        consult_type: parsed.data.consult_type || "유선 상담",
+        consult_time: normalizedConsultTime,
+        consult_type: normalizedConsultType,
         location: parsed.data.location || null,
         subject: parsed.data.subject || null,
         parent_phone: parsed.data.parent_phone || null,

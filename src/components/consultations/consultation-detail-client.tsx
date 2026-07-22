@@ -25,6 +25,10 @@ import {
 import { StatusBadge, ResultBadge } from "@/components/common/status-badge";
 import { ConsultationFormDialog } from "@/components/consultations/consultation-form-client";
 import {
+  ConsultationJourneyPanel,
+  type ConsultationJourneyData,
+} from "@/components/consultations/consultation-journey-panel";
+import {
   cancelConsultation,
   deleteConsultation,
   updateConsultationStatus,
@@ -35,6 +39,7 @@ import { STATUS_LABELS, RESULT_STATUS_LABELS } from "@/types";
 
 interface Props {
   consultation: Consultation;
+  journey: ConsultationJourneyData;
 }
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
@@ -48,7 +53,7 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
-export function ConsultationDetailClient({ consultation }: Props) {
+export function ConsultationDetailClient({ consultation, journey }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showEdit, setShowEdit] = useState(false);
@@ -231,6 +236,8 @@ export function ConsultationDetailClient({ consultation }: Props) {
           </button>
         </div>
       </div>
+
+      <ConsultationJourneyPanel consultation={consultation} journey={journey} />
 
       {/* Quick Actions */}
       <div

@@ -5,6 +5,7 @@ import {
   normalizeIdentityPhone,
   selectConsultationIdentity,
   selectSurveyConsultation,
+  selectUniqueSurveyConsultation,
   selectStudentIdentity,
   type ConsultationIdentityRecord,
   type StudentIdentityRecord,
@@ -177,6 +178,65 @@ describe("survey consultation matching", () => {
         { name: "김지민" },
         { allowNameFallback: false },
       ),
+    ).toBeNull();
+  });
+});
+
+describe("unique survey consultation matching", () => {
+  const consultations = [
+    {
+      id: "target",
+      name: "김지민",
+      parent_phone: "+82 10-3333-1402",
+      analysis_id: null,
+    },
+    {
+      id: "other",
+      name: "김지민(2)",
+      parent_phone: "010-9999-9999",
+      analysis_id: "analysis-other",
+    },
+  ];
+
+  it("정규화된 학부모 연락처의 유일 매칭을 반환한다", () => {
+    expect(
+      selectUniqueSurveyConsultation(consultations, {
+        name: "김지민",
+        parentPhone: "01033331402",
+      })?.id,
+    ).toBe("target");
+  });
+
+  it("분석 ID의 유일 매칭도 반환한다", () => {
+    expect(
+      selectUniqueSurveyConsultation(consultations, {
+        name: "김지민",
+        analysisId: "analysis-other",
+      })?.id,
+    ).toBe("other");
+  });
+
+  it("강한 식별자에 두 건 이상 일치하면 반환하지 않는다", () => {
+    expect(
+      selectUniqueSurveyConsultation(
+        [consultations[0], { ...consultations[0], id: "duplicate" }],
+        { name: "김지민", parentPhone: "010-3333-1402" },
+      ),
+    ).toBeNull();
+  });
+
+  it("강한 식별자가 일치하지 않으면 반환하지 않는다", () => {
+    expect(
+      selectUniqueSurveyConsultation(consultations, {
+        name: "김지민",
+        parentPhone: "010-0000-0000",
+      }),
+    ).toBeNull();
+  });
+
+  it("강한 식별자 없이 이름만 같아도 폴백하지 않는다", () => {
+    expect(
+      selectUniqueSurveyConsultation(consultations, { name: "김지민" }),
     ).toBeNull();
   });
 });

@@ -18,7 +18,8 @@ export async function callGeminiAPI(prompt: string, retryCount = 0): Promise<str
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
-      temperature: 0.7,
+      // 분석 근거 충실도 — 자유 서술보다 입력 근거 재현을 우선
+      temperature: 0.3,
       topP: 0.95,
       maxOutputTokens: 8192,
       // Gemini 2.5 Flash는 기본 thinking이 켜져 있어 thinking 토큰이 maxOutputTokens 예산을 잠식.

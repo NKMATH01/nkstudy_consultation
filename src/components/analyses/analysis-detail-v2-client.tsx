@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, ClipboardList, ExternalLink, FileCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, ClipboardList, ExternalLink, FileCheck, MessageSquareText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +35,7 @@ interface Props {
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
   consultationData?: Record<string, string | null> | null;
   existingRegistrationId?: string | null;
+  consultationId?: string | null;
 }
 
 export function AnalysisDetailV2Client({
@@ -46,6 +47,7 @@ export function AnalysisDetailV2Client({
   contacts,
   consultationData,
   existingRegistrationId,
+  consultationId,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -113,6 +115,13 @@ export function AnalysisDetailV2Client({
           </div>
           <p className="text-[11px] text-slate-500">{schoolGrade}</p>
         </div>
+        {consultationId && (
+          <Button variant="outline" size="sm" asChild className="rounded-xl text-xs">
+            <Link href={`/consultations/${consultationId}`}>
+              <MessageSquareText className="mr-1 h-3.5 w-3.5" /> 상담 보기
+            </Link>
+          </Button>
+        )}
         <Button
           size="sm"
           onClick={handleRegisterClick}

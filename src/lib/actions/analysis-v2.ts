@@ -19,6 +19,7 @@ import {
   buildResultProfileV2,
 } from "@/lib/assessment/v2/interpretation";
 import { applyStudentNameToInterpretation } from "@/lib/assessment/v2/name-substitution";
+import { stampConsultationAnalysis } from "@/lib/actions/consultation-analysis";
 import type { AiInterpretation } from "@/lib/assessment/v2/ai-contract";
 import type { ScoreProfile } from "@/lib/assessment/v2/types";
 
@@ -27,6 +28,7 @@ interface SurveyV2Row {
   name: string | null;
   school: string | null;
   grade: string | null;
+  parent_phone: string | null;
   instrument_version: string | null;
   subject_selection: string | null;
   intake_v2: IntakeV2 | null;
@@ -82,7 +84,7 @@ export async function analyzeSurveyV2(surveyId: string) {
   const { data: survey, error: surveyError } = await supabase
     .from("surveys")
     .select(
-      "id, name, school, grade, instrument_version, subject_selection, intake_v2, responses_v2, score_profile_v2"
+      "id, name, school, grade, parent_phone, instrument_version, subject_selection, intake_v2, responses_v2, score_profile_v2"
     )
     .eq("id", surveyId)
     .single();
@@ -161,6 +163,19 @@ export async function analyzeSurveyV2(surveyId: string) {
     .from("surveys")
     .update({ analysis_id: analysis.id })
     .eq("id", surveyId);
+
+  try {
+    await stampConsultationAnalysis(
+      supabase,
+      { name, parent_phone: row.parent_phone },
+      analysis.id,
+    );
+  } catch (error) {
+    console.warn("[V2 분석] 상담 analysis_id 연결 실패:", {
+      surveyId,
+      error: error instanceof Error ? error.message : error,
+    });
+  }
 
   revalidatePath("/analyses");
   revalidatePath("/surveys");

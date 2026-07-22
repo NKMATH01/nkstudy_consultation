@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SurveyDetailClient } from "@/components/surveys/survey-detail-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
+import { getConsultationByLink } from "@/lib/actions/consultation";
 
 export default async function SurveyDetailPage({
   params,
@@ -44,11 +45,16 @@ export default async function SurveyDetailPage({
     }
   }
 
+  const linkedConsultation = analysisId
+    ? await getConsultationByLink({ analysisId })
+    : null;
+
   return (
     <SurveyDetailClient
       survey={survey}
       analysisReportHtml={analysisReportHtml}
       analysisId={analysisId}
+      consultationId={linkedConsultation?.id ?? null}
     />
   );
 }

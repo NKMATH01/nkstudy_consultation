@@ -154,3 +154,35 @@ export function selectSurveyConsultation<
 
   return nameMatches[0] ?? null;
 }
+
+/**
+ * FK stamping처럼 오연결을 허용할 수 없는 경로에서 사용할 유일 매칭이다.
+ * 분석 ID와 학부모 연락처 중 하나라도 일치하는 후보가 정확히 한 건일 때만 반환한다.
+ * 강한 식별자가 없거나 복수 후보가 잡히면 이름만으로 추정하지 않는다.
+ */
+export function selectUniqueSurveyConsultation<
+  T extends SurveyConsultationIdentityRecord,
+>(
+  candidates: T[],
+  identity: {
+    name: string;
+    parentPhone?: string | null;
+    analysisId?: string | null;
+  },
+): T | null {
+  const analysisId = identity.analysisId?.trim() ?? "";
+  const parentPhone = normalizeIdentityPhone(identity.parentPhone);
+  if (!analysisId && !parentPhone) return null;
+
+  const matches = candidates.filter((candidate) => {
+    if (!isConsultationNameVariant(candidate.name, identity.name)) return false;
+    const sameAnalysis =
+      Boolean(analysisId) && candidate.analysis_id === analysisId;
+    const sameParentPhone =
+      Boolean(parentPhone) &&
+      normalizeIdentityPhone(candidate.parent_phone) === parentPhone;
+    return sameAnalysis || sameParentPhone;
+  });
+
+  return matches.length === 1 ? matches[0] : null;
+}

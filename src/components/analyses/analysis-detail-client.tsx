@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink, Phone, MessageCircle, Link2 } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink, Phone, MessageCircle, Link2, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +34,7 @@ interface Props {
   existingRegistrationId?: string | null;
   studentPhone?: string | null;
   parentPhone?: string | null;
+  consultationId?: string | null;
 }
 
 function ratingClass(score: number) {
@@ -45,7 +46,7 @@ function ratingClass(score: number) {
 
 const STEP_COLORS = ["bg-blue-500", "bg-violet-500", "bg-amber-500", "bg-emerald-500"];
 
-export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, consultationData, existingRegistrationId, studentPhone, parentPhone }: Props) {
+export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, consultationData, existingRegistrationId, studentPhone, parentPhone, consultationId }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
@@ -251,6 +252,14 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
 
       {/* Action Buttons */}
       <div className="flex gap-2 overflow-x-auto pb-1">
+        {consultationId && (
+          <Button variant="outline" size="sm" asChild className="rounded-xl text-xs">
+            <Link href={`/consultations/${consultationId}`}>
+              <MessageSquareText className="mr-1 h-3.5 w-3.5" />
+              상담 보기
+            </Link>
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"

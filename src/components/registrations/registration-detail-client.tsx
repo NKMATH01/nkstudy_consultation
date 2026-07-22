@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap, MessageCircle, Link2 } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap, MessageCircle, Link2, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,9 +27,10 @@ interface Props {
   analysisReportHtml?: string | null;
   classes?: Class[];
   teachers?: Teacher[];
+  consultationId?: string | null;
 }
 
-export function RegistrationDetailClient({ registration, analysisReportHtml, classes = [], teachers = [] }: Props) {
+export function RegistrationDetailClient({ registration, analysisReportHtml, classes = [], teachers = [], consultationId }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
@@ -174,6 +175,14 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
 
       {/* Action Buttons */}
       <div className="flex gap-2 justify-end flex-wrap">
+        {consultationId && (
+          <Button variant="outline" size="sm" asChild className="rounded-xl">
+            <Link href={`/consultations/${consultationId}`}>
+              <MessageSquareText className="mr-1.5 h-4 w-4" />
+              상담 보기
+            </Link>
+          </Button>
+        )}
         {registration.report_html && (
           <>
             <Button

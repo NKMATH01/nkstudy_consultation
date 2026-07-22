@@ -3,7 +3,7 @@
 import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Brain, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Trash2, Brain, Loader2, Sparkles, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +27,7 @@ interface Props {
   survey: Survey;
   analysisReportHtml?: string | null;
   analysisId?: string | null;
+  consultationId?: string | null;
 }
 
 const FACTOR_COLORS: Record<string, { bar: string; bg: string; text: string }> = {
@@ -59,7 +60,7 @@ function ScoreBar({ value, label, factorKey }: { value: number | null; label: st
   );
 }
 
-export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: Props) {
+export function SurveyDetailClient({ survey, analysisReportHtml, analysisId, consultationId }: Props) {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
@@ -131,6 +132,14 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId }: P
           </div>
         </div>
         <div className="flex gap-2">
+          {consultationId && (
+            <Button variant="outline" size="sm" asChild className="rounded-[7px]">
+              <Link href={`/consultations/${consultationId}`}>
+                <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
+                상담 보기
+              </Link>
+            </Button>
+          )}
           {(survey.analysis_id || analysisId) ? (
             <Button variant="outline" size="sm" asChild className="rounded-[7px]">
               <Link href={`/analyses/${survey.analysis_id || analysisId}`}>분석 보기</Link>

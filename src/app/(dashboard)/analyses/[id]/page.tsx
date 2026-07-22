@@ -8,7 +8,10 @@ import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
 import { createClient } from "@/lib/supabase/server";
 import type { ResultStatus } from "@/types";
-import { getConsultationByName } from "@/lib/actions/consultation";
+import {
+  getConsultationByLink,
+  getConsultationByName,
+} from "@/lib/actions/consultation";
 
 function toBackground(intake: Record<string, unknown> | null): CounselorBackground | null {
   if (!intake) return null;
@@ -78,10 +81,13 @@ export default async function AnalysisDetailPage({
   // 분석 ID → 학부모 연락처 순으로 찾고, 둘 다 불일치하면 동명이인의 상담으로 후퇴하지 않는다.
   let consultationResultStatus: ResultStatus | null = null;
   let consultationData: Record<string, string | null> | null = null;
-  const consultation = await getConsultationByName(analysis.name, {
-    analysisId: analysis.id,
-    parentPhone,
-  });
+  const linkedConsultation = await getConsultationByLink({ analysisId: analysis.id });
+  const consultation =
+    linkedConsultation ??
+    (await getConsultationByName(analysis.name, {
+      analysisId: analysis.id,
+      parentPhone,
+    }));
 
   if (consultation) {
     consultationResultStatus = consultation.result_status as ResultStatus;
@@ -109,6 +115,7 @@ export default async function AnalysisDetailPage({
           contacts={{ studentPhone, parentPhone }}
           consultationData={consultationData}
           existingRegistrationId={existingReg?.id || null}
+          consultationId={linkedConsultation?.id ?? null}
         />
         <ClassRecommendationSection
           analysisId={analysis.id}
@@ -131,6 +138,7 @@ export default async function AnalysisDetailPage({
         existingRegistrationId={existingReg?.id || null}
         studentPhone={studentPhone}
         parentPhone={parentPhone}
+        consultationId={linkedConsultation?.id ?? null}
       />
       <ClassRecommendationSection
         analysisId={analysis.id}

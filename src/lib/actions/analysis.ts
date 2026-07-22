@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { callGeminiAPI, extractJSON, surveyToText, buildAnalysisPrompt } from "@/lib/gemini";
 import { buildAnalysisReportHTML } from "@/lib/claude";
 import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
+import { stampConsultationAnalysis } from "@/lib/actions/consultation-analysis";
 import type { Analysis, Survey, PaginatedResponse } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -208,6 +209,15 @@ export async function analyzeSurvey(surveyId: string): Promise<AnalyzeSurveyResu
     .from("surveys")
     .update({ analysis_id: analysis.id })
     .eq("id", surveyId);
+
+  try {
+    await stampConsultationAnalysis(supabase, surveyData, analysis.id);
+  } catch (error) {
+    console.warn("[분석] 상담 analysis_id 연결 실패:", {
+      surveyId,
+      error: error instanceof Error ? error.message : error,
+    });
+  }
 
   if (linkError) {
     console.error("설문-분석 연결 실패:", linkError.message);

@@ -281,6 +281,25 @@ export async function getConsultationByName(
   ) as Consultation | null;
 }
 
+export async function getConsultationByLink({
+  analysisId,
+  registrationId,
+}: {
+  analysisId?: string | null;
+  registrationId?: string | null;
+}): Promise<Consultation | null> {
+  if (!analysisId && !registrationId) return null;
+
+  const supabase = await createClient();
+  let query = supabase.from("consultations").select("*").limit(2);
+  if (analysisId) query = query.eq("analysis_id", analysisId);
+  if (registrationId) query = query.eq("registration_id", registrationId);
+
+  const { data, error } = await query;
+  if (error || !data || data.length !== 1) return null;
+  return data[0] as Consultation;
+}
+
 type CreateConsultationFromSurveyResult = {
   success: boolean;
   consultation?: Consultation;

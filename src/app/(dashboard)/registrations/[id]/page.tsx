@@ -4,6 +4,7 @@ import { getClasses, getTeachers } from "@/lib/actions/settings";
 import { RegistrationDetailClient } from "@/components/registrations/registration-detail-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
+import { getConsultationByLink } from "@/lib/actions/consultation";
 
 export default async function RegistrationDetailPage({
   params,
@@ -12,10 +13,11 @@ export default async function RegistrationDetailPage({
 }) {
   await checkPagePermission("/registrations");
   const { id } = await params;
-  const [registration, classes, teachers] = await Promise.all([
+  const [registration, classes, teachers, linkedConsultation] = await Promise.all([
     getRegistration(id),
     getClasses(),
     getTeachers(),
+    getConsultationByLink({ registrationId: id }),
   ]);
 
   if (!registration) {
@@ -35,6 +37,7 @@ export default async function RegistrationDetailPage({
       analysisReportHtml={analysisReportHtml}
       classes={classes}
       teachers={teachers}
+      consultationId={linkedConsultation?.id ?? null}
     />
   );
 }

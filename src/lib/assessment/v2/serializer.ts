@@ -329,6 +329,11 @@ export function buildV2AnalysisPrompt(input: AiSafeInput): string {
 - 점수는 반드시 입력에 준 서버 값을 그대로 쓰고, 새 숫자를 만들거나 바꾸지 마세요. 표기는 소수 첫째 자리까지(예: 81.3점).
 - 점수 필드(scores 등)를 JSON에 새로 만들지 마세요. 수치는 오직 서술 문장 안에 인용만 합니다.
 
+[총평 관점 — 매우 중요]
+- detailedSummary와 parentSummary의 독자는 어머님입니다. 목적은 "우리 아이가 어떤 학생인지" 파악입니다.
+- 이 두 필드에서는 ① 학원·강사·상담자·NK를 주어로 한 문장 ② "이렇게 지도하면/코칭하면" 류의 지도법 서술 ③ NK 적합도·운영 방식 언급을 모두 금지합니다.
+- 지도 관련 해석은 coreObservation·recommendedCoaching·teacherBrief·nkFitInterpretation·roadmap12Weeks에만 쓰세요.
+
 [선택 과목] ${input.subjectSelection} (수학 전략 필수=${includeMath}, 영어 전략 필수=${includeEnglish})
 
 [서버 계산 구조화 데이터 (JSON)]
@@ -340,7 +345,7 @@ ${untrusted.length ? untrusted.join("\n") : "(제공된 서술 없음)"}
 [출력 형식 — 아래 JSON 구조로만, 다른 텍스트 없이 반환]
 {
   "studentType": "낙인 없는 지도 관점의 학생 유형명(쉬운 우리말, 영어·약어 금지)",
-  "detailedSummary": "학부모와 상담자가 함께 읽는 상세 총평. 수업 태도·숙제·휴대폰·목표 의지·회복력·친구 관계·선택 과목·NK 적합을 각각 최소 한 번씩 언급하는 3~4문단(문단당 2~3문장, 쉬운 우리말·짧은 문장, 기존보다 약 30% 짧게). 특징을 말할 때 관련 서버 점수 수치를 그대로 인용. 문단은 빈 줄로 구분하고, 학생은 {{학생}}으로 지칭하며, 부족한 점도 함께 도와줄 부분으로 표현",
+  "detailedSummary": "어머님(학부모)이 {{학생}}이 어떤 학생인지 파악하도록 돕는 상세 총평. 반드시 학생을 주어로, 학생의 성향과 공부 습관이 실제로 어떤 모습인지 서술 — 수업 태도·숙제·휴대폰·목표 의지·회복력·친구 관계·선택 과목을 각각 최소 한 번씩 언급하고 관련 서버 점수 수치를 문장 안에 그대로 인용. 3~4문단, 문단당 2~3문장, 쉬운 우리말·짧은 문장. 마지막 문단만 가정에서 지켜봐 주시면 좋은 점 1~2가지로 부드럽게 안심 마무리. 금지: 학원·강사·상담자·NK가 주어인 문장, 지도 방법·코칭 제안, NK 적합도 언급(이런 내용은 coreObservation·recommendedCoaching·nkFitInterpretation에만). 문단은 빈 줄로 구분, 학생은 {{학생}}으로 지칭, 부족한 점도 함께 도와줄 부분으로 표현",
   "coreObservation": "핵심 관찰 1~2문장",
   "operatingCause": "그렇게 작동하는 원인 가설 1~2문장(단정 금지)",
   "recommendedCoaching": "권장 지도 방식 2~3문장",

@@ -95,8 +95,6 @@ export function buildFallbackInterpretation(
   const detailedSummary = [
     "학생이 직접 작성한 응답을 바탕으로 기본 요약을 정리했어요.",
     conscientiousnessText,
-    `지도할 때 참고할 점은 ${profile.coaching.coachingType} · ${profile.coaching.autonomyStructureType}이에요.`,
-    `NK 운영 방식과는 "${profile.nkFit.stage}" 관계예요.`,
     strengths.length
       ? `잘하고 있는 부분은 ${strengths.map((s) => s.split(":")[0]).join(", ")}이에요.`
       : "뚜렷한 강점을 아직 꼽기 어려워 처음 몇 주간 함께 살펴보면 좋겠어요.",
@@ -105,6 +103,7 @@ export function buildFallbackInterpretation(
           .map((s) => s.split(":")[0])
           .join(", ")}이에요.`
       : "",
+    "새 환경에서 실제 모습은 첫 수업들을 지켜보면 더 정확해져요.",
     `모든 점수는 학생이 쓴 최근 4주 응답이고, 첫 2주 동안 실제 모습으로 함께 확인해 나가요.${noteSuffix}`,
   ]
     .filter(Boolean)

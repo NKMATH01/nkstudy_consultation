@@ -118,6 +118,20 @@ describe("serializer redaction snapshot (§11 / §15.2)", () => {
     expect(prompt).not.toContain("학부모와 상담자가 함께 읽는 상세 총평");
   });
 
+  it("특징 서술을 실제 응답과 서버 계산 근거에 묶는다", () => {
+    const profile = profileFor("both");
+    const aiInput = buildAiSafeInput({
+      scoreProfile: profile,
+      intake: FIXTURE_INTAKE,
+      responses: fillResponses(4),
+    });
+    const prompt = buildV2AnalysisPrompt(aiInput);
+    expect(prompt).toContain("[근거 기반 서술 — 매우 중요]");
+    expect(prompt).toContain("특정 문항의 실제 응답 경향");
+    expect(prompt).toContain("입력에 없는 일화·습관·사실을 만들어내지 마세요.");
+    expect(prompt).toContain("그 요지를 detailedSummary에 최소 1회");
+  });
+
   it("허용 필드는 정상 포함된다 (학교급·학년숫자·NK기대·점수·과목 어려움)", () => {
     const profile = profileFor("both");
     const aiInput = buildAiSafeInput({

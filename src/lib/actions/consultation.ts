@@ -281,6 +281,111 @@ export async function getConsultationByName(
   ) as Consultation | null;
 }
 
+type CreateConsultationFromSurveyResult = {
+  success: boolean;
+  consultation?: Consultation;
+  created?: boolean;
+  error?: string;
+};
+
+export async function createConsultationFromSurvey(
+  surveyId: string,
+): Promise<CreateConsultationFromSurveyResult> {
+  try {
+    const supabase = await createClient();
+    const { data: survey, error: surveyError } = await supabase
+      .from("surveys")
+      .select("name, school, grade, parent_phone, student_phone, analysis_id")
+      .eq("id", surveyId)
+      .single();
+
+    if (surveyError || !survey) {
+      return {
+        success: false,
+        error: surveyError?.message || "설문을 찾을 수 없습니다.",
+      };
+    }
+
+    const name = survey.name.trim();
+    const { data: candidates, error: candidateError } = await supabase
+      .from("consultations")
+      .select("*")
+      .ilike("name", `${escapeLikePattern(name)}%`)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (candidateError) {
+      return { success: false, error: candidateError.message };
+    }
+
+    const matches = (candidates ?? []).filter((candidate) =>
+      selectSurveyConsultation(
+        [candidate],
+        { name, parentPhone: survey.parent_phone },
+        { allowNameFallback: false },
+      ),
+    );
+    if (matches.length > 1) {
+      return {
+        success: false,
+        error: `이름과 학부모 연락처가 같은 상담이 ${matches.length}건 있어 자동으로 연결할 수 없습니다.`,
+      };
+    }
+    if (matches.length === 1) {
+      return {
+        success: true,
+        consultation: matches[0] as Consultation,
+        created: false,
+      };
+    }
+
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const { data: consultation, error: createError } = await supabase
+      .from("consultations")
+      .insert({
+        name,
+        school: survey.school,
+        grade: survey.grade,
+        parent_phone: survey.parent_phone,
+        consult_date: today,
+        consult_type: "유선 상담",
+        status: "active",
+        analysis_id: survey.analysis_id ?? null,
+        memo: "설문 기반 자동 생성",
+      })
+      .select()
+      .single();
+
+    if (createError || !consultation) {
+      return {
+        success: false,
+        error: createError?.message || "상담 기록을 생성하지 못했습니다.",
+      };
+    }
+
+    revalidatePath("/surveys");
+    revalidatePath("/consultations");
+    return {
+      success: true,
+      consultation: consultation as Consultation,
+      created: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "상담 기록을 생성하지 못했습니다.",
+    };
+  }
+}
+
 export async function createConsultation(formData: FormData): Promise<ConsultationMutationResult> {
   try {
     const supabase = await createClient();

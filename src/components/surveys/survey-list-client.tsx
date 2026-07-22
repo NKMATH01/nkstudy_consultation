@@ -20,7 +20,11 @@ import { toast } from "sonner";
 import { analyzeSurvey, reAnalyzeSurvey, getAnalysis } from "@/lib/actions/analysis";
 import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
 import { deleteSurvey, getSurvey } from "@/lib/actions/survey";
-import { updateRegistrationInfo, getConsultationByName } from "@/lib/actions/consultation";
+import {
+  createConsultationFromSurvey,
+  getConsultationByName,
+  updateRegistrationInfo,
+} from "@/lib/actions/consultation";
 import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import { ConsultationRecordDialog } from "@/components/surveys/consultation-record-dialog";
@@ -150,7 +154,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const handleOpenRecord = async (survey: Survey) => {
     setRecordLoading(survey.id);
     try {
-      const [fullSurvey, consultation] = await Promise.all([
+      const [fullSurvey, existingConsultation] = await Promise.all([
         getSurvey(survey.id),
         getConsultationByName(survey.name, {
           parentPhone: survey.parent_phone,
@@ -162,9 +166,19 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         toast.error("설문 전체 응답을 불러오지 못했습니다");
         return;
       }
+
+      let consultation = existingConsultation;
       if (!consultation) {
-        toast.error("해당 학생의 상담 기록이 없습니다");
-        return;
+        const result = await createConsultationFromSurvey(survey.id);
+        if (!result.success || !result.consultation) {
+          toast.error(result.error || "해당 학생의 상담 기록이 없습니다");
+          return;
+        }
+        consultation = result.consultation;
+        if (result.created) {
+          toast.success("상담 기록이 없어 새로 만들었습니다");
+          router.refresh();
+        }
       }
       setRecordTarget({ survey: fullSurvey, consultation });
     } catch (e) {

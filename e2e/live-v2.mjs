@@ -1,6 +1,6 @@
 // 설문 V2 라이브 E2E (운영 DB 대상, DDL 적용 후) — 명세서 §15.3의 SKIP했던 2건.
 //   1) 제출 성공: /survey 전체 플로우(수학+영어 60문항) 실제 제출 → DB 저장 검증.
-//   2) AI 분석 실행: 관리자 로그인 → 성향분석(analyzeSurveyV2, Gemini 실호출) →
+//   2) AI 분석 실행: 직원 전화번호 로그인 → 성향분석(analyzeSurveyV2, Gemini 실호출) →
 //      /analyses/[id] 상담자 보고서 렌더 → 학부모 토글 → 공유 링크 → /report/[token] 공개 렌더.
 //
 // 주의:
@@ -86,10 +86,30 @@ function makeService(env) {
   });
 }
 
+function appendCreatedIds(created) {
+  if (!created.surveyId && !created.analysisId && !created.token) return;
+
+  let records = [];
+  if (fs.existsSync(IDS_FILE)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(IDS_FILE, "utf8"));
+      if (Array.isArray(parsed)) records = parsed;
+      else if (parsed && typeof parsed === "object") records = [parsed];
+    } catch {
+      records = [];
+    }
+  }
+  records.push(created);
+  fs.writeFileSync(IDS_FILE, `${JSON.stringify(records, null, 2)}\n`);
+}
+
 async function main() {
   const env = loadEnvLocal();
   assert(env.SUPABASE_SERVICE_ROLE_KEY, "SUPABASE_SERVICE_ROLE_KEY 없음");
-  assert(env.NEXT_PUBLIC_TEST_EMAIL && env.NEXT_PUBLIC_TEST_PASSWORD, "테스트 관리자 계정 없음");
+  assert((env.NEXT_PUBLIC_TEST_PHONE || env.NEXT_PUBLIC_TEST_EMAIL) && env.NEXT_PUBLIC_TEST_PASSWORD, "테스트 로그인 계정 없음");
+  const loginPhone = String(env.NEXT_PUBLIC_TEST_PHONE || env.NEXT_PUBLIC_TEST_EMAIL.split("@")[0]).replace(/\D/g, "");
+  const loginPin = String(env.NEXT_PUBLIC_TEST_PASSWORD).replace(/^nk/, "");
+  assert(loginPhone.length >= 10 && /^\d{4}$/.test(loginPin), "전화번호 또는 4자리 테스트 비밀번호 형식 오류");
   const svc = makeService(env);
   const created = { surveyId: null, analysisId: null, token: null };
   const results = [];
@@ -160,16 +180,15 @@ async function main() {
       console.log(`        survey.id=${row.id}`);
     });
 
-    // ── 3) 관리자 로그인 + 성향분석 실행(analyzeSurveyV2, Gemini 실호출) ──
+    // ── 3) 직원 로그인 + 성향분석 실행(analyzeSurveyV2, Gemini 실호출) ──
     const authCtx = await browser.newContext();
     await authCtx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
     const page = await authCtx.newPage();
-    await step("③ 관리자 로그인 + 성향분석 실행 → /analyses/[id] 이동", async () => {
+    await step("③ 직원 전화번호 로그인 + 성향분석 실행 → /analyses/[id] 이동", async () => {
       await page.goto(`${BASE}/login`, NAV);
-      await page.getByRole("button", { name: "관리자 이메일로 로그인", exact: true }).click();
-      await page.locator('input[type="email"]').fill(env.NEXT_PUBLIC_TEST_EMAIL);
-      await page.locator('input[type="password"]').fill(env.NEXT_PUBLIC_TEST_PASSWORD);
-      await page.getByRole("button", { name: "관리자 로그인", exact: true }).click();
+      await page.locator('input[type="tel"]').fill(loginPhone);
+      await page.locator('input[type="password"][inputmode="numeric"]').fill(loginPin);
+      await page.getByRole("button", { name: "로그인", exact: true }).click();
       await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 60000 });
 
       await page.goto(`${BASE}/surveys/${created.surveyId}`, NAV);
@@ -263,7 +282,7 @@ async function main() {
     await authCtx.close();
   } finally {
     await browser.close();
-    fs.writeFileSync(IDS_FILE, JSON.stringify(created, null, 2));
+    appendCreatedIds(created);
   }
 
   const passed = results.filter((r) => r.ok).length;

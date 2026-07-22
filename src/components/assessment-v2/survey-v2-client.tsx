@@ -258,7 +258,7 @@ export function SurveyV2Client() {
         setError(result.error);
       }
     } catch {
-      setError("제출 중 오류가 발생했습니다. 다시 시도해주세요.");
+      setError("제출 중 오류가 발생했습니다. 페이지를 새로고침(F5)한 뒤 다시 제출해주세요. 작성한 답변은 저장되어 있습니다.");
     } finally {
       setIsSubmitting(false);
     }

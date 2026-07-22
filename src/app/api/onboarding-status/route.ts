@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentTeacher } from "@/lib/actions/settings";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PATCH(req: NextRequest) {
@@ -9,6 +10,11 @@ export async function PATCH(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const currentTeacher = await getCurrentTeacher();
+    if (!currentTeacher) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { registrationId, status } = await req.json();

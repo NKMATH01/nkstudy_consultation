@@ -1,5 +1,6 @@
 // 설문 V2 라이브 E2E가 운영 DB에 생성한 테스트 데이터 삭제(멱등).
-// live-v2.mjs가 기록한 e2e/.live-ids.json의 id만 삭제한다. 다른 데이터는 건드리지 않는다.
+// live-v2.mjs가 배열로 누적 기록한 e2e/.live-ids.json의 id만 모두 삭제한다.
+// 다른 데이터는 건드리지 않으며, 전체 성공 후 기록 배열을 비운다.
 //
 // ⚠ 운영 데이터 삭제이므로 자동 실행하지 않는다. 사용자가 직접 실행:
 //     ! node scripts/cleanup-e2e-v2.mjs
@@ -14,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const IDS_FILE = path.join(__dirname, "..", "e2e", ".live-ids.json");
 
 function loadEnvLocal() {
   const raw = fs.readFileSync(path.join(__dirname, "..", ".env.local"), "utf8");
@@ -39,18 +41,26 @@ function parseArgs() {
   return out;
 }
 
-function loadIds() {
+function loadIdRecords() {
   const cli = parseArgs();
-  if (cli.surveyId || cli.analysisId || cli.token) return cli;
-  const idsFile = path.join(__dirname, "..", "e2e", ".live-ids.json");
-  if (fs.existsSync(idsFile)) {
+  if (cli.surveyId || cli.analysisId || cli.token) {
+    return { records: [cli], fromFile: false };
+  }
+  if (fs.existsSync(IDS_FILE)) {
     try {
-      return JSON.parse(fs.readFileSync(idsFile, "utf8"));
+      const parsed = JSON.parse(fs.readFileSync(IDS_FILE, "utf8"));
+      const records = Array.isArray(parsed) ? parsed : [parsed];
+      return {
+        records: records.filter(
+          (item) => item && typeof item === "object" && (item.surveyId || item.analysisId || item.token),
+        ),
+        fromFile: true,
+      };
     } catch {
-      return {};
+      return { records: [], fromFile: true };
     }
   }
-  return {};
+  return { records: [], fromFile: true };
 }
 
 async function main() {
@@ -58,33 +68,47 @@ async function main() {
   const svc = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const ids = loadIds();
-  const { surveyId, analysisId, token } = ids;
+  const { records, fromFile } = loadIdRecords();
 
-  if (!surveyId && !analysisId && !token) {
+  if (records.length === 0) {
     console.log("삭제할 id가 없습니다. e2e/.live-ids.json이 없거나 비어 있습니다. 종료.");
     return;
   }
-  console.log("삭제 대상:", JSON.stringify({ surveyId, analysisId, token }));
+  console.log(`삭제 대상 ${records.length}건`);
 
-  // FK 안전 순서: report_token → surveys.analysis_id 해제 → analyses → surveys.
-  if (token) {
-    const { error } = await svc.from("report_tokens").delete().eq("token", token);
-    console.log(error ? `report_tokens 삭제 오류: ${error.message}` : "report_tokens 삭제 완료(또는 없음)");
+  let hadError = false;
+  for (const [index, ids] of records.entries()) {
+    const { surveyId, analysisId, token } = ids;
+    console.log(`[${index + 1}/${records.length}]`, JSON.stringify({ surveyId, analysisId, token }));
+
+    // FK 안전 순서: report_token → surveys.analysis_id 해제 → analyses → surveys.
+    if (token) {
+      const { error } = await svc.from("report_tokens").delete().eq("token", token);
+      hadError ||= Boolean(error);
+      console.log(error ? `report_tokens 삭제 오류: ${error.message}` : "report_tokens 삭제 완료(또는 없음)");
+    }
+    if (surveyId) {
+      const { error } = await svc.from("surveys").update({ analysis_id: null }).eq("id", surveyId);
+      hadError ||= Boolean(error);
+      if (error) console.log(`surveys.analysis_id 해제 오류: ${error.message}`);
+    }
+    if (analysisId) {
+      const { error } = await svc.from("analyses").delete().eq("id", analysisId);
+      hadError ||= Boolean(error);
+      console.log(error ? `analyses 삭제 오류: ${error.message}` : "analyses 삭제 완료(또는 없음)");
+    }
+    if (surveyId) {
+      const { error } = await svc.from("surveys").delete().eq("id", surveyId);
+      hadError ||= Boolean(error);
+      console.log(error ? `surveys 삭제 오류: ${error.message}` : "surveys 삭제 완료(또는 없음)");
+    }
   }
-  if (surveyId) {
-    const { error } = await svc.from("surveys").update({ analysis_id: null }).eq("id", surveyId);
-    if (error) console.log(`surveys.analysis_id 해제 오류: ${error.message}`);
+
+  if (hadError) {
+    throw new Error("일부 삭제가 실패했습니다. id 기록은 재시도를 위해 유지합니다.");
   }
-  if (analysisId) {
-    const { error } = await svc.from("analyses").delete().eq("id", analysisId);
-    console.log(error ? `analyses 삭제 오류: ${error.message}` : "analyses 삭제 완료(또는 없음)");
-  }
-  if (surveyId) {
-    const { error } = await svc.from("surveys").delete().eq("id", surveyId);
-    console.log(error ? `surveys 삭제 오류: ${error.message}` : "surveys 삭제 완료(또는 없음)");
-  }
-  console.log("완료.");
+  if (fromFile) fs.writeFileSync(IDS_FILE, "[]\n");
+  console.log("전체 삭제 및 id 기록 비우기 완료.");
 }
 
 main().catch((e) => {

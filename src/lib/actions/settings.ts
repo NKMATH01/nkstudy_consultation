@@ -878,14 +878,18 @@ export async function createStudent(formData: FormData) {
 
     const dbData = mapStudentToDb(parsed.data as Record<string, unknown>, teacherId);
 
-    const { error } = await supabase.from("students").insert(dbData);
+    const { data, error } = await supabase
+      .from("students")
+      .insert(dbData)
+      .select("id")
+      .single();
 
     if (error) {
       return { success: false, error: error.message };
     }
 
     revalidatePath("/settings/students");
-    return { success: true };
+    return { success: true, id: data.id };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "학생 등록 실패";
     return { success: false, error: msg };

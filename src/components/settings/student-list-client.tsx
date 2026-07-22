@@ -214,7 +214,7 @@ function InlineAddRow({ classes, onAdded }: { classes: Class[]; onAdded: () => v
       const result = await createStudent(formData);
       if (result.success) {
         toast.success("학생이 등록되었습니다");
-        if (regDate) setStoredRegDate("temp", regDate); // TODO: 실제 ID 필요
+        if (regDate && result.id) setStoredRegDate(result.id, regDate);
         setRegDate(""); setName(""); setSchool(""); setGrade(""); setAssignedClass("");
         setStudentPhone(""); setParentPhone(""); setClassGrade("");
         onAdded();

@@ -271,10 +271,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
 
   // Find analysis for registration
   const getAnalysis = (reg: Registration) => {
-    if (reg.analysis_id) {
-      return analyses.find((a) => a.id === reg.analysis_id);
-    }
-    return analyses.find((a) => a.name === reg.name);
+    if (!reg.analysis_id) return undefined;
+    return analyses.find((a) => a.id === reg.analysis_id);
   };
 
   // Delete registration
@@ -728,7 +726,6 @@ export function OnboardingList({ registrations, analyses }: Props) {
       {/* Analysis Popup - 안내문과 동일하게 팝업으로 표시 */}
       {analysisPopup && (() => {
         const analysis = analyses.find((a) => a.id === analysisPopup);
-        const reg = registrations.find((r) => r.analysis_id === analysisPopup || analyses.find(a => a.id === analysisPopup && a.name === r.name));
         if (!analysis?.report_html) return null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAnalysisPopup(null)}>

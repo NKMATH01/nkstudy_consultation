@@ -102,6 +102,22 @@ describe("serializer redaction snapshot (§11 / §15.2)", () => {
     }
   });
 
+  it("총평을 학생 묘사 전용으로 제한한다", () => {
+    const profile = profileFor("both");
+    const aiInput = buildAiSafeInput({
+      scoreProfile: profile,
+      intake: FIXTURE_INTAKE,
+      responses: fillResponses(4),
+    });
+    const prompt = buildV2AnalysisPrompt(aiInput);
+    expect(prompt).toContain("[총평 관점 — 매우 중요]");
+    expect(prompt).toContain('목적은 "우리 아이가 어떤 학생인지" 파악입니다.');
+    expect(prompt).toContain("학원·강사·상담자·NK가 주어인 문장");
+    expect(prompt).toContain("NK 적합도·운영 방식 언급을 모두 금지합니다.");
+    expect(prompt).toContain("마지막 문단만 가정에서 지켜봐 주시면 좋은 점");
+    expect(prompt).not.toContain("학부모와 상담자가 함께 읽는 상세 총평");
+  });
+
   it("허용 필드는 정상 포함된다 (학교급·학년숫자·NK기대·점수·과목 어려움)", () => {
     const profile = profileFor("both");
     const aiInput = buildAiSafeInput({

@@ -410,4 +410,3 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.delete_consultation_with_event(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.delete_consultation_with_event(uuid, text) TO authenticated;
-

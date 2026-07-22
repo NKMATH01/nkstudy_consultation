@@ -62,6 +62,16 @@ describe("buildFallbackInterpretation (§11-6)", () => {
     // fallback은 score 계열 키를 갖지 않는다.
     expect(Object.keys(interp)).not.toContain("scores");
   });
+
+  it("상세 총평에는 지도 관점과 NK 운영 문구를 섞지 않는다", () => {
+    const profile = profileFor("both");
+    const interp = buildFallbackInterpretation(profile);
+    expect(interp.detailedSummary).not.toContain("지도할 때");
+    expect(interp.detailedSummary).not.toContain("NK 운영");
+    expect(interp.detailedSummary).toContain(
+      "새 환경에서 실제 모습은 첫 수업들을 지켜보면 더 정확해져요."
+    );
+  });
 });
 
 describe("neutralQualityNote", () => {

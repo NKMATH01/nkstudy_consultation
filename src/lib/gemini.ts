@@ -22,9 +22,9 @@ export async function callGeminiAPI(prompt: string, retryCount = 0): Promise<str
       temperature: 0.3,
       topP: 0.95,
       maxOutputTokens: 8192,
-      // Gemini Flash는 기본 thinking이 켜져 있어 thinking 토큰이 maxOutputTokens 예산을 잠식.
-      // 구조화된 JSON 분석 프롬프트에는 thinking이 불필요하므로 비활성화.
-      thinkingConfig: { thinkingBudget: 0 },
+      // Gemini 3.x는 thinkingBudget(숫자) 대신 thinkingLevel(문자열)만 허용 — thinkingBudget 전송 시 400.
+      // 구조화된 JSON 분석 프롬프트에는 깊은 thinking이 불필요하므로 최소 수준으로 고정.
+      thinkingConfig: { thinkingLevel: "minimal" },
     },
   };
 

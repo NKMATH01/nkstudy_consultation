@@ -22,7 +22,7 @@
 - Next.js 16.1 (App Router) + React 19 + TypeScript (strict)
 - Tailwind CSS v4 (`@theme inline` 토큰) + shadcn/ui (radix)
 - Supabase: PostgreSQL + Auth + RLS, 12개 테이블
-- AI: Gemini 2.5 Flash(설문 분석) / Claude Haiku(등록 안내문) / Claude Sonnet(관리자 AI 챗)
+- AI: Gemini 3.6 Flash(설문 분석) / Claude Haiku(등록 안내문) / Claude Sonnet(관리자 AI 챗)
 - react-hook-form + zod, @tanstack/react-query, recharts
 - 폰트: DM Sans + Noto Sans KR (`src/app/layout.tsx:8-18`)
 

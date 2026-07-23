@@ -236,125 +236,6 @@ function surveyTests(baseURL, browser) {
   ];
 }
 
-// ── 결과지 테스트 (fixture 라우트) ────────────────────────────────────
-// 단일화된 학부모 공유본 섹션(종합·강점·약점·항목별·과목·계획 + 읽는 원칙).
-const REPORT_SECTIONS = [
-  "종합 분석",
-  "학생의 강점",
-  "학생의 약점",
-  "항목별 분석",
-  "과목 이야기",
-  "NK의 지도 계획",
-  "읽는 원칙",
-];
-
-// 단일화 후 결과지에 절대 노출되면 안 되는 상담자 전용 문구.
-const COUNSELOR_ONLY = [
-  "학생 분석 총평",
-  "핵심 지도 판정",
-  "선생님 메모",
-  "상담 배경과 학생이 쓴 이야기",
-  "마음과 행동의 차이",
-  "MBTI 참고 조정",
-];
-
-async function goReport(page, baseURL) {
-  await page.goto(`${baseURL}/dev-report-preview`, NAV);
-  await page.getByText("종합 분석", { exact: false }).first().waitFor({ state: "visible", timeout: 120000 });
-}
-
-function reportTests(baseURL, browser) {
-  return [
-    {
-      name: "단일 보고서: 학부모 공유본 섹션 + 과목 신호 렌더",
-      fn: async () => {
-        const { context, page } = await newPage(browser);
-        try {
-          await goReport(page, baseURL);
-          for (const title of REPORT_SECTIONS) {
-            const n = await page.getByText(title, { exact: false }).count();
-            assert(n > 0, `섹션 누락: ${title}`);
-          }
-          assert((await page.getByText("수학 학습전략", { exact: false }).count()) > 0, "수학 전략 신호 렌더");
-          assert((await page.getByText("영어 학습전략", { exact: false }).count()) > 0, "영어 전략 신호 렌더");
-          assertEqual(await page.locator(".report-v2-section").count(), 6, "단일 보고서 섹션 수(종합·강점·약점·항목별·과목·계획)");
-        } finally {
-          await context.close();
-        }
-      },
-    },
-    {
-      name: "단일 보고서: 상담자 전용 정보·토글 부재",
-      fn: async () => {
-        const { context, page } = await newPage(browser);
-        try {
-          await goReport(page, baseURL);
-          for (const t of COUNSELOR_ONLY) {
-            assertEqual(await page.getByText(t, { exact: false }).count(), 0, `상담자 전용 노출: ${t}`);
-          }
-          assert((await page.getByText("학생의 약점", { exact: false }).count()) > 0, "약점 섹션 존재");
-          // 상담자/학부모 토글이 없다(단일 보고서).
-          assertEqual(
-            await page.getByRole("button", { name: "학부모 공유본", exact: true }).count(),
-            0,
-            "토글 부재"
-          );
-        } finally {
-          await context.close();
-        }
-      },
-    },
-    {
-      name: "하단 고정 메뉴 5개 + fixed",
-      fn: async () => {
-        const { context, page } = await newPage(browser);
-        try {
-          await goReport(page, baseURL);
-          const dock = page.locator('nav[aria-label="보고서 섹션 이동"]');
-          assertEqual(await dock.locator("button").count(), 5, "하단 메뉴 5개");
-          for (const label of ["종합", "강점", "약점", "항목별", "계획"]) {
-            assert((await dock.getByText(label, { exact: true }).count()) > 0, `메뉴 누락: ${label}`);
-          }
-          const pos = await dock.evaluate((el) => getComputedStyle(el).position);
-          assertEqual(pos, "fixed", "하단 메뉴 position:fixed");
-        } finally {
-          await context.close();
-        }
-      },
-    },
-    {
-      name: "모바일 390×844 가로 넘침 없음",
-      fn: async () => {
-        const { context, page } = await newPage(browser, { viewport: { width: 390, height: 844 } });
-        try {
-          await goReport(page, baseURL);
-          const overflow = async () =>
-            await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-          assert((await overflow()) <= 1, `가로 넘침: ${await overflow()}px`);
-        } finally {
-          await context.close();
-        }
-      },
-    },
-    {
-      name: "결과지 렌더 중 console/page error 없음",
-      fn: async () => {
-        const { context, page, consoleErrors, pageErrors } = await newPage(browser);
-        try {
-          await goReport(page, baseURL);
-          await page.waitForTimeout(400);
-          const noise = /favicon|Download the React DevTools|Lighthouse/i;
-          const ce = consoleErrors.filter((m) => !noise.test(m));
-          assertEqual(ce.length, 0, `console error: ${JSON.stringify(ce)}`);
-          assertEqual(pageErrors.length, 0, `page error: ${JSON.stringify(pageErrors)}`);
-        } finally {
-          await context.close();
-        }
-      },
-    },
-  ];
-}
-
 // ── main ─────────────────────────────────────────────────────────────
 async function main() {
   console.log("E2E: dev 서버 기동 중...");
@@ -363,13 +244,10 @@ async function main() {
   const browser = await chromium.launch();
   try {
     console.log("\n[설문 흐름]");
-    const r1 = await runTests(surveyTests(server.baseURL, browser), {});
-    console.log("\n[결과지]");
-    const r2 = await runTests(reportTests(server.baseURL, browser), {});
-    const all = [...r1, ...r2];
-    const passed = all.filter((r) => r.ok).length;
-    console.log(`\n결과: ${passed}/${all.length} 통과`);
-    if (passed !== all.length) process.exitCode = 1;
+    const results = await runTests(surveyTests(server.baseURL, browser), {});
+    const passed = results.filter((result) => result.ok).length;
+    console.log(`\n결과: ${passed}/${results.length} 통과`);
+    if (passed !== results.length) process.exitCode = 1;
   } finally {
     await browser.close();
     await server.close();

@@ -111,7 +111,7 @@ export const CATEGORY_ACCENT: Record<CategoryId, CategoryAccent> = {
   cat3: { name: "플럼", color: "#8A4A6B", soft: "#F5EAF0", text: "#6F3B55" },
 };
 
-// ── 코럴(불변) — 로고·활성 pill·CTA 전용. 정식 토큰은 design-preview coral-theme.css. ──
+// ── 코럴(불변) — 로고·활성 pill·CTA 전용. 정식 토큰은 docs/design/coral-theme-tokens.css. ──
 export const CORAL = {
   base: "#F0653A",
   deep: "#C7521F",

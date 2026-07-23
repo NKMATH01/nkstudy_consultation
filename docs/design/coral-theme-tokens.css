@@ -2,7 +2,7 @@
  * .coral-shell 스코프에만 적용해 운영 화면(globals.css·(dashboard))과 완전 격리한다.
  * Tailwind v4 @theme(전역 등록)을 쓰지 않고 CSS 변수 스코프로 두어, 이 클래스 하위에서만
  * 색·폰트가 바뀐다. 컴포넌트에서는 arbitrary value bg-[var(--...)] 또는 inline style로 참조.
- * 폰트(Pretendard)는 design-preview layout의 <link>(CDN)로 로드하고 여기서는 적용만 한다.
+ * 참조 문서이므로 폰트 파일을 직접 로드하지 않고 font-family 적용값만 보관한다.
  */
 .coral-shell {
   --coral: #f0653a;

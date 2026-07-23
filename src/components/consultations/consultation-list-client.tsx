@@ -131,7 +131,7 @@ function formatYearMonth(ym: string): string {
 }
 
 const STATUS_FILTER_OPTIONS: { value: ResultStatus | null; label: string; cls: string; activeCls: string }[] = [
-  { value: null, label: "전체", cls: "bg-white text-slate-500 border-slate-200", activeCls: "bg-slate-800 text-white border-slate-800" },
+  { value: null, label: "전체", cls: "bg-white text-slate-500 border-slate-200", activeCls: "bg-[#F0653A] text-white border-[#F0653A]" },
   { value: "registered", label: "등록", cls: "bg-white text-red-500 border-red-200", activeCls: "bg-red-500 text-white border-red-500" },
   { value: "hold", label: "고민중", cls: "bg-white text-amber-500 border-amber-200", activeCls: "bg-amber-400 text-white border-amber-400" },
   { value: "other", label: "미등록", cls: "bg-white text-neutral-500 border-neutral-200", activeCls: "bg-neutral-600 text-white border-neutral-600" },
@@ -519,13 +519,13 @@ export function ConsultationListClient({ initialData, initialPagination, classes
 
   return (
     <div className="space-y-2">
-      {/* Header — 네이비 브랜드 밴드 (진도현황·퇴원생과 톤 통일) */}
+      {/* Header — 웜 다크 밴드 + 코럴 포인트 */}
       <div
         className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-4"
         style={{
           background:
-            "radial-gradient(circle at 10% 0%, rgba(233,196,106,0.16), transparent 36%), linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)",
-          boxShadow: "0 10px 30px color-mix(in srgb, var(--primary) 22%, transparent)",
+            "radial-gradient(circle at 10% 0%, rgba(240,101,58,0.24), transparent 36%), linear-gradient(135deg, #3A342F 0%, #6B5145 100%)",
+          boxShadow: "0 10px 30px rgba(58,52,47,0.22)",
         }}
       >
         <div className="flex items-center gap-3">
@@ -551,7 +551,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
               placeholder="이름, 학교, 연락처 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-52 rounded-lg border border-white/20 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(233,196,106,0.55)]"
+              className="h-9 w-52 rounded-lg border border-white/20 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(240,101,58,0.55)]"
             />
           </div>
           <button
@@ -575,9 +575,9 @@ export function ConsultationListClient({ initialData, initialPagination, classes
             }}
             className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition-all hover:-translate-y-px hover:shadow-lg"
             style={{
-              background: "linear-gradient(135deg, #E9C46A, var(--chart-4))",
-              color: "#0B1020",
-              boxShadow: "0 6px 18px rgba(212,168,83,0.35)",
+              background: "linear-gradient(135deg, #F58A68, #F0653A)",
+              color: "#FFFFFF",
+              boxShadow: "0 6px 18px rgba(240,101,58,0.32)",
             }}
           >
             <Plus className="h-4 w-4" />
@@ -594,7 +594,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
           <button
             onClick={() => setMonthFilter(null)}
             className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
-              monthFilter === null ? "border-transparent bg-[var(--primary)] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              monthFilter === null ? "border-transparent bg-[#F0653A] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
             }`}
           >
             전체
@@ -604,7 +604,7 @@ export function ConsultationListClient({ initialData, initialPagination, classes
               key={ym}
               onClick={() => setMonthFilter(monthFilter === ym ? null : ym)}
               className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
-                monthFilter === ym ? "border-transparent bg-[var(--primary)] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                monthFilter === ym ? "border-transparent bg-[#F0653A] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
               }`}
             >
               {formatYearMonth(ym)}

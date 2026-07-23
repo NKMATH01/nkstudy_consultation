@@ -68,6 +68,8 @@ const NK_PRIMARY = "var(--primary)";
 const NK_GOLD = "var(--accent-warm-foreground)";
 const NK_TEAL = "#0F766E";
 const GRID = "#E5EAF1";
+const CHART_CORAL = "#F0653A";
+const CHART_WARM = "#C7521F";
 
 // ── Helper ──
 /** "YYYY-MM" 형식 반환 (년+월 기반 정렬용) */
@@ -341,7 +343,7 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
                 <p className="mt-1 text-[11px] font-semibold text-slate-400">상담 대비 등록 흐름</p>
               </div>
               <div className="flex gap-2.5">
-                {[{ l: "상담", c: NK_PRIMARY }, { l: "등록", c: NK_GOLD }].map((x) => (
+                {[{ l: "상담", c: CHART_CORAL }, { l: "등록", c: CHART_WARM }].map((x) => (
                   <span key={x.l} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold" style={{ color: "#64748B" }}>
                     <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: x.c }} />
                     {x.l}
@@ -354,12 +356,12 @@ export function DashboardClient({ stats, consultations, surveys, analyses }: Pro
                 <BarChart data={monthlyData} barCategoryGap="32%" margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
                   <defs>
                     <linearGradient id="consultGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--primary-soft)" />
-                      <stop offset="100%" stopColor="var(--primary)" />
+                      <stop offset="0%" stopColor="#F58A68" />
+                      <stop offset="100%" stopColor={CHART_CORAL} />
                     </linearGradient>
                     <linearGradient id="registerGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--accent-warm)" />
-                      <stop offset="100%" stopColor="var(--accent-warm-foreground)" />
+                      <stop offset="0%" stopColor="#D98662" />
+                      <stop offset="100%" stopColor={CHART_WARM} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="2 6" stroke={GRID} vertical={false} />

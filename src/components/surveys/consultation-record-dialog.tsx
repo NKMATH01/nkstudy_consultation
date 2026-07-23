@@ -13,12 +13,13 @@ import { ClipboardList, MessageSquare, Save } from "lucide-react";
 import { toast } from "sonner";
 import { updateConsultationField } from "@/lib/actions/consultation";
 import type { Consultation, Survey } from "@/types";
-import { SURVEY_QUESTIONS, FACTOR_LABELS, PREFERRED_DAYS } from "@/types";
+import { SURVEY_QUESTIONS, FACTOR_LABELS, PREFERRED_DAYS, RESULT_STATUS_LABELS } from "@/types";
 import { PREFERRED_DAYS_V2 } from "@/lib/assessment/v2/validation";
 import { SurveyV2ResponseView } from "@/components/surveys/survey-v2-response-view";
 
 const ADVANCE_LEVELS = ["없음", "1개월", "3개월", "6개월", "1년", "2년 이상"] as const;
 const STUDY_GOALS = ["내신 향상", "선행 학습", "기초 보강", "상위권 유지", "수능 대비", "기타"] as const;
+const EVALUATION_LEVELS = ["상", "중", "하"] as const;
 
 const FACTOR_COLORS: Record<string, { bar: string; text: string }> = {
   attitude: { bar: "bg-blue-500", text: "text-blue-600" },
@@ -59,6 +60,16 @@ function buildInitialForm(survey: Survey, consultation: Consultation) {
     prefer_days: firstValue(consultation.prefer_days, survey.prefer_days),
     plan_date: consultation.plan_date ?? "",
     plan_class: consultation.plan_class ?? "",
+    referral: firstValue(consultation.referral, survey.referral),
+    has_friend: consultation.has_friend ?? "",
+    test_fee_paid: consultation.test_fee_paid ?? false,
+    test_fee_method: consultation.test_fee_method ?? "",
+    attitude: consultation.attitude ?? "",
+    willingness: consultation.willingness ?? "",
+    student_level: consultation.student_level ?? "",
+    parent_level: consultation.parent_level ?? "",
+    result_status: consultation.result_status ?? "",
+    memo: consultation.memo ?? "",
     requests: firstValue(consultation.requests, survey.requests),
     student_consult_note: consultation.student_consult_note ?? "",
     parent_consult_note: consultation.parent_consult_note ?? "",
@@ -83,7 +94,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
     setForm(buildInitialForm(survey, consultation));
   }, [consultation, open, survey]);
 
-  const saveField = useCallback(async (field: string, value: string) => {
+  const saveField = useCallback(async (field: string, value: string | boolean) => {
     setSaving(field);
     try {
       const result = await updateConsultationField(consultation.id, field, value);
@@ -99,6 +110,7 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
 
   const handleBlur = (field: string) => {
     const value = form[field as keyof typeof form];
+    if (typeof value !== "string") return;
     const original = (consultation[field as keyof Consultation] as string) ?? "";
     if (value !== original) {
       saveField(field, value);
@@ -110,6 +122,11 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
   };
 
   const handleSelectChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    saveField(field, value);
+  };
+
+  const handleCheckboxChange = (field: string, value: boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     saveField(field, value);
   };
@@ -295,6 +312,51 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">유입경로</label>
+                  <Input
+                    className={inp}
+                    placeholder="소개/검색/광고 등"
+                    value={form.referral}
+                    onChange={(e) => updateField("referral", e.target.value)}
+                    onBlur={() => handleBlur("referral")}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">학원친구</label>
+                  <Input
+                    className={inp}
+                    placeholder="함께 다니는 친구/지인"
+                    value={form.has_friend}
+                    onChange={(e) => updateField("has_friend", e.target.value)}
+                    onBlur={() => handleBlur("has_friend")}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex h-9 items-center gap-2 self-end rounded-lg border border-amber-100 bg-white px-3 text-xs font-medium text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={form.test_fee_paid}
+                    onChange={(e) => handleCheckboxChange("test_fee_paid", e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  테스트비 납부
+                </label>
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">테스트비 결제수단</label>
+                  <Input
+                    className={inp}
+                    placeholder="현금/카드/이체"
+                    value={form.test_fee_method}
+                    onChange={(e) => updateField("test_fee_method", e.target.value)}
+                    onBlur={() => handleBlur("test_fee_method")}
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-slate-500 block mb-1">내신 점수</label>
@@ -379,11 +441,67 @@ export function ConsultationRecordDialog({ survey, consultation, open, onOpenCha
               </div>
             </section>
 
+            {/* 상담 평가 */}
+            <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <ClipboardList className="h-4 w-4 text-slate-500" />
+                <span className="text-sm font-bold text-slate-700">상담 평가</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { field: "attitude", label: "학습태도" },
+                  { field: "willingness", label: "학습의지" },
+                  { field: "student_level", label: "학생강도" },
+                  { field: "parent_level", label: "학부모강도" },
+                ].map(({ field, label }) => (
+                  <div key={field}>
+                    <label className="text-xs text-slate-500 block mb-1">{label}</label>
+                    <select
+                      value={form[field as keyof typeof form] as string}
+                      onChange={(e) => handleSelectChange(field, e.target.value)}
+                      className={sel}
+                    >
+                      <option value="">선택</option>
+                      {withCurrentOption(
+                        EVALUATION_LEVELS,
+                        form[field as keyof typeof form] as string
+                      ).map((level) => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             {/* 상세 메모 */}
             <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <MessageSquare className="h-4 w-4 text-slate-500" />
                 <span className="text-sm font-bold text-slate-700">상세 메모</span>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">진행 상태</label>
+                <select
+                  value={form.result_status}
+                  onChange={(e) => handleSelectChange("result_status", e.target.value)}
+                  className={sel}
+                >
+                  {Object.entries(RESULT_STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">일반 메모</label>
+                <Textarea
+                  className={`resize-none ${inp}`}
+                  rows={2}
+                  placeholder="기타 메모"
+                  value={form.memo}
+                  onChange={(e) => updateField("memo", e.target.value)}
+                  onBlur={() => handleBlur("memo")}
+                />
               </div>
               <div>
                 <label className="text-xs text-slate-500 block mb-1">학원에 바라는 점</label>

@@ -178,7 +178,7 @@ type AlimtalkPreviewState = {
 };
 
 // 고정 컬럼 너비 (colgroup) — 한 화면에 맞추기
-const COL_WIDTHS = [48, 56, 72, 60, 44, 68, 100, 110, 76, 190, 76];
+const COL_WIDTHS = [48, 56, 72, 60, 44, 68, 100, 110, 76, 190, 190];
 
 function isNightTimeKSTClient(date: Date = new Date()): boolean {
   const kstHour = (date.getUTCHours() + 9) % 24;
@@ -702,7 +702,7 @@ export function ConsultationListClient({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm table-fixed" style={{ minWidth: "900px" }}>
+              <table className="w-full text-sm table-fixed" style={{ minWidth: "1014px" }}>
                 {colGroup}
                 {tableHead}
                 <tbody>
@@ -942,76 +942,83 @@ export function ConsultationListClient({
                             </div>
                           </td>
                           <td className="py-2 px-1.5 whitespace-nowrap">
-                            <div className="flex items-center gap-0.5">
-                              <button
-                                onClick={() => handleCopy(item)}
-                                className={`p-1.5 rounded transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
-                                title="클립보드 복사"
-                              >
-                                <ClipboardCopy className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleOpenAlimtalk(item)}
-                                className={`inline-flex items-center gap-0.5 rounded px-1.5 py-1.5 text-[10px] font-bold transition-colors ${
-                                  alimtalkSend?.status === "failed"
-                                    ? "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
-                                    : alimtalkSend
-                                      ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                                      : isUnregistered
-                                        ? "text-neutral-600 hover:bg-neutral-800"
-                                        : "text-amber-600 hover:bg-amber-50 hover:text-amber-700"
-                                }`}
-                                title={alimtalkTitle}
-                                aria-label={alimtalkTitle}
-                              >
-                                {alimtalkSend?.status === "failed" ? (
-                                  <XCircle className="h-3.5 w-3.5" />
-                                ) : alimtalkSend ? (
-                                  <Check className="h-3.5 w-3.5" />
-                                ) : (
-                                  <MessageCircle className="h-3.5 w-3.5" />
-                                )}
-                                톡
-                              </button>
-                              <button
-                                onClick={() => handleCreateDripLink(item)}
-                                className={`inline-flex items-center gap-0.5 rounded px-1.5 py-1.5 text-[10px] font-bold transition-colors ${
-                                  isUnregistered
-                                    ? "text-neutral-600 hover:bg-neutral-800"
-                                    : "text-sky-600 hover:bg-sky-50 hover:text-sky-700"
-                                }`}
-                                title="1주 설문 링크"
-                                aria-label="1주 설문 링크"
-                              >
-                                <Link2 className="h-3.5 w-3.5" />
-                                W1
-                              </button>
-                              <button
-                                onClick={() => handleEdit(item)}
-                                className={`p-1.5 rounded transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
-                                title="수정"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              {!isCancelled && (
+                            <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-0.5">
                                 <button
-                                  onClick={() => {
-                                    setCancelTarget(item);
-                                    setCancelReason("");
-                                  }}
-                                  className="p-1.5 rounded transition-colors text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                                  title="취소"
+                                  onClick={() => handleCopy(item)}
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+                                  title="클립보드 복사"
                                 >
-                                  <XCircle className="h-3.5 w-3.5" />
+                                  <ClipboardCopy className="h-3.5 w-3.5" />
                                 </button>
-                              )}
-                              <button
-                                onClick={() => handleDelete(item.id, item.name)}
-                                className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-100 hover:text-red-600"
-                                title="완전삭제"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                                <button
+                                  onClick={() => handleOpenAlimtalk(item)}
+                                  className={`inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-[10px] font-bold transition-colors ${
+                                    alimtalkSend?.status === "failed"
+                                      ? "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                                      : alimtalkSend
+                                        ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                        : isUnregistered
+                                          ? "text-neutral-600 hover:bg-neutral-800"
+                                          : "text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                  }`}
+                                  title={alimtalkTitle}
+                                  aria-label={alimtalkTitle}
+                                >
+                                  {alimtalkSend?.status === "failed" ? (
+                                    <XCircle className="h-3.5 w-3.5" />
+                                  ) : alimtalkSend ? (
+                                    <Check className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                  )}
+                                  톡
+                                </button>
+                                <button
+                                  onClick={() => handleCreateDripLink(item)}
+                                  className={`inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-[10px] font-bold transition-colors ${
+                                    isUnregistered
+                                      ? "text-neutral-600 hover:bg-neutral-800"
+                                      : "text-sky-600 hover:bg-sky-50 hover:text-sky-700"
+                                  }`}
+                                  title="1주 설문 링크"
+                                  aria-label="1주 설문 링크"
+                                >
+                                  <Link2 className="h-3.5 w-3.5" />
+                                  W1
+                                </button>
+                              </div>
+
+                              <span aria-hidden className="mx-0.5 h-4 border-l border-slate-200" />
+
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  onClick={() => handleEdit(item)}
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+                                  title="수정"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                {!isCancelled && (
+                                  <button
+                                    onClick={() => {
+                                      setCancelTarget(item);
+                                      setCancelReason("");
+                                    }}
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                    title="취소"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDelete(item.id, item.name)}
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                                  title="완전삭제"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </td>
                         </tr>

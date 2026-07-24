@@ -34,6 +34,8 @@ import { createDripInvitation } from "@/lib/actions/drip-survey";
 import {
   CONSULT_CONFIRM_TEMPLATE_CODE,
   buildConsultConfirmVars,
+  type AlimtalkSendEntry,
+  type AlimtalkSendMap,
 } from "@/lib/consultation-alimtalk";
 import {
   Dialog,
@@ -54,9 +56,11 @@ interface Props {
     totalPages: number;
   };
   classes?: { id: string; name: string }[];
+  alimtalkSendMap?: AlimtalkSendMap;
 }
 
 const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+const EMPTY_ALIMTALK_SEND_MAP: AlimtalkSendMap = {};
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
@@ -106,6 +110,28 @@ function formatPlanDate(d: string | null): string {
   if (!d) return "";
   const date = new Date(d + "T00:00:00");
   return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function formatAlimtalkSendAt(sendAt: string): string {
+  const date = new Date(sendAt);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const month = kst.getUTCMonth() + 1;
+  const day = kst.getUTCDate();
+  const hour = String(kst.getUTCHours()).padStart(2, "0");
+  const minute = String(kst.getUTCMinutes()).padStart(2, "0");
+  return `${month}/${day} ${hour}:${minute}`;
+}
+
+function getAlimtalkButtonTitle(send?: AlimtalkSendEntry): string {
+  if (!send) return "알림톡 발송";
+
+  const sentAt = formatAlimtalkSendAt(send.sendAt);
+  if (send.status === "failed") {
+    return `알림톡 발송 실패 · ${sentAt} — 다시 시도 가능`;
+  }
+  return `알림톡 발송됨 · ${sentAt}`;
 }
 
 // 결과에 따른 행 스타일
@@ -159,13 +185,20 @@ function isNightTimeKSTClient(date: Date = new Date()): boolean {
   return kstHour >= 21 || kstHour < 8;
 }
 
-export function ConsultationListClient({ initialData, initialPagination, classes = [] }: Props) {
+export function ConsultationListClient({
+  initialData,
+  initialPagination,
+  classes = [],
+  alimtalkSendMap = EMPTY_ALIMTALK_SEND_MAP,
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
   const [editingConsultation, setEditingConsultation] = useState<Consultation | undefined>();
   const [showTextParse, setShowTextParse] = useState(false);
   const [localData, setLocalData] = useState(initialData);
+  const [localAlimtalkSendMap, setLocalAlimtalkSendMap] =
+    useState<AlimtalkSendMap>(alimtalkSendMap);
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ResultStatus | null>(null);
@@ -182,6 +215,10 @@ export function ConsultationListClient({ initialData, initialPagination, classes
   useEffect(() => {
     setLocalData(initialData);
   }, [initialData]);
+
+  useEffect(() => {
+    setLocalAlimtalkSendMap(alimtalkSendMap);
+  }, [alimtalkSendMap]);
 
   // 사용 가능한 월 목록 (최신순)
   const availableMonths = useMemo(() => {
@@ -406,6 +443,13 @@ export function ConsultationListClient({ initialData, initialPagination, classes
       }
 
       toast.success("알림톡 발송 완료");
+      setLocalAlimtalkSendMap((prev) => ({
+        ...prev,
+        [alimtalkTarget.id]: {
+          status: "sent",
+          sendAt: new Date().toISOString(),
+        },
+      }));
       const updateResult = await updateConsultationField(
         alimtalkTarget.id,
         "notify_sent",
@@ -516,6 +560,9 @@ export function ConsultationListClient({ initialData, initialPagination, classes
     alimtalkMissing.length > 0 ||
     alimtalkTemplateUnapproved;
   const showAlimtalkNightNotice = isNightTimeKSTClient();
+  const currentAlimtalkSend = alimtalkTarget
+    ? localAlimtalkSendMap[alimtalkTarget.id]
+    : undefined;
 
   return (
     <div className="space-y-2">
@@ -675,6 +722,8 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                       const vBorderDark = "border-r border-neutral-700";
                       const vb = isUnregistered ? vBorderDark : vBorder;
                       const hasParentSeparate = !!(item.parent_consult_date || item.parent_consult_time || item.parent_location);
+                      const alimtalkSend = localAlimtalkSendMap[item.id];
+                      const alimtalkTitle = getAlimtalkButtonTitle(alimtalkSend);
 
                       return (
                         <Fragment key={item.id}>
@@ -904,14 +953,24 @@ export function ConsultationListClient({ initialData, initialPagination, classes
                               <button
                                 onClick={() => handleOpenAlimtalk(item)}
                                 className={`inline-flex items-center gap-0.5 rounded px-1.5 py-1.5 text-[10px] font-bold transition-colors ${
-                                  isUnregistered
-                                    ? "text-neutral-600 hover:bg-neutral-800"
-                                    : "text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                  alimtalkSend?.status === "failed"
+                                    ? "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                                    : alimtalkSend
+                                      ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                      : isUnregistered
+                                        ? "text-neutral-600 hover:bg-neutral-800"
+                                        : "text-amber-600 hover:bg-amber-50 hover:text-amber-700"
                                 }`}
-                                title="알림톡 발송"
-                                aria-label="알림톡 발송"
+                                title={alimtalkTitle}
+                                aria-label={alimtalkTitle}
                               >
-                                <MessageCircle className="h-3.5 w-3.5" />
+                                {alimtalkSend?.status === "failed" ? (
+                                  <XCircle className="h-3.5 w-3.5" />
+                                ) : alimtalkSend ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                )}
                                 톡
                               </button>
                               <button
@@ -1064,6 +1123,12 @@ export function ConsultationListClient({ initialData, initialPagination, classes
           </DialogHeader>
 
           <div className="space-y-4">
+            {currentAlimtalkSend && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                이 상담에는 {formatAlimtalkSendAt(currentAlimtalkSend.sendAt)}에
+                발송한 이력이 있습니다
+              </div>
+            )}
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               대상:{" "}
               <span className="font-semibold text-slate-900">

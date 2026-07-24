@@ -2,8 +2,60 @@ import type { Consultation } from "@/types";
 
 export const CONSULT_CONFIRM_TEMPLATE_CODE = "consult_confirm";
 
+export type AlimtalkSendStatus = "pending" | "sent" | "failed";
+
+export type AlimtalkSendEntry = {
+  status: AlimtalkSendStatus;
+  sendAt: string;
+};
+
+export type AlimtalkSendMap = Record<string, AlimtalkSendEntry>;
+
+export type AlimtalkSendRow = {
+  consultation_id: string | null;
+  status: string;
+  send_at: string;
+};
+
 const ACCOUNT = "신한은행 110-383-883419  노윤희(학생명으로 입금 부탁드립니다.)";
 const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+function normalizeSendStatus(status: string): AlimtalkSendStatus | null {
+  if (status === "sent") return "sent";
+  if (status === "pending" || status === "sending" || status === "retry") {
+    return "pending";
+  }
+  if (status === "failed" || status === "dead") return "failed";
+  return null;
+}
+
+export function buildAlimtalkSendMap(
+  rows: readonly AlimtalkSendRow[],
+): AlimtalkSendMap {
+  const result: AlimtalkSendMap = {};
+
+  for (const row of rows) {
+    if (!row.consultation_id) continue;
+
+    const status = normalizeSendStatus(row.status);
+    if (!status) continue;
+
+    const existing = result[row.consultation_id];
+    if (
+      existing &&
+      new Date(existing.sendAt).getTime() >= new Date(row.send_at).getTime()
+    ) {
+      continue;
+    }
+
+    result[row.consultation_id] = {
+      status,
+      sendAt: row.send_at,
+    };
+  }
+
+  return result;
+}
 
 function fmtDate(ds: string | null): string {
   if (!ds) return "";

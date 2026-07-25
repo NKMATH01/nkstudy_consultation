@@ -14,6 +14,7 @@ const envSchema = z.object({
   SOLAPI_API_SECRET: z.string().optional().default(""),
   SOLAPI_PFID: z.string().optional().default(""),
   SOLAPI_SENDER_PHONE: z.string().optional().default(""),
+  CHAT_PROPOSAL_SIGNING_SECRET: z.string().optional().default(""),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(""),
 });
 

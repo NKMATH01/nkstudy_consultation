@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 
@@ -111,8 +111,18 @@ const FIELD_TO_COLUMN: Record<string, Record<string, string>> = {
 // HMAC 서명 (Vercel 서버리스 환경용)
 // =============================================
 
-const HMAC_SECRET = env.SUPABASE_SERVICE_ROLE_KEY || "fallback-dev-key";
 const PROPOSAL_TTL_MS = 5 * 60 * 1000; // 5분
+const FUTURE_SKEW_MS = 30_000; // 서버 간 시계 오차 허용
+
+function getSigningSecret(): string {
+  const secret = env.CHAT_PROPOSAL_SIGNING_SECRET.trim();
+  if (!secret) {
+    throw new Error(
+      "CHAT_PROPOSAL_SIGNING_SECRET 미설정 — 챗 제안 기능을 사용할 수 없습니다.",
+    );
+  }
+  return secret;
+}
 
 export interface Proposal {
   entity: string;
@@ -136,17 +146,39 @@ export function signProposal(data: Omit<Proposal, "signature">): string {
     changes: data.changes,
     timestamp: data.timestamp,
   });
-  return createHmac("sha256", HMAC_SECRET).update(payload).digest("hex");
+  return createHmac("sha256", getSigningSecret()).update(payload).digest("hex");
 }
 
 /** HMAC 서명 검증 */
 export function verifyProposal(proposal: Proposal): { valid: boolean; error?: string } {
-  const age = Date.now() - proposal.timestamp;
+  const now = Date.now();
+  if (proposal.timestamp > now + FUTURE_SKEW_MS) {
+    return {
+      valid: false,
+      error: "제안 시각이 유효하지 않습니다. 다시 요청해주세요.",
+    };
+  }
+
+  const age = now - proposal.timestamp;
   if (age > PROPOSAL_TTL_MS) {
     return { valid: false, error: "제안이 만료되었습니다 (5분 초과). 다시 요청해주세요." };
   }
+
   const expected = signProposal(proposal);
-  if (proposal.signature !== expected) {
+  const actualSignature = proposal.signature ?? "";
+  const isHexSignature =
+    actualSignature.length % 2 === 0 &&
+    /^[0-9a-fA-F]+$/.test(actualSignature);
+  const expectedBuf = Buffer.from(expected, "hex");
+  const actualBuf = isHexSignature
+    ? Buffer.from(actualSignature, "hex")
+    : Buffer.alloc(0);
+  const sigValid =
+    expectedBuf.length === actualBuf.length &&
+    expectedBuf.length > 0 &&
+    timingSafeEqual(expectedBuf, actualBuf);
+
+  if (!sigValid) {
     return { valid: false, error: "제안 데이터가 변조되었습니다." };
   }
   return { valid: true };

@@ -96,6 +96,7 @@ SOLAPI_API_KEY=                 # Solapi/CoolSMS API 키 (서버 전용)
 SOLAPI_API_SECRET=              # Solapi/CoolSMS API 시크릿 (서버 전용)
 SOLAPI_PFID=                    # 알림톡 발신프로필 ID (서버 전용)
 SOLAPI_SENDER_PHONE=            # 대체 SMS/LMS 발신번호 (서버 전용)
+CHAT_PROPOSAL_SIGNING_SECRET=   # 챗 제안 HMAC 서명 전용 시크릿 (서버 전용)
 ```
 
 ## 빌드/실행

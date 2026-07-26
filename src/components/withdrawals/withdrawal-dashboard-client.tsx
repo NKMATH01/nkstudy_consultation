@@ -10,10 +10,7 @@ import {
   isCurrentYearMonth,
   pickHeroDiagnoses,
 } from "@/lib/withdrawal-analytics";
-import {
-  DiagnosisHero,
-  PrescriptionSection,
-} from "@/components/withdrawals/withdrawal-diagnosis-hero";
+import { DiagnosisSection } from "@/components/withdrawals/withdrawal-diagnosis-hero";
 import {
   Users,
   Clock,
@@ -912,17 +909,15 @@ export function WithdrawalDashboard({
         </div>
       </div>
 
-      {/* ── 3. 핵심 진단 히어로 ──────────────────────────────────────── */}
-      <DiagnosisHero
+      {/* ── 3. 핵심 진단 & 개선 액션 ─────────────────────────────────── */}
+      <DiagnosisSection
         diagnoses={heroDiagnoses}
+        prescriptions={prescriptions}
         dataQuality={dataQuality}
         periodLabel={periodLabel}
       />
 
-      {/* ── 4. 개선 액션 (처방) ──────────────────────────────────────── */}
-      <PrescriptionSection prescriptions={prescriptions} />
-
-      {/* ── 5. Key Insights Section ──────────────────────────────────── */}
+      {/* ── 4. Key Insights Section ──────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* 3-1. 전체 퇴원율 */}
         <div
@@ -1147,7 +1142,7 @@ export function WithdrawalDashboard({
         </div>
       </div>
 
-      {/* ── 6. 학원 주요 문제점 분석 ────────────────────────────── */}
+      {/* ── 5. 학원 주요 문제점 분석 ────────────────────────────── */}
       <DashboardCard
         title="학원 주요 문제점 분석"
         icon={AlertTriangle}
@@ -1156,87 +1151,190 @@ export function WithdrawalDashboard({
         <ProblemAnalysisSection filtered={filtered} insightData={insightData} teacherTableData={teacherTableData} />
       </DashboardCard>
 
-      {/* ── 7. 퇴원 사유 Horizontal Bar Chart ────────────────────────── */}
-      <DashboardCard
-        title="퇴원 사유 분석"
-        icon={TrendingDown}
-        subtitle="학생들이 떠나는 주요 이유를 파악합니다"
-      >
-        {reasonAnalysis.length > 0 ? (
-          <>
-            <ResponsiveContainer
-              width="100%"
-              height={Math.max(200, reasonAnalysis.length * 44)}
-            >
-              <BarChart
-                data={reasonAnalysis}
-                layout="vertical"
-                margin={{ left: 10, right: 30 }}
+      {/* ── 6. 퇴원 사유 / 복귀 가능성 2열 ──────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DashboardCard
+          title="퇴원 사유 분석"
+          icon={TrendingDown}
+          subtitle="학생들이 떠나는 주요 이유를 파악합니다"
+        >
+          {reasonAnalysis.length > 0 ? (
+            <>
+              <ResponsiveContainer
+                width="100%"
+                height={Math.max(200, reasonAnalysis.length * 44)}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#E8ECF1"
-                  horizontal={false}
-                />
-                <XAxis
-                  type="number"
-                  fontSize={11}
-                  stroke="#94A3B8"
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  fontSize={11}
-                  stroke="#64748B"
-                  tickLine={false}
-                  axisLine={false}
-                  width={120}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const data = payload[0].payload as (typeof reasonAnalysis)[number];
-                    return (
-                      <div
-                        className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
-                        style={{ borderColor: "#E2E8F0" }}
-                      >
-                        <div className="font-semibold" style={{ color: NK_PRIMARY }}>
-                          {data.name}
-                        </div>
-                        <div className="text-slate-600 mt-0.5">
-                          {data.value}명 ({data.pct}%)
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Bar
-                  dataKey="value"
-                  name="퇴원생"
-                  radius={[0, 6, 6, 0]}
-                  maxBarSize={28}
-                  cursor="pointer"
-                  onClick={(data) => { const name = (data as { name?: string }).name; if (name) setSelectedReason(selectedReason === name ? null : name); }}
+                <BarChart
+                  data={reasonAnalysis}
+                  layout="vertical"
+                  margin={{ left: 10, right: 30 }}
                 >
-                  {reasonAnalysis.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </>
-        ) : (
-          <div className="h-40 flex items-center justify-center text-sm text-slate-400">
-            데이터가 없습니다
-          </div>
-        )}
-      </DashboardCard>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#E8ECF1"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    fontSize={11}
+                    stroke="#94A3B8"
+                    tickLine={false}
+                    axisLine={false}
+                    allowDecimals={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    fontSize={11}
+                    stroke="#64748B"
+                    tickLine={false}
+                    axisLine={false}
+                    width={120}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const data = payload[0].payload as (typeof reasonAnalysis)[number];
+                      return (
+                        <div
+                          className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
+                          style={{ borderColor: "#E2E8F0" }}
+                        >
+                          <div className="font-semibold" style={{ color: NK_PRIMARY }}>
+                            {data.name}
+                          </div>
+                          <div className="text-slate-600 mt-0.5">
+                            {data.value}명 ({data.pct}%)
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    name="퇴원생"
+                    radius={[0, 6, 6, 0]}
+                    maxBarSize={28}
+                    cursor="pointer"
+                    onClick={(data) => { const name = (data as { name?: string }).name; if (name) setSelectedReason(selectedReason === name ? null : name); }}
+                  >
+                    {reasonAnalysis.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <div className="h-40 flex items-center justify-center text-sm text-slate-400">
+              데이터가 없습니다
+            </div>
+          )}
+        </DashboardCard>
 
-      {/* ── 8. Teacher Withdrawal Rate Table ─────────────────────────── */}
+        {/* ── 복귀 가능성 Horizontal Bar Chart ──────────────────────── */}
+        <DashboardCard
+          title="복귀 가능성 분석"
+          icon={RotateCcw}
+          subtitle="다시 돌아올 가능성이 있는 학생 비율"
+        >
+          {comebackData.length > 0 ? (
+            <>
+              <ResponsiveContainer
+                width="100%"
+                height={Math.max(180, comebackData.length * 50)}
+              >
+                <BarChart
+                  data={comebackData}
+                  layout="vertical"
+                  margin={{ left: 10, right: 30 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#E8ECF1"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    fontSize={11}
+                    stroke="#94A3B8"
+                    tickLine={false}
+                    axisLine={false}
+                    allowDecimals={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    fontSize={12}
+                    stroke="#64748B"
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const data = payload[0].payload as (typeof comebackData)[number];
+                      return (
+                        <div
+                          className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
+                          style={{ borderColor: "#E2E8F0" }}
+                        >
+                          <div className="font-semibold" style={{ color: NK_PRIMARY }}>
+                            복귀 가능성: {data.name}
+                          </div>
+                          <div className="text-slate-600 mt-0.5">
+                            {data.value}명 ({data.pct}%)
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    name="학생수"
+                    radius={[0, 6, 6, 0]}
+                    maxBarSize={32}
+                  >
+                    {comebackData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {/* Legend */}
+              <div className="flex flex-wrap justify-center gap-3 mt-4">
+                {comebackData.map((c) => (
+                  <div
+                    key={c.name}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                    style={{ background: `${c.color}10` }}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ background: c.color }}
+                    />
+                    <div className="min-w-0">
+                      <span className="text-[11px] font-bold" style={{ color: c.color }}>
+                        {c.name}
+                      </span>
+                      <span className="text-[10px] text-slate-500 ml-1">
+                        {c.value}명 ({c.pct}%)
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="h-40 flex items-center justify-center text-sm text-slate-400">
+              데이터가 없습니다
+            </div>
+          )}
+        </DashboardCard>
+      </div>
+
+      {/* ── 7. Teacher Withdrawal Rate Table ─────────────────────────── */}
       {(teacherTableData.length > 0 || (teacherStudentCounts && Object.keys(teacherStudentCounts).length > 0)) && (
         <DashboardCard
           title="강사별 퇴원율 분석"
@@ -1476,7 +1574,7 @@ export function WithdrawalDashboard({
         </DashboardCard>
       )}
 
-      {/* ── 9. Monthly Trend (only when "전체" month tab) ─────────────── */}
+      {/* ── 8. Monthly Trend (only when "전체" month tab) ─────────────── */}
       {activeMonth === null && monthlyTrendData.length > 0 && (
         <DashboardCard
           title="월별 퇴원율 추이"
@@ -1545,108 +1643,7 @@ export function WithdrawalDashboard({
         </DashboardCard>
       )}
 
-      {/* ── 10. 복귀 가능성 Horizontal Bar Chart ──────────────────────── */}
-      <DashboardCard
-        title="복귀 가능성 분석"
-        icon={RotateCcw}
-        subtitle="다시 돌아올 가능성이 있는 학생 비율"
-      >
-        {comebackData.length > 0 ? (
-          <>
-            <ResponsiveContainer
-              width="100%"
-              height={Math.max(180, comebackData.length * 50)}
-            >
-              <BarChart
-                data={comebackData}
-                layout="vertical"
-                margin={{ left: 10, right: 30 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#E8ECF1"
-                  horizontal={false}
-                />
-                <XAxis
-                  type="number"
-                  fontSize={11}
-                  stroke="#94A3B8"
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  fontSize={12}
-                  stroke="#64748B"
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const data = payload[0].payload as (typeof comebackData)[number];
-                    return (
-                      <div
-                        className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
-                        style={{ borderColor: "#E2E8F0" }}
-                      >
-                        <div className="font-semibold" style={{ color: NK_PRIMARY }}>
-                          복귀 가능성: {data.name}
-                        </div>
-                        <div className="text-slate-600 mt-0.5">
-                          {data.value}명 ({data.pct}%)
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Bar
-                  dataKey="value"
-                  name="학생수"
-                  radius={[0, 6, 6, 0]}
-                  maxBarSize={32}
-                >
-                  {comebackData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-3 mt-4">
-              {comebackData.map((c) => (
-                <div
-                  key={c.name}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                  style={{ background: `${c.color}10` }}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ background: c.color }}
-                  />
-                  <div className="min-w-0">
-                    <span className="text-[11px] font-bold" style={{ color: c.color }}>
-                      {c.name}
-                    </span>
-                    <span className="text-[10px] text-slate-500 ml-1">
-                      {c.value}명 ({c.pct}%)
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="h-40 flex items-center justify-center text-sm text-slate-400">
-            데이터가 없습니다
-          </div>
-        )}
-      </DashboardCard>
-
-      {/* ── 11. 퇴원생 상세 목록 Table ────────────────────────────────── */}
+      {/* ── 9. 퇴원생 상세 목록 Table ────────────────────────────────── */}
       <DashboardCard
         title="퇴원생 상세 목록"
         icon={GraduationCap}

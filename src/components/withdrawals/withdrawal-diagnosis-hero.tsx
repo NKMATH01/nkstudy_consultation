@@ -4,8 +4,11 @@ import { Check, CircleCheck, Stethoscope, TriangleAlert } from "lucide-react";
 import type {
   DataQualityReport,
   Diagnosis,
+  DiagnosisType,
   Prescription,
 } from "@/lib/withdrawal-analytics";
+
+type AdoptHandler = (actionText: string, diagnosisType: DiagnosisType, title: string) => void;
 
 const NK_PRIMARY = "var(--primary)";
 const CARD_BORDER = "#E8ECF1";
@@ -21,10 +24,14 @@ function DiagnosisRow({
   diagnosis,
   rank,
   actions,
+  adoptedActionTexts,
+  onAdoptAction,
 }: {
   diagnosis: Diagnosis;
   rank: number;
   actions: string[];
+  adoptedActionTexts?: Set<string>;
+  onAdoptAction?: AdoptHandler;
 }) {
   const accent = SEVERITY_COLOR[diagnosis.severity];
   const isTop = rank === 1;
@@ -82,15 +89,33 @@ function DiagnosisRow({
               actions.length > 2 ? "sm:grid-cols-2" : ""
             }`}
           >
-            {actions.map((action) => (
-              <li key={action} className="flex items-start gap-2">
-                <Check
-                  className="w-3.5 h-3.5 mt-0.5 flex-shrink-0"
-                  style={{ color: "var(--accent-warm-foreground)" }}
-                />
-                <span className="text-xs text-slate-700 leading-relaxed">{action}</span>
-              </li>
-            ))}
+            {actions.map((action) => {
+              const adopted = adoptedActionTexts?.has(action);
+              return (
+                <li key={action} className="flex items-start gap-2">
+                  <Check
+                    className="w-3.5 h-3.5 mt-0.5 flex-shrink-0"
+                    style={{ color: "var(--accent-warm-foreground)" }}
+                  />
+                  <span className="text-xs text-slate-700 leading-relaxed flex-1">{action}</span>
+                  {onAdoptAction &&
+                    (adopted ? (
+                      <span className="text-[10px] font-semibold text-emerald-600 whitespace-nowrap mt-0.5">
+                        채택됨 ✓
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onAdoptAction(action, diagnosis.type, diagnosis.title)}
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap transition-colors hover:bg-slate-100 mt-0.5"
+                        style={{ color: NK_PRIMARY, border: `1px solid ${CARD_BORDER}` }}
+                      >
+                        + 이달 실행
+                      </button>
+                    ))}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-xs text-slate-400">근거 상세는 아래 섹션 참고</p>
@@ -105,11 +130,15 @@ export function DiagnosisSection({
   prescriptions,
   dataQuality,
   periodLabel,
+  adoptedActionTexts,
+  onAdoptAction,
 }: {
   diagnoses: Diagnosis[];
   prescriptions: Prescription[];
   dataQuality: DataQualityReport;
   periodLabel: string;
+  adoptedActionTexts?: Set<string>;
+  onAdoptAction?: AdoptHandler;
 }) {
   const actionsByType = new Map(prescriptions.map((p) => [p.diagnosisType, p.actions]));
   const showQualityStrip = dataQuality.missingReasonPct >= 20;
@@ -142,6 +171,8 @@ export function DiagnosisSection({
               diagnosis={d}
               rank={i + 1}
               actions={actionsByType.get(d.type) || []}
+              adoptedActionTexts={adoptedActionTexts}
+              onAdoptAction={onAdoptAction}
             />
           ))}
         </div>

@@ -11,6 +11,14 @@ import {
   pickHeroDiagnoses,
 } from "@/lib/withdrawal-analytics";
 import { DiagnosisSection } from "@/components/withdrawals/withdrawal-diagnosis-hero";
+import { ImprovementActionsCard } from "@/components/withdrawals/improvement-actions-card";
+import { computeRetrospectiveRate } from "@/lib/withdrawal-retrospective";
+import { adoptPrescriptionAction } from "@/lib/actions/improvement-action";
+import type { ImprovementAction } from "@/lib/improvement-actions";
+import type { DiagnosisType } from "@/lib/withdrawal-analytics";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { NotebookPen } from "lucide-react";
 import {
   Users,
   Clock,
@@ -112,6 +120,12 @@ interface Props {
   monthlyBaseTotal?: Record<number, number>;
   /** 월별 + 강사별 전달 말일 기준 재원생 수 */
   monthlyBaseByTeacher?: Record<number, Record<string, number>>;
+  /** 이번 달 채택된 개선 실행 항목 */
+  currentActions?: ImprovementAction[];
+  /** 전월 실행 항목 (이행률 비교용) */
+  prevActions?: ImprovementAction[];
+  /** "2026-07" */
+  actionsYearMonth?: string;
 }
 
 interface TeacherRow {
@@ -410,7 +424,11 @@ export function WithdrawalDashboard({
   teacherStudentCounts,
   monthlyBaseTotal,
   monthlyBaseByTeacher,
+  currentActions,
+  prevActions,
+  actionsYearMonth,
 }: Props) {
+  const router = useRouter();
   const [currentYear] = useState(() => new Date().getFullYear());
   // 월 탭은 연도 정보가 없거나 올해인 건만 대상으로 한다.
   const matchesMonth = useCallback(
@@ -769,6 +787,37 @@ export function WithdrawalDashboard({
 
   const periodLabel = `${activeMonth !== null ? `${activeMonth}월` : "전체 기간"} · ${activeSubject}`;
 
+  // ─── 실행 항목 채택 / 회고 작성률 ──────────────────────────────────────
+
+  const adoptedActionTexts = useMemo(
+    () => new Set((currentActions ?? []).map((a) => a.action_text)),
+    [currentActions]
+  );
+
+  const handleAdoptAction = (
+    actionText: string,
+    _diagnosisType: DiagnosisType,
+    title: string
+  ) => {
+    adoptPrescriptionAction({ actionText, source: "diagnosis", sourceTitle: title }).then(
+      (result) => {
+        if (!result.success) {
+          toast.error(result.error || "실행 항목 채택 실패");
+          return;
+        }
+        toast.success(
+          (result as { alreadyAdopted?: boolean }).alreadyAdopted
+            ? "이미 이번 달에 채택된 항목입니다"
+            : "이번 달 실행 항목으로 채택했습니다"
+        );
+        router.refresh();
+      }
+    );
+  };
+
+  // 회고 작성률은 필터와 무관하게 전체 퇴원 건 기준으로 본다.
+  const retrospectiveRate = useMemo(() => computeRetrospectiveRate(withdrawals), [withdrawals]);
+
   // ─── Comeback Possibility (horizontal bar) ─────────────────────────────
 
   const comebackData = useMemo(() => {
@@ -915,10 +964,21 @@ export function WithdrawalDashboard({
         prescriptions={prescriptions}
         dataQuality={dataQuality}
         periodLabel={periodLabel}
+        adoptedActionTexts={adoptedActionTexts}
+        onAdoptAction={handleAdoptAction}
       />
 
-      {/* ── 4. Key Insights Section ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* ── 4. 이번 달 실행 항목 ─────────────────────────────────────── */}
+      {actionsYearMonth && (
+        <ImprovementActionsCard
+          currentActions={currentActions ?? []}
+          prevActions={prevActions ?? []}
+          yearMonth={actionsYearMonth}
+        />
+      )}
+
+      {/* ── 5. Key Insights Section ──────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* 3-1. 전체 퇴원율 */}
         <div
           className="relative overflow-hidden rounded-2xl p-5 bg-white cursor-pointer hover:shadow-md transition-shadow"
@@ -1137,6 +1197,45 @@ export function WithdrawalDashboard({
               }}
             >
               <UserCheck className="h-[18px] w-[18px]" />
+            </div>
+          </div>
+        </div>
+
+        {/* 3-6. 회고 작성률 */}
+        <div
+          className="relative overflow-hidden rounded-2xl p-5 bg-white"
+          style={{
+            border: `1px solid ${retrospectiveRate.total > retrospectiveRate.completed ? "#FCD34D" : "#E8ECF1"}`,
+            boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+          }}
+        >
+          <div className="flex justify-between items-start">
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
+                회고 작성률
+              </div>
+              <div
+                className="text-3xl font-extrabold leading-tight tracking-tight"
+                style={{
+                  color: retrospectiveRate.total > retrospectiveRate.completed ? "#B45309" : NK_PRIMARY,
+                }}
+              >
+                {retrospectiveRate.rate}%
+              </div>
+              <div className="text-[11px] text-slate-400 mt-1">
+                {retrospectiveRate.completed}건 / {retrospectiveRate.total}건 (전체 기준)
+              </div>
+            </div>
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+              style={{
+                background:
+                  retrospectiveRate.total > retrospectiveRate.completed
+                    ? "linear-gradient(135deg, #B45309, #F59E0B)"
+                    : `linear-gradient(135deg, ${NK_PRIMARY}, ${NK_PRIMARY_LIGHT})`,
+              }}
+            >
+              <NotebookPen className="h-[18px] w-[18px]" />
             </div>
           </div>
         </div>

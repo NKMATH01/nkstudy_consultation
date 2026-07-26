@@ -22,6 +22,9 @@ interface Props {
   withdrawal?: Withdrawal;
 }
 
+/** 파싱으로 추론된 사유임을 표시하는 UI 전용 키 (DB 저장 대상 아님) */
+const INFERRED_REASON_KEY = "_reason_inferred";
+
 /** Normalize date string: dots/slashes → hyphens */
 function normalizeDate(d: string): string {
   return d.trim().replace(/[./]/g, "-");
@@ -148,6 +151,7 @@ function parseWithdrawalText(text: string) {
     else if (r.includes("친구")) result.reason_category = "친구 문제";
     else if (r.includes("스케줄") || r.includes("시간")) result.reason_category = "스케줄 변동";
     else result.reason_category = "개인 사유";
+    result[INFERRED_REASON_KEY] = "true";
   }
   if (!result.reason_category) {
     const allText = `${result.student_opinion || ""} ${result.parent_opinion || ""} ${result.teacher_opinion || ""}`.toLowerCase();
@@ -160,7 +164,8 @@ function parseWithdrawalText(text: string) {
     else if (allText.includes("타 학원") || allText.includes("과외") || allText.includes("이동")) result.reason_category = "타 학원/과외로 이동";
     else if (allText.includes("친구")) result.reason_category = "친구 문제";
     else if (allText.includes("스케줄") || allText.includes("시간")) result.reason_category = "스케줄 변동";
-    else result.reason_category = "개인 사유";
+    // 키워드가 하나도 걸리지 않으면 사유를 비워 두고 사용자가 직접 고르게 한다.
+    if (result.reason_category) result[INFERRED_REASON_KEY] = "true";
   }
 
   // Extract grade from class name if not set directly
@@ -261,8 +266,15 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
   };
 
   const updateField = (key: string, value: string) => {
-    setFields((prev) => ({ ...prev, [key]: value }));
+    setFields((prev) => {
+      const next = { ...prev, [key]: value };
+      // 사용자가 사유를 직접 고르면 추론 표시를 해제한다.
+      if (key === "reason_category") delete next[INFERRED_REASON_KEY];
+      return next;
+    });
   };
+
+  const isReasonInferred = fields[INFERRED_REASON_KEY] === "true";
 
   const handleSubmit = () => {
     if (!fields.name?.trim()) {
@@ -272,7 +284,8 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
     startTransition(async () => {
       const formData = new FormData();
       Object.entries(fields).forEach(([key, value]) => {
-        if (value) formData.set(key, value);
+        // "_" 접두 키는 UI 전용이므로 전송하지 않는다.
+        if (value && !key.startsWith("_")) formData.set(key, value);
       });
       formData.set("raw_text", rawText);
 
@@ -434,7 +447,14 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
               퇴원 사유
             </h4>
             <div className="mb-3">
-              <label className={labelCls}>퇴원 사유 분류</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className={`${labelCls} mb-0`}>퇴원 사유 분류</label>
+                {isReasonInferred && (
+                  <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                    자동 추론된 사유 — 확인 후 저장하세요
+                  </span>
+                )}
+              </div>
               <select className={selectCls} value={fields.reason_category || ""} onChange={(e) => updateField("reason_category", e.target.value)}>
                 <option value="">선택</option>
                 {WITHDRAWAL_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}

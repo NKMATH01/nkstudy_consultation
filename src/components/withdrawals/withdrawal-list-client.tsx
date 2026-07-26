@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { getMonthFromDate, isCurrentYearMonth } from "@/lib/withdrawal-analytics";
 import {
   Plus,
   Pencil,
@@ -220,16 +221,9 @@ function DetailItem({ label, value, icon: Icon }: { label: string; value: string
   );
 }
 
-/* ─── Month Parser Helper ─── */
-function getMonthFromDate(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  const fullMatch = dateStr.match(/\d{4}[.\-/](\d{1,2})/);
-  if (fullMatch) return parseInt(fullMatch[1]);
-  return null;
-}
-
 export function WithdrawalList({ withdrawals }: Props) {
   const router = useRouter();
+  const [currentYear] = useState(() => new Date().getFullYear());
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Withdrawal | undefined>();
@@ -260,19 +254,24 @@ export function WithdrawalList({ withdrawals }: Props) {
     const months = new Set<number>();
     withdrawals.forEach((w) => {
       const m = getMonthFromDate(w.withdrawal_date);
-      if (m && m !== 12) months.add(m);
+      if (m && isCurrentYearMonth(w.withdrawal_date, currentYear)) months.add(m);
     });
     return Array.from(months).sort((a, b) => a - b);
-  }, [withdrawals]);
+  }, [withdrawals, currentYear]);
 
   const filtered = useMemo(() => {
     let result = withdrawals;
-    if (activeMonth !== null) result = result.filter((w) => getMonthFromDate(w.withdrawal_date) === activeMonth);
+    if (activeMonth !== null)
+      result = result.filter(
+        (w) =>
+          getMonthFromDate(w.withdrawal_date) === activeMonth &&
+          isCurrentYearMonth(w.withdrawal_date, currentYear)
+      );
     if (filterReason) result = result.filter((w) => w.reason_category === filterReason);
     if (filterTeacher) result = result.filter((w) => w.teacher === filterTeacher);
     if (filterSubject) result = result.filter((w) => w.subject === filterSubject);
     return result;
-  }, [withdrawals, activeMonth, filterReason, filterTeacher, filterSubject]);
+  }, [withdrawals, activeMonth, filterReason, filterTeacher, filterSubject, currentYear]);
 
   const hasFilter = filterReason || filterTeacher || filterSubject || activeMonth !== null;
 

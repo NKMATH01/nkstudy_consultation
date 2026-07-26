@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WITHDRAWAL_REASONS } from "@/types";
 import type { Withdrawal } from "@/types";
+import { makeMany, makeW } from "./helpers/withdrawal-factory";
 import {
   buildPrescriptions,
   computeDataQuality,
@@ -13,50 +14,6 @@ import {
   type Diagnosis,
   type DiagnoseInput,
 } from "../withdrawal-analytics";
-
-let seq = 0;
-
-function makeW(partial: Partial<Withdrawal> = {}): Withdrawal {
-  seq += 1;
-  return {
-    id: `w-${seq}`,
-    name: `학생${seq}`,
-    school: null,
-    subject: "수학",
-    class_name: null,
-    teacher: null,
-    grade: null,
-    enrollment_start: null,
-    enrollment_end: null,
-    duration_months: null,
-    withdrawal_date: "2026-03-10",
-    class_attitude: null,
-    homework_submission: null,
-    attendance: null,
-    grade_change: null,
-    recent_grade: null,
-    reason_category: null,
-    student_opinion: null,
-    parent_opinion: null,
-    teacher_opinion: null,
-    final_consult_date: null,
-    final_counselor: null,
-    final_consult_summary: null,
-    parent_thanks: false,
-    comeback_possibility: null,
-    expected_comeback_date: null,
-    special_notes: null,
-    raw_text: null,
-    retrospective: null,
-    created_at: "2026-03-10T00:00:00.000Z",
-    updated_at: "2026-03-10T00:00:00.000Z",
-    ...partial,
-  };
-}
-
-function makeMany(count: number, partial: Partial<Withdrawal> = {}): Withdrawal[] {
-  return Array.from({ length: count }, () => makeW(partial));
-}
 
 function runDiagnose(input: Partial<DiagnoseInput> & { filtered: Withdrawal[] }): Diagnosis[] {
   return diagnoseWithdrawals({

@@ -47,6 +47,7 @@ function makeW(partial: Partial<Withdrawal> = {}): Withdrawal {
     expected_comeback_date: null,
     special_notes: null,
     raw_text: null,
+    retrospective: null,
     created_at: "2026-03-10T00:00:00.000Z",
     updated_at: "2026-03-10T00:00:00.000Z",
     ...partial,

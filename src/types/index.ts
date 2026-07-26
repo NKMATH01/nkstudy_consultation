@@ -1,3 +1,5 @@
+import type { WithdrawalRetrospective } from "@/lib/withdrawal-retrospective";
+
 // ==================== Database Types ====================
 
 export interface Profile {
@@ -534,6 +536,7 @@ export interface Withdrawal {
   expected_comeback_date: string | null;
   special_notes: string | null;
   raw_text: string | null;
+  retrospective: WithdrawalRetrospective | null;
   created_at: string;
   updated_at: string;
 }

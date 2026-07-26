@@ -4,6 +4,12 @@ import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getMonthFromDate, isCurrentYearMonth } from "@/lib/withdrawal-analytics";
 import {
+  computeRetrospectiveRate,
+  retrospectiveStatus,
+  type RetrospectiveStatus,
+} from "@/lib/withdrawal-retrospective";
+import { WithdrawalRetrospectiveDialog } from "@/components/withdrawals/withdrawal-retrospective-dialog";
+import {
   Plus,
   Pencil,
   Trash2,
@@ -19,6 +25,7 @@ import {
   RotateCcw,
   X,
   Users,
+  NotebookPen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -87,6 +94,8 @@ function WithdrawalInsightStrip({ withdrawals }: { withdrawals: Withdrawal[] }) 
     return { recent90, prev90, trend, topReason, topTeacher, comebackPromising };
   }, [withdrawals, now]);
 
+  const retroRate = useMemo(() => computeRetrospectiveRate(withdrawals), [withdrawals]);
+
   if (withdrawals.length === 0) return null;
 
   const trendUp = insight.trend != null && insight.trend > 0;
@@ -122,10 +131,17 @@ function WithdrawalInsightStrip({ withdrawals }: { withdrawals: Withdrawal[] }) 
       color: "#0F766E",
       alert: false,
     },
+    {
+      label: "회고 작성률",
+      value: `${retroRate.rate}%`,
+      sub: `${retroRate.completed}건 완료 / 총 ${retroRate.total}건`,
+      color: retroRate.completed < retroRate.total ? "#B45309" : "#0F766E",
+      alert: retroRate.completed < retroRate.total,
+    },
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
       {cards.map((card) => (
         <div
           key={card.label}
@@ -193,6 +209,33 @@ function ReasonBadge({ value }: { value: string | null }) {
   );
 }
 
+/* ─── Retrospective Status Badge ─── */
+const RETRO_BADGE: Record<RetrospectiveStatus, { label: string; cls: string }> = {
+  none: { label: "회고 필요", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
+  draft: { label: "작성 중", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
+  complete: { label: "회고 완료", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+};
+
+function RetrospectiveBadge({
+  status,
+  onClick,
+}: {
+  status: RetrospectiveStatus;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  const badge = RETRO_BADGE[status];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ring-1 ring-inset whitespace-nowrap transition-opacity hover:opacity-80 ${badge.cls}`}
+    >
+      <NotebookPen className="h-2.5 w-2.5" />
+      {badge.label}
+    </button>
+  );
+}
+
 /* ─── Subject Badge ─── */
 function SubjectBadge({ value }: { value: string | null }) {
   if (!value) return <span className="text-xs text-slate-400">-</span>;
@@ -233,6 +276,8 @@ export function WithdrawalList({ withdrawals }: Props) {
   const [filterTeacher, setFilterTeacher] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
   const [activeMonth, setActiveMonth] = useState<number | null>(null);
+  const [onlyMissingRetro, setOnlyMissingRetro] = useState(false);
+  const [retroTarget, setRetroTarget] = useState<Withdrawal | undefined>();
 
   /* ─── Derived data ─── */
   const uniqueReasons = useMemo(() => {
@@ -270,10 +315,13 @@ export function WithdrawalList({ withdrawals }: Props) {
     if (filterReason) result = result.filter((w) => w.reason_category === filterReason);
     if (filterTeacher) result = result.filter((w) => w.teacher === filterTeacher);
     if (filterSubject) result = result.filter((w) => w.subject === filterSubject);
+    if (onlyMissingRetro)
+      result = result.filter((w) => retrospectiveStatus(w.retrospective) !== "complete");
     return result;
-  }, [withdrawals, activeMonth, filterReason, filterTeacher, filterSubject, currentYear]);
+  }, [withdrawals, activeMonth, filterReason, filterTeacher, filterSubject, currentYear, onlyMissingRetro]);
 
-  const hasFilter = filterReason || filterTeacher || filterSubject || activeMonth !== null;
+  const hasFilter =
+    filterReason || filterTeacher || filterSubject || activeMonth !== null || onlyMissingRetro;
 
   /* ─── Subject stats ─── */
   const subjectStats = useMemo(() => {
@@ -308,6 +356,7 @@ export function WithdrawalList({ withdrawals }: Props) {
     setFilterTeacher("");
     setFilterSubject("");
     setActiveMonth(null);
+    setOnlyMissingRetro(false);
   };
 
   const filterSelectCls =
@@ -442,6 +491,18 @@ export function WithdrawalList({ withdrawals }: Props) {
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
+          <button
+            onClick={() => setOnlyMissingRetro((v) => !v)}
+            className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
+              onlyMissingRetro
+                ? "text-white shadow-sm"
+                : "bg-[#F1F5F9] text-slate-500 hover:bg-slate-200"
+            }`}
+            style={onlyMissingRetro ? { background: "var(--primary)" } : undefined}
+          >
+            <NotebookPen className="h-3 w-3" />
+            회고 미작성만
+          </button>
           {hasFilter && (
             <button
               onClick={clearFilters}
@@ -506,7 +567,8 @@ export function WithdrawalList({ withdrawals }: Props) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[140px] flex-shrink-0">퇴원 사유</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[48px] flex-shrink-0">재원</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[60px] flex-shrink-0">복귀 가능</span>
-              <span className="ml-auto w-[60px] flex-shrink-0" />
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[76px] flex-shrink-0">회고</span>
+              <span className="ml-auto w-[90px] flex-shrink-0" />
             </div>
 
             {/* ─── List Rows ─── */}
@@ -535,7 +597,21 @@ export function WithdrawalList({ withdrawals }: Props) {
                     <span className="w-[140px] flex-shrink-0"><ReasonBadge value={w.reason_category} /></span>
                     <span className="text-xs text-slate-400 w-[48px] flex-shrink-0 tabular-nums">{w.duration_months ? `${w.duration_months}개월` : "-"}</span>
                     <span className="w-[60px] flex-shrink-0"><ComebackBadge value={w.comeback_possibility} /></span>
+                    <span className="w-[76px] flex-shrink-0">
+                      <RetrospectiveBadge
+                        status={retrospectiveStatus(w.retrospective)}
+                        onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
+                      />
+                    </span>
                     <div className="ml-auto flex-shrink-0 flex gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-amber-600 hover:bg-amber-50 opacity-0 group-hover:opacity-100 transition-all"
+                        onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
+                      >
+                        <NotebookPen className="h-3.5 w-3.5" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -659,6 +735,71 @@ export function WithdrawalList({ withdrawals }: Props) {
                           </div>
                         </div>
                       </div>
+
+                      {/* Retrospective */}
+                      <div className="border-t border-slate-100 px-5 py-4" style={{ background: "#FAFBFD" }}>
+                        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-lg bg-amber-50 flex items-center justify-center">
+                              <NotebookPen className="h-3.5 w-3.5 text-amber-600" />
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-700">퇴원 회고</h4>
+                            <RetrospectiveBadge
+                              status={retrospectiveStatus(w.retrospective)}
+                              onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
+                            />
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
+                            className="text-xs font-semibold text-[var(--primary)] hover:underline"
+                          >
+                            회고 작성/수정
+                          </button>
+                        </div>
+                        {w.retrospective && retrospectiveStatus(w.retrospective) !== "none" ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {[
+                                { label: "① 첫 징후", value: w.retrospective.first_sign },
+                                { label: "② 시도한 개입", value: w.retrospective.our_attempts },
+                                { label: "③ 다르게 할 것", value: w.retrospective.do_differently },
+                                { label: "④ 시스템 변경", value: w.retrospective.system_change },
+                              ].map((item) => (
+                                <div key={item.label}>
+                                  <p className="text-[11px] text-slate-400 mb-0.5">{item.label}</p>
+                                  <p className="text-sm text-slate-700 leading-relaxed">
+                                    {item.value || <span className="text-slate-300">미작성</span>}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                            {w.retrospective.lesson && (
+                              <div className="rounded-lg px-3 py-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+                                <p className="text-[11px] font-bold text-amber-700 mb-0.5">배움 한 줄</p>
+                                <p className="text-sm text-amber-900">{w.retrospective.lesson}</p>
+                              </div>
+                            )}
+                            {w.retrospective.manager_comment && (
+                              <div>
+                                <p className="text-[11px] text-slate-400 mb-0.5">원장 코멘트</p>
+                                <p className="text-sm text-slate-700 leading-relaxed">{w.retrospective.manager_comment}</p>
+                              </div>
+                            )}
+                            <p className="text-[11px] text-slate-400">
+                              작성자: {w.retrospective.author || "-"}
+                              {w.retrospective.completed_at && (
+                                <span className="ml-2">
+                                  완료일: {w.retrospective.completed_at.slice(0, 10)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">
+                            아직 회고가 작성되지 않았습니다 — 첫 징후와 시스템 개선점을 남겨주세요
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -677,6 +818,15 @@ export function WithdrawalList({ withdrawals }: Props) {
         }}
         withdrawal={editTarget}
       />
+
+      {/* ─── Retrospective Dialog ─── */}
+      {retroTarget && (
+        <WithdrawalRetrospectiveDialog
+          open={!!retroTarget}
+          onOpenChange={(open) => !open && setRetroTarget(undefined)}
+          withdrawal={retroTarget}
+        />
+      )}
 
       {/* ─── Delete Confirmation Dialog ─── */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(undefined)}>

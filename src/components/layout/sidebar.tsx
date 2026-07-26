@@ -42,6 +42,8 @@ const analysisItems = [
 const withdrawalItems = [
   { href: "/withdrawals", label: "퇴원생 현황", icon: UserMinus },
   { href: "/withdrawals/dashboard", label: "퇴원생 분석", icon: BarChart3 },
+  { href: "/withdrawals/review", label: "월간 반성 리포트", icon: BookOpenCheck },
+  { href: "/withdrawals/teachers", label: "강사 러닝 뷰", icon: GraduationCap },
 ];
 
 const studentMgmtItems = [
@@ -205,8 +207,8 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       <aside
         className={
           inSheet
-            ? "flex h-full w-full flex-shrink-0 flex-col border-r"
-            : "hidden h-full w-[246px] flex-shrink-0 flex-col border-r md:flex"
+            ? "flex h-full w-full flex-shrink-0 flex-col border-r print:hidden"
+            : "hidden h-full w-[246px] flex-shrink-0 flex-col border-r md:flex print:hidden"
         }
         style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
       >

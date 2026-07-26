@@ -301,6 +301,7 @@ export async function saveRetrospective(id: string, formData: FormData) {
 
     revalidatePath("/withdrawals");
     revalidatePath("/withdrawals/dashboard");
+    revalidatePath("/withdrawals/review");
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "퇴원 회고 저장 실패";

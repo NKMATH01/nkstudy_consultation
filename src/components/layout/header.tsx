@@ -61,7 +61,7 @@ export function Header({ currentTeacher }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b px-4 md:px-7"
+      className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b px-4 md:px-7 print:hidden"
       style={{
         background: "rgba(255,251,249,0.88)",
         backdropFilter: "blur(18px)",

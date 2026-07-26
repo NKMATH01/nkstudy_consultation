@@ -91,6 +91,8 @@ export const SIDEBAR_MENUS: Record<CategoryId, SidebarMenu[]> = {
       children: [
         { id: "cat3-withdrawals-list", label: "퇴원생 현황", href: "/withdrawals", icon: UserMinus },
         { id: "cat3-withdrawals-dash", label: "퇴원생 분석", href: "/withdrawals/dashboard", icon: BarChart3 },
+        { id: "cat3-withdrawals-review", label: "월간 반성 리포트", href: "/withdrawals/review", icon: BookOpenCheck },
+        { id: "cat3-withdrawals-teachers", label: "강사 러닝 뷰", href: "/withdrawals/teachers", icon: GraduationCap },
       ],
     },
   ],

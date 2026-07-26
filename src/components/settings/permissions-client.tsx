@@ -35,7 +35,12 @@ const MENU_GROUPS = [
     label: "퇴원생",
     color: "#FFF7ED",
     borderColor: "#FED7AA",
-    hrefs: ["/withdrawals", "/withdrawals/dashboard"],
+    hrefs: [
+      "/withdrawals",
+      "/withdrawals/dashboard",
+      "/withdrawals/review",
+      "/withdrawals/teachers",
+    ],
   },
   {
     label: "학생관리",

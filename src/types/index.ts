@@ -212,6 +212,8 @@ export const ALL_MENU_ITEMS = [
   { href: "/progress", label: "진도 현황" },
   { href: "/withdrawals", label: "퇴원생 현황" },
   { href: "/withdrawals/dashboard", label: "퇴원생 분석" },
+  { href: "/withdrawals/review", label: "월간 반성 리포트" },
+  { href: "/withdrawals/teachers", label: "강사 러닝 뷰" },
   { href: "/settings/students", label: "학생 관리" },
   { href: "/settings/classes", label: "반 관리" },
   { href: "/settings/teachers", label: "선생님 관리" },

@@ -87,6 +87,8 @@ export async function adoptPrescriptionAction({
     }
 
     revalidatePath("/withdrawals/dashboard");
+
+    revalidatePath("/withdrawals/review");
     return { success: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : "실행 항목 채택 실패";
@@ -126,6 +128,8 @@ export async function addManualAction(formData: FormData) {
     }
 
     revalidatePath("/withdrawals/dashboard");
+
+    revalidatePath("/withdrawals/review");
     return { success: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : "실행 항목 추가 실패";
@@ -157,6 +161,8 @@ export async function updateActionStatus(
     }
 
     revalidatePath("/withdrawals/dashboard");
+
+    revalidatePath("/withdrawals/review");
     return { success: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : "실행 항목 상태 변경 실패";
@@ -179,6 +185,8 @@ export async function updateActionOwner(id: string, owner: string) {
     }
 
     revalidatePath("/withdrawals/dashboard");
+
+    revalidatePath("/withdrawals/review");
     return { success: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : "담당자 변경 실패";
@@ -198,6 +206,8 @@ export async function deleteAction(id: string) {
     }
 
     revalidatePath("/withdrawals/dashboard");
+
+    revalidatePath("/withdrawals/review");
     return { success: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : "실행 항목 삭제 실패";

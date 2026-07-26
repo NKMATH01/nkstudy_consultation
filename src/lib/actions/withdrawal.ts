@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { withdrawalFormSchema } from "@/lib/validations/withdrawal";
+import { retrospectiveFormSchema, withdrawalFormSchema } from "@/lib/validations/withdrawal";
+import {
+  isRetrospectiveComplete,
+  parseRetrospective,
+  type WithdrawalRetrospective,
+} from "@/lib/withdrawal-retrospective";
 import type { Withdrawal } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -47,6 +52,8 @@ export async function getWithdrawals(): Promise<Withdrawal[]> {
     expected_comeback_date: row.expected_comeback_date ?? null,
     special_notes: row.special_notes ?? null,
     raw_text: row.raw_text ?? null,
+    // retrospective 컬럼이 아직 없는 DB에서도 undefined → null로 안전하게 처리된다.
+    retrospective: parseRetrospective(row.retrospective),
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
   })) as Withdrawal[];
@@ -232,6 +239,72 @@ export async function updateWithdrawal(id: string, formData: FormData) {
     return { success: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "퇴원생 수정 실패";
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * 퇴원 회고 저장. retrospective 컬럼만 갱신하며 다른 퇴원 필드는 건드리지 않는다.
+ * 필수 문항이 모두 채워지면 completed_at을 남기고(기존 값이 있으면 유지), 미완이면 비운다.
+ */
+export async function saveRetrospective(id: string, formData: FormData) {
+  try {
+    const supabase = await createClient();
+
+    const raw: Record<string, unknown> = {};
+    for (const [key, value] of formData.entries()) {
+      raw[key] = typeof value === "string" ? value : undefined;
+    }
+
+    const parsed = retrospectiveFormSchema.safeParse(raw);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0].message };
+    }
+
+    const { data: existingRow, error: fetchError } = await supabase
+      .from("withdrawals")
+      .select("retrospective")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("[퇴원 회고] 기존 회고 조회 실패", { id, message: fetchError.message });
+      return { success: false, error: fetchError.message };
+    }
+
+    const existing = parseRetrospective(existingRow?.retrospective);
+
+    const retrospective: WithdrawalRetrospective = {
+      first_sign: parsed.data.first_sign ?? "",
+      our_attempts: parsed.data.our_attempts ?? "",
+      do_differently: parsed.data.do_differently ?? "",
+      system_change: parsed.data.system_change ?? "",
+      lesson: parsed.data.lesson ?? "",
+      manager_comment: parsed.data.manager_comment ?? "",
+      author: parsed.data.author ?? "",
+      completed_at: null,
+    };
+
+    retrospective.completed_at = isRetrospectiveComplete(retrospective)
+      ? existing?.completed_at ?? new Date().toISOString()
+      : null;
+
+    const { error } = await supabase
+      .from("withdrawals")
+      .update({ retrospective })
+      .eq("id", id);
+
+    if (error) {
+      console.error("[퇴원 회고] 저장 실패", { id, message: error.message });
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/withdrawals");
+    revalidatePath("/withdrawals/dashboard");
+    return { success: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "퇴원 회고 저장 실패";
+    console.error("[퇴원 회고] 저장 예외", { id, message: msg });
     return { success: false, error: msg };
   }
 }

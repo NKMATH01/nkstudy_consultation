@@ -1,5 +1,5 @@
 import type { Analysis, Survey } from "@/types";
-import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
+import { SURVEY_QUESTIONS, FACTOR_LABELS, LOCATIONS, TUITION_TABLE } from "@/types";
 import { env } from "@/lib/env";
 import {
   getV2CoreMetrics,
@@ -121,6 +121,8 @@ export interface RegistrationAdminData {
   testScore: string;
   testNote: string;
   location: string;
+  locationMath2?: string;
+  location2?: string;
   consultDate: string;
   additionalNote: string;
   tuitionFee: number;
@@ -166,6 +168,43 @@ export function normalizeRegistrationReportData(
     instrumentVersion: "v2",
     page1: { ...page1, sixFactorScores: rows },
   };
+}
+
+/** TUITION_TABLE을 프롬프트용 한 줄 문자열로 변환 (연속 동일 금액 학년은 범위로 묶음) */
+function tuitionTableText(): string {
+  const groups: { grades: string[]; fee: number }[] = [];
+  for (const [grade, fee] of Object.entries(TUITION_TABLE)) {
+    const last = groups[groups.length - 1];
+    if (last && last.fee === fee) last.grades.push(grade);
+    else groups.push({ grades: [grade], fee });
+  }
+  return groups
+    .map(({ grades, fee }) => {
+      const label = grades.length > 1 ? `${grades[0]}~${grades[grades.length - 1]}` : grades[0];
+      return `${label}: ${fee / 10000}만원`;
+    })
+    .join(" / ");
+}
+
+const TUITION_DISCOUNT_RULE =
+  "영어수학(2과목) 동시 수강 시 할인: 고1~고3은 3만원 차감, 초6~중3은 5만원 차감 (그 외 학년은 할인 없음).";
+
+/** 과목별 강의실을 프롬프트 행정 정보에 표기 */
+function locationLines(adminData: RegistrationAdminData): string {
+  if (adminData.subject === "영어수학") {
+    return [
+      `- 수학 수업 장소: ${adminData.location || "미정"}`,
+      ...(adminData.locationMath2 ? [`- 수학2 수업 장소: ${adminData.locationMath2}`] : []),
+      `- 영어 수업 장소: ${adminData.location2 || adminData.location || "미정"}`,
+    ].join("\n");
+  }
+  if (adminData.subject === "영어") {
+    return `- 수업 장소: ${adminData.location2 || adminData.location || "미정"}`;
+  }
+  return [
+    `- 수업 장소: ${adminData.location || "미정"}`,
+    ...(adminData.locationMath2 ? [`- 수학2 수업 장소: ${adminData.locationMath2}`] : []),
+  ].join("\n");
 }
 
 // ========== 등록 보고서 프롬프트 ==========
@@ -226,14 +265,15 @@ ${subjectInstruction}
 # NK EDUCATION 학원 정보 (고정값)
 
 1. **수업료**:
-   - 초4~5: 30만원 / 초6~중1: 32만원 / 중2~3: 35만원 / 고1: 38만원 / 고2: 40만원
+   - ${tuitionTableText()}
+   - ${TUITION_DISCOUNT_RULE}
    - (반드시 "교재비 별도" 표기)
 2. **차량비**: 월 ${vehicleFee}
 3. **계좌 정보**: ${bankInfo} (예금주: ${bankOwner})
 4. **환불 규정**: 교육청 교습비 반환 기준 준수 / 2주 이상 미납 시 수업 제한.
 
 [수업 장소]
-1: 자이센터 8층 / 2: 폴리타운B동 4층 / 3: 폴리타운A동 7층
+${LOCATIONS.map((loc) => `- ${loc}`).join("\n")}
 
 [학생 설문 데이터]
 ${surveyText}
@@ -260,7 +300,7 @@ ${surveyText}
 - 차량 이용: ${adminData.useVehicle || "미사용"}
 - 테스트 점수: ${adminData.testScore || "미입력"}
 - 테스트 특이사항: ${adminData.testNote || "없음"}
-- 수업 장소: ${adminData.location || "미정"}
+${locationLines(adminData)}
 - 학부모 상담 예정일: ${adminData.consultDate || "미정"}
 - 추가 조치사항: ${adminData.additionalNote || "없음"}
 - 수업료: ${adminData.tuitionFee.toLocaleString()}원
@@ -298,13 +338,7 @@ ${surveyText}
       {"number": "03", "title": "등록 과목에 맞는 포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"},
       {"number": "04", "title": "등록 과목에 맞는 포인트 제목", "description": "상세 설명 (2~3문장, 80자 내외)"}
     ],
-    "parentMessage": "학부모님께 드리는 당부 (3~4문장, 가정 학습 지원 + 학원 소통 안내, 120자 내외)",
-    "academyRules": [
-      "출결/지각 관련 규칙 (1문장)",
-      "숙제/과제 제출 규칙 (1문장)",
-      "시험/평가 관련 안내 (1문장)",
-      "상담/면담 안내 (1문장)"
-    ]
+    "parentMessage": "학부모님께 드리는 당부 (3~4문장, 가정 학습 지원 + 학원 소통 안내, 120자 내외)"
   }
 }`;
 }
@@ -326,9 +360,13 @@ function buildRegistrationPromptV2(
     : adminData.subject === "영어"
       ? "영어 학습만 다루고 수학 내용은 넣지 마세요."
       : "수학 학습만 다루고 영어 내용은 넣지 마세요.";
+  const mathClassParts = [
+    `${adminData.assignedClass}(${adminData.teacher}T)`,
+    ...(adminData.assignedClassMath2 ? [`${adminData.assignedClassMath2}(${adminData.teacherMath2 || "미정"}T)`] : []),
+  ];
   const classInfo = adminData.subject === "영어수학"
-    ? `수학 ${adminData.assignedClass}(${adminData.teacher}T) / 영어 ${adminData.assignedClass2 || "미정"}(${adminData.teacher2 || "미정"}T)`
-    : `${adminData.assignedClass}(${adminData.teacher}T)`;
+    ? `수학 ${mathClassParts.join(", ")} / 영어 ${adminData.assignedClass2 || "미정"}(${adminData.teacher2 || "미정"}T)`
+    : mathClassParts.join(", ");
 
   return `# 역할
 당신은 NK EDUCATION의 신입생 인수인계·등록 안내문 작성자입니다.
@@ -368,10 +406,16 @@ ${surveyText}
 - 차량 이용: ${adminData.useVehicle || "미사용"}
 - 테스트 점수: ${adminData.testScore || "미입력"}
 - 테스트 특이사항: ${adminData.testNote || "없음"}
-- 수업 장소: ${adminData.location || "미정"}
+${locationLines(adminData)}
 - 학부모 상담 예정일: ${adminData.consultDate || "미정"}
 - 추가 조치사항: ${adminData.additionalNote || "없음"}
 - 수업료: ${adminData.tuitionFee.toLocaleString()}원 (교재비 별도)
+
+# NK EDUCATION 고정 정보
+- 학년별 수업료: ${tuitionTableText()}
+- ${TUITION_DISCOUNT_RULE}
+- 수업 장소 목록:
+${LOCATIONS.map((loc) => `  - ${loc}`).join("\n")}
 
 # 출력 형식
 아래 JSON 구조만 반환하세요. sixFactorScores라는 키 이름은 기존 템플릿 호환용일 뿐이며 내용은 반드시 위 V2 0~100 핵심 점수 6개입니다.
@@ -401,8 +445,7 @@ ${surveyText}
       {"number": "03", "title": "핵심 포인트", "description": "구체 설명"},
       {"number": "04", "title": "핵심 포인트", "description": "구체 설명"}
     ],
-    "parentMessage": "가정 지원과 학원 소통 안내 3~4문장",
-    "academyRules": ["출결 규칙", "과제 규칙", "평가 안내", "상담 안내"]
+    "parentMessage": "가정 지원과 학원 소통 안내 3~4문장"
   }
 }`;
 }
@@ -428,6 +471,8 @@ export interface ReportTemplateData {
   preferredDays: string;
   useVehicle: string;
   location: string;
+  locationMath2?: string;
+  location2?: string;
   tuitionFee: number;
   // AI 생성 데이터
   page1: {
@@ -492,7 +537,7 @@ export function buildReportHTML(data: ReportTemplateData): string {
   const feeBreakdown = data.useVehicle !== "미사용"
     ? `수업료 ${formatFee(data.tuitionFee)}원 + 차량비 ${vehicleFeeLabel} (교재비 별도)`
     : "(교재비 별도)";
-  const vehicleDisplay = data.useVehicle === "미사용" ? "미이용" : "이용 (O)";
+  const vehicleDisplay = data.useVehicle === "미사용" || !data.useVehicle ? "미이용" : data.useVehicle;
   const regDateFormatted = data.registrationDate.replace(/-/g, ".");
   const payDay = data.registrationDate.split("-").pop() || "";
 
@@ -509,26 +554,36 @@ export function buildReportHTML(data: ReportTemplateData): string {
     return `${days || fallbackDays || ""} ${time}`;
   }
 
+  // 강의실 표시 항목 HTML
+  function locationRow(loc?: string): string {
+    if (!loc) return "";
+    return `<div class="schedule-item"><span class="schedule-subj">강의실</span><span class="schedule-time">${loc}</span></div>`;
+  }
+
   // 수학 스케줄 카드 한 블록 생성
-  function mathScheduleCard(label: string, cls: string, tch: string, days?: string, time?: string, clinic?: string, tDays?: string, tTime?: string): string {
-    return `<div class="info-group"><div class="info-header"><div class="info-label">${label}</div><div class="info-value">${cls} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${tch}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(days, time, data.preferredDays)}</span></div>${clinic ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(days, clinic, data.preferredDays)}</span></div>` : ""}${testRow(tDays, tTime)}</div></div>`;
+  function mathScheduleCard(label: string, cls: string, tch: string, days?: string, time?: string, clinic?: string, tDays?: string, tTime?: string, loc?: string): string {
+    return `<div class="info-group"><div class="info-header"><div class="info-label">${label}</div><div class="info-value">${cls} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${tch}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(days, time, data.preferredDays)}</span></div>${clinic ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(days, clinic, data.preferredDays)}</span></div>` : ""}${testRow(tDays, tTime)}${locationRow(loc)}</div></div>`;
   }
 
   // 스케줄 카드 HTML
+  const mathLocation = data.location;
+  const math2Location = data.locationMath2 || data.location;
+  const engLocation = data.location2 || data.location;
+
   function buildScheduleCards(): string {
     const hasMath2 = !!data.assignedClassMath2;
     const math1Label = hasMath2 ? "배정 반 / 스케줄 (수학 1)" : "배정 반 / 스케줄 (수학)";
     const math2Block = hasMath2
-      ? `<div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)">${mathScheduleCard("배정 반 / 스케줄 (수학 2)", data.assignedClassMath2!, data.teacherMath2 || "", data.classDaysMath2, data.classTimeMath2, data.clinicTimeMath2, data.testDaysMath2, data.testTimeMath2)}</div>`
+      ? `<div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)">${mathScheduleCard("배정 반 / 스케줄 (수학 2)", data.assignedClassMath2!, data.teacherMath2 || "", data.classDaysMath2, data.classTimeMath2, data.clinicTimeMath2, data.testDaysMath2, data.testTimeMath2, math2Location)}</div>`
       : "";
 
     if (data.subject === "영어수학") {
-      return `${mathScheduleCard(math1Label, data.assignedClass, data.teacher, data.classDays, data.classTime, data.clinicTime, data.testDays, data.testTime)}${math2Block}<div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || ""} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || ""}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays2, data.classTime2, data.preferredDays)}</span></div>${data.clinicTime2 ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays2, data.clinicTime2, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays2, data.testTime2)}</div></div>`;
+      return `${mathScheduleCard(math1Label, data.assignedClass, data.teacher, data.classDays, data.classTime, data.clinicTime, data.testDays, data.testTime, mathLocation)}${math2Block}<div class="info-group" style="margin-top:32px;padding-top:32px;border-top:1px dashed var(--border-light)"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || ""} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || ""}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays2, data.classTime2, data.preferredDays)}</span></div>${data.clinicTime2 ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays2, data.clinicTime2, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays2, data.testTime2)}${locationRow(engLocation)}</div></div>`;
     }
     if (data.subject === "영어") {
-      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays2 || data.classDays, data.classTime2 || data.classTime, data.preferredDays)}</span></div>${(data.clinicTime2 || data.clinicTime) ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays2 || data.classDays, data.clinicTime2 || data.clinicTime, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays2 || data.testDays, data.testTime2 || data.testTime)}</div></div>`;
+      return `<div class="info-group"><div class="info-header"><div class="info-label">배정 반 / 스케줄 (영어)</div><div class="info-value">${data.assignedClass2 || data.assignedClass} <span style="font-size:14px;color:var(--text-sub);font-weight:500">(${data.teacher2 || data.teacher}T)</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">정규 수업</span><span class="schedule-time">${scheduleTime(data.classDays2 || data.classDays, data.classTime2 || data.classTime, data.preferredDays)}</span></div>${(data.clinicTime2 || data.clinicTime) ? `<div class="schedule-item"><span class="schedule-subj">클리닉</span><span class="schedule-time">${scheduleTime(data.classDays2 || data.classDays, data.clinicTime2 || data.clinicTime, data.preferredDays)}</span></div>` : ""}${testRow(data.testDays2 || data.testDays, data.testTime2 || data.testTime)}${locationRow(engLocation)}</div></div>`;
     }
-    return `${mathScheduleCard(math1Label, data.assignedClass, data.teacher, data.classDays, data.classTime, data.clinicTime, data.testDays, data.testTime)}${math2Block}`;
+    return `${mathScheduleCard(math1Label, data.assignedClass, data.teacher, data.classDays, data.classTime, data.clinicTime, data.testDays, data.testTime, mathLocation)}${math2Block}`;
   }
 
   // V1은 1~5, V2는 최신 결과지와 동일한 0~100 밴드로 표시한다.
@@ -578,6 +633,11 @@ export function buildReportHTML(data: ReportTemplateData): string {
 
   // 매니지먼트 가이드 HTML
   const guideHTML = page1.managementGuide.map((item, idx) => `<div class="num-item"><div class="num-badge">${idx + 1}</div><div class="num-content"><h3>${item.title}</h3><p>${item.description}</p></div></div>`).join("");
+
+  // 과목별 강의실이 갈릴 때만 노출하는 주의 배지
+  const splitLocationBadge = data.subject === "영어수학" && data.location2 && data.location2 !== data.location
+    ? `<div style="margin-top:12px;padding:8px 12px;border-radius:8px;background:rgba(184,144,91,.15);border:1px solid rgba(184,144,91,.3);font-size:12px;font-weight:600;color:#F4EFE6">과목별 강의실이 다르니 확인해 주세요</div>`
+    : "";
 
   // 체크리스트 HTML — 사용자가 체크한 항목만 표시
   const checklistItems = data.checklistItems || [];
@@ -673,7 +733,7 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
     <div class="profile-card">
       <div class="profile-top"><div class="profile-name">${data.name} 학생</div><div class="profile-badge">${data.school} ${data.grade}</div></div>
       <div class="profile-bottom"><div class="profile-meta"><span class="meta-label">학생 연락처</span><span class="meta-value">${data.studentPhone || "-"}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">학부모 연락처</span><span class="meta-value">${data.parentPhone || "-"}</span></div></div>
-      <div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>${(data.testScore || data.schoolScore) ? `<div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)">${data.testScore ? `<div class="profile-meta"><span class="meta-label">테스트 점수</span><span class="meta-value">${data.testScore}</span></div>` : ""}${data.schoolScore ? `<div class="profile-meta"${data.testScore ? ' style="text-align:right"' : ""}><span class="meta-label">내신 점수</span><span class="meta-value">${data.schoolScore}</span></div>` : ""}</div>` : ""}
+      <div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>${(data.testScore || data.schoolScore) ? `<div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)">${data.testScore ? `<div class="profile-meta"><span class="meta-label">테스트 점수</span><span class="meta-value">${data.testScore}</span></div>` : ""}${data.schoolScore ? `<div class="profile-meta"${data.testScore ? ' style="text-align:right"' : ""}><span class="meta-label">내신 점수</span><span class="meta-value">${data.schoolScore}</span></div>` : ""}</div>` : ""}${splitLocationBadge}
     </div>
   </header>
   <nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a><a href="#management">관리 전략</a></div></nav>

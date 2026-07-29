@@ -188,6 +188,8 @@ export async function generateRegistration(
     test_note?: string;
     school_score?: string;
     location?: string;
+    location_math2?: string;
+    location_2?: string;
     consult_date?: string;
     additional_note?: string;
     checklist_items?: string;
@@ -341,6 +343,8 @@ export async function generateRegistration(
     testScore: adminFormData.test_score || "",
     testNote: adminFormData.test_note || "",
     location: adminFormData.location || "",
+    locationMath2: adminFormData.location_math2 || undefined,
+    location2: adminFormData.location_2 || undefined,
     consultDate: adminFormData.consult_date || "",
     additionalNote: adminFormData.additional_note || "",
     tuitionFee,
@@ -380,6 +384,8 @@ export async function generateRegistration(
     preferredDays: adminFormData.preferred_days,
     useVehicle: adminFormData.use_vehicle || "미사용",
     location: adminFormData.location || "",
+    locationMath2: adminFormData.location_math2 || undefined,
+    location2: adminFormData.location_2 || undefined,
     tuitionFee,
     page1: {
       docNo: page1Data.docNo || "",
@@ -463,6 +469,8 @@ export async function generateRegistration(
     test_score: adminFormData.test_score || null,
     test_note: adminFormData.test_note || null,
     location: adminFormData.location || null,
+    location_math2: adminFormData.location_math2 || null,
+    location_2: adminFormData.location_2 || null,
     consult_date: adminFormData.consult_date || null,
     school_score: adminFormData.school_score || null,
     additional_note: adminFormData.additional_note || null,
@@ -694,6 +702,8 @@ export async function regenerateRegistration(id: string) {
     testScore: registration.test_score || "",
     testNote: registration.test_note || "",
     location: registration.location || "",
+    locationMath2: registration.location_math2 || undefined,
+    location2: registration.location_2 || undefined,
     consultDate: registration.consult_date || "",
     additionalNote: registration.additional_note || "",
     tuitionFee: registration.tuition_fee || 0,
@@ -733,6 +743,8 @@ export async function regenerateRegistration(id: string) {
     preferredDays: registration.preferred_days || "",
     useVehicle: registration.use_vehicle || "미사용",
     location: registration.location || "",
+    locationMath2: registration.location_math2 || undefined,
+    location2: registration.location_2 || undefined,
     tuitionFee: registration.tuition_fee || 0,
     page1: {
       docNo: page1Data.docNo || "",
@@ -822,6 +834,9 @@ export async function updateRegistrationFields(
     teacher_2?: string;
     teacher_math2?: string;
     subject?: string;
+    location?: string;
+    location_math2?: string;
+    location_2?: string;
     tuition_fee?: number;
   }
 ) {
@@ -850,6 +865,9 @@ export async function updateRegistrationFields(
   if (fields.teacher_2 !== undefined) updateData.teacher_2 = fields.teacher_2 || null;
   if (fields.teacher_math2 !== undefined) updateData.teacher_math2 = fields.teacher_math2 || null;
   if (fields.subject !== undefined) updateData.subject = fields.subject || null;
+  if (fields.location !== undefined) updateData.location = fields.location || null;
+  if (fields.location_math2 !== undefined) updateData.location_math2 = fields.location_math2 || null;
+  if (fields.location_2 !== undefined) updateData.location_2 = fields.location_2 || null;
   if (fields.tuition_fee !== undefined) updateData.tuition_fee = fields.tuition_fee;
 
   if (Object.keys(updateData).length === 0) {
@@ -974,7 +992,9 @@ export async function updateRegistrationFields(
     subject: mergedSubject || "",
     preferredDays: registration.preferred_days || "",
     useVehicle: registration.use_vehicle || "미사용",
-    location: registration.location || "",
+    location: (merged.location as string) || "",
+    locationMath2: (merged.location_math2 as string) || undefined,
+    location2: (merged.location_2 as string) || undefined,
     tuitionFee: (merged.tuition_fee as number) || 0,
     page1: {
       docNo: page1Data.docNo || "",

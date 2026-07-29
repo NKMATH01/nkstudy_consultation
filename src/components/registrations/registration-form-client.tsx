@@ -302,6 +302,8 @@ export function RegistrationForm({
       test_note: "",
       school_score: consultationData?.school_score || "",
       location: "",
+      location_math2: "",
+      location_2: "",
       consult_date: consultationData?.consult_date || "",
       additional_note: consultNotes,
       checklist_items: DEFAULT_CHECKLIST.filter((i) => i.checked).map((i) => i.text).join("\n"),
@@ -465,6 +467,7 @@ export function RegistrationForm({
       if (sch.testDays) form.setValue("math2_test_days", sch.testDays);
       if (sch.testTime) form.setValue("math2_test_time", sch.testTime);
       updatePreferredDays(form.getValues("math_class_days") || "", form.getValues("eng_class_days") || "", sch.allDays || form.getValues("math2_class_days") || "");
+      if (selectedClass.location) form.setValue("location_math2", selectedClass.location);
     }
   };
 
@@ -487,6 +490,7 @@ export function RegistrationForm({
       if (sch.testDays) form.setValue("eng_test_days", sch.testDays);
       if (sch.testTime) form.setValue("eng_test_time", sch.testTime);
       updatePreferredDays(form.getValues("math_class_days") || "", sch.allDays || form.getValues("eng_class_days") || "", form.getValues("math2_class_days") || "");
+      if (selectedClass.location) form.setValue("location_2", selectedClass.location);
     }
   };
 
@@ -1121,24 +1125,66 @@ export function RegistrationForm({
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>수업 장소</FormLabel>
-                      <select
-                        value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        className={sel}
-                      >
-                        <option value="">장소 선택</option>
-                        {LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
-                      </select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {hasMath && (
+                  <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{showMath2 ? "수학1 수업 장소" : "수학 수업 장소"}</FormLabel>
+                        <select
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={sel}
+                        >
+                          <option value="">장소 선택</option>
+                          {LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                        </select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                {showMath2 && (
+                  <FormField
+                    control={form.control}
+                    name="location_math2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>수학2 수업 장소</FormLabel>
+                        <select
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={sel}
+                        >
+                          <option value="">장소 선택</option>
+                          {LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                        </select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                {hasEnglish && (
+                  <FormField
+                    control={form.control}
+                    name="location_2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>영어 수업 장소</FormLabel>
+                        <select
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={sel}
+                        >
+                          <option value="">장소 선택</option>
+                          {LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                        </select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
             </div>
 

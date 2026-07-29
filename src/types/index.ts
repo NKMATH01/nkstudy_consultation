@@ -409,6 +409,8 @@ export interface Registration {
   test_note: string | null;
   school_score: string | null;
   location: string | null;
+  location_math2: string | null;
+  location_2: string | null;
   consult_date: string | null;
   additional_note: string | null;
   tuition_fee: number | null;

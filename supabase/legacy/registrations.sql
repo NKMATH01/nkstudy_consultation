@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS registrations (
   test_score TEXT,
   test_note TEXT,
   location TEXT,
+  location_math2 TEXT,
+  location_2 TEXT,
   consult_date TEXT,
   additional_note TEXT,
   tuition_fee INTEGER,
@@ -35,6 +37,8 @@ ALTER TABLE registrations ADD COLUMN IF NOT EXISTS teacher_2 TEXT;
 ALTER TABLE registrations ADD COLUMN IF NOT EXISTS school_score TEXT;
 ALTER TABLE registrations ADD COLUMN IF NOT EXISTS assigned_class_math2 TEXT;
 ALTER TABLE registrations ADD COLUMN IF NOT EXISTS teacher_math2 TEXT;
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS location_math2 TEXT;
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS location_2 TEXT;
 
 -- 인덱스
 CREATE INDEX IF NOT EXISTS idx_registrations_analysis_id ON registrations(analysis_id);

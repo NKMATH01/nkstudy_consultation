@@ -34,6 +34,8 @@ export const registrationAdminSchema = z.object({
   test_note: z.string().optional(),
   school_score: z.string().optional(),
   location: z.string().optional(),
+  location_math2: z.string().optional(),
+  location_2: z.string().optional(),
   consult_date: z.string().optional(),
   additional_note: z.string().optional(),
   // UI/프롬프트 전용: checklist 항목은 report_html/report_data 생성에만 사용.

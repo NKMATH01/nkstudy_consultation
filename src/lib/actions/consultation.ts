@@ -839,6 +839,9 @@ export async function updateRegistrationInfo(
     plan_date?: string;
     plan_class?: string;
     reserve_deposit?: boolean;
+    // 설문 화면에서 넘어온 분석 ID. 아직 링크가 없는 상담에만 스탬프해
+    // 두 화면이 같은 상담 행을 보도록 연결을 영구화한다.
+    analysisId?: string;
   }
 ) {
   try {
@@ -864,6 +867,24 @@ export async function updateRegistrationInfo(
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    // analysis_id가 비어 있을 때만 채운다. 이미 다른 분석이 연결돼 있으면
+    // 덮어쓰지 않고 그대로 둔다(오류 아님) — stampConsultationAnalysis와 같은 규칙.
+    if (data.analysisId) {
+      const { error: stampError } = await supabase
+        .from("consultations")
+        .update({ analysis_id: data.analysisId })
+        .eq("id", consultationId)
+        .is("analysis_id", null);
+
+      if (stampError) {
+        console.error("[Consultation] 분석 링크 스탬프 실패:", {
+          consultationId,
+          analysisId: data.analysisId,
+          error: stampError.message,
+        });
+      }
     }
 
     revalidatePath("/consultations");

@@ -276,6 +276,26 @@ export function getItemsForSubject(selection: SubjectSelection): AssessmentItem[
   return [...COMMON_ITEMS, ...subject];
 }
 
+/**
+ * 과목 변경 시 새 과목 범위 밖의 응답 키를 걸러낸다.
+ * 남기지 않으면 제출 검증이 통과하지 못해 과목을 되돌릴 때까지 진행이 막힌다.
+ */
+export function pruneToSubjectScope<T>(
+  values: Record<string, T>,
+  selection: SubjectSelection,
+): { kept: Record<string, T>; removed: string[] } {
+  const allowed = new Set(getItemsForSubject(selection).map((item) => item.id));
+  const kept: Record<string, T> = {};
+  const removed: string[] = [];
+
+  for (const [key, value] of Object.entries(values)) {
+    if (allowed.has(key)) kept[key] = value;
+    else removed.push(key);
+  }
+
+  return { kept, removed };
+}
+
 export function isLikert(item: AssessmentItem): item is LikertItem {
   return item.kind === "likert";
 }

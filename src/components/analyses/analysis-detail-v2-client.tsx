@@ -143,6 +143,15 @@ export function AnalysisDetailV2Client({
         </Button>
       </div>
 
+      {profile.source === "fallback" && (
+        <div
+          className="rptv2-noprint mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800"
+          role="status"
+        >
+          AI 분석 실패 — 규칙 기반 요약입니다. 재분석을 권장합니다.
+        </div>
+      )}
+
       <AnalysisReportV2Client
         profile={profile}
         header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}

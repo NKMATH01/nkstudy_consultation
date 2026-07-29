@@ -19,7 +19,7 @@ import {
   isNum,
   pct,
 } from "./report-theme";
-import { CoachingCoordinate, CoreSignalsRadar } from "./report-ui";
+import { CoachingCoordinate, CoreSignalsRadar, ScoreRow } from "./report-ui";
 
 type CoachingLite = {
   coachingType: string;
@@ -44,26 +44,33 @@ function numText(s: Score): string {
 function w(s: Score): string {
   return `${pct(s)}%`;
 }
-function caution(s: Score, threshold = 50, reverse = false): boolean {
+/** 낮을수록 위험한 축에서 주의 표시가 필요한지 판정한다. */
+function cautionWhenLow(s: Score, threshold = 50): boolean {
   if (!isNum(s)) return false;
-  return reverse ? s >= 60 : s < threshold;
+  return s < threshold;
+}
+
+/** 높을수록 위험한 축(회피·방해 등)에서 주의 표시가 필요한지 판정한다. */
+function cautionWhenHigh(s: Score, threshold = 60): boolean {
+  if (!isNum(s)) return false;
+  return s >= threshold;
 }
 
 // ── 핵심 신호 카드 6개 ──────────────────────────────────────────────────────
 export function ProfileSignals({ common }: { common: CommonScores }) {
-  const cards: { key: keyof CommonScores; state: string; risk?: boolean }[] = [
+  const cards: { key: keyof CommonScores; state: string; lowIsRisk?: boolean }[] = [
     { key: "learningAttitude", state: "수업 신호" },
     { key: "homeworkReliability", state: "숙제 신호" },
-    { key: "phoneBoundary", state: "생활 습관", risk: true },
+    { key: "phoneBoundary", state: "생활 습관", lowIsRisk: true },
     { key: "longTermPersistence", state: "목표 유지" },
-    { key: "shortTermRecovery", state: "회복", risk: true },
+    { key: "shortTermRecovery", state: "회복", lowIsRisk: true },
     { key: "peerLearningResource", state: "친구 관계" },
   ];
   return (
     <div className="profile-signals" aria-label="핵심 학습 신호">
       {cards.map((c) => {
         const s = common[c.key];
-        const isCaution = c.risk ? caution(s, 50) : caution(s, 45);
+        const isCaution = c.lowIsRisk ? cautionWhenLow(s, 50) : cautionWhenLow(s, 45);
         return (
           <article key={c.key} className={isCaution ? "is-caution" : undefined}>
             <span>{CONSTRUCT_LABEL[c.key]}</span>
@@ -128,11 +135,11 @@ export function AnalysisVisualGrid({
 }
 
 // ── 공용 막대 세트(라벨 + 막대 + 점수 + 한 줄 풀이) ─────────────────────────
-function Bars({ rows }: { rows: { label: string; score: Score; gloss?: string; risk?: boolean }[] }) {
+function Bars({ rows }: { rows: { label: string; score: Score; gloss?: string; lowIsRisk?: boolean }[] }) {
   return (
     <div className="bullet-bars">
       {rows.map((r) => (
-        <div key={r.label} className={r.risk && caution(r.score, 50) ? "is-caution" : undefined}>
+        <div key={r.label} className={r.lowIsRisk && cautionWhenLow(r.score, 50) ? "is-caution" : undefined}>
           <span>{r.label}</span>
           <i>
             <b style={{ width: w(r.score) }} />
@@ -191,7 +198,7 @@ export function LearningPanels({ common }: { common: CommonScores }) {
               label: CONSTRUCT_LABEL.shortTermRecovery,
               score: common.shortTermRecovery,
               gloss: CONSTRUCT_GLOSS.shortTermRecovery,
-              risk: true,
+              lowIsRisk: true,
             },
           ]}
         />
@@ -235,7 +242,7 @@ export function WillCoachingGrid({
               label: CONSTRUCT_LABEL.shortTermRecovery,
               score: sr,
               gloss: CONSTRUCT_GLOSS.shortTermRecovery,
-              risk: true,
+              lowIsRisk: true,
             },
           ]}
         />
@@ -308,7 +315,7 @@ export function PhoneFeature({ common }: { common: CommonScores }) {
       </div>
       <div className="phone-analysis">
         <div className="phone-bars">
-          <div className={caution(s, 50) ? "is-caution" : undefined}>
+          <div className={cautionWhenLow(s, 50) ? "is-caution" : undefined}>
             <span>{CONSTRUCT_LABEL.phoneBoundary}</span>
             <i>
               <b style={{ width: w(s) }} />
@@ -406,7 +413,7 @@ export function PersonalityRelationGrid({
             <strong>{numText(common.peerLearningResource)}</strong>
             <p>{CONSTRUCT_GLOSS.peerLearningResource}</p>
           </div>
-          <div className={caution(common.peerFocusBoundary, 0, true) ? "is-caution" : undefined}>
+          <div className={cautionWhenHigh(common.peerFocusBoundary) ? "is-caution" : undefined}>
             <span>{CONSTRUCT_LABEL.peerFocusBoundary}</span>
             <strong>{numText(common.peerFocusBoundary)}</strong>
             <p>{CONSTRUCT_GLOSS.peerFocusBoundary}</p>
@@ -515,11 +522,11 @@ export function SubjectStrategy({
             <p>{mathStrategy ?? "개념을 자기 말로 설명하고, 틀린 이유를 개념·계산·조건으로 나눠 봐요."}</p>
           </div>
           <div className="subject-v2-details">
-            <div className="subject-v2-metrics">
+            <div className="subject-v2-scorerows">
               <SubjectMetric label="학습전략" score={math.mathStrategy} />
               <SubjectMetric label="자기효능감" score={math.mathSelfEfficacy} />
-              <SubjectMetric label="낯선 유형 회피" score={math.mathNoveltyAvoidance} risk />
-              <SubjectMetric label="시험 긴장 방해" score={math.mathTestInterference} risk />
+              <SubjectMetric label="낯선 유형 회피" score={math.mathNoveltyAvoidance} highIsRisk />
+              <SubjectMetric label="시험 긴장 방해" score={math.mathTestInterference} highIsRisk />
             </div>
           </div>
         </div>
@@ -536,11 +543,11 @@ export function SubjectStrategy({
             <p>{englishStrategy ?? "단어를 꾸준히 복습하고, 문장 구조와 근거를 표시하며 규칙을 예문에 적용해요."}</p>
           </div>
           <div className="subject-v2-details">
-            <div className="subject-v2-metrics">
+            <div className="subject-v2-scorerows">
               <SubjectMetric label="학습전략" score={english.englishStrategy} />
               <SubjectMetric label="자기효능감" score={english.englishSelfEfficacy} />
-              <SubjectMetric label="긴 지문 회피" score={english.englishReadingAvoidance} risk />
-              <SubjectMetric label="시험 긴장 방해" score={english.englishTestInterference} risk />
+              <SubjectMetric label="긴 지문 회피" score={english.englishReadingAvoidance} highIsRisk />
+              <SubjectMetric label="시험 긴장 방해" score={english.englishTestInterference} highIsRisk />
             </div>
           </div>
         </div>
@@ -549,16 +556,23 @@ export function SubjectStrategy({
   );
 }
 
-function SubjectMetric({ label, score, risk }: { label: string; score: Score; risk?: boolean }) {
+/** 과목 지표 한 줄. 위험축(highIsRisk)은 ScoreRow의 반전 모드로 색·라벨·막대를 뒤집는다. */
+function SubjectMetric({
+  label,
+  score,
+  highIsRisk,
+}: {
+  label: string;
+  score: Score;
+  highIsRisk?: boolean;
+}) {
   return (
-    <div className={risk && caution(score, 0, true) ? "is-caution" : undefined}>
-      <span>{label}</span>
-      <strong>{numText(score)}</strong>
-      <i>
-        <b style={{ width: w(score) }} />
-      </i>
-      <p>{risk ? "높을수록 살펴볼 부분" : "높을수록 안정적"}</p>
-    </div>
+    <ScoreRow
+      label={label}
+      score={score}
+      reverse={highIsRisk}
+      note={highIsRisk ? "높을수록 살펴볼 부분" : "높을수록 안정적"}
+    />
   );
 }
 

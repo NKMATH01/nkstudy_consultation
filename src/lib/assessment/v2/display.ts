@@ -101,6 +101,8 @@ export interface SurveyManagementFactorScore {
   value: number | null;
   scale: 5 | 100;
   sourceLabel: string;
+  /** true면 점수가 높을수록 손이 더 가는 지표라 색 규칙을 반전해야 한다. */
+  highIsRisk: boolean;
 }
 
 export interface SurveyManagementScoreSource extends SurveyV2Source {
@@ -155,6 +157,9 @@ const MANAGEMENT_FACTOR_CONFIG = [
     legacyField: "factor_management",
     v2Field: "structureNeed",
     v2SourceLabel: "구조·관리 필요",
+    // V2 structureNeed는 "관리가 얼마나 필요한가"라서 높을수록 부담이 크다.
+    // V1 factor_management(관리 선호도)는 반대 방향이므로 V2에서만 반전한다.
+    v2HighIsRisk: true,
   },
 ] as const;
 
@@ -412,8 +417,9 @@ export function getSurveyManagementFactorScores(
       key: factor.key,
       label: factor.label,
       value: numericScore(common[factor.v2Field]),
-      scale: 100,
+      scale: 100 as const,
       sourceLabel: factor.v2SourceLabel,
+      highIsRisk: "v2HighIsRisk" in factor && factor.v2HighIsRisk === true,
     }));
   }
 
@@ -421,8 +427,9 @@ export function getSurveyManagementFactorScores(
     key: factor.key,
     label: factor.label,
     value: numericScore(survey[factor.legacyField]),
-    scale: 5,
+    scale: 5 as const,
     sourceLabel: factor.label,
+    highIsRisk: false,
   }));
 }
 

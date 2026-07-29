@@ -9,6 +9,7 @@ import type {
   SubjectSelection,
   SituationEvidence,
 } from "./types";
+import { escapeHtml } from "@/lib/html-escape";
 
 /** 서술형 redaction 후 최대 길이(문자). 과도한 원문 전송을 막는다. */
 export const MAX_NARRATIVE_LENGTH = 300;
@@ -249,15 +250,6 @@ export function buildAiSafeInput(params: {
 }
 
 // ── 프롬프트 빌더 ────────────────────────────────────────────────────
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 /** 신뢰불가 서술을 구분자로 감싸고 HTML escape한다(prompt injection 방어). */
 function wrapUntrusted(label: string, value: string): string {

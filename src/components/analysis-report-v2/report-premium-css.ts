@@ -441,6 +441,9 @@ export const REPORT_PREMIUM_CSS = `
 .subject-v2-metrics i b { display: block; height: 100%; background: var(--teal); border-radius: 999px; }
 .subject-v2-metrics .is-caution i b { background: var(--coral); }
 .subject-v2-metrics p { grid-column: 1 / -1; margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+/* 과목 지표는 ScoreRow(위험축 반전 렌더)를 쓴다. ScoreRow가 인라인 스타일을 직접 들고 있어
+   자손 선택자 없이 배치만 잡는다. */
+.subject-v2-scorerows { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px 18px; }
 
 /* ── 강점·개선(넘버 리스트) + 간극 + 로드맵 + 최종(밝은) ───── */
 .legacy-list-panel ol { margin: 16px 0 0; padding: 0; list-style: none; }
@@ -520,7 +523,7 @@ export const REPORT_PREMIUM_CSS = `
   .fit-feature-list article, .gap-rows article { grid-template-columns: 1fr; gap: 12px; }
   .mbti-adjustment-panel dl { grid-template-columns: 1fr; }
   .mbti-adjustment-panel dl > div { border-right: 0; }
-  .subject-v2-metrics, .relation-signals { grid-template-columns: 1fr; }
+  .subject-v2-metrics, .subject-v2-scorerows, .relation-signals { grid-template-columns: 1fr; }
   .roadmap-line { grid-template-columns: 1fr; }
   .roadmap-line article { border-right: 0; border-bottom: 1px solid var(--line); }
   .roadmap-line article:last-child { border-bottom: 0; }

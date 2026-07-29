@@ -77,16 +77,18 @@ function formatPhone(phone: string | null): string {
 function FactorScore({ score }: { score: SurveyManagementFactorScore }) {
   if (score.value == null) return <span className="text-[10px] text-slate-200">-</span>;
   const normalized = score.scale === 100 ? score.value / 20 : score.value;
-  const color = normalized >= 4
-    ? "bg-teal-50 text-teal-700 border-teal-100"
-    : normalized >= 3
-      ? "bg-amber-50 text-amber-700 border-amber-100"
-      : "bg-rose-50 text-rose-700 border-rose-100";
+  const GOOD = "bg-teal-50 text-teal-700 border-teal-100";
+  const MID = "bg-amber-50 text-amber-700 border-amber-100";
+  const BAD = "bg-rose-50 text-rose-700 border-rose-100";
+  // 관리 필요도처럼 높을수록 손이 가는 지표는 색을 뒤집는다.
+  const high = score.highIsRisk ? BAD : GOOD;
+  const low = score.highIsRisk ? GOOD : BAD;
+  const color = normalized >= 4 ? high : normalized >= 3 ? MID : low;
   const displayValue = score.scale === 100 ? Math.round(score.value).toString() : score.value.toFixed(1);
   return (
     <span
       className={`inline-flex min-w-8 justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-black ${color}`}
-      title={`${score.sourceLabel} · ${score.scale === 100 ? "V2 0~100" : "V1 1~5"}`}
+      title={`${score.sourceLabel}${score.highIsRisk ? " (높을수록 관리 필요)" : ""} · ${score.scale === 100 ? "V2 0~100" : "V1 1~5"}`}
     >
       {displayValue}
     </span>
@@ -138,6 +140,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   // 분석 완료 직후 서버 데이터 갱신 전 재클릭 시 중복 생성을 막기 위한 로컬 기록
   const [localAnalyzedIds, setLocalAnalyzedIds] = useState<Set<string>>(new Set());
+  // AI 실패로 규칙 기반 요약이 저장된 설문. 재분석 유도를 위해 목록에 표시한다.
+  const [fallbackIds, setFallbackIds] = useState<Set<string>>(new Set());
 
   // 등록 다이얼로그 상태
   const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId: string } | null>(null);
@@ -335,7 +339,20 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
             : await analyzeSurvey(survey.id);
       if (result.success) {
         setLocalAnalyzedIds((prev) => new Set(prev).add(survey.id));
-        toast.success(hasAnalysis ? "재분석이 완료되었습니다" : "성향분석이 완료되었습니다");
+        // AI 호출이 실패해 규칙 기반 요약으로 대체된 경우를 성공과 구분해 알린다.
+        if (result.source === "fallback") {
+          setFallbackIds((prev) => new Set(prev).add(survey.id));
+          toast.warning("AI 분석 실패 — 규칙 기반 요약입니다. 재분석을 권장합니다");
+        } else {
+          setFallbackIds((prev) => {
+            if (!prev.has(survey.id)) return prev;
+            const next = new Set(prev);
+            next.delete(survey.id);
+            return next;
+          });
+          toast.success(hasAnalysis ? "재분석이 완료되었습니다" : "성향분석이 완료되었습니다");
+        }
+        if (result.warning) toast.warning(result.warning);
         router.refresh();
       } else {
         toast.error(result.error || "분석에 실패했습니다");
@@ -561,6 +578,14 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             <Link href={nameHref} className="text-[12px] font-black text-slate-800 hover:text-primary hover:underline">{item.name}</Link>
                             {item.instrument_version === "v2" && (
                               <span className="rounded border border-violet-200 bg-violet-50 px-1 py-0.5 text-[8px] font-black text-violet-700" title="V2 학습 프로필 설문">V2</span>
+                            )}
+                            {fallbackIds.has(item.id) && (
+                              <span
+                                className="rounded border border-amber-200 bg-amber-50 px-1 py-0.5 text-[8px] font-black text-amber-700"
+                                title="AI 분석 실패 — 규칙 기반 요약입니다. 재분석을 권장합니다"
+                              >
+                                규칙기반
+                              </span>
                             )}
                           </div>
                         </td>

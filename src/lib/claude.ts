@@ -1,6 +1,7 @@
 import type { Analysis, Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS, LOCATIONS, TUITION_TABLE } from "@/types";
 import { env } from "@/lib/env";
+import { escapeHtml } from "@/lib/html-escape";
 import {
   getV2CoreMetrics,
   surveyV2ToText,
@@ -786,13 +787,14 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
 
   const hasEmotion = analysis.score_emotion != null;
 
-  const scores: Record<string, number> = {
-    attitude: analysis.score_attitude ?? 0,
-    self_directed: analysis.score_self_directed ?? 0,
-    assignment: analysis.score_assignment ?? 0,
-    willingness: analysis.score_willingness ?? 0,
-    social: analysis.score_social ?? 0,
-    management: analysis.score_management ?? 0,
+  // 미산출 점수는 0으로 접지 않는다. 0점은 "매우 나쁨"으로 읽혀 실제와 정반대다.
+  const scores: Record<string, number | null> = {
+    attitude: analysis.score_attitude,
+    self_directed: analysis.score_self_directed,
+    assignment: analysis.score_assignment,
+    willingness: analysis.score_willingness,
+    social: analysis.score_social,
+    management: analysis.score_management,
     ...(hasEmotion ? { emotion: analysis.score_emotion! } : {}),
   };
 
@@ -852,17 +854,17 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
   const factorItemsHTML = factorKeys.map((key) => {
     const s = scores[key];
     const c = comments[key];
-    const pct = Math.min((s / 5) * 100, 100);
+    const pct = s === null ? 0 : Math.min((s / 5) * 100, 100);
     return `<div class="factor-item">
           <div class="factor-header">
-            <span class="title">${factorLabels[key]}</span>
+            <span class="title">${escapeHtml(factorLabels[key])}</span>
             <div class="score-wrap">
-              <span class="score">${s.toFixed(1)}</span>
-              <span class="badge">${ratingLabel(s)}</span>
+              <span class="score">${s === null ? "정보 부족" : s.toFixed(1)}</span>
+              ${s === null ? "" : `<span class="badge">${ratingLabel(s)}</span>`}
             </div>
           </div>
           <div class="progress-bg"><div class="progress-fill" style="width:${pct}%"></div></div>
-          ${c ? `<div class="factor-desc">${c}</div>` : ""}
+          ${c ? `<div class="factor-desc">${escapeHtml(c)}</div>` : ""}
         </div>`;
   }).join("");
 
@@ -871,8 +873,8 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     `<div class="list-item">
             <div class="list-num">${idx + 1}</div>
             <div class="list-text">
-              <h3>${item.title}</h3>
-              <p>${item.description}</p>
+              <h3>${escapeHtml(item.title || "")}</h3>
+              <p>${escapeHtml(item.description || "")}</p>
             </div>
           </div>`
   ).join("") || '<p style="font-size:13px;color:var(--text-sub)">데이터 없음</p>';
@@ -882,8 +884,8 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     `<div class="list-item">
             <div class="list-num">${idx + 1}</div>
             <div class="list-text">
-              <h3>${item.title}</h3>
-              <p>${item.description}</p>
+              <h3>${escapeHtml(item.title || "")}</h3>
+              <p>${escapeHtml(item.description || "")}</p>
             </div>
           </div>`
   ).join("") || '<p style="font-size:13px;color:var(--text-sub)">데이터 없음</p>';
@@ -926,57 +928,62 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
     const barsHTML = (p1.num > 0 || p2.num > 0)
       ? `<div class="gap-bars">
             <div class="gap-row">
-              <span class="gap-label">${lbl1}</span>
+              <span class="gap-label">${escapeHtml(lbl1)}</span>
               <div class="gap-bar-bg"><div class="gap-bar-fill" style="width:${Math.min((p1.num / 5) * 100, 100)}%;background:var(--primary-dark)"></div></div>
-              <span class="gap-score">${p1.num > 0 ? p1.num.toFixed(1) : p1.str}</span>
+              <span class="gap-score">${p1.num > 0 ? p1.num.toFixed(1) : escapeHtml(p1.str)}</span>
             </div>
             <div class="gap-row">
-              <span class="gap-label">${lbl2}</span>
+              <span class="gap-label">${escapeHtml(lbl2)}</span>
               <div class="gap-bar-bg"><div class="gap-bar-fill" style="width:${Math.min((p2.num / 5) * 100, 100)}%;background:var(--accent-burgundy)"></div></div>
-              <span class="gap-score">${p2.num > 0 ? p2.num.toFixed(1) : p2.str}</span>
+              <span class="gap-score">${p2.num > 0 ? p2.num.toFixed(1) : escapeHtml(p2.str)}</span>
             </div>
           </div>`
       : `<div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:600;color:var(--primary-dark);background:#F1F3F5;padding:4px 12px;border-radius:4px">${lbl1}: ${p1.str}</span>
-            <span style="font-size:12px;font-weight:600;color:var(--accent-burgundy);background:var(--accent-burgundy-light);padding:4px 12px;border-radius:4px">${lbl2}: ${p2.str}</span>
+            <span style="font-size:12px;font-weight:600;color:var(--primary-dark);background:#F1F3F5;padding:4px 12px;border-radius:4px">${escapeHtml(lbl1)}: ${escapeHtml(p1.str)}</span>
+            <span style="font-size:12px;font-weight:600;color:var(--accent-burgundy);background:var(--accent-burgundy-light);padding:4px 12px;border-radius:4px">${escapeHtml(lbl2)}: ${escapeHtml(p2.str)}</span>
           </div>`;
 
     return `<div class="gap-card">
           <div class="gap-header">
             <span class="badge">분석 ${idx + 1}</span>
-            <h3>${title}</h3>
+            <h3>${escapeHtml(title)}</h3>
           </div>
           ${barsHTML}
-          <p class="gap-desc">${desc}</p>
+          <p class="gap-desc">${escapeHtml(desc)}</p>
         </div>`;
   }).join("");
 
   // Solutions
   const solutionHTML = (analysis.solutions || []).map((sol) => {
     const actionsHTML = (sol.actions || []).map((a) =>
-      `<li>${a}</li>`
+      `<li>${escapeHtml(String(a ?? ""))}</li>`
     ).join("");
     return `<div class="step-card">
           <div class="step-header">
-            <span class="step-title">${sol.step}단계 과정</span>
-            <span class="step-period">${sol.weeks}</span>
+            <span class="step-title">${escapeHtml(String(sol.step ?? ""))}단계 과정</span>
+            <span class="step-period">${escapeHtml(sol.weeks || "")}</span>
           </div>
           <div class="step-body">
-            <h4>${sol.goal}</h4>
+            <h4>${escapeHtml(sol.goal || "")}</h4>
             <ul class="step-list">${actionsHTML}</ul>
           </div>
         </div>`;
   }).join("");
 
-  // Average score
-  const avgScore = factorKeys.reduce((sum, k) => sum + scores[k], 0) / factorKeys.length;
+  // Average score — 미산출 점수는 평균에서 제외한다.
+  const ratedScores = factorKeys
+    .map((k) => scores[k])
+    .filter((v): v is number => v !== null);
+  const avgScore = ratedScores.length > 0
+    ? ratedScores.reduce((sum, v) => sum + v, 0) / ratedScores.length
+    : null;
 
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>NK 성향분석 - ${name}</title>
+  <title>NK 성향분석 - ${escapeHtml(name)}</title>
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     *{box-sizing:border-box;margin:0;padding:0}
@@ -1070,12 +1077,12 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
       <h1>NK 성향 검사 결과지</h1>
       <div class="info-card">
         <div class="info-top">
-          <div class="name">${name} 학생</div>
-          <div class="avg">종합 ${avgScore.toFixed(1)}점</div>
+          <div class="name">${escapeHtml(name)} 학생</div>
+          <div class="avg">${avgScore === null ? "종합 정보 부족" : `종합 ${avgScore.toFixed(1)}점`}</div>
         </div>
         <div class="info-bottom">
-          <div class="meta">${schoolInfo}</div>
-          <div class="meta">${createdDate}</div>
+          <div class="meta">${escapeHtml(schoolInfo)}</div>
+          <div class="meta">${escapeHtml(createdDate)}</div>
         </div>
       </div>
     </div>
@@ -1086,8 +1093,8 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
       <div class="sec" id="summary">
         <div class="sec-title"><h2>학생 성향 요약</h2></div>
         <div class="summary-box">
-          ${analysis.student_type ? `<span class="type-tag">${analysis.student_type}</span>` : ""}
-          <p>${analysis.summary || ""}</p>
+          ${analysis.student_type ? `<span class="type-tag">${escapeHtml(analysis.student_type)}</span>` : ""}
+          <p>${escapeHtml(analysis.summary || "")}</p>
         </div>
       </div>
       <div class="sec" id="factors">
@@ -1116,7 +1123,7 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
       <div class="sec" id="final">
         <div class="final-box">
           <h3>NK 학습 맞춤 지도</h3>
-          <p>${analysis.final_assessment}</p>
+          <p>${escapeHtml(analysis.final_assessment)}</p>
         </div>
       </div>` : ""}
     </div>

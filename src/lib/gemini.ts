@@ -123,10 +123,9 @@ export function extractJSON<T = Record<string, unknown>>(text: string): T {
 export function surveyToText(survey: Survey): string {
   let text = "";
 
+  // 연락처는 분석에 쓰이지 않으므로 외부 AI로 내보내지 않는다.
   text += `학생 이름: ${survey.name}\n`;
   text += `학교/학년: ${survey.school || ""} ${survey.grade || ""}\n`;
-  text += `학생 연락처: ${survey.student_phone || ""}\n`;
-  text += `학부모 연락처: ${survey.parent_phone || ""}\n`;
   text += `유입 경로: ${survey.referral || ""}\n`;
   text += `기존 학원: ${survey.prev_academy || ""}\n`;
   text += `기존 학원 아쉬운점: ${survey.prev_complaint || ""}\n`;
@@ -170,9 +169,30 @@ export function surveyToText(survey: Survey): string {
 }
 
 // ========== 분석 프롬프트 ==========
-export function buildAnalysisPrompt(surveyText: string): string {
+/** 서버가 계산한 7-Factor 점수. AI는 이 값을 해석만 하고 다시 계산하지 않는다. */
+export type ServerFactorScores = Record<string, number | null>;
+
+function serverScoreBlock(scores: ServerFactorScores): string {
+  const lines = Object.entries(FACTOR_LABELS)
+    .map(([key, label]) => {
+      const value = scores[`factor_${key}`];
+      return `- ${label}(${key}): ${value === null || value === undefined ? "정보 부족" : value.toFixed(1)}`;
+    })
+    .join("\n");
+
+  return `[서버 계산 7-Factor 점수 — 이 점수를 그대로 사용하고 새로 계산하지 말 것]
+${lines}
+- "정보 부족"인 항목은 응답이 모자라 산출하지 못한 것이다. 임의의 숫자를 만들지 말고 해당 영역은 근거 부족으로 서술하라.`;
+}
+
+export function buildAnalysisPrompt(
+  surveyText: string,
+  serverScores: ServerFactorScores,
+): string {
   return `당신은 15년 경력의 학습 심리 전문가이자 입시 컨설턴트입니다.
 아래 학생 설문조사 데이터를 심리·행동학적 관점에서 심층 분석하여 JSON 형식으로 결과를 반환하세요.
+
+${serverScoreBlock(serverScores)}
 
 [배경 정보 활용 지침 — 값이 비어 있으면 무시하고, 있으면 반드시 분석에 반영]
 - 내신 vs 모의고사 성적 격차: 내신만 높으면 단기 암기형/내신 최적화형, 모의고사만 높으면 응용력은 있으나 성실성 부족 가능. Q26(시험 긴장), Q33(실수)과 교차 분석
@@ -181,7 +201,6 @@ export function buildAnalysisPrompt(surveyText: string): string {
 - 목표 대학/계열: 현재 성적과의 격차를 솔루션 로드맵의 목표 설정에 반영
 - 통학 소요/거리: 길면 체력·지각 리스크를 지도 유의점에 언급
 - MBTI: 보조 참고만 (과잉 해석 금지, 설문 응답과 일치할 때만 언급)
-- 건강·특이사항: 값이 있으면 finalAssessment의 지도 유의점에 반드시 포함
 
 [설문 문항 심리학적 해석 가이드 - 각 문항이 측정하는 심리 요인]
 
@@ -270,15 +289,6 @@ ${surveyText}
 [출력 형식 - 반드시 아래 JSON 구조로만 반환하세요. 다른 텍스트 없이 JSON만 출력]
 {
   "studentType": "학생 유형을 심리학적 용어로 명명 (예: 의지-실천 괴리형, 타율적 잠재력형, 자기주도 성장형, 수동적 회피형, 외부의존 관리필요형 등)",
-  "scores": {
-    "attitude": 4.2,
-    "selfDirected": 3.2,
-    "assignment": 3.5,
-    "willingness": 3.4,
-    "social": 3.8,
-    "management": 4.0,
-    "emotion": 3.6
-  },
   "scoreComments": {
     "attitude": "3~4문장. Q6~Q10 각 문항의 점수를 구체적으로 인용하며 분석. 예: 'Q6(집중) 4점, Q7(필기) 3점으로 수업 참여도는 양호하지만, Q8(졸음) 2점은 수면 관리나 체력 문제가 있을 수 있습니다.'",
     "selfDirected": "3~4문장. Q11,Q14,Q15,Q18,Q19,Q29 각 점수를 인용. 특히 Q18-Q19 조합으로 문제 해결 전략 유형 분석. Q29(핸드폰) 점수로 디지털 자기통제 수준 평가",

@@ -8,7 +8,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getItemsForSubject, isLikert, isScenario } from "@/lib/assessment/v2/definition";
+import {
+  getItemsForSubject,
+  isLikert,
+  isScenario,
+  pruneToSubjectScope,
+} from "@/lib/assessment/v2/definition";
 import type { AssessmentItem, SubjectSelection } from "@/lib/assessment/v2/types";
 import { v2SubmissionSchema } from "@/lib/assessment/v2/validation";
 import { submitPublicSurveyV2 } from "@/lib/actions/public-survey-v2";
@@ -207,6 +212,57 @@ export function SurveyV2Client() {
     setSupplements((s) => ({ ...s, [fieldId]: value }));
   }, []);
 
+  // ── intake 변경 처리(과목 변경 시 범위 밖 응답 정리) ──
+  // 과목을 바꾸면 이전 과목 문항 응답이 새 범위 밖에 남아 제출 검증이 계속 실패한다.
+  const handleIntakeUpdate = useCallback(
+    (patch: Partial<IntakeState>) => {
+      const next = patch.subject_selection;
+      const changedSubject =
+        next !== undefined &&
+        next !== intake.subject_selection &&
+        (next === "math" || next === "english" || next === "both");
+
+      if (!changedSubject) {
+        setIntake((s) => ({ ...s, ...patch }));
+        return;
+      }
+
+      const nextResponses = pruneToSubjectScope(responses, next);
+      const nextScenarios = pruneToSubjectScope(scenarios, next);
+      const removedCount =
+        nextResponses.removed.length + nextScenarios.removed.length;
+
+      if (
+        removedCount > 0 &&
+        !window.confirm(
+          `과목을 바꾸면 이미 응답한 ${removedCount}개 문항이 초기화됩니다. 계속하시겠습니까?`,
+        )
+      ) {
+        return;
+      }
+
+      setResponses(nextResponses.kept);
+      setScenarios(nextScenarios.kept);
+      setIntake((s) => ({ ...s, ...patch }));
+    },
+    [intake.subject_selection, responses, scenarios],
+  );
+
+  /** 제출 검증 실패 시 멈춰 세울 화면 인덱스. 없으면 null. */
+  const findFirstIncompleteIndex = useCallback((): number | null => {
+    for (let i = 0; i < INTAKE_SCREEN_COUNT; i++) {
+      if (!isIntakeScreenComplete(i, intake)) return i;
+    }
+    const missing = scoreItems.findIndex((item) =>
+      isScenario(item)
+        ? scenarios[item.id] === undefined
+        : responses[item.id] === undefined || responses[item.id] === null,
+    );
+    if (missing >= 0) return INTAKE_SCREEN_COUNT + missing;
+    if (!commitment14.trim()) return commitmentIndex;
+    return null;
+  }, [intake, scoreItems, scenarios, responses, commitment14, commitmentIndex]);
+
   // ── 제출 ──
   const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
@@ -241,6 +297,8 @@ export function SurveyV2Client() {
     const check = v2SubmissionSchema.safeParse(payload);
     if (!check.success) {
       setError(check.error.issues[0]?.message ?? "입력을 다시 확인해주세요.");
+      const target = findFirstIncompleteIndex();
+      if (target !== null) setIndex(target);
       return;
     }
 
@@ -262,7 +320,7 @@ export function SurveyV2Client() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, scoreItems, intake, responses, scenarios, supplements, commitment14]);
+  }, [isSubmitting, scoreItems, intake, responses, scenarios, supplements, commitment14, findFirstIncompleteIndex]);
 
   // ── 완료 화면 ──
   if (submitted) {
@@ -328,7 +386,7 @@ export function SurveyV2Client() {
           <IntakeScreen
             index={index}
             state={intake}
-            update={(patch) => setIntake((s) => ({ ...s, ...patch }))}
+            update={handleIntakeUpdate}
           />
         )}
         {phase === "score" && currentItem && (

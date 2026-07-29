@@ -5,21 +5,14 @@ import { callGeminiAPI, extractJSON, surveyToText, buildAnalysisPrompt } from "@
 import { buildAnalysisReportHTML } from "@/lib/claude";
 import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
 import { stampConsultationAnalysis } from "@/lib/actions/consultation-analysis";
+import { calculateFactors } from "@/lib/factors";
 import type { Analysis, Survey, PaginatedResponse } from "@/types";
 import { revalidatePath } from "next/cache";
 
 // ========== Gemini 분석 결과 타입 ==========
+// 점수는 서버(factors.ts)가 계산한다. AI 응답의 숫자는 저장하지 않는다.
 interface GeminiAnalysisResult {
   studentType: string;
-  scores: {
-    attitude: number;
-    selfDirected: number;
-    assignment: number;
-    willingness: number;
-    social: number;
-    management: number;
-    emotion: number;
-  };
   scoreComments: {
     attitude: string;
     selfDirected: string;
@@ -131,8 +124,12 @@ export async function analyzeSurvey(surveyId: string): Promise<AnalyzeSurveyResu
   }
 
   // 2. 설문 텍스트 변환 + 프롬프트 생성
+  // 점수는 서버가 계산해 프롬프트에 주입하고, 저장도 이 값으로 한다(AI 점수 창작 차단).
+  const serverScores = calculateFactors(
+    surveyData as unknown as Record<string, number | undefined | null>,
+  );
   const surveyText = surveyToText(surveyData);
-  const prompt = buildAnalysisPrompt(surveyText);
+  const prompt = buildAnalysisPrompt(surveyText, serverScores);
 
   // 3. Gemini API 호출
   let analysisResult: GeminiAnalysisResult;
@@ -152,13 +149,13 @@ export async function analyzeSurvey(surveyId: string): Promise<AnalyzeSurveyResu
     name: surveyData.name,
     school: surveyData.school,
     grade: surveyData.grade,
-    score_attitude: analysisResult.scores.attitude,
-    score_self_directed: analysisResult.scores.selfDirected,
-    score_assignment: analysisResult.scores.assignment,
-    score_willingness: analysisResult.scores.willingness,
-    score_social: analysisResult.scores.social,
-    score_management: analysisResult.scores.management,
-    score_emotion: analysisResult.scores.emotion,
+    score_attitude: serverScores.factor_attitude,
+    score_self_directed: serverScores.factor_self_directed,
+    score_assignment: serverScores.factor_assignment,
+    score_willingness: serverScores.factor_willingness,
+    score_social: serverScores.factor_social,
+    score_management: serverScores.factor_management,
+    score_emotion: serverScores.factor_emotion,
     comment_attitude: analysisResult.scoreComments.attitude,
     comment_self_directed: analysisResult.scoreComments.selfDirected,
     comment_assignment: analysisResult.scoreComments.assignment,

@@ -92,7 +92,11 @@ export function BandChip({ band }: { band: BandStyle }) {
   );
 }
 
-/** 정방향/위험축 공용 점수 막대. reverse=true면 색·라벨을 반전한다(§8.7.2). */
+/**
+ * 정방향/위험축 공용 점수 막대. reverse=true면 색·라벨을 반전한다(§8.7.2).
+ * 막대 길이도 함께 반전해, 보고서 전체에서 "많이 찬 막대 = 좋은 신호"가 항상 성립하게 한다.
+ * 숫자는 원래 점수를 그대로 보여주므로 막대는 방향 신호로만 읽는다.
+ */
 export function ScoreRow({
   label,
   score,
@@ -105,7 +109,7 @@ export function ScoreRow({
   note?: string;
 }) {
   const band = reverse ? riskBand(score) : positiveBand(score);
-  const width = pct(score);
+  const width = reverse ? 100 - pct(score) : pct(score);
   return (
     <div style={{ marginBottom: 10 }}>
       <div

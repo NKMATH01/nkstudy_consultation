@@ -136,6 +136,28 @@ export function selectSurveyConsultation<
   },
   options: { allowNameFallback?: boolean } = {},
 ): T | null {
+  return selectSurveyConsultations(candidates, identity, options)[0] ?? null;
+}
+
+/**
+ * selectSurveyConsultation과 같은 규칙으로 **매칭되는 상담을 모두** 돌려준다.
+ * 화면에서 "이 학생의 상담 여러 건"을 날짜로 골라야 할 때 쓴다.
+ *
+ * 반환 순서는 호출자가 넘긴 candidates 순서를 그대로 보존하므로,
+ * **candidates가 최신순이면 결과도 최신순**이고 [0]이 최신 상담이다.
+ * 강한 식별자가 있는데 강한 일치가 없으면 빈 배열을 반환한다(동명이인 오연결 방지).
+ */
+export function selectSurveyConsultations<
+  T extends SurveyConsultationIdentityRecord,
+>(
+  candidates: T[],
+  identity: {
+    name: string;
+    parentPhone?: string | null;
+    analysisId?: string | null;
+  },
+  options: { allowNameFallback?: boolean } = {},
+): T[] {
   const analysisId = identity.analysisId?.trim() ?? "";
   const parentPhone = normalizeIdentityPhone(identity.parentPhone);
   const nameMatches = candidates.filter((candidate) =>
@@ -151,13 +173,13 @@ export function selectSurveyConsultation<
     return sameAnalysis || sameParentPhone;
   });
 
-  if (strongMatches.length > 0) return strongMatches[0];
+  if (strongMatches.length > 0) return strongMatches;
 
   if (analysisId || parentPhone || options.allowNameFallback === false) {
-    return null;
+    return [];
   }
 
-  return nameMatches[0] ?? null;
+  return nameMatches;
 }
 
 /**

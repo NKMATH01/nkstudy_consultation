@@ -38,7 +38,7 @@ import {
   SUBJECT_LABEL_V2,
   type SurveyManagementFactorScore,
 } from "@/lib/assessment/v2/display";
-import { selectSurveyConsultation } from "@/lib/student-identity";
+import { selectSurveyConsultations } from "@/lib/student-identity";
 
 interface Props {
   initialData: Survey[];
@@ -50,7 +50,7 @@ interface Props {
   };
   analyses: { id: string; survey_id: string | null; has_report: boolean }[];
   registrations: { id: string; analysis_id: string | null }[];
-  consultations: { id: string; name: string; parent_phone: string | null; analysis_id: string | null; result_status: string; test_score: string | null; subject: string | null }[];
+  consultations: { id: string; name: string; parent_phone: string | null; analysis_id: string | null; result_status: string; test_score: string | null; subject: string | null; consult_date: string | null }[];
   ambiguousSurveyNames: string[];
   classes: Class[];
   teachers: Teacher[];
@@ -65,6 +65,14 @@ const SHORT_LABELS: Record<string, string> = {
   social: "사회",
   management: "관리",
 };
+
+/** 상담 날짜 배지용 짧은 표기(M/D). 날짜가 없으면 "날짜 미정". */
+function formatConsultDate(date: string | null): string {
+  if (!date) return "날짜 미정";
+  const d = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "날짜 미정";
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 function formatPhone(phone: string | null): string {
   if (!phone) return "";
@@ -142,6 +150,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [localAnalyzedIds, setLocalAnalyzedIds] = useState<Set<string>>(new Set());
   // AI 실패로 규칙 기반 요약이 저장된 설문. 재분석 유도를 위해 목록에 표시한다.
   const [fallbackIds, setFallbackIds] = useState<Set<string>>(new Set());
+  // 상담이 여러 건인 학생에서 사용자가 날짜로 고른 상담. 미선택이면 최신 상담을 쓴다.
+  const [pickedConsultationIds, setPickedConsultationIds] = useState<Map<string, string>>(new Map());
 
   // 등록 다이얼로그 상태
   const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId: string } | null>(null);
@@ -279,9 +289,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     [ambiguousSurveyNames],
   );
 
-  const findConsultation = useCallback(
+  // consultations는 page.tsx에서 최신순으로 정렬돼 오므로 [0]이 최신 상담이다.
+  const findConsultations = useCallback(
     (survey: Survey, analysisId?: string | null) =>
-      selectSurveyConsultation(
+      selectSurveyConsultations(
         consultations,
         {
           name: survey.name,
@@ -291,8 +302,14 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         {
           allowNameFallback: !ambiguousSurveyNameSet.has(survey.name.trim()),
         },
-      ) ?? undefined,
+      ),
     [ambiguousSurveyNameSet, consultations],
+  );
+
+  const findConsultation = useCallback(
+    (survey: Survey, analysisId?: string | null) =>
+      findConsultations(survey, analysisId)[0] ?? undefined,
+    [findConsultations],
   );
 
   const updateFilters = useCallback(
@@ -554,7 +571,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     const isAnalyzing = analyzingId === item.id;
                     const nameHref = hasAnalysis ? `/analyses/${analysisId}` : `/surveys/${item.id}`;
                     const regId = analysisId ? registrationMap.get(analysisId) : undefined;
-                    const matchedConsultation = findConsultation(item, analysisId);
+                    // 최신순 매칭 목록. 사용자가 날짜로 고른 상담이 있으면 그 상담이 대상이 된다.
+                    const matchedConsultations = findConsultations(item, analysisId);
+                    const pickedId = pickedConsultationIds.get(item.id);
+                    const matchedConsultation =
+                      matchedConsultations.find((c) => c.id === pickedId) ?? matchedConsultations[0];
                     const consultStatus = (matchedConsultation?.result_status as ResultStatus | undefined) || "none";
                     const subject = item.instrument_version === "v2"
                       ? SUBJECT_LABEL_V2[getSurveyV2Subject(item)]
@@ -640,6 +661,35 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             <option value="hold">고민중</option>
                             <option value="other">미등록</option>
                           </select>
+                          {matchedConsultation && (
+                            matchedConsultations.length > 1 ? (
+                              <select
+                                value={matchedConsultation.id}
+                                onChange={(e) =>
+                                  setPickedConsultationIds((prev) => {
+                                    const next = new Map(prev);
+                                    next.set(item.id, e.target.value);
+                                    return next;
+                                  })
+                                }
+                                title={`상담 ${matchedConsultations.length}건 — 날짜로 선택`}
+                                className="mt-1 block w-full cursor-pointer rounded-md border border-slate-200 bg-white px-1 py-0.5 text-center text-[9px] font-bold text-slate-500 outline-none"
+                              >
+                                {matchedConsultations.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {formatConsultDate(c.consult_date)} 상담
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span
+                                title="연동된 상담 날짜"
+                                className="mt-1 block rounded-md bg-slate-50 px-1 py-0.5 text-[9px] font-bold text-slate-400"
+                              >
+                                {formatConsultDate(matchedConsultation.consult_date)} 상담
+                              </span>
+                            )
+                          )}
                         </td>
                         <td className="px-2 py-2.5 whitespace-nowrap">
                           <div className="flex items-center justify-end gap-0.5">

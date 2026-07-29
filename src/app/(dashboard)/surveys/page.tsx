@@ -37,7 +37,7 @@ export default async function SurveysPage({
       // 그렇지 않으면 한 학생의 여러 상담 중 "고민중"으로 마크된 건을 놓쳐 설문분석에서 상태 미표시됨.
     supabase
       .from("consultations")
-      .select("id, name, parent_phone, analysis_id, result_status, test_score, subject")
+      .select("id, name, parent_phone, analysis_id, result_status, test_score, subject, consult_date")
       .order("consult_date", { ascending: false, nullsFirst: false })
       .order("consult_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
@@ -72,7 +72,7 @@ export default async function SurveysPage({
       initialPagination={result.pagination}
       analyses={analyses}
       registrations={(registrations ?? []) as { id: string; analysis_id: string | null }[]}
-      consultations={(consultations ?? []) as { id: string; name: string; parent_phone: string | null; analysis_id: string | null; result_status: string; test_score: string | null; subject: string | null }[]}
+      consultations={(consultations ?? []) as { id: string; name: string; parent_phone: string | null; analysis_id: string | null; result_status: string; test_score: string | null; subject: string | null; consult_date: string | null }[]}
       ambiguousSurveyNames={ambiguousSurveyNames}
       classes={classes}
       teachers={teachers}

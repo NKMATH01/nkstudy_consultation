@@ -5,6 +5,7 @@ import {
   normalizeIdentityPhone,
   selectConsultationIdentity,
   selectSurveyConsultation,
+  selectSurveyConsultations,
   selectUniqueSurveyConsultation,
   selectStudentIdentity,
   type ConsultationIdentityRecord,
@@ -245,6 +246,83 @@ describe("survey consultation matching", () => {
         analysisId: "analysis-new",
       })?.id,
     ).toBe("other-person");
+  });
+});
+
+// 화면에서 상담을 날짜로 고르려면 매칭 전부가 필요하다.
+describe("survey consultation matching (복수 반환)", () => {
+  const reConsultations = [
+    {
+      id: "recent-consultation",
+      name: "박서준",
+      parent_phone: "010-2222-3333",
+      analysis_id: null,
+    },
+    {
+      id: "middle-consultation",
+      name: "박서준",
+      parent_phone: "+82 10-2222-3333",
+      analysis_id: null,
+    },
+    {
+      id: "old-consultation",
+      name: "박서준",
+      parent_phone: "010-2222-3333",
+      analysis_id: "analysis-1",
+    },
+    {
+      id: "other-person",
+      name: "박서준(2)",
+      parent_phone: "010-9999-9999",
+      analysis_id: null,
+    },
+  ];
+
+  it("매칭 상담을 호출자 정렬 순서(최신순) 그대로 모두 반환한다", () => {
+    expect(
+      selectSurveyConsultations(reConsultations, {
+        name: "박서준",
+        parentPhone: "010-2222-3333",
+        analysisId: "analysis-1",
+      }).map((c) => c.id),
+    ).toEqual(["recent-consultation", "middle-consultation", "old-consultation"]);
+  });
+
+  it("단수 버전은 복수 결과의 첫 원소와 일치한다", () => {
+    const identity = { name: "박서준", parentPhone: "010-2222-3333" };
+    expect(selectSurveyConsultation(reConsultations, identity)?.id).toBe(
+      selectSurveyConsultations(reConsultations, identity)[0]?.id,
+    );
+  });
+
+  it("강한 식별자가 있는데 매칭이 없으면 빈 배열을 반환한다", () => {
+    expect(
+      selectSurveyConsultations(reConsultations, {
+        name: "박서준",
+        parentPhone: "010-0000-0000",
+      }),
+    ).toEqual([]);
+  });
+
+  it("식별자가 없고 fallback이 허용되면 이름이 같은 상담을 모두 반환한다", () => {
+    expect(
+      selectSurveyConsultations(reConsultations, { name: "박서준" }).map((c) => c.id),
+    ).toEqual([
+      "recent-consultation",
+      "middle-consultation",
+      "old-consultation",
+      "other-person",
+    ]);
+  });
+
+  it("fallback을 차단하면 빈 배열을 반환한다", () => {
+    expect(
+      selectSurveyConsultations(
+        reConsultations,
+        { name: "박서준" },
+        { allowNameFallback: false },
+      ),
+    ).toEqual([]);
   });
 });
 

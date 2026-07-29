@@ -144,7 +144,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   const [fallbackIds, setFallbackIds] = useState<Set<string>>(new Set());
 
   // 등록 다이얼로그 상태
-  const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId: string; analysisId?: string } | null>(null);
+  const [regTarget, setRegTarget] = useState<{ name: string; currentStatus: ResultStatus; consultationId: string } | null>(null);
   const [regForm, setRegForm] = useState({ plan_date: "", plan_class: "", deposit: false });
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -218,7 +218,6 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         plan_date: regForm.plan_date || undefined,
         plan_class: regForm.plan_class || undefined,
         reserve_deposit: regForm.deposit,
-        analysisId: regTarget.analysisId,
       });
       if (result.success) {
         toast.success(`${regTarget.name} 학생이 등록 처리되었습니다`);
@@ -233,24 +232,16 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
     }
   };
 
-  const handleStatusChange = async (
-    name: string,
-    status: ResultStatus,
-    consultationId?: string,
-    analysisId?: string,
-  ) => {
+  const handleStatusChange = async (name: string, status: ResultStatus, consultationId?: string) => {
     if (!consultationId) {
       toast.error("이 학생과 연결된 상담을 안전하게 식별할 수 없습니다");
       return;
     }
     if (status === "registered") {
-      setRegTarget({ name, currentStatus: status, consultationId, analysisId });
+      setRegTarget({ name, currentStatus: status, consultationId });
       return;
     }
-    const result = await updateRegistrationInfo(consultationId, {
-      result_status: status,
-      analysisId,
-    });
+    const result = await updateRegistrationInfo(consultationId, { result_status: status });
     if (result.success) {
       toast.success("상태가 변경되었습니다");
       router.refresh();
@@ -634,7 +625,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           <select
                             value={consultStatus}
-                            onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus, matchedConsultation?.id, analysisId)}
+                            onChange={(e) => handleStatusChange(item.name, e.target.value as ResultStatus, matchedConsultation?.id)}
                             disabled={!matchedConsultation}
                             title={matchedConsultation ? "상담 상태 변경" : "연결된 상담을 안전하게 식별할 수 없습니다"}
                             className={`cursor-pointer rounded-md border-0 px-1.5 py-0.5 text-[9px] font-black outline-none disabled:cursor-not-allowed disabled:opacity-50 ${

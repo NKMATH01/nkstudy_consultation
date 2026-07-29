@@ -112,9 +112,18 @@ export function selectConsultationIdentity(
 }
 
 /**
- * 설문/분석 화면에서 사용할 상담을 최신순 후보 중에서 고른다.
- * 분석 ID와 학부모 연락처는 강한 식별자이므로 둘 중 하나라도 주어진 경우
- * 일치하는 행이 없다고 이름만 같은 상담으로 후퇴하지 않는다.
+ * 설문/분석 화면에서 사용할 상담을 고른다.
+ *
+ * **candidates는 최신 상담이 앞에 오도록 정렬돼 있어야 한다**(consult_date desc 등).
+ * 이 함수는 정렬을 하지 않고 호출자가 넘긴 순서를 그대로 신뢰한다.
+ *
+ * 재상담은 정상 업무 흐름이라, 같은 학생에게 몇 달 뒤 새 상담 행이 생긴다.
+ * 분석 ID 일치를 절대 우선하면 화면의 상태 표시·변경이 분석이 스탬프된 옛 상담에
+ * 영원히 묶이므로, 분석 ID 일치와 연락처 일치를 하나의 "강한 일치" 집합으로 보고
+ * 그 중 가장 최신(목록 앞) 상담을 고른다.
+ *
+ * 강한 식별자(분석 ID·연락처)가 주어졌는데 강한 일치가 하나도 없으면,
+ * 이름만 같은 동명이인으로 후퇴하지 않고 null을 반환한다.
  */
 export function selectSurveyConsultation<
   T extends SurveyConsultationIdentityRecord,
@@ -133,20 +142,16 @@ export function selectSurveyConsultation<
     isConsultationNameVariant(candidate.name, identity.name),
   );
 
-  if (analysisId) {
-    const byAnalysis = nameMatches.find(
-      (candidate) => candidate.analysis_id === analysisId,
-    );
-    if (byAnalysis) return byAnalysis;
-  }
+  const strongMatches = nameMatches.filter((candidate) => {
+    const sameAnalysis =
+      Boolean(analysisId) && candidate.analysis_id === analysisId;
+    const sameParentPhone =
+      Boolean(parentPhone) &&
+      normalizeIdentityPhone(candidate.parent_phone) === parentPhone;
+    return sameAnalysis || sameParentPhone;
+  });
 
-  if (parentPhone) {
-    const byParentPhone = nameMatches.find(
-      (candidate) =>
-        normalizeIdentityPhone(candidate.parent_phone) === parentPhone,
-    );
-    if (byParentPhone) return byParentPhone;
-  }
+  if (strongMatches.length > 0) return strongMatches[0];
 
   if (analysisId || parentPhone || options.allowNameFallback === false) {
     return null;

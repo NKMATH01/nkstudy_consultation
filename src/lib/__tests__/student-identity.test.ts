@@ -127,6 +127,7 @@ describe("consultation identity matching", () => {
   });
 });
 
+// candidates는 호출자가 최신 상담을 앞에 두고 넘긴다는 규약을 전제로 한다.
 describe("survey consultation matching", () => {
   const consultations = [
     {
@@ -143,11 +144,11 @@ describe("survey consultation matching", () => {
     },
   ];
 
-  it("이름보다 분석 ID를 우선해 동명이인의 상담을 고른다", () => {
+  it("동명이인은 분석 ID와 연락처가 함께 가리키는 상담을 고른다", () => {
     expect(
       selectSurveyConsultation(consultations, {
         name: "김지민",
-        parentPhone: "010-1111-1111",
+        parentPhone: "01033331402",
         analysisId: "analysis-new",
       })?.id,
     ).toBe("target-person");
@@ -179,6 +180,71 @@ describe("survey consultation matching", () => {
         { allowNameFallback: false },
       ),
     ).toBeNull();
+  });
+
+  // 재상담 시나리오: 같은 학생이 몇 달 뒤 다시 상담해 새 상담 행이 생겼고,
+  // 옛 분석은 여전히 옛 상담에 스탬프돼 있다. 화면 상태는 최신 상담을 따라야 한다.
+  describe("재상담(같은 학생의 상담 다건)", () => {
+    const reConsultations = [
+      {
+        id: "recent-consultation",
+        name: "박서준",
+        parent_phone: "010-2222-3333",
+        analysis_id: null,
+      },
+      {
+        id: "old-consultation",
+        name: "박서준",
+        parent_phone: "010-2222-3333",
+        analysis_id: "analysis-1",
+      },
+    ];
+
+    it("옛 상담에 분석이 스탬프돼 있어도 더 최신 상담을 고른다", () => {
+      expect(
+        selectSurveyConsultation(reConsultations, {
+          name: "박서준",
+          parentPhone: "010-2222-3333",
+          analysisId: "analysis-1",
+        })?.id,
+      ).toBe("recent-consultation");
+    });
+
+    it("연락처만 주어져도 최신 상담을 고른다", () => {
+      expect(
+        selectSurveyConsultation(reConsultations, {
+          name: "박서준",
+          parentPhone: "01022223333",
+        })?.id,
+      ).toBe("recent-consultation");
+    });
+
+    it("최신 상담에 이미 새 분석이 연결돼 있으면 그 상담을 고른다", () => {
+      const withNewAnalysis = [
+        { ...reConsultations[0], analysis_id: "analysis-2" },
+        reConsultations[1],
+      ];
+      expect(
+        selectSurveyConsultation(withNewAnalysis, {
+          name: "박서준",
+          parentPhone: "010-2222-3333",
+          analysisId: "analysis-1",
+        })?.id,
+      ).toBe("recent-consultation");
+    });
+  });
+
+  // 알려진 한계: 연락처와 분석 ID가 서로 다른 사람을 가리키는 모순된 식별자를 받으면
+  // 두 건 모두 강한 일치로 잡혀 목록 앞(최신) 쪽이 선택된다.
+  // 실제 호출자는 한 설문에서 이름·연락처·분석 ID를 함께 뽑아 넘기므로 이 조합은 나오지 않는다.
+  it("연락처와 분석 ID가 서로 다른 사람을 가리키면 목록 앞선 상담을 고른다", () => {
+    expect(
+      selectSurveyConsultation(consultations, {
+        name: "김지민",
+        parentPhone: "010-1111-1111",
+        analysisId: "analysis-new",
+      })?.id,
+    ).toBe("other-person");
   });
 });
 

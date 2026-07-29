@@ -1,9 +1,9 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap, MessageCircle, Link2, MessageSquareText } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap, MessageCircle, Link2, MessageSquareText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,11 @@ import { TUITION_TABLE } from "@/types";
 import Link from "next/link";
 import { createReportToken } from "@/lib/actions/report-token";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
+import { AlimtalkSendDialog } from "@/components/alimtalk/alimtalk-send-dialog";
+import {
+  buildRegistrationGuideVars,
+  REGISTRATION_GUIDE_TEMPLATE_CODE,
+} from "@/lib/registration-alimtalk";
 
 interface Props {
   registration: Registration;
@@ -52,6 +57,27 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
   });
   const [isFieldSaving, setIsFieldSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [showAlimtalk, setShowAlimtalk] = useState(false);
+
+  // 발송 직전에 새 열람 토큰을 만들어 링크 변수로 넘긴다.
+  const prepareAlimtalk = useCallback(async () => {
+    if (!registration.report_html || !registration.parent_phone) return null;
+
+    const result = await createReportToken({
+      reportType: "registration",
+      reportHtml: registration.report_html,
+      name: registration.name,
+    });
+    if (!result.success || !result.token) return null;
+
+    return {
+      templateCode: REGISTRATION_GUIDE_TEMPLATE_CODE,
+      phone: registration.parent_phone,
+      vars: buildRegistrationGuideVars(registration, result.token),
+      subjectType: "registration",
+      subjectId: registration.id,
+    };
+  }, [registration]);
 
   const handleShareKakao = async () => {
     if (!registration.report_html) return;
@@ -203,6 +229,16 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
             >
               <Link2 className="h-4 w-4 mr-1.5" />
               링크복사
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAlimtalk(true)}
+              disabled={!registration.parent_phone}
+              className="rounded-xl"
+            >
+              <Send className="h-4 w-4 mr-1.5" />
+              알림톡 발송
             </Button>
             <Button
               variant="outline"
@@ -627,6 +663,14 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlimtalkSendDialog
+        open={showAlimtalk}
+        onOpenChange={setShowAlimtalk}
+        prepare={prepareAlimtalk}
+        targetLabel={registration.name}
+        title="등록 안내문 알림톡 발송"
+      />
     </div>
   );
 }

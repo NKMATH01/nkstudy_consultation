@@ -148,6 +148,7 @@ export function AnalysisDetailV2Client({
         header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}
         background={background}
         contacts={contacts}
+        analysis={{ id: analysis.id, school: analysis.school, grade: analysis.grade }}
       />
 
       <RegistrationForm

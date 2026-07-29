@@ -17,7 +17,7 @@ export default async function ConsultationsPage() {
     supabase
       .from("nkc_scheduled_messages")
       .select("consultation_id, status, send_at")
-      .eq("template_code", CONSULT_CONFIRM_TEMPLATE_CODE)
+      .in("template_code", [CONSULT_CONFIRM_TEMPLATE_CODE, "consult_confirm_v2"])
       .not("consultation_id", "is", null)
       .order("send_at", { ascending: false }),
   ]);

@@ -7,12 +7,17 @@
 //   - 학부모 공유 링크·카카오톡·PDF 저장 액션은 그대로 유지한다. 연락처 등 상담 실무 정보는
 //     보고서 본문 밖(상위 AnalysisDetailV2Client의 액션 헤더)에 있으며 본문에는 없다.
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Link2, MessageCircle } from "lucide-react";
+import { Link2, MessageCircle, Send } from "lucide-react";
 import { buildParentSafeProfile } from "@/lib/assessment/v2/parent-safe";
 import { createReportTokenV2 } from "@/lib/actions/report-token";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
+import { AlimtalkSendDialog } from "@/components/alimtalk/alimtalk-send-dialog";
+import {
+  buildAnalysisResultVars,
+  ANALYSIS_RESULT_TEMPLATE_CODE,
+} from "@/lib/analysis-alimtalk";
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import { REPORT_PREMIUM_CSS, ReportToolbar, ReportSheet, ReportDock } from "./report-frame";
 import type { CounselorBackground } from "./counselor-report";
@@ -26,24 +31,28 @@ interface Props {
   // 호출부 호환·향후 복원 대비를 위해 시그니처는 유지한다.
   background?: CounselorBackground | null;
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
+  // 알림톡 발송(결과지 링크)용. 없으면 발송 버튼을 노출하지 않는다.
+  analysis?: { id: string; school: string | null; grade: string | null } | null;
 }
 
-export function AnalysisReportV2Client({ profile, header }: Props) {
+export function AnalysisReportV2Client({ profile, header, contacts, analysis }: Props) {
   const [sharing, setSharing] = useState(false);
+  const [showAlimtalk, setShowAlimtalk] = useState(false);
+  const parentPhone = contacts?.parentPhone || "";
 
   const parentSafe = useMemo(
     () => buildParentSafeProfile(profile, { name: header.name, schoolGrade: header.schoolGrade }),
     [profile, header.name, header.schoolGrade]
   );
 
-  const makeToken = async (): Promise<string | null> => {
+  const makeToken = useCallback(async (): Promise<string | null> => {
     const res = await createReportTokenV2({ profile: parentSafe, name: header.name });
     if (!res.success || !res.token) {
       toast.error(res.error || "공유 링크 생성에 실패했습니다");
       return null;
     }
     return res.token;
-  };
+  }, [parentSafe, header.name]);
 
   const handleCopy = async () => {
     setSharing(true);
@@ -76,6 +85,30 @@ export function AnalysisReportV2Client({ profile, header }: Props) {
     }
   };
 
+  // 발송 직전에 새 parent-safe 스냅샷 토큰을 만들어 링크 변수로 넘긴다.
+  const prepareAlimtalk = useCallback(async () => {
+    if (!analysis || !parentPhone) return null;
+
+    const token = await makeToken();
+    if (!token) return null;
+
+    return {
+      templateCode: ANALYSIS_RESULT_TEMPLATE_CODE,
+      phone: parentPhone,
+      vars: buildAnalysisResultVars(
+        {
+          name: header.name,
+          school: analysis.school,
+          grade: analysis.grade,
+          created_at: header.createdAt || new Date().toISOString(),
+        },
+        token,
+      ),
+      subjectType: "analysis",
+      subjectId: analysis.id,
+    };
+  }, [analysis, parentPhone, header.name, header.createdAt, makeToken]);
+
   const shareSlot = (
     <>
       <button type="button" className="report-share" onClick={handleKakao} disabled={sharing}>
@@ -86,6 +119,17 @@ export function AnalysisReportV2Client({ profile, header }: Props) {
         <Link2 size={14} />
         공유 링크
       </button>
+      {analysis && (
+        <button
+          type="button"
+          className="report-share"
+          onClick={() => setShowAlimtalk(true)}
+          disabled={sharing || !parentPhone}
+        >
+          <Send size={14} />
+          알림톡
+        </button>
+      )}
     </>
   );
 
@@ -97,6 +141,13 @@ export function AnalysisReportV2Client({ profile, header }: Props) {
         <ParentReport data={parentSafe} />
       </ReportSheet>
       <ReportDock />
+      <AlimtalkSendDialog
+        open={showAlimtalk}
+        onOpenChange={setShowAlimtalk}
+        prepare={prepareAlimtalk}
+        targetLabel={header.name}
+        title="학습 프로필 알림톡 발송"
+      />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink, Phone, MessageCircle, Link2, MessageSquareText } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, RefreshCw, CheckCircle, AlertTriangle, FileCheck, ExternalLink, Phone, MessageCircle, Link2, MessageSquareText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,6 +23,11 @@ import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
 import Link from "next/link";
 import { createReportToken } from "@/lib/actions/report-token";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
+import { AlimtalkSendDialog } from "@/components/alimtalk/alimtalk-send-dialog";
+import {
+  buildAnalysisResultVars,
+  ANALYSIS_RESULT_TEMPLATE_CODE,
+} from "@/lib/analysis-alimtalk";
 
 interface Props {
   analysis: Analysis;
@@ -52,6 +57,27 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
   const [showDelete, setShowDelete] = useState(false);
   const [showRegForm, setShowRegForm] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [showAlimtalk, setShowAlimtalk] = useState(false);
+
+  // 발송 직전에 새 열람 토큰을 만들어 링크 변수로 넘긴다.
+  const prepareAlimtalk = useCallback(async () => {
+    if (!analysis.report_html || !parentPhone) return null;
+
+    const result = await createReportToken({
+      reportType: "analysis",
+      reportHtml: analysis.report_html,
+      name: analysis.name,
+    });
+    if (!result.success || !result.token) return null;
+
+    return {
+      templateCode: ANALYSIS_RESULT_TEMPLATE_CODE,
+      phone: parentPhone,
+      vars: buildAnalysisResultVars(analysis, result.token),
+      subjectType: "analysis",
+      subjectId: analysis.id,
+    };
+  }, [analysis, parentPhone]);
 
   const handleShareKakao = async () => {
     if (!analysis.report_html) return;
@@ -194,6 +220,16 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
           >
             <Link2 className="h-3.5 w-3.5 mr-1" />
             링크복사
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAlimtalk(true)}
+            disabled={!parentPhone}
+            className="rounded-xl text-xs"
+          >
+            <Send className="h-3.5 w-3.5 mr-1" />
+            알림톡
           </Button>
         </div>
       )}
@@ -522,6 +558,14 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlimtalkSendDialog
+        open={showAlimtalk}
+        onOpenChange={setShowAlimtalk}
+        prepare={prepareAlimtalk}
+        targetLabel={analysis.name}
+        title="성향분석 결과지 알림톡 발송"
+      />
     </div>
   );
 }

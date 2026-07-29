@@ -1,4 +1,5 @@
 -- consult_confirm_v2 버튼을 사전 학습성향 검사(/survey)에서 학원 소개 안내문으로 교체.
+-- 관리자 화면 혼동을 막기 위해 title(내부 표기)도 함께 정합화한다.
 -- 20260729120000 시드 파일은 이미 적용되었으므로 수정하지 않고 이 파일에서 갱신한다.
 -- kakao_status = 'draft' 가드: 카카오 심사가 끝난 템플릿을 실수로 덮어쓰지 않는다.
 --   (승인 후에는 본문 변경 시 재심사가 필요하므로 이 UPDATE가 0건이면 정상이다.)
@@ -21,6 +22,7 @@ set body = '[NK test 안내]
 
 문의 : NK EDUCATION 031-401-8102',
     button = '{"buttons":[{"buttonType":"WL","buttonName":"학원 안내 보기","linkMo":"https://nk-guide.vercel.app/t","linkPc":"https://nk-guide.vercel.app/t"}]}'::jsonb,
+    title = 'NK test 안내 (학원 안내 링크)',
     updated_at = now()
 where template_code = 'consult_confirm_v2'
   and kakao_status = 'draft';

@@ -10,6 +10,7 @@ import {
 } from "@/lib/solapi/alimtalk";
 import type {
   DetailGroupMessageResponse,
+  KakaoButton,
   RequestSendMessagesSchema,
   SendRequestConfigSchema,
 } from "solapi";
@@ -35,8 +36,10 @@ type AlimtalkTemplate = {
   updated_at: string | null;
 };
 
+// 발송 대상은 상담(consultationId)이거나, 상담이 아닌 문서(등록안내/분석)의 직접 전화번호다.
 type PreviewInput = {
-  consultationId: string;
+  consultationId?: string;
+  phone?: string;
   templateCode: string;
   vars: Record<string, string>;
 };
@@ -44,6 +47,8 @@ type PreviewInput = {
 type SendInput = PreviewInput & {
   allowSmsFallback?: boolean;
   scheduledDate?: string | Date;
+  subjectType?: string;
+  subjectId?: string;
 };
 
 type ConsentInput = {
@@ -161,6 +166,52 @@ async function fetchConsultationContact(
     .single();
 }
 
+/** consultationId가 있으면 상담에서, 없으면 인자로 받은 phone에서 발송 대상 번호를 얻는다. */
+async function resolveTargetPhone(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  input: { consultationId?: string; phone?: string },
+): Promise<{ phone: string } | { error: string }> {
+  if (input.consultationId) {
+    const { data, error } = await fetchConsultationContact(
+      supabase,
+      input.consultationId,
+    );
+    if (error) return { error: error.message };
+    return { phone: (data as ConsultationContact | null)?.parent_phone ?? "" };
+  }
+
+  if (input.phone) return { phone: input.phone };
+
+  return { error: "발송 대상 정보 없음" };
+}
+
+/** 템플릿 button jsonb({buttons:[...]})를 solapi kakaoOptions.buttons로 변환하고 링크 변수도 치환한다. */
+function buildTemplateButtons(
+  button: unknown,
+  vars: Record<string, string>,
+): KakaoButton[] | undefined {
+  if (!button || typeof button !== "object") return undefined;
+
+  const raw = (button as { buttons?: unknown }).buttons;
+  if (!Array.isArray(raw)) return undefined;
+
+  const buttons = raw.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+
+    const rendered = Object.fromEntries(
+      Object.entries(entry as Record<string, unknown>)
+        .filter(([, value]) => typeof value === "string")
+        .map(([key, value]) => [key, renderTemplate(value as string, vars).text]),
+    );
+
+    return rendered.buttonName && rendered.buttonType
+      ? [rendered as unknown as KakaoButton]
+      : [];
+  });
+
+  return buttons.length > 0 ? buttons : undefined;
+}
+
 export async function getTemplate(
   templateCode: string,
 ): Promise<ActionResult<AlimtalkTemplate>> {
@@ -208,11 +259,10 @@ export async function previewAlimtalk(
 > {
   try {
     const supabase = await requireAuthenticatedSupabase();
-    const [{ data: template, error: templateError }, { data: consultation, error: consultationError }] =
-      await Promise.all([
-        fetchTemplate(supabase, input.templateCode),
-        fetchConsultationContact(supabase, input.consultationId),
-      ]);
+    const [{ data: template, error: templateError }, target] = await Promise.all([
+      fetchTemplate(supabase, input.templateCode),
+      resolveTargetPhone(supabase, input),
+    ]);
 
     if (templateError) {
       console.error("[Alimtalk]", {
@@ -223,21 +273,20 @@ export async function previewAlimtalk(
       return { success: false, error: templateError.message };
     }
 
-    if (consultationError) {
+    if ("error" in target) {
       console.error("[Alimtalk]", {
         action: "previewAlimtalk",
-        step: "consultation",
-        error: consultationError.message,
+        step: "target",
+        error: target.error,
       });
-      return { success: false, error: consultationError.message };
+      return { success: false, error: target.error };
     }
 
     if (!template) {
       return { success: false, error: "템플릿 없음" };
     }
 
-    const contact = consultation as ConsultationContact | null;
-    const phone = contact?.parent_phone ?? "";
+    const phone = target.phone;
     const rendered = renderTemplate(template.body, input.vars);
 
     return {
@@ -277,11 +326,10 @@ export async function sendAlimtalk(
 
   try {
     const supabase = await requireAuthenticatedSupabase();
-    const [{ data: template, error: templateError }, { data: consultation, error: consultationError }] =
-      await Promise.all([
-        fetchTemplate(supabase, input.templateCode),
-        fetchConsultationContact(supabase, input.consultationId),
-      ]);
+    const [{ data: template, error: templateError }, target] = await Promise.all([
+      fetchTemplate(supabase, input.templateCode),
+      resolveTargetPhone(supabase, input),
+    ]);
 
     if (templateError) {
       console.error("[Alimtalk]", {
@@ -292,13 +340,13 @@ export async function sendAlimtalk(
       return { success: false, error: templateError.message };
     }
 
-    if (consultationError) {
+    if ("error" in target) {
       console.error("[Alimtalk]", {
         action: "sendAlimtalk",
-        step: "consultation",
-        error: consultationError.message,
+        step: "target",
+        error: target.error,
       });
-      return { success: false, error: consultationError.message };
+      return { success: false, error: target.error };
     }
 
     if (!template) {
@@ -315,16 +363,16 @@ export async function sendAlimtalk(
       return { success: false, error: "변수 미치환" };
     }
 
-    const contact = consultation as ConsultationContact | null;
-    const phone = contact?.parent_phone ?? "";
+    const phone = target.phone;
     if (!phone || !isValidKoreanMobilePhone(phone)) {
       return { success: false, error: "대상 전화번호 오류" };
     }
     const normalizedPhone = normalizePhone(phone);
+    const isAdMessage = alimtalkTemplate.msg_type === "ad";
 
     const { data: consent, error: consentError } = await supabase
       .from("nkc_consents")
-      .select("optout_at")
+      .select("optout_at, ad_ok")
       .eq("phone", normalizedPhone)
       .maybeSingle();
 
@@ -341,11 +389,16 @@ export async function sendAlimtalk(
       return { success: false, error: "수신거부자" };
     }
 
+    // 광고성 메시지만 사전 동의와 야간 발송 제한을 받는다.
+    if (isAdMessage && !consent?.ad_ok) {
+      return { success: false, error: "광고 수신 미동의" };
+    }
+
     const scheduledAt = parseScheduledDate(input.scheduledDate);
-    if (!scheduledAt && isNightTimeKST()) {
+    if (isAdMessage && !scheduledAt && isNightTimeKST()) {
       return {
         success: false,
-        error: "야간시간(21~08시) 발송 불가, 예약발송 권장",
+        error: "야간시간(21~08시) 광고 발송 불가, 예약발송 권장",
       };
     }
 
@@ -363,15 +416,19 @@ export async function sendAlimtalk(
     }
 
     const sendAt = scheduledAt ?? new Date();
-    const dedupKey = `${input.templateCode}:${input.consultationId}:${
-      scheduledAt ? `sched:${scheduledAt.toISOString()}` : "now"
+    // 즉시발송에도 시각을 넣어야 같은 대상에 재발송이 영구 차단되지 않는다.
+    const dedupKey = `${input.templateCode}:${input.consultationId ?? normalizedPhone}:${
+      scheduledAt
+        ? `sched:${scheduledAt.toISOString()}`
+        : `now:${sendAt.toISOString()}`
     }`;
 
+    // subject_type/subject_id는 마이그레이션 미적용 DB를 위해 값이 있을 때만 넣는다.
     const { data: scheduledMessage, error: insertError } = await supabase
       .from("nkc_scheduled_messages")
       .insert({
         template_code: input.templateCode,
-        consultation_id: input.consultationId,
+        consultation_id: input.consultationId ?? null,
         target_phone_snapshot: normalizedPhone,
         payload: {
           vars: input.vars,
@@ -381,6 +438,8 @@ export async function sendAlimtalk(
         send_at: sendAt.toISOString(),
         status: "pending",
         dedup_key: dedupKey,
+        ...(input.subjectType ? { subject_type: input.subjectType } : {}),
+        ...(input.subjectId ? { subject_id: input.subjectId } : {}),
       })
       .select("id")
       .single();
@@ -401,6 +460,7 @@ export async function sendAlimtalk(
     const insertedScheduledMessageId = scheduledMessage.id as string;
     scheduledMessageId = insertedScheduledMessageId;
 
+    const buttons = buildTemplateButtons(alimtalkTemplate.button, input.vars);
     const messages: RequestSendMessagesSchema = [
       {
         to: normalizedPhone,
@@ -412,6 +472,7 @@ export async function sendAlimtalk(
           templateId,
           variables: toSolapiVariables(input.vars),
           disableSms: !(input.allowSmsFallback ?? true),
+          ...(buttons ? { buttons } : {}),
         },
       },
     ];

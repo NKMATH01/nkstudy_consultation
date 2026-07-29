@@ -1,10 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { env } from "@/lib/env";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  "https://nkstudy-consultation.vercel.app";
+const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
 
 type ActionResult<T = unknown> = {
   success: boolean;

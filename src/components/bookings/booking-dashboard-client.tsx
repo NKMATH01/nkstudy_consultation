@@ -35,6 +35,7 @@ import {
 } from "@/lib/booking-slots";
 import { BRANCHES, BOOKING_SUBJECTS, type Booking, type BlockedSlot } from "@/types";
 import { RESCHEDULED_LABEL } from "@/types";
+import { ACADEMY_PHONE } from "@/lib/academy";
 
 // ========== 유틸 ==========
 
@@ -302,7 +303,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
       ? (isSatSlot ? "테스트 후 30분" : `${b.booking_hour + 1}:00~${b.booking_hour + 1}:30`)
       : "별도 안내";
 
-    return `[NK Academy 상담 안내문]\n\n안녕하세요, ${b.parent_name} 학부모님.\nNK Academy에 관심을 가져주셔서 감사합니다.\n\n■ 학생 정보\n  학생명: ${b.student_name}\n  학교/학년: ${b.school || ""} ${b.grade || ""}\n  과목: ${subjectLabel}\n  현재 진도: ${b.progress || "미기재"}\n\n■ 테스트 안내\n  일시: ${b.booking_date} ${testTimeStr}\n  장소: NK Academy ${br?.label || ""}\n  테스트 비용: 10,000원\n\n■ 상담 안내\n  상담 유형: ${consultLabel}\n  상담 시간: ${consultTime}\n\n■ 입금 안내\n  테스트 비용 10,000원을 아래 계좌로 입금해주세요.\n  입금자명에 학생 이름을 기재해주세요.\n\n감사합니다.\nNK Academy 드림`;
+    return `[NK Academy 상담 안내문]\n\n안녕하세요, ${b.parent_name} 학부모님.\nNK Academy에 관심을 가져주셔서 감사합니다.\n\n■ 학생 정보\n  학생명: ${b.student_name}\n  학교/학년: ${b.school || ""} ${b.grade || ""}\n  과목: ${subjectLabel}\n  현재 진도: ${b.progress || "미기재"}\n\n■ 테스트 안내\n  일시: ${b.booking_date} ${testTimeStr}\n  장소: NK Academy ${br?.label || ""}\n  테스트 비용: 10,000원\n\n■ 상담 안내\n  상담 유형: ${consultLabel}\n  상담 시간: ${consultTime}\n\n■ 입금 안내\n  테스트 비용 10,000원을 아래 계좌로 입금해주세요.\n  입금자명에 학생 이름을 기재해주세요.\n\n문의 : NK EDUCATION ${ACADEMY_PHONE}\n\n감사합니다.\nNK Academy 드림`;
   };
 
   const handleCopyNotice = (b: Booking) => {

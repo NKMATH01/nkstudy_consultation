@@ -1,3 +1,5 @@
+import { DEFAULT_BASE_URL } from "@/lib/academy";
+
 declare global {
   interface Window {
     Kakao: {
@@ -10,7 +12,7 @@ declare global {
   }
 }
 
-export const KAKAO_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://nkstudy-consultation.vercel.app";
+export const KAKAO_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || DEFAULT_BASE_URL;
 const BASE_URL = KAKAO_BASE_URL;
 
 export function initKakao() {

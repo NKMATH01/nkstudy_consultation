@@ -88,11 +88,7 @@ function consultLine(c: Consultation): string {
   if (c.consult_type?.includes("대면")) {
     const m = c.consult_type.match(/(\d{1,2}):(\d{2})/);
     if (m) {
-      const h = parseInt(m[1]);
-      const min = parseInt(m[2]);
-      const dh = h > 12 ? h - 12 : h;
-      const ts = min > 0 ? `${dh}시 ${min}분` : `${dh}시`;
-      return `${ds} ${ts}에 진행됩니다.`;
+      return `${ds} ${fmtTime(`${m[1]}:${m[2]}`)}에 진행됩니다.`;
     }
   }
   if (c.consult_type?.includes("유선")) return "유선으로 진행됩니다.";

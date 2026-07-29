@@ -14,6 +14,7 @@ import {
   SATURDAY_LABELS,
 } from "@/lib/booking-slots";
 import { BRANCHES, BOOKING_SUBJECTS, BOOKING_GRADES } from "@/types";
+import { ACADEMY_PHONE } from "@/lib/academy";
 
 // ========== 유틸 ==========
 
@@ -199,6 +200,9 @@ export default function BookingPage() {
             <p className="text-xs text-amber-500 mt-2">입금 확인 후 예약이 확정됩니다.</p>
           </div>
         )}
+        <p className="text-xs text-slate-400 mt-4">
+          문의 : NK EDUCATION {ACADEMY_PHONE}
+        </p>
       </div>
     );
   }

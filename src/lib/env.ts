@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { DEFAULT_BASE_URL } from "@/lib/academy";
 
 const envSchema = z.object({
+  NEXT_PUBLIC_BASE_URL: z.string().url().default(DEFAULT_BASE_URL),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),

@@ -212,7 +212,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
       >
         {/* 메인 프로그램(업무보고) 복귀 버튼 */}
-        <div className="px-4 pt-3">
+        <div className="px-4 pb-2 pt-3">
           <a
             href="https://nk-work-report.vercel.app"
             className="group flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2 transition-all hover:-translate-y-px"
@@ -233,26 +233,6 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
               </span>
             </span>
           </a>
-        </div>
-
-        {/* Logo */}
-        <div className="px-4 pb-3 pt-2">
-          <div className="flex items-center gap-3 rounded-2xl px-3.5 py-2" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black text-white"
-              style={{ background: "#F0653A", boxShadow: "0 6px 16px rgba(240,101,58,0.28)" }}
-            >
-              NK
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-[15px] font-black" style={{ color: "#3A342F", letterSpacing: "-0.02em" }}>
-                NK Academy
-              </div>
-              <div className="text-[10px] font-bold uppercase" style={{ color: "#A59A90", letterSpacing: "0.14em" }}>
-                상담관리 시스템
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Navigation — 메뉴가 화면보다 길어지면 이 영역만 스크롤 (상단 버튼·하단 로그아웃 고정) */}
@@ -354,33 +334,46 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           </a>
         </div>
 
-        {/* User Info */}
-        <div className="mx-3 mb-2 flex items-center gap-2.5 rounded-2xl px-3 py-2" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
-          <div className="relative">
+        {/* User Info — 최하단. 상단에 NK 브랜드 한 줄을 통합해 별도 로고 카드를 없앴다. */}
+        <div className="mx-3 mb-2 rounded-2xl px-3 py-2" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
+          <div className="mb-1.5 flex items-center gap-2 border-b pb-1.5" style={{ borderColor: "#F0E4DD" }}>
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black"
-              style={{ background: "#FFF3ED", color: "#C7521F", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white"
+              style={{ background: "#F0653A", boxShadow: "0 4px 10px rgba(240,101,58,0.24)" }}
             >
-              {avatarInitial}
+              NK
             </div>
-            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 0 2px #FFFFFF" }} />
+            <span className="truncate text-[11px] font-black" style={{ color: "#3A342F", letterSpacing: "-0.01em" }}>
+              NK Academy
+            </span>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="truncate text-xs font-bold" style={{ color: "#3A342F" }}>
-              {displayName}
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black"
+                style={{ background: "#FFF3ED", color: "#C7521F", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
+              >
+                {avatarInitial}
+              </div>
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 0 2px #FFFFFF" }} />
             </div>
-            <div className="text-[10px] font-semibold" style={{ color: "#8B8078" }}>
-              {displayRole}
+            <div className="flex-1 min-w-0">
+              <div className="truncate text-xs font-bold" style={{ color: "#3A342F" }}>
+                {displayName}
+              </div>
+              <div className="text-[10px] font-semibold" style={{ color: "#8B8078" }}>
+                {displayRole}
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="flex cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
+              style={{ color: "#A59A90" }}
+              title="로그아웃"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
-            style={{ color: "#A59A90" }}
-            title="로그아웃"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
         </div>
       </aside>
     </>

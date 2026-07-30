@@ -17,7 +17,6 @@ import {
   UserCog,
   UserMinus,
   BarChart3,
-  ExternalLink,
   LogOut,
   Shield,
   BookOpenCheck,
@@ -186,7 +185,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       );
     });
 
-  const divider = <div className="mx-3 my-4 h-px" style={{ background: "#F0E4DD" }} />;
+  const divider = <div className="mx-3 my-2.5 h-px" style={{ background: "#F0E4DD" }} />;
 
   const sectionLabel = (label: string) => (
     <div className="mb-2 flex items-center gap-1.5 px-3.5">
@@ -213,10 +212,10 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
       >
         {/* 메인 프로그램(업무보고) 복귀 버튼 */}
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-3">
           <a
             href="https://nk-work-report.vercel.app"
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 transition-all hover:-translate-y-px"
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2 transition-all hover:-translate-y-px"
             style={{ background: "#FFF3ED", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
           >
             <span
@@ -237,10 +236,10 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         </div>
 
         {/* Logo */}
-        <div className="px-4 pb-5 pt-3">
-          <div className="flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
+        <div className="px-4 pb-3 pt-2">
+          <div className="flex items-center gap-3 rounded-2xl px-3.5 py-2" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black text-white"
               style={{ background: "#F0653A", boxShadow: "0 6px 16px rgba(240,101,58,0.28)" }}
             >
               NK
@@ -261,33 +260,6 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           className="min-h-0 flex-1 overflow-y-auto px-3 pb-2"
           style={{ scrollbarWidth: "thin", scrollbarColor: "#F0E4DD transparent" }}
         >
-          {/* 진도 현황 — 최상단 고정 대형 버튼(권한 무관 항상 표시, 같은 탭 이동). 코럴 CTA 스타일 */}
-          <Link
-            href="/progress"
-            className={`group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-3.5 transition-all duration-200 ${
-              progressActive ? "" : "hover:-translate-y-px hover:brightness-105"
-            }`}
-            style={{
-              fontSize: "14px",
-              fontWeight: 800,
-              background: progressActive ? "#C7521F" : "#F0653A",
-              color: "#FFFFFF",
-              boxShadow: progressActive
-                ? "inset 0 0 0 1.5px rgba(255,255,255,0.35), 0 8px 20px rgba(199,82,31,0.3)"
-                : "0 8px 20px rgba(240,101,58,0.28)",
-            }}
-          >
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
-              style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
-            >
-              <BookOpenCheck className="h-[18px] w-[18px]" />
-            </span>
-            <span className="truncate">진도 현황</span>
-          </Link>
-
-          {divider}
-
           {/* 목차 — 섹터 버튼(2열 그리드, pill). 클릭 시 해당 섹터 메뉴만 아래에 표시(탭 방식) */}
           {sectionLabel("목차")}
           <div className="grid grid-cols-2 gap-1.5">
@@ -325,45 +297,68 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             </>
           )}
 
+          {divider}
+
+          {/* 진도 현황 — 메뉴 목록 아래 대형 CTA(권한 무관 항상 표시, 같은 탭 이동). 코럴 CTA 스타일 */}
+          <Link
+            href="/progress"
+            className={`group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-3.5 transition-all duration-200 ${
+              progressActive ? "" : "hover:-translate-y-px hover:brightness-105"
+            }`}
+            style={{
+              fontSize: "14px",
+              fontWeight: 800,
+              background: progressActive ? "#C7521F" : "#F0653A",
+              color: "#FFFFFF",
+              boxShadow: progressActive
+                ? "inset 0 0 0 1.5px rgba(255,255,255,0.35), 0 8px 20px rgba(199,82,31,0.3)"
+                : "0 8px 20px rgba(240,101,58,0.28)",
+            }}
+          >
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
+              style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
+            >
+              <BookOpenCheck className="h-[18px] w-[18px]" />
+            </span>
+            <span className="truncate">진도 현황</span>
+          </Link>
         </nav>
 
-        {/* Footer - 공개 링크 */}
-        <div className="mx-3 grid grid-cols-2 gap-1.5 pb-3 pt-3" style={{ borderTop: "1px solid #F0E4DD" }}>
+        {/* Footer - 공개 링크 (한 줄 3열, 높이 절약을 위해 아이콘 없이 텍스트만) */}
+        <div className="mx-3 grid grid-cols-3 gap-1.5 pb-3 pt-3" style={{ borderTop: "1px solid #F0E4DD" }}>
           <Link
             href="/survey"
             target="_blank"
-            className="flex items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all hover:-translate-y-px"
-            style={{ fontSize: "11px", fontWeight: 800, background: "#FFF3ED", color: "#C7521F" }}
+            className="flex items-center justify-center rounded-full px-2 py-2 transition-all hover:-translate-y-px"
+            style={{ fontSize: "10.5px", fontWeight: 800, background: "#FFF3ED", color: "#C7521F" }}
           >
-            <ExternalLink className="h-3.5 w-3.5" />
             공개 설문
           </Link>
           <Link
             href="/booking"
             target="_blank"
-            className="flex items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all hover:-translate-y-px"
-            style={{ fontSize: "11px", fontWeight: 800, background: "#E7F1F1", color: "#2D6A6A" }}
+            className="flex items-center justify-center rounded-full px-2 py-2 transition-all hover:-translate-y-px"
+            style={{ fontSize: "10.5px", fontWeight: 800, background: "#E7F1F1", color: "#2D6A6A" }}
           >
-            <ExternalLink className="h-3.5 w-3.5" />
             공개 예약
           </Link>
           <a
             href="https://nk-guide.vercel.app/t"
             target="_blank"
             rel="noopener noreferrer"
-            className="col-span-2 flex items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all hover:-translate-y-px"
-            style={{ fontSize: "11px", fontWeight: 800, background: "#E9EFF3", color: "#355D79" }}
+            className="flex items-center justify-center rounded-full px-2 py-2 transition-all hover:-translate-y-px"
+            style={{ fontSize: "10.5px", fontWeight: 800, background: "#E9EFF3", color: "#355D79" }}
           >
-            <ExternalLink className="h-3.5 w-3.5" />
             학부모 안내
           </a>
         </div>
 
         {/* User Info */}
-        <div className="mx-3 mb-3 flex items-center gap-2.5 rounded-2xl px-3 py-3" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
+        <div className="mx-3 mb-2 flex items-center gap-2.5 rounded-2xl px-3 py-2" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
           <div className="relative">
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-black"
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black"
               style={{ background: "#FFF3ED", color: "#C7521F", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
             >
               {avatarInitial}

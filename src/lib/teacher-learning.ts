@@ -1,4 +1,12 @@
 import type { Withdrawal } from "@/types";
+import { groupWithdrawalEvents } from "@/lib/withdrawal-insight/events";
+import {
+  detectSignals,
+  hasThinSummary,
+  SIGNAL_LABEL,
+  SIGNAL_TOPICS,
+  type SignalTopic,
+} from "@/lib/withdrawal-insight/signals";
 import {
   getMonthFromDate,
   isCurrentYearMonth,
@@ -19,6 +27,10 @@ export interface TeacherLearning {
     prevCount: number;
     message: string;
   };
+  /** 본인 담당 사건에서 자유서술로 잡힌 주제(건수 내림차순). 판정이 아니라 원문 안내다. */
+  topicSignals: Array<{ topic: SignalTopic; label: string; count: number }>;
+  /** 기록 공백: 상담일 미기록 또는 요약 30자 미만인 사건 수. */
+  recordGap: { withGap: number; total: number };
 }
 
 const MISSING_LABEL = "미입력";
@@ -127,11 +139,37 @@ export function buildTeacherLearning(
     message = `최근 3개월 ${recentCount}건, 직전 3개월 ${prevCount}건 — 큰 변화가 없습니다.`;
   }
 
+  // 자유서술 주제·기록 공백 — 러닝 뷰는 본인+원장 전용이라 실명 화면이지만,
+  // 여기서도 비율·등급은 만들지 않고 건수 사실만 둔다.
+  const ownedEvents = groupWithdrawalEvents(owned);
+  const topicCounts = new Map<SignalTopic, number>();
+  for (const e of ownedEvents) {
+    for (const topic of detectSignals(e.row).topics) {
+      topicCounts.set(topic, (topicCounts.get(topic) ?? 0) + 1);
+    }
+  }
+  const topicSignals = SIGNAL_TOPICS.map((topic) => ({
+    topic,
+    label: SIGNAL_LABEL[topic],
+    count: topicCounts.get(topic) ?? 0,
+  }))
+    .filter((t) => t.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const recordGap = {
+    withGap: ownedEvents.filter(
+      (e) => !e.row.final_consult_date?.trim() || hasThinSummary(e.row),
+    ).length,
+    total: ownedEvents.length,
+  };
+
   return {
     history,
     reasonDist,
     monthlyTrend,
     lessons,
     improvement: { trend, recentCount, prevCount, message },
+    topicSignals,
+    recordGap,
   };
 }

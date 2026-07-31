@@ -1,4 +1,6 @@
 import type { Withdrawal } from "@/types";
+import { groupWithdrawalEvents } from "@/lib/withdrawal-insight/events";
+import { detectSignals, SIGNAL_LABEL, SIGNAL_TOPICS } from "@/lib/withdrawal-insight/signals";
 import { EARLY_MONTHS, getMonthFromDate, isCurrentYearMonth } from "@/lib/withdrawal-analytics";
 import { retrospectiveStatus } from "@/lib/withdrawal-retrospective";
 
@@ -166,6 +168,49 @@ function detectTeacherStreaks(
     },
   ];
 }
+/**
+ * 자유서술 주제가 여러 달 이어지는지 본다.
+ * "매월 사유 1위가 같다"는 판정은 reason_category 한 칸에만 기대 원인을 한 덩어리로
+ * 뭉쳐 보이게 한다. 원문 주제는 여러 개가 동시에 지속되므로 이 신호를 병기한다.
+ */
+function detectTopicStreaks(
+  byMonth: Map<number, Withdrawal[]>,
+  targetMonth: number
+): RepeatPattern | null {
+  const monthsWithData: number[] = [];
+  for (let m = targetMonth; m >= 1; m -= 1) {
+    if ((byMonth.get(m) ?? []).length > 0) monthsWithData.push(m);
+  }
+  if (monthsWithData.length < 3) return null;
+
+  const monthsByTopic = new Map<string, Set<number>>();
+  for (const m of monthsWithData) {
+    const events = groupWithdrawalEvents(byMonth.get(m) ?? []);
+    for (const e of events) {
+      for (const topic of detectSignals(e.row).topics) {
+        const set = monthsByTopic.get(topic) ?? new Set<number>();
+        set.add(m);
+        monthsByTopic.set(topic, set);
+      }
+    }
+  }
+
+  const persistent = SIGNAL_TOPICS.map((t) => ({ topic: t, months: monthsByTopic.get(t)?.size ?? 0 }))
+    .filter((t) => t.months >= 3)
+    .sort((a, b) => b.months - a.months);
+  if (persistent.length === 0) return null;
+
+  return {
+    id: "topic-streak",
+    severity: "주의",
+    title: "여러 달 이어지는 원인 주제",
+    evidence: persistent
+      .slice(0, 3)
+      .map((t) => `${SIGNAL_LABEL[t.topic]} ${t.months}개월`)
+      .join(" · "),
+  };
+}
+
 function detectEarlyStreak(
   byMonth: Map<number, Withdrawal[]>,
   targetMonth: number
@@ -240,6 +285,7 @@ export function detectRepeatPatterns(
 
   const patterns: RepeatPattern[] = [
     detectReasonStreak(byMonth, targetMonth),
+    detectTopicStreaks(byMonth, targetMonth),
     ...detectTeacherStreaks(byMonth, targetMonth),
     detectEarlyStreak(byMonth, targetMonth),
     ...detectClassClusters(byMonth, targetMonth),

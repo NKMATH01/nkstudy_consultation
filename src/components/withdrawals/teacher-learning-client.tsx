@@ -224,6 +224,26 @@ export function TeacherLearningClient({
                     좋겠습니다.
                   </p>
                 )}
+                {/* 자유서술에서 잡힌 주제·기록 공백 — 판정이 아니라 원문을 다시 볼 실마리 */}
+                {learning.topicSignals.length > 0 && (
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400">기록에서 반복된 주제</span>
+                    {learning.topicSignals.map((t) => (
+                      <span
+                        key={t.topic}
+                        className="inline-flex items-center rounded-md bg-white px-2 py-0.5 text-[10.5px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200"
+                      >
+                        {t.label} {t.count}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {learning.recordGap.total > 0 && (
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    상담일 미기록 또는 요약 30자 미만: {learning.recordGap.withGap}/
+                    {learning.recordGap.total}건 — 기록이 얇으면 원인을 되짚기 어렵습니다.
+                  </p>
+                )}
               </div>
             </div>
           </div>

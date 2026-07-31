@@ -1,4 +1,6 @@
 import type { Withdrawal } from "@/types";
+import { groupWithdrawalEvents, eventMonth } from "@/lib/withdrawal-insight/events";
+import { detectSignals, SIGNAL_LABEL, SIGNAL_TOPICS } from "@/lib/withdrawal-insight/signals";
 
 // ─── 날짜 파싱 ────────────────────────────────────────────────────────────────
 
@@ -40,6 +42,7 @@ export type DiagnosisType =
   | "early-withdrawal"
   | "monthly-spike"
   | "grade-concentration"
+  | "topic-persistence"
   | "data-quality";
 
 export interface Diagnosis {
@@ -192,6 +195,58 @@ function detectReasonConcentration(filtered: Withdrawal[]): Diagnosis | null {
 // 파손된 상태(중복행·다과목 중복귀속·기간 불일치)라 여기서 나온 실명 퇴원율·심각 등급이
 // 존재하지 않는 사실로 읽혔다. 개인 결과지표는 에피소드 원장이 갖춰진 뒤 재설계한다.
 // 나머지 5개 탐지기(사유 집중·조기 퇴원·월별 급증·학년 집중·데이터 품질)는 그대로 둔다.
+/**
+ * 자유서술 주제가 여러 달에 걸쳐 반복되는지 본다.
+ * reason_category 1위 한 칸("성적 부진")만 보면 원인이 한 덩어리로 뭉쳐 보이는데,
+ * 원문에는 숙제 양·합반 적응·윈터스쿨 이동처럼 서로 다른 주제가 함께 지속되고 있다.
+ * detectReasonConcentration(사유 편중)과 병기해 둘 다 남긴다.
+ */
+function detectTopicPersistence(filtered: Withdrawal[]): Diagnosis | null {
+  const events = groupWithdrawalEvents(filtered);
+  if (events.length < 5) return null;
+
+  const monthsAll = new Set<number>();
+  events.forEach((e) => {
+    const m = eventMonth(e);
+    if (m) monthsAll.add(m);
+  });
+  if (monthsAll.size < 3) return null;
+
+  const ranked = SIGNAL_TOPICS.map((topic) => {
+    const months = new Set<number>();
+    let count = 0;
+    for (const e of events) {
+      if (!detectSignals(e.row).topics.includes(topic)) continue;
+      count += 1;
+      const m = eventMonth(e);
+      if (m) months.add(m);
+    }
+    return { topic, months: months.size, count };
+  })
+    .filter((t) => t.months >= 3)
+    .sort((a, b) => b.months - a.months || b.count - a.count);
+
+  if (ranked.length === 0) return null;
+
+  // 지속 개월 비중을 점수로 쓴다. 사람 단위 비율이 아니라 기간 커버리지다.
+  const coverage = round1((ranked[0].months / monthsAll.size) * 100);
+  const score = toScore(scale(coverage, 40, 90), confidence(events.length, 20));
+  const top3 = ranked.slice(0, 3);
+  return {
+    type: "topic-persistence",
+    score,
+    severity: severityOf(score),
+    title: "여러 달 이어지는 원인 주제",
+    evidence: `사건 ${events.length}건 · ${top3
+      .map((t) => `${SIGNAL_LABEL[t.topic]} ${t.months}/${monthsAll.size}개월(${t.count}건)`)
+      .join(" · ")}`,
+    metric: coverage,
+    metricUnit: "%",
+    detail: SIGNAL_LABEL[ranked[0].topic],
+    affected: ranked[0].count,
+  };
+}
+
 function detectEarlyWithdrawal(filtered: Withdrawal[]): Diagnosis | null {
   const valid = filtered.filter(validDuration);
   const early = valid.filter((w) => (w.duration_months as number) <= EARLY_MONTHS);
@@ -324,6 +379,7 @@ export function diagnoseWithdrawals(input: DiagnoseInput): Diagnosis[] {
   const { filtered } = input;
   const candidates: Array<Diagnosis | null> = [
     detectReasonConcentration(filtered),
+    detectTopicPersistence(filtered),
     detectEarlyWithdrawal(filtered),
     detectMonthlySpike(input),
     detectGradeConcentration(filtered),
@@ -405,6 +461,10 @@ export const SIGNAL_ACTION_MAP: Partial<Record<DiagnosisType, string[]>> = {
     "신입생 첫 90일 온보딩 케어 강화 (온보딩 체크리스트 운영 점검)",
     "입회 2주·1개월·3개월 정기 상담",
     "초기 레벨 미스매치 여부 조기 점검",
+  ],
+  "topic-persistence": [
+    "지속 주제별로 최근 사건 원문을 묶어 읽고 공통 장면 정리",
+    "주제별 담당 부서(반 배치·과제량·상담 주기) 지정 후 2주 뒤 재확인",
   ],
   "monthly-spike": [
     "급증 월의 계기(시험 직후·방학·경쟁학원 이벤트) 원인 점검",

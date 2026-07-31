@@ -9,7 +9,24 @@ import {
   type WithdrawalRetrospective,
 } from "@/lib/withdrawal-retrospective";
 import type { Withdrawal } from "@/types";
+import { getCurrentTeacher } from "@/lib/actions/settings";
 import { revalidatePath } from "next/cache";
+
+/** 회고를 작성할 수 있는 role. clinic은 제외한다. */
+const RETROSPECTIVE_ROLES = new Set(["principal", "admin", "teacher"]);
+
+/**
+ * 로그인 사용자 확인. RLS 교체(auth.uid↔teachers actor 매핑)는 아직이라
+ * **이 서버 게이트가 주 방어선**이다. 클라이언트에서 액션을 직접 호출해도 여기서 막힌다.
+ */
+async function requireAuthenticated(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return { ok: false, error: "인증이 필요합니다" };
+  return { ok: true };
+}
 
 export async function getWithdrawals(): Promise<Withdrawal[]> {
   const supabase = await createClient();
@@ -61,6 +78,9 @@ export async function getWithdrawals(): Promise<Withdrawal[]> {
 
 export async function createWithdrawal(formData: FormData) {
   try {
+    const auth = await requireAuthenticated();
+    if (!auth.ok) return { success: false, error: auth.error };
+
     const supabase = await createClient();
 
     const raw: Record<string, unknown> = {};
@@ -180,6 +200,9 @@ export async function createWithdrawal(formData: FormData) {
 
 export async function updateWithdrawal(id: string, formData: FormData) {
   try {
+    const auth = await requireAuthenticated();
+    if (!auth.ok) return { success: false, error: auth.error };
+
     const supabase = await createClient();
 
     const raw: Record<string, unknown> = {};
@@ -249,6 +272,12 @@ export async function updateWithdrawal(id: string, formData: FormData) {
  */
 export async function saveRetrospective(id: string, formData: FormData) {
   try {
+    // 회고는 개인 평가로 읽힐 수 있어 clinic을 제외한 principal/admin/teacher만 쓴다.
+    const teacher = await getCurrentTeacher();
+    if (!teacher || !RETROSPECTIVE_ROLES.has(teacher.role ?? "")) {
+      return { success: false, error: "권한이 없습니다" };
+    }
+
     const supabase = await createClient();
 
     const raw: Record<string, unknown> = {};
@@ -281,10 +310,12 @@ export async function saveRetrospective(id: string, formData: FormData) {
       system_change: parsed.data.system_change ?? "",
       lesson: parsed.data.lesson ?? "",
       manager_comment: parsed.data.manager_comment ?? "",
-      author: parsed.data.author ?? "",
+      // 작성자는 클라이언트 입력을 신뢰하지 않고 서버의 로그인 사용자로 덮어쓴다.
+      author: teacher.name ?? "",
       completed_at: null,
     };
 
+    // 저장 시각도 서버에서 찍는다(클라이언트 시계를 신뢰하지 않음).
     retrospective.completed_at = isRetrospectiveComplete(retrospective)
       ? existing?.completed_at ?? new Date().toISOString()
       : null;
@@ -312,6 +343,9 @@ export async function saveRetrospective(id: string, formData: FormData) {
 
 export async function deleteWithdrawal(id: string) {
   try {
+    const auth = await requireAuthenticated();
+    if (!auth.ok) return { success: false, error: auth.error };
+
     const supabase = await createClient();
     const { error } = await supabase.from("withdrawals").delete().eq("id", id);
 

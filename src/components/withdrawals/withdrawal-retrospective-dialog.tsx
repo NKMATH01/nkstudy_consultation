@@ -25,9 +25,6 @@ interface Props {
   withdrawal: Withdrawal;
 }
 
-/** 작성자 이름을 브라우저에 기억시켜 매번 다시 입력하지 않게 한다. */
-const AUTHOR_STORAGE_KEY = "nkc-retro-author";
-
 const QUESTIONS: Array<{
   key: keyof Pick<
     WithdrawalRetrospective,
@@ -63,24 +60,6 @@ const QUESTIONS: Array<{
   },
 ];
 
-function readStoredAuthor(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return window.localStorage.getItem(AUTHOR_STORAGE_KEY) || "";
-  } catch {
-    return "";
-  }
-}
-
-function rememberAuthor(author: string) {
-  if (typeof window === "undefined" || !author.trim()) return;
-  try {
-    window.localStorage.setItem(AUTHOR_STORAGE_KEY, author.trim());
-  } catch {
-    // 저장 실패는 기능에 영향이 없으므로 무시한다.
-  }
-}
-
 export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -88,7 +67,7 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
   const formKey = `${open ? "open" : "closed"}:${withdrawal.id}`;
   const initial: WithdrawalRetrospective = withdrawal.retrospective
     ? { ...withdrawal.retrospective }
-    : { ...EMPTY_RETROSPECTIVE, author: readStoredAuthor() };
+    : { ...EMPTY_RETROSPECTIVE };
 
   const [draftState, setDraftState] = useState<{ key: string; value: WithdrawalRetrospective }>(
     () => ({ key: formKey, value: initial })
@@ -113,11 +92,10 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
       formData.set("system_change", draft.system_change);
       formData.set("lesson", draft.lesson);
       formData.set("manager_comment", draft.manager_comment);
-      formData.set("author", draft.author);
+      // author는 보내지 않는다 — 서버가 로그인 계정으로 기록한다.
 
       const result = await saveRetrospective(withdrawal.id, formData);
       if (result.success) {
-        rememberAuthor(draft.author);
         toast.success(complete ? "회고가 저장되었습니다" : "작성 중인 회고를 저장했습니다");
         onOpenChange(false);
         router.refresh();
@@ -236,14 +214,12 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
                 onChange={(e) => updateField("manager_comment", e.target.value)}
               />
             </div>
+            {/* 작성자는 서버가 로그인 계정으로 기록한다(입력값을 신뢰하지 않음). */}
             <div className="w-56">
               <label className={labelCls}>작성자</label>
-              <input
-                className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="이름"
-                value={draft.author}
-                onChange={(e) => updateField("author", e.target.value)}
-              />
+              <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                {draft.author || "로그인 계정으로 기록됩니다"}
+              </div>
             </div>
           </div>
 

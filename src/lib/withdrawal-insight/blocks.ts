@@ -136,68 +136,184 @@ export function buildRecentShift(analyzed: readonly AnalyzedEvent[]): RecentShif
   return { latestMonth, baselineMonths, risen };
 }
 
-// ── ④ 강사별 원문 확인 큐 ────────────────────────────────────────────
+// ── 강사별 확인 포인트 ───────────────────────────────────────────────
 /** 이 인원 미만이면 어떤 경향도 읽지 않고 "판단 보류"로 표시한다. */
 export const MIN_EVENTS_FOR_READING = 5;
 
-export interface TeacherQueueRow {
+/** 한 주제가 이 개월 수 이상 등장하면 "반복", 1개월뿐이면 "단발"로 본다. */
+export const REPEAT_MONTHS = 2;
+
+export interface TopicTally {
+  topic: SignalTopic;
+  count: number;
+  months: number;
+  /** months <= 1 이면 단발(반복으로 읽지 않는다) */
+  oneOff: boolean;
+}
+
+export interface TeacherAnalysis {
   teacher: string;
   eventCount: number;
-  /** 수업·소통 불만 신호가 잡힌 사건 수 */
+  /** 사건이 발생한 개월 수 */
+  activeMonths: number;
+  /** 담당 재원수(외부에서 주입). 모르면 null. */
+  enrolledCount: number | null;
+  topicTallies: TopicTally[];
   teachingCount: number;
-  /** 3개월 이상 반복해서 나타난 주제 */
-  repeatedTopics: SignalTopic[];
-  /** 상담일 미기록 또는 요약 30자 미만인 사건 수 */
+  /** 수업·소통 신호가 잡힌 사건의 근거(최대 3건) */
+  teachingSnippets: Array<{ eventId: string; studentName: string; field: string; snippet: string }>;
+  missingConsultDate: number;
+  thinSummary: number;
+  missingRetrospective: number;
   recordGapCount: number;
-  /** 인원이 적어 경향을 읽지 않는 행 */
   holdJudgement: boolean;
+  /** 규칙 기반 확인 포인트. 단정하지 않고 "검토/확인" 어투만 쓴다. */
+  checkPoints: string[];
   eventIds: string[];
 }
 
-export function buildTeacherQueue(analyzed: readonly AnalyzedEvent[]): TeacherQueueRow[] {
+/**
+ * 강사별 확인 포인트. 원장 전용 화면에서 원문을 어디부터 열어볼지 정하는 자료다.
+ * 비율·순위·등급을 만들지 않으며, checkPoints도 판단이 아니라 "무엇을 확인할지"만 적는다.
+ */
+export function buildTeacherAnalysis(
+  analyzed: readonly AnalyzedEvent[],
+  enrolledByTeacher?: Record<string, number>,
+): TeacherAnalysis[] {
   const byTeacher = new Map<string, AnalyzedEvent[]>();
   for (const a of analyzed) {
     const name = a.event.row.teacher?.trim();
-    if (!name) continue; // 담당 미지정은 큐에 올리지 않는다(신뢰도 패널에서 별도 보고).
+    if (!name) continue;
     const list = byTeacher.get(name);
     if (list) list.push(a);
     else byTeacher.set(name, [a]);
   }
 
-  const rows: TeacherQueueRow[] = [];
+  const rows: TeacherAnalysis[] = [];
   for (const [teacher, list] of byTeacher) {
     const monthsByTopic = new Map<SignalTopic, Set<number>>();
+    const countByTopic = new Map<SignalTopic, number>();
     for (const a of list) {
-      if (a.month === null) continue;
       for (const topic of a.topics) {
+        countByTopic.set(topic, (countByTopic.get(topic) ?? 0) + 1);
+        if (a.month === null) continue;
         const set = monthsByTopic.get(topic) ?? new Set<number>();
         set.add(a.month);
         monthsByTopic.set(topic, set);
       }
     }
-    const repeatedTopics = SIGNAL_TOPICS.filter((t) => (monthsByTopic.get(t)?.size ?? 0) >= 3);
+
+    const topicTallies: TopicTally[] = SIGNAL_TOPICS.map((topic) => {
+      const months = monthsByTopic.get(topic)?.size ?? 0;
+      return { topic, count: countByTopic.get(topic) ?? 0, months, oneOff: months <= 1 };
+    })
+      .filter((t) => t.count > 0)
+      .sort((a, b) => b.months - a.months || b.count - a.count);
+
+    const teachingEvents = list.filter((a) => a.topics.includes("teaching"));
+    const teachingSnippets = teachingEvents
+      .flatMap((a) =>
+        a.matches
+          .filter((m) => m.topic === "teaching")
+          .slice(0, 1)
+          .map((m) => ({
+            eventId: a.event.id,
+            studentName: a.event.row.name,
+            field: m.field as string,
+            snippet: m.snippet,
+          })),
+      )
+      .slice(0, 3);
+
+    const missingConsultDate = list.filter((a) => !a.event.row.final_consult_date?.trim()).length;
+    const thinSummary = list.filter((a) => hasThinSummary(a.event.row)).length;
+    const missingRetrospective = list.filter((a) => !a.event.row.retrospective?.completed_at).length;
+    const recordGapCount = list.filter(
+      (a) => !a.event.row.final_consult_date?.trim() || hasThinSummary(a.event.row),
+    ).length;
+    const activeMonths = new Set(
+      list.map((a) => a.month).filter((m): m is number => m !== null),
+    ).size;
+    const holdJudgement = list.length < MIN_EVENTS_FOR_READING;
 
     rows.push({
       teacher,
       eventCount: list.length,
-      teachingCount: list.filter((a) => a.topics.includes("teaching")).length,
-      repeatedTopics,
-      recordGapCount: list.filter(
-        (a) => !a.event.row.final_consult_date?.trim() || hasThinSummary(a.event.row),
-      ).length,
-      holdJudgement: list.length < MIN_EVENTS_FOR_READING,
+      activeMonths,
+      enrolledCount: enrolledByTeacher?.[teacher] ?? null,
+      topicTallies,
+      teachingCount: teachingEvents.length,
+      teachingSnippets,
+      missingConsultDate,
+      thinSummary,
+      missingRetrospective,
+      recordGapCount,
+      holdJudgement,
+      checkPoints: buildCheckPoints({
+        eventCount: list.length,
+        holdJudgement,
+        teachingCount: teachingEvents.length,
+        topicTallies,
+        recordGapCount,
+      }),
       eventIds: list.map((a) => a.event.id),
     });
   }
 
-  // 읽을 순서: 수업·소통 신호 → 기록 공백. 서열이 아니라 원장이 먼저 열어볼 순서다.
-  rows.sort(
-    (a, b) =>
+  // 읽을 순서: 수업·소통 신호 → 기록 공백 비중 → 사건 수. 서열이 아니다.
+  rows.sort((a, b) => {
+    const gapA = a.eventCount > 0 ? a.recordGapCount / a.eventCount : 0;
+    const gapB = b.eventCount > 0 ? b.recordGapCount / b.eventCount : 0;
+    return (
       b.teachingCount - a.teachingCount ||
-      b.recordGapCount - a.recordGapCount ||
-      a.teacher.localeCompare(b.teacher),
-  );
+      gapB - gapA ||
+      b.eventCount - a.eventCount ||
+      a.teacher.localeCompare(b.teacher)
+    );
+  });
   return rows;
+}
+
+/** 규칙 기반 확인 포인트. 평가 단정을 피하고 "검토/확인" 어투만 쓴다. */
+function buildCheckPoints(input: {
+  eventCount: number;
+  holdJudgement: boolean;
+  teachingCount: number;
+  topicTallies: TopicTally[];
+  recordGapCount: number;
+}): string[] {
+  const { eventCount, holdJudgement, teachingCount, topicTallies, recordGapCount } = input;
+  if (holdJudgement) return ["표본 부족 — 판단 보류"];
+
+  const points: string[] = [];
+  const tally = (t: SignalTopic) => topicTallies.find((x) => x.topic === t);
+  const repeated = (t: SignalTopic) => (tally(t)?.months ?? 0) >= 3;
+
+  if (teachingCount >= 1) {
+    points.push(`수업·소통 관련 원문 사례 ${teachingCount}건 — 원문 검토 우선`);
+  }
+  if (repeated("fit")) points.push("과제량·난이도 조정 검토");
+  if (repeated("performance")) points.push("성과 중간점검·기대관리 확인");
+
+  const scheduleCount = tally("schedule")?.count ?? 0;
+  if (scheduleCount * 2 > eventCount) {
+    points.push("시간표·병행 구조 검토 (수업 문제 아님 가능성)");
+  }
+
+  const engagement = tally("engagement")?.count ?? 0;
+  const otherMax = Math.max(
+    0,
+    ...topicTallies.filter((t) => t.topic !== "engagement").map((t) => t.count),
+  );
+  if (engagement > 0 && engagement > otherMax) {
+    points.push("초기 개입 시점·학생 구성 확인");
+  }
+
+  if (recordGapCount * 2 > eventCount) {
+    points.push("원인 분석보다 기록 절차 개선이 먼저");
+  }
+
+  return points.length > 0 ? points : ["특이 신호 없음 — 먼저 열어볼 이유 낮음"];
 }
 
 // ── 데이터 신뢰도 패널 ───────────────────────────────────────────────

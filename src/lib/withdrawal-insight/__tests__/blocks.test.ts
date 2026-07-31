@@ -5,7 +5,7 @@ import {
   buildPersistence,
   buildRecentShift,
   buildReliability,
-  buildTeacherQueue,
+  buildTeacherAnalysis,
   MIN_EVENTS_FOR_READING,
 } from "../blocks";
 import { groupWithdrawalEvents } from "../events";
@@ -108,52 +108,6 @@ describe("buildRecentShift", () => {
   });
 });
 
-describe("buildTeacherQueue", () => {
-  it("수업·소통 신호와 기록 공백을 센다", () => {
-    const rows = [
-      row({ teacher: "김선생", student_opinion: "수업이 지루함" }),
-      row({ teacher: "김선생", final_consult_date: null }),
-      row({ teacher: "김선생", final_consult_summary: "위와 동일" }),
-      row({ teacher: "박선생" }),
-    ];
-    const queue = buildTeacherQueue(analyze(rows));
-
-    const kim = queue.find((q) => q.teacher === "김선생")!;
-    expect(kim.eventCount).toBe(3);
-    expect(kim.teachingCount).toBe(1);
-    expect(kim.recordGapCount).toBe(2);
-
-    // 수업·소통 신호가 있는 행이 먼저 온다(읽을 순서일 뿐 서열 아님).
-    expect(queue[0].teacher).toBe("김선생");
-  });
-
-  it(`사건이 ${MIN_EVENTS_FOR_READING}건 미만이면 판단 보류로 표시한다`, () => {
-    const queue = buildTeacherQueue(analyze([row({ teacher: "박선생" })]));
-    expect(queue[0].holdJudgement).toBe(true);
-  });
-
-  it("사건이 충분하면 판단 보류가 아니다", () => {
-    const rows = Array.from({ length: MIN_EVENTS_FOR_READING }, () => row({ teacher: "이선생" }));
-    const queue = buildTeacherQueue(analyze(rows));
-    expect(queue[0].holdJudgement).toBe(false);
-  });
-
-  it("3개월 이상 반복된 주제만 반복 주제로 본다", () => {
-    const rows = [
-      row({ teacher: "이선생", withdrawal_date: "2026-01-05", teacher_opinion: "숙제 미제출" }),
-      row({ teacher: "이선생", withdrawal_date: "2026-02-05", teacher_opinion: "숙제 미제출" }),
-      row({ teacher: "이선생", withdrawal_date: "2026-03-05", teacher_opinion: "숙제 미제출" }),
-      row({ teacher: "이선생", withdrawal_date: "2026-04-05", student_opinion: "성적 하락" }),
-    ];
-    const queue = buildTeacherQueue(analyze(rows));
-    expect(queue[0].repeatedTopics).toEqual(["engagement"]);
-  });
-
-  it("담당이 없는 사건은 큐에 올리지 않는다", () => {
-    expect(buildTeacherQueue(analyze([row({ teacher: null })]))).toEqual([]);
-  });
-});
-
 describe("buildReliability", () => {
   it("기록 공백을 사실 그대로 센다", () => {
     const rows = [
@@ -182,5 +136,115 @@ describe("buildReliability", () => {
     const rows = [row(dup), row(dup), row(dup)];
     const analyzed = analyze(rows);
     expect(buildReliability(analyzed, rows.length).mergedRows).toBe(2);
+  });
+});
+
+describe("buildTeacherAnalysis", () => {
+  function many(n: number, o: Partial<Withdrawal> = {}) {
+    return Array.from({ length: n }, () => row(o));
+  }
+
+  it("주제별 건수·개월과 단발 여부를 구분한다", () => {
+    const rows = [
+      row({ withdrawal_date: "2026-01-05", teacher_opinion: "숙제 미제출" }),
+      row({ withdrawal_date: "2026-02-05", teacher_opinion: "숙제 미제출" }),
+      row({ withdrawal_date: "2026-03-05", teacher_opinion: "숙제 미제출" }),
+      row({ withdrawal_date: "2026-03-06", student_opinion: "성적이 오르지 않음" }),
+      ...many(2),
+    ];
+    const [a] = buildTeacherAnalysis(analyze(rows));
+
+    const engagement = a.topicTallies.find((t) => t.topic === "engagement")!;
+    expect(engagement.count).toBe(3);
+    expect(engagement.months).toBe(3);
+    expect(engagement.oneOff).toBe(false);
+
+    const performance = a.topicTallies.find((t) => t.topic === "performance")!;
+    expect(performance.months).toBe(1);
+    expect(performance.oneOff).toBe(true);
+  });
+
+  it("수업·소통 신호의 원문 스니펫을 최대 3건 남긴다", () => {
+    const rows = many(6, { student_opinion: "수업이 지루함" });
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    expect(a.teachingCount).toBe(6);
+    expect(a.teachingSnippets).toHaveLength(3);
+    expect(a.teachingSnippets[0].snippet).toContain("지루");
+  });
+
+  it("기록 공백을 항목별로 센다", () => {
+    const rows = [
+      row({ final_consult_date: null }),
+      row({ final_consult_summary: "위와 동일" }),
+      ...many(3),
+    ];
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    expect(a.missingConsultDate).toBe(1);
+    expect(a.thinSummary).toBe(1);
+    expect(a.missingRetrospective).toBe(5);
+    expect(a.recordGapCount).toBe(2);
+  });
+
+  it("담당 재원수를 주입받아 그대로 싣는다", () => {
+    const [a] = buildTeacherAnalysis(analyze(many(5)), { 김선생: 30 });
+    expect(a.enrolledCount).toBe(30);
+    expect(buildTeacherAnalysis(analyze(many(5)))[0].enrolledCount).toBeNull();
+  });
+
+  it(`사건이 ${MIN_EVENTS_FOR_READING}건 미만이면 확인 포인트를 판단 보류 하나로만 낸다`, () => {
+    const few = many(MIN_EVENTS_FOR_READING - 1, { student_opinion: "수업이 지루함" });
+    const [a] = buildTeacherAnalysis(analyze(few));
+    expect(a.holdJudgement).toBe(true);
+    expect(a.checkPoints).toEqual(["표본 부족 — 판단 보류"]);
+
+    // 경계값: 정확히 기준치면 보류가 풀린다.
+    const enough = many(MIN_EVENTS_FOR_READING, { student_opinion: "수업이 지루함" });
+    expect(buildTeacherAnalysis(analyze(enough))[0].holdJudgement).toBe(false);
+  });
+
+  it("수업·소통 신호가 있으면 원문 검토를 우선 안내한다", () => {
+    const rows = many(5, { student_opinion: "수업이 지루함" });
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    expect(a.checkPoints[0]).toContain("원문 검토 우선");
+  });
+
+  it("적합 신호가 3개월 이상이면 과제량·난이도 조정 검토를 낸다", () => {
+    const rows = [
+      row({ withdrawal_date: "2026-01-05", student_opinion: "숙제 양이 많아 부담" }),
+      row({ withdrawal_date: "2026-02-05", student_opinion: "진도가 어려움" }),
+      row({ withdrawal_date: "2026-03-05", student_opinion: "수준이 안 맞음" }),
+      ...many(2),
+    ];
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    expect(a.checkPoints).toContain("과제량·난이도 조정 검토");
+  });
+
+  it("일정 신호가 과반이면 수업 문제가 아닐 가능성을 함께 적는다", () => {
+    const rows = many(5, { parent_opinion: "픽드랍이 어려워짐" });
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    expect(a.checkPoints).toContain("시간표·병행 구조 검토 (수업 문제 아님 가능성)");
+  });
+
+  it("기록 공백이 절반을 넘으면 기록 절차 개선을 먼저 적는다", () => {
+    const rows = many(5, { final_consult_date: null });
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    expect(a.checkPoints).toContain("원인 분석보다 기록 절차 개선이 먼저");
+  });
+
+  it("확인 포인트 문구에 평가·등급 어휘를 쓰지 않는다", () => {
+    const rows = many(6, { student_opinion: "수업이 지루함", final_consult_date: null });
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    for (const p of a.checkPoints) {
+      expect(p).not.toMatch(/퇴원율|순위|등급|심각|부족한 강사|역량/);
+    }
+  });
+
+  it("수업·소통 신호가 많은 담당이 앞에 온다(서열 아님, 읽을 순서)", () => {
+    const rows = [
+      ...many(5, { teacher: "박선생" }),
+      ...many(5, { teacher: "김선생", student_opinion: "수업이 지루함" }),
+    ];
+    const result = buildTeacherAnalysis(analyze(rows));
+    expect(result[0].teacher).toBe("김선생");
   });
 });

@@ -1234,7 +1234,7 @@ export function WithdrawalDashboard({
       </div>
 
       {/* ── 5. 사건 기반 원인 분석 (지속·초기이탈·최근변화·원문 큐) ── */}
-      <WithdrawalInsightBlocks withdrawals={filtered} />
+      <WithdrawalInsightBlocks withdrawals={filtered} teacherStudentCounts={teacherStudentCounts} />
 
       {/* ── 5-b. 기존 진단 근거 (사유·복귀·급증 등 조직 신호) ────── */}
       <DashboardCard

@@ -14,7 +14,7 @@ import {
   buildPersistence,
   buildRecentShift,
   buildReliability,
-  buildTeacherQueue,
+  buildTeacherAnalysis,
   MIN_EVENTS_FOR_READING,
   type AnalyzedEvent,
 } from "@/lib/withdrawal-insight/blocks";
@@ -90,7 +90,13 @@ function MiniBars({
   );
 }
 
-export function WithdrawalInsightBlocks({ withdrawals }: { withdrawals: Withdrawal[] }) {
+export function WithdrawalInsightBlocks({
+  withdrawals,
+  teacherStudentCounts,
+}: {
+  withdrawals: Withdrawal[];
+  teacherStudentCounts?: Record<string, number>;
+}) {
   const [openTeacher, setOpenTeacher] = useState<string | null>(null);
 
   const analyzed = useMemo(
@@ -100,7 +106,10 @@ export function WithdrawalInsightBlocks({ withdrawals }: { withdrawals: Withdraw
   const persistence = useMemo(() => buildPersistence(analyzed), [analyzed]);
   const earlyExit = useMemo(() => buildEarlyExit(analyzed), [analyzed]);
   const recentShift = useMemo(() => buildRecentShift(analyzed), [analyzed]);
-  const queue = useMemo(() => buildTeacherQueue(analyzed), [analyzed]);
+  const teacherRows = useMemo(
+    () => buildTeacherAnalysis(analyzed, teacherStudentCounts),
+    [analyzed, teacherStudentCounts],
+  );
   const reliability = useMemo(
     () => buildReliability(analyzed, withdrawals.length),
     [analyzed, withdrawals.length],
@@ -257,105 +266,181 @@ export function WithdrawalInsightBlocks({ withdrawals }: { withdrawals: Withdraw
           </p>
         </Panel>
 
-        {/* ④ 강사별 원문 확인 큐 */}
-        <Panel
-          title="원문 확인 큐"
-          hint="원장이 먼저 열어볼 순서입니다. 순위·평가가 아닙니다."
-        >
-          {queue.length === 0 ? (
-            <div className="text-[12px]" style={{ color: SUB }}>
-              담당이 기록된 사건이 없습니다.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {queue.map((q) => {
-                const open = openTeacher === q.teacher;
-                return (
-                  <div key={q.teacher} className="rounded-lg" style={{ border: `1px solid ${LINE}` }}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenTeacher(open ? null : q.teacher)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50"
-                    >
-                      {open ? (
-                        <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ color: SUB }} />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" style={{ color: SUB }} />
-                      )}
-                      <span className="text-[12px] font-bold" style={{ color: INK }}>
-                        {q.teacher} T
-                      </span>
-                      <span className="text-[11px]" style={{ color: SUB }}>
-                        사건 {q.eventCount}
-                      </span>
-                      {q.holdJudgement && (
-                        <span
-                          className="rounded px-1.5 py-0.5 text-[10px] font-bold"
-                          style={{ background: "#EEF2F6", color: SUB }}
-                        >
-                          판단 보류 (n&lt;{MIN_EVENTS_FOR_READING})
-                        </span>
-                      )}
-                      <span className="ml-auto flex items-center gap-2 text-[10.5px]" style={{ color: SUB }}>
-                        <span>수업·소통 {q.teachingCount}</span>
-                        <span>기록 공백 {q.recordGapCount}/{q.eventCount}</span>
-                      </span>
-                    </button>
+      </div>
 
-                    {open && (
-                      <div className="border-t px-3 py-2 space-y-2" style={{ borderColor: LINE }}>
-                        {q.repeatedTopics.length > 0 && (
+      {/* ④ 강사별 확인 포인트 */}
+      <div className="rounded-2xl bg-white p-5" style={{ border: `1px solid ${LINE}` }}>
+        <div className="mb-1 text-[13px] font-extrabold" style={{ color: INK }}>
+          강사별 확인 포인트
+        </div>
+        <div className="mb-3 text-[11px]" style={{ color: SUB }}>
+          순위·평가가 아니라 원장이 원문을 열어볼 순서입니다.
+        </div>
+
+        {teacherRows.length === 0 ? (
+          <div className="text-[12px]" style={{ color: SUB }}>
+            담당이 기록된 사건이 없습니다.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {teacherRows.map((t) => {
+              const open = openTeacher === t.teacher;
+              const headline = t.topicTallies.filter((x) => !x.oneOff).slice(0, 2);
+              return (
+                <div key={t.teacher} className="rounded-lg" style={{ border: `1px solid ${LINE}` }}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenTeacher(open ? null : t.teacher)}
+                    className="flex w-full flex-wrap items-center gap-2 px-3 py-2 text-left hover:bg-slate-50"
+                  >
+                    {open ? (
+                      <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ color: SUB }} />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" style={{ color: SUB }} />
+                    )}
+                    <span className="text-[12.5px] font-bold" style={{ color: INK }}>
+                      {t.teacher} T
+                    </span>
+                    <span className="text-[11px]" style={{ color: SUB }}>
+                      사건 {t.eventCount}건 · {t.activeMonths}개월
+                      {t.enrolledCount !== null && ` · 담당 재원 ${t.enrolledCount}명`}
+                    </span>
+                    {headline.map((x) => (
+                      <span
+                        key={x.topic}
+                        className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                        style={{ background: "#EEF2F6", color: INK }}
+                      >
+                        {SIGNAL_LABEL[x.topic]}
+                      </span>
+                    ))}
+                    {t.holdJudgement && (
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                        style={{ background: "#EEF2F6", color: SUB }}
+                      >
+                        판단 보류 (n&lt;{MIN_EVENTS_FOR_READING})
+                      </span>
+                    )}
+                    <span className="ml-auto text-[10.5px]" style={{ color: SUB }}>
+                      기록 공백 {t.recordGapCount}/{t.eventCount}
+                    </span>
+                  </button>
+
+                  {open && (
+                    <div className="space-y-3 border-t px-3 py-3" style={{ borderColor: LINE }}>
+                      <div>
+                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                          반복 신호
+                        </div>
+                        {t.topicTallies.length === 0 ? (
                           <div className="text-[11px]" style={{ color: SUB }}>
-                            3개월 이상 반복 주제:{" "}
-                            {q.repeatedTopics.map((t) => SIGNAL_LABEL[t]).join(", ")}
+                            자유서술에서 잡힌 주제가 없습니다.
+                          </div>
+                        ) : (
+                          <div className="space-y-0.5">
+                            {t.topicTallies.slice(0, 3).map((x) => (
+                              <div key={x.topic} className="text-[11.5px]" style={{ color: INK }}>
+                                {SIGNAL_LABEL[x.topic]} — {x.count}건
+                                {x.months > 0 && ` · ${x.months}개월`}
+                                <span style={{ color: SUB }}>{x.oneOff ? " (단발)" : " 반복"}</span>
+                              </div>
+                            ))}
                           </div>
                         )}
-                        {q.eventIds.map((id) => {
-                          const a = byId.get(id);
-                          if (!a) return null;
-                          const row = a.event.row;
-                          return (
-                            <div key={id} className="rounded-md bg-slate-50 px-2.5 py-2">
-                              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      </div>
+
+                      <div>
+                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                          직접 수업·소통 신호
+                        </div>
+                        {t.teachingSnippets.length === 0 ? (
+                          <div className="text-[11px]" style={{ color: SUB }}>
+                            직접 불만 기록 없음
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            {t.teachingSnippets.map((sn, i) => (
+                              <div
+                                key={i}
+                                className="rounded-md bg-slate-50 px-2.5 py-1.5 text-[11px]"
+                                style={{ color: SUB }}
+                              >
+                                <span className="font-semibold" style={{ color: INK }}>
+                                  {sn.studentName}
+                                </span>{" "}
+                                <span className="font-semibold">
+                                  {SOURCE_FIELD_LABEL[sn.field as keyof typeof SOURCE_FIELD_LABEL]}
+                                </span>{" "}
+                                {sn.snippet}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                          기록 공백
+                        </div>
+                        <div className="text-[11.5px]" style={{ color: INK }}>
+                          상담일 미기록 {t.missingConsultDate}건 · 요약 30자 미만 {t.thinSummary}건 · 회고
+                          미작성 {t.missingRetrospective}건{" "}
+                          <span style={{ color: SUB }}>(담당 사건 {t.eventCount}건 대비)</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                          확인 포인트
+                        </div>
+                        <ul className="space-y-0.5">
+                          {t.checkPoints.map((cp, i) => (
+                            <li key={i} className="text-[11.5px]" style={{ color: INK }}>
+                              · {cp}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                          사건 목록
+                        </div>
+                        <div className="space-y-1">
+                          {t.eventIds.map((id) => {
+                            const a = byId.get(id);
+                            if (!a) return null;
+                            return (
+                              <div key={id} className="flex flex-wrap items-center gap-1.5 text-[11px]">
                                 <span className="font-bold" style={{ color: INK }}>
-                                  {row.name}
+                                  {a.event.row.name}
                                 </span>
                                 <span style={{ color: SUB }}>
-                                  {row.withdrawal_date ?? "날짜 미기록"} ·{" "}
+                                  {a.month !== null ? `${a.month}월` : "월 미상"} ·{" "}
                                   {TENURE_BAND_LABEL[a.event.tenureBand]}
                                 </span>
-                                {a.topics.map((t) => (
+                                {a.topics.map((tp) => (
                                   <span
-                                    key={t}
+                                    key={tp}
                                     className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
                                     style={{ background: "#EEF2F6", color: INK }}
                                   >
-                                    {SIGNAL_LABEL[t]}
+                                    {SIGNAL_LABEL[tp]}
                                   </span>
                                 ))}
                               </div>
-                              {a.matches.slice(0, 3).map((m, i) => (
-                                <div key={i} className="mt-1 text-[11px]" style={{ color: SUB }}>
-                                  <span className="font-semibold">{SOURCE_FIELD_LABEL[m.field]}</span>{" "}
-                                  {m.snippet}
-                                </div>
-                              ))}
-                              {a.matches.length === 0 && (
-                                <div className="mt-1 text-[11px]" style={{ color: SUB }}>
-                                  자유서술에서 잡힌 근거가 없습니다.
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Panel>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

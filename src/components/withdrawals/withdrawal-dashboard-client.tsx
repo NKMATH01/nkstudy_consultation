@@ -249,13 +249,13 @@ function ProblemAnalysisSection({
   const problems: ProblemCard[] = [];
 
   // 1. Early withdrawal problem
+  // [봉인] 실명 나열과 "강사 멘토링" 권고를 뺐다. 조기 퇴원은 조직 차원 온보딩 신호로만 읽는다.
   if (insightData.earlyCount > 0) {
-    const teacherList = insightData.earlyTeachers.join(", ");
     problems.push({
       icon: AlertTriangle,
-      title: "조기 퇴원 문제",
+      title: "조기 퇴원 발생",
       severity: "높음",
-      description: `재원 2개월 이하 조기 퇴원 ${insightData.earlyCount}명 발생. 해당 강사: ${teacherList || "미지정"}. 초기 학생 적응 프로그램 및 강사 멘토링 강화가 필요합니다.`,
+      description: `재원 2개월 이하 조기 퇴원 ${insightData.earlyCount}명 발생. 초기 적응 프로그램(첫 8주 온보딩)을 점검해 주세요.`,
     });
   }
 
@@ -306,15 +306,15 @@ function ProblemAnalysisSection({
     }
   }
 
-  // 6. Multiple reasons for a single teacher
-  const multiReasonTeachers = teacherTableData.filter(t => Object.keys(t.reasons).length >= 3);
-  if (multiReasonTeachers.length > 0) {
-    const names = multiReasonTeachers.map(t => `${t.name} T (${Object.keys(t.reasons).length}개 사유)`).join(", ");
+  // 6. [봉인] "복합 문제 강사" 실명 카드는 제거했다. 사유가 여러 개라는 사실만으로
+  //    개인 운영 문제를 단정할 근거가 없고, 담당 귀속 자체가 아직 신뢰할 수 없다.
+  const multiReasonCount = teacherTableData.filter((t) => Object.keys(t.reasons).length >= 3).length;
+  if (multiReasonCount > 0) {
     problems.push({
       icon: Users,
-      title: "복합 문제 강사",
+      title: "퇴원 사유가 분산된 담당 구간",
       severity: "중간",
-      description: `다양한 퇴원 사유가 복합적으로 발생하는 강사: ${names}. 전반적인 수업 운영 점검이 필요합니다.`,
+      description: `퇴원 사유가 3종 이상으로 나뉜 담당 구간이 ${multiReasonCount}곳입니다. 원인 분류 정비 후 다시 확인해 주세요.`,
     });
   }
 
@@ -1023,19 +1023,9 @@ export function WithdrawalDashboard({
               >
                 {insightData.earlyCount}명
               </div>
+              {/* [봉인] 강사 실명 뱃지는 표시하지 않는다. 상세는 클릭 시 학생 목록으로 확인한다. */}
               {insightData.earlyCount > 0 && (
-                <>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {insightData.earlyTeachers.map((t) => (
-                      <span
-                        key={t}
-                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </>
+                <div className="text-[11px] text-slate-500 mt-1.5">재원 2개월 이하 퇴원</div>
               )}
               {insightData.earlyCount === 0 && (
                 <div className="text-[11px] text-slate-400 mt-1">
@@ -1131,7 +1121,7 @@ export function WithdrawalDashboard({
           </div>
         </div>
 
-        {/* 3-5. 주의 필요 강사 */}
+        {/* 3-5. 퇴원 건수 최다 담당 (건수 사실만) */}
         <div
           className="relative overflow-hidden rounded-2xl p-5 bg-white cursor-pointer hover:shadow-md transition-shadow"
           style={{
@@ -1408,7 +1398,7 @@ export function WithdrawalDashboard({
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr style={{ background: NK_BLUE_50 }}>
-                  {["강사명", "재원생 수", "퇴원 수", "퇴원율", "평균 재원기간", "상태", ""].map(
+                  {["담당", "담당 재원수", "퇴원 수", "퇴원율", "평균 재원기간", "조기 퇴원", ""].map(
                     (h) => (
                       <th
                         key={h}
@@ -1472,9 +1462,8 @@ export function WithdrawalDashboard({
                               <div className="relative">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setExpandedEarlyTeacher(expandedEarlyTeacher === teacher.name ? null : teacher.name); }}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                                  className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-200"
                                 >
-                                  <AlertTriangle className="w-3 h-3" />
                                   조기 퇴원 {teacher.earlyWithdrawalTeachers.length}명
                                 </button>
                                 {expandedEarlyTeacher === teacher.name && (

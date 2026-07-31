@@ -22,6 +22,27 @@ import {
 } from "lucide-react";
 import type { CurrentTeacherInfo } from "@/types";
 
+/**
+ * 퇴원 분석·회고 화면은 개인 평가로 읽힐 수 있는 정보를 다루므로 deny-by-default다.
+ * allowed_menus와 무관하게 ANALYTICS_ALLOWED_ROLES만 통과한다.
+ * 퇴원 목록·등록(/withdrawals)은 강사가 직접 등록해야 하는 운영 흐름이라 제외한다.
+ *
+ * 이 상수는 클라이언트(사이드바)와 서버(check-permission)가 함께 쓰므로
+ * 서버 전용 의존성이 없는 이 모듈에 둔다.
+ */
+export const RESTRICTED_ANALYTICS_PATHS = new Set([
+  "/withdrawals/dashboard",
+  "/withdrawals/review",
+  "/withdrawals/teachers",
+]);
+
+/** 위 제한 경로를 볼 수 있는 role. teachers.role 실측값 기준(원장=principal). */
+export const ANALYTICS_ALLOWED_ROLES = new Set(["principal", "admin"]);
+
+export function canViewRestrictedAnalytics(role: string | null | undefined): boolean {
+  return ANALYTICS_ALLOWED_ROLES.has(role ?? "");
+}
+
 export type MenuItem = {
   href: string;
   label: string;
@@ -65,10 +86,16 @@ export function filterMenuItems(
   items: MenuItem[],
   currentTeacher: CurrentTeacherInfo | null | undefined,
 ): MenuItem[] {
-  if (!currentTeacher) return items; // 정보 없으면 전체 표시 (레거시)
-  if (currentTeacher.role === "admin") return items;
-  if (!currentTeacher.allowed_menus || currentTeacher.allowed_menus.length === 0) return items; // 권한 미설정 시 전체 표시
-  return items.filter(
+  // 퇴원 분석·회고 경로는 role 게이트를 통과한 사용자에게만 노출한다.
+  // 아래 fail-open 분기보다 먼저 걸러, 권한 미설정 계정에도 새어 나가지 않게 한다.
+  const roleGated = canViewRestrictedAnalytics(currentTeacher?.role)
+    ? items
+    : items.filter((item) => !RESTRICTED_ANALYTICS_PATHS.has(item.href));
+
+  if (!currentTeacher) return roleGated; // 정보 없으면 전체 표시 (레거시)
+  if (currentTeacher.role === "admin") return roleGated;
+  if (!currentTeacher.allowed_menus || currentTeacher.allowed_menus.length === 0) return roleGated; // 권한 미설정 시 전체 표시
+  return roleGated.filter(
     (item) => ALWAYS_VISIBLE_MENUS.has(item.href) || currentTeacher.allowed_menus!.includes(item.href),
   );
 }

@@ -5,8 +5,10 @@ import {
   buildPersistence,
   buildRecentShift,
   buildReliability,
+  buildStableTeachers,
   buildTeacherAnalysis,
   MIN_EVENTS_FOR_READING,
+  STABLE_MIN_ENROLLED,
 } from "../blocks";
 import { groupWithdrawalEvents } from "../events";
 import type { Withdrawal } from "@/types";
@@ -246,5 +248,101 @@ describe("buildTeacherAnalysis", () => {
     ];
     const result = buildTeacherAnalysis(analyze(rows));
     expect(result[0].teacher).toBe("김선생");
+  });
+});
+
+// 고3은 숨기지 않되 판정(반복 신호·확인 포인트)을 촉발하지 않는다 — "약하게 반영".
+describe("고3 약반영", () => {
+  it("고3 사건은 주제 지속 판정에서 빠지고 건수만 병기된다", () => {
+    const analyzed = analyze([
+      row({ grade: "고2", withdrawal_date: "2026-01-05", teacher_opinion: "숙제 미제출" }),
+      row({ grade: "고3", withdrawal_date: "2026-02-05", teacher_opinion: "숙제 미제출" }),
+      row({ grade: "고 3", withdrawal_date: "2026-03-05", teacher_opinion: "숙제 미제출" }),
+    ]);
+    const block = buildPersistence(analyzed);
+
+    expect(block.graduatingCount).toBe(2);
+    const engagement = block.topics.find((t) => t.topic === "engagement")!;
+    expect(engagement.totalEvents).toBe(1);
+    expect(engagement.monthsWithEvents).toBe(1);
+  });
+
+  it("초기 이탈 수치도 비고3 기준으로 센다", () => {
+    const analyzed = analyze([
+      row({ grade: "고2", enrollment_start: "2026-01-01", withdrawal_date: "2026-02-01" }),
+      row({ grade: "고3", enrollment_start: "2026-01-01", withdrawal_date: "2026-02-01" }),
+    ]);
+    const block = buildEarlyExit(analyzed);
+    expect(block.within2).toBe(1);
+    expect(block.graduatingCount).toBe(1);
+  });
+
+  it("강사 카드는 고3을 판정에서 빼되 목록에는 남긴다", () => {
+    const rows = [
+      ...Array.from({ length: 5 }, () => row({ grade: "고2", student_opinion: "수업이 지루함" })),
+      row({ grade: "고3", student_opinion: "수업이 지루함" }),
+    ];
+    const [a] = buildTeacherAnalysis(analyze(rows));
+
+    expect(a.eventCount).toBe(5);
+    expect(a.graduatingCount).toBe(1);
+    expect(a.teachingCount).toBe(5); // 고3 사건은 신호 집계에 포함되지 않는다
+    expect(a.graduatingEventIds).toHaveLength(1);
+    expect(a.eventIds).toHaveLength(5);
+  });
+
+  it("고3만 있는 담당은 판정 표본이 0이라 판단 보류가 된다", () => {
+    const rows = Array.from({ length: 6 }, () => row({ grade: "고3", student_opinion: "수업이 지루함" }));
+    const [a] = buildTeacherAnalysis(analyze(rows));
+    expect(a.eventCount).toBe(0);
+    expect(a.graduatingCount).toBe(6);
+    expect(a.holdJudgement).toBe(true);
+  });
+});
+
+describe("buildStableTeachers", () => {
+  it("담당 재원이 충분하고 최근 3개월 퇴원이 없으면 clear로 인정한다", () => {
+    const analyzed = analyze([row({ teacher: "김선생", withdrawal_date: "2026-01-05" })]);
+    const stable = buildStableTeachers(analyzed, { 김선생: 30, 홍지훈: 43 }, 6);
+
+    const hong = stable.find((s) => s.teacher === "홍지훈")!;
+    expect(hong.level).toBe("clear");
+    expect(hong.recentCount).toBe(0);
+    // 김선생의 1월 퇴원은 최근 3개월(4·5·6월) 밖이라 clear로 잡힌다.
+    expect(stable.find((s) => s.teacher === "김선생")!.level).toBe("clear");
+  });
+
+  it("최근 3개월에 1~2건이면 steady 중간 그룹이다", () => {
+    const analyzed = analyze([
+      row({ teacher: "김선생", withdrawal_date: "2026-05-05" }),
+      row({ teacher: "김선생", withdrawal_date: "2026-06-05" }),
+    ]);
+    const stable = buildStableTeachers(analyzed, { 김선생: 30 }, 6);
+    expect(stable[0].level).toBe("steady");
+    expect(stable[0].recentCount).toBe(2);
+  });
+
+  it("최근 3개월에 3건 이상이면 목록에서 뺀다", () => {
+    const analyzed = analyze([
+      row({ teacher: "김선생", withdrawal_date: "2026-04-05" }),
+      row({ teacher: "김선생", withdrawal_date: "2026-05-05" }),
+      row({ teacher: "김선생", withdrawal_date: "2026-06-05" }),
+    ]);
+    expect(buildStableTeachers(analyzed, { 김선생: 30 }, 6)).toEqual([]);
+  });
+
+  it(`담당 재원이 ${STABLE_MIN_ENROLLED}명 미만이면 표본이 적어 인정하지 않는다`, () => {
+    expect(buildStableTeachers(analyze([]), { 김선생: STABLE_MIN_ENROLLED - 1 }, 6)).toEqual([]);
+  });
+
+  it("고3 퇴원은 안정 판정을 깨지 않는다", () => {
+    const analyzed = analyze([
+      row({ teacher: "김선생", grade: "고3", withdrawal_date: "2026-06-05" }),
+    ]);
+    expect(buildStableTeachers(analyzed, { 김선생: 30 }, 6)[0].level).toBe("clear");
+  });
+
+  it("재원수 정보가 없으면 아무도 인정하지 않는다", () => {
+    expect(buildStableTeachers(analyze([]), undefined, 6)).toEqual([]);
   });
 });

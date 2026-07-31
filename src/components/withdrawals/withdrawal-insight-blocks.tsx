@@ -6,18 +6,27 @@
 // 봉인 원칙: 퇴원율·순위·등급·"심각" 어휘를 쓰지 않는다.
 // 강사 실명은 "원문 확인 큐"에서만, 건수·기록 공백 같은 원시 사실과 함께 표시한다.
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { CheckCircle2, ChevronDown, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import {
   analyzeEvents,
   buildEarlyExit,
   buildPersistence,
   buildRecentShift,
   buildReliability,
+  buildStableTeachers,
   buildTeacherAnalysis,
   MIN_EVENTS_FOR_READING,
+  STABLE_MIN_ENROLLED,
+  STABLE_RECENT_MONTHS,
   type AnalyzedEvent,
 } from "@/lib/withdrawal-insight/blocks";
+import {
+  generateTeacherActionPlan,
+  type TeacherActionPlan,
+} from "@/lib/actions/teacher-action-plan";
+import { addManualAction } from "@/lib/actions/improvement-action";
 import { groupWithdrawalEvents, TENURE_BAND_LABEL } from "@/lib/withdrawal-insight/events";
 import {
   DEPARTURE_LABEL,
@@ -98,6 +107,10 @@ export function WithdrawalInsightBlocks({
   teacherStudentCounts?: Record<string, number>;
 }) {
   const [openTeacher, setOpenTeacher] = useState<string | null>(null);
+  const [planning, setPlanning] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Record<string, TeacherActionPlan>>({});
+  const [planError, setPlanError] = useState<Record<string, string>>({});
+  const [addedActions, setAddedActions] = useState<Set<string>>(new Set());
 
   const analyzed = useMemo(
     () => analyzeEvents(groupWithdrawalEvents(withdrawals)),
@@ -110,6 +123,10 @@ export function WithdrawalInsightBlocks({
     () => buildTeacherAnalysis(analyzed, teacherStudentCounts),
     [analyzed, teacherStudentCounts],
   );
+  const stableTeachers = useMemo(
+    () => buildStableTeachers(analyzed, teacherStudentCounts, new Date().getMonth() + 1),
+    [analyzed, teacherStudentCounts],
+  );
   const reliability = useMemo(
     () => buildReliability(analyzed, withdrawals.length),
     [analyzed, withdrawals.length],
@@ -120,6 +137,37 @@ export function WithdrawalInsightBlocks({
     analyzed.forEach((a) => map.set(a.event.id, a));
     return map;
   }, [analyzed]);
+
+  const handleGeneratePlan = useCallback(async (teacher: string) => {
+    setPlanning(teacher);
+    setPlanError((prev) => ({ ...prev, [teacher]: "" }));
+    try {
+      const result = await generateTeacherActionPlan(teacher);
+      if (result.success) {
+        setPlans((prev) => ({ ...prev, [teacher]: result.data }));
+      } else {
+        setPlanError((prev) => ({ ...prev, [teacher]: result.error }));
+      }
+    } finally {
+      setPlanning(null);
+    }
+  }, []);
+
+  const handleAddAction = useCallback(
+    async (teacher: string, title: string, detail: string, key: string) => {
+      const formData = new FormData();
+      formData.set("action_text", `${title} — ${detail}`.slice(0, 200));
+      formData.set("owner", teacher);
+      const result = await addManualAction(formData);
+      if (result.success) {
+        setAddedActions((prev) => new Set(prev).add(key));
+        toast.success("실행 항목에 추가했습니다");
+      } else {
+        toast.error(result.error || "실행 항목 추가 실패");
+      }
+    },
+    [],
+  );
 
   if (analyzed.length === 0) {
     return (
@@ -160,7 +208,9 @@ export function WithdrawalInsightBlocks({
         {/* ① 지속 문제 */}
         <Panel
           title="지속 문제"
-          hint={`자유서술에서 반복 등장하는 주제 (퇴원 월 ${persistence.months.length}개월 기준)`}
+          hint={`자유서술에서 반복 등장하는 주제 (퇴원 월 ${persistence.months.length}개월 기준)${
+            persistence.graduatingCount > 0 ? ` · 고3 ${persistence.graduatingCount}건 별도` : ""
+          }`}
         >
           {activeTopics.length === 0 ? (
             <div className="text-[12px]" style={{ color: SUB }}>
@@ -195,7 +245,12 @@ export function WithdrawalInsightBlocks({
         </Panel>
 
         {/* ② 초기 이탈 */}
-        <Panel title="초기 이탈" hint="입학 후 6개월 이내에 떠난 사건">
+        <Panel
+          title="초기 이탈"
+          hint={`입학 후 6개월 이내에 떠난 사건${
+            earlyExit.graduatingCount > 0 ? ` · 고3 ${earlyExit.graduatingCount}건 별도` : ""
+          }`}
+        >
           <div className="flex items-end gap-5">
             <div>
               <div className="text-3xl font-extrabold leading-none" style={{ color: INK }}>
@@ -277,6 +332,31 @@ export function WithdrawalInsightBlocks({
           순위·평가가 아니라 원장이 원문을 열어볼 순서입니다.
         </div>
 
+        {/* 안정 담당 — 문제만 보여 주면 화면이 책임 추궁으로 읽힌다. 사실 그대로 인정한다. */}
+        {stableTeachers.length > 0 && (
+          <div
+            className="mb-3 rounded-xl px-3 py-2.5"
+            style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}
+          >
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-extrabold" style={{ color: "#15803D" }}>
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              안정 담당 (담당 재원 {STABLE_MIN_ENROLLED}명 이상 · 최근 {STABLE_RECENT_MONTHS}개월 기준)
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {stableTeachers.map((st) => (
+                <span
+                  key={st.teacher}
+                  className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold"
+                  style={{ color: "#15803D", boxShadow: "inset 0 0 0 1px #BBF7D0" }}
+                >
+                  {st.teacher} T · 담당 {st.enrolledCount}명 ·{" "}
+                  {st.recentCount === 0 ? "최근 3개월 퇴원 없음" : `최근 3개월 ${st.recentCount}건`}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {teacherRows.length === 0 ? (
           <div className="text-[12px]" style={{ color: SUB }}>
             담당이 기록된 사건이 없습니다.
@@ -302,7 +382,9 @@ export function WithdrawalInsightBlocks({
                       {t.teacher} T
                     </span>
                     <span className="text-[11px]" style={{ color: SUB }}>
-                      사건 {t.eventCount}건 · {t.activeMonths}개월
+                      사건 {t.eventCount}건
+                      {t.graduatingCount > 0 && ` (+고3 ${t.graduatingCount}건)`} ·{" "}
+                      {t.activeMonths}개월
                       {t.enrolledCount !== null && ` · 담당 재원 ${t.enrolledCount}명`}
                     </span>
                     {headline.map((x) => (
@@ -408,23 +490,35 @@ export function WithdrawalInsightBlocks({
                           사건 목록
                         </div>
                         <div className="space-y-1">
-                          {t.eventIds.map((id) => {
+                          {[...t.eventIds, ...t.graduatingEventIds].map((id) => {
                             const a = byId.get(id);
                             if (!a) return null;
+                            // 고3 사건은 숨기지 않되 회색 톤 + 뱃지로 판정 대상이 아님을 밝힌다.
                             return (
                               <div key={id} className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                                <span className="font-bold" style={{ color: INK }}>
+                                <span className="font-bold" style={{ color: a.graduating ? "#94A3B8" : INK }}>
                                   {a.event.row.name}
                                 </span>
-                                <span style={{ color: SUB }}>
+                                <span style={{ color: a.graduating ? "#94A3B8" : SUB }}>
                                   {a.month !== null ? `${a.month}월` : "월 미상"} ·{" "}
                                   {TENURE_BAND_LABEL[a.event.tenureBand]}
                                 </span>
+                                {a.graduating && (
+                                  <span
+                                    className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                                    style={{ background: "#F1F5F9", color: "#94A3B8" }}
+                                  >
+                                    고3 (수능·졸업 자연 이탈 가능)
+                                  </span>
+                                )}
                                 {a.topics.map((tp) => (
                                   <span
                                     key={tp}
                                     className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                                    style={{ background: "#EEF2F6", color: INK }}
+                                    style={{
+                                      background: a.graduating ? "#F1F5F9" : "#EEF2F6",
+                                      color: a.graduating ? "#94A3B8" : INK,
+                                    }}
                                   >
                                     {SIGNAL_LABEL[tp]}
                                   </span>
@@ -433,6 +527,117 @@ export function WithdrawalInsightBlocks({
                             );
                           })}
                         </div>
+                      </div>
+
+                      {/* AI 조치 계획 — 규칙 기반 확인 포인트와 별개의 보조 자료 */}
+                      <div className="border-t pt-3" style={{ borderColor: LINE }}>
+                        <button
+                          type="button"
+                          onClick={() => handleGeneratePlan(t.teacher)}
+                          disabled={planning === t.teacher}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-bold transition-colors disabled:opacity-60"
+                          style={{ background: "#EEF2F6", color: INK }}
+                        >
+                          {planning === t.teacher ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3.5 w-3.5" />
+                          )}
+                          {plans[t.teacher] ? "AI 조치 계획 다시 생성" : "AI 조치 계획 생성"}
+                        </button>
+
+                        {planError[t.teacher] && (
+                          <div
+                            className="mt-2 rounded-md px-2.5 py-1.5 text-[11px]"
+                            style={{ background: "#FEF2F2", color: "#B91C1C" }}
+                          >
+                            {planError[t.teacher]}
+                          </div>
+                        )}
+
+                        {plans[t.teacher] && (
+                          <div className="mt-2 space-y-2.5">
+                            <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                              AI 생성 — 참고용, 원문 확인 후 적용
+                            </div>
+                            <p className="text-[11.5px] leading-relaxed" style={{ color: INK }}>
+                              {plans[t.teacher].situationSummary}
+                            </p>
+
+                            {plans[t.teacher].likelyFactors.length > 0 && (
+                              <div>
+                                <div className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                                  추정 요인
+                                </div>
+                                {plans[t.teacher].likelyFactors.map((f, i) => (
+                                  <div key={i} className="text-[11.5px]" style={{ color: INK }}>
+                                    · {f.factor}
+                                    <span style={{ color: SUB }}> — {f.evidence}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div>
+                              <div className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
+                                제안 조치
+                              </div>
+                              <div className="space-y-1.5">
+                                {plans[t.teacher].actions.map((ac, i) => {
+                                  const key = `${t.teacher}:${i}`;
+                                  const added = addedActions.has(key);
+                                  return (
+                                    <div key={i} className="rounded-md bg-slate-50 px-2.5 py-2">
+                                      <div className="flex items-start gap-2">
+                                        <div className="min-w-0 flex-1">
+                                          <div className="text-[11.5px] font-bold" style={{ color: INK }}>
+                                            {ac.title}
+                                            <span
+                                              className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                                              style={{ background: "#EEF2F6", color: SUB }}
+                                            >
+                                              {ac.timeframe}
+                                            </span>
+                                          </div>
+                                          <div className="text-[11px]" style={{ color: SUB }}>
+                                            {ac.detail}
+                                          </div>
+                                          {ac.checkMetric && (
+                                            <div className="text-[10.5px]" style={{ color: SUB }}>
+                                              확인 지표: {ac.checkMetric}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          disabled={added}
+                                          onClick={() => handleAddAction(t.teacher, ac.title, ac.detail, key)}
+                                          className="flex-shrink-0 rounded-md px-2 py-1 text-[10.5px] font-bold transition-colors disabled:opacity-50"
+                                          style={{ background: added ? "#F1F5F9" : "#EEF2F6", color: added ? SUB : INK }}
+                                        >
+                                          {added ? "추가됨" : "실행 항목으로 추가"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {plans[t.teacher].positiveNotes.length > 0 && (
+                              <div className="rounded-md px-2.5 py-2" style={{ background: "#F0FDF4" }}>
+                                <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: "#15803D" }}>
+                                  잘하고 있는 점
+                                </div>
+                                {plans[t.teacher].positiveNotes.map((n, i) => (
+                                  <div key={i} className="text-[11.5px]" style={{ color: "#166534" }}>
+                                    · {n}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

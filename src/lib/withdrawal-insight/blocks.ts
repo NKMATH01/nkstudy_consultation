@@ -6,6 +6,7 @@
 
 import {
   eventMonth,
+  isGraduatingGrade,
   type WithdrawalEvent,
 } from "./events";
 import {
@@ -23,13 +24,29 @@ export interface AnalyzedEvent {
   month: number | null;
   topics: SignalTopic[];
   matches: SignalMatch[];
+  /**
+   * 고3 사건. 수능·졸업에 따른 자연 이탈일 수 있어 숨기지는 않되
+   * 판정(반복 신호·확인 포인트)을 촉발시키지 않는다 — "약하게 반영".
+   */
+  graduating: boolean;
 }
 
 export function analyzeEvents(events: readonly WithdrawalEvent[]): AnalyzedEvent[] {
   return events.map((event) => {
     const { topics, matches } = detectSignals(event.row);
-    return { event, month: eventMonth(event), topics, matches };
+    return {
+      event,
+      month: eventMonth(event),
+      topics,
+      matches,
+      graduating: isGraduatingGrade(event.row.grade),
+    };
   });
+}
+
+/** 판정에 쓰는 사건(고3 제외). 표시용 목록에는 고3도 남는다. */
+export function judgingEvents(analyzed: readonly AnalyzedEvent[]): AnalyzedEvent[] {
+  return analyzed.filter((a) => !a.graduating);
 }
 
 // ── ① 지속 문제 ──────────────────────────────────────────────────────
@@ -46,9 +63,14 @@ export interface PersistenceBlock {
   /** 데이터에 존재하는 퇴원 월 목록(오름차순) */
   months: number[];
   topics: TopicPersistence[];
+  /** 판정에서 뺀 고3 사건 수(화면에는 병기한다) */
+  graduatingCount: number;
 }
 
-export function buildPersistence(analyzed: readonly AnalyzedEvent[]): PersistenceBlock {
+/** 주제 지속성. 판정은 비고3 사건만 쓰고 고3은 건수만 병기한다. */
+export function buildPersistence(all: readonly AnalyzedEvent[]): PersistenceBlock {
+  const analyzed = judgingEvents(all);
+  const graduatingCount = all.length - analyzed.length;
   const months = Array.from(
     new Set(analyzed.map((a) => a.month).filter((m): m is number => m !== null)),
   ).sort((a, b) => a - b);
@@ -71,7 +93,7 @@ export function buildPersistence(analyzed: readonly AnalyzedEvent[]): Persistenc
 
   // 지속성(월 수) → 사건 수 순. 등급이 아니라 "오래 이어진 순"이다.
   topics.sort((a, b) => b.monthsWithEvents - a.monthsWithEvents || b.totalEvents - a.totalEvents);
-  return { months, topics };
+  return { months, topics, graduatingCount };
 }
 
 // ── ② 초기 이탈 ──────────────────────────────────────────────────────
@@ -79,11 +101,13 @@ export interface EarlyExitBlock {
   totalEvents: number;
   within6: number;
   within2: number;
+  graduatingCount: number;
   /** 6개월 이내 이탈 사건의 주제 분포(사건 수) */
   topicCounts: Record<SignalTopic, number>;
 }
 
-export function buildEarlyExit(analyzed: readonly AnalyzedEvent[]): EarlyExitBlock {
+export function buildEarlyExit(all: readonly AnalyzedEvent[]): EarlyExitBlock {
+  const analyzed = judgingEvents(all);
   const within6List = analyzed.filter(
     (a) => a.event.tenureBand === "0-2" || a.event.tenureBand === "3-6",
   );
@@ -95,6 +119,7 @@ export function buildEarlyExit(analyzed: readonly AnalyzedEvent[]): EarlyExitBlo
     totalEvents: analyzed.length,
     within6: within6List.length,
     within2: analyzed.filter((a) => a.event.tenureBand === "0-2").length,
+    graduatingCount: all.length - analyzed.length,
     topicCounts,
   };
 }
@@ -153,7 +178,10 @@ export interface TopicTally {
 
 export interface TeacherAnalysis {
   teacher: string;
+  /** 판정에 쓰는 사건 수(비고3) */
   eventCount: number;
+  /** 고3 사건 수. 목록에는 남기고 판정에서만 뺀다. */
+  graduatingCount: number;
   /** 사건이 발생한 개월 수 */
   activeMonths: number;
   /** 담당 재원수(외부에서 주입). 모르면 null. */
@@ -169,7 +197,10 @@ export interface TeacherAnalysis {
   holdJudgement: boolean;
   /** 규칙 기반 확인 포인트. 단정하지 않고 "검토/확인" 어투만 쓴다. */
   checkPoints: string[];
+  /** 비고3 사건 id(판정 대상) */
   eventIds: string[];
+  /** 고3 사건 id(회색 표시용) */
+  graduatingEventIds: string[];
 }
 
 /**
@@ -190,7 +221,10 @@ export function buildTeacherAnalysis(
   }
 
   const rows: TeacherAnalysis[] = [];
-  for (const [teacher, list] of byTeacher) {
+  for (const [teacher, all] of byTeacher) {
+    // 판정은 비고3만. 고3 사건은 목록에만 남긴다(자연 이탈 가능성 참작).
+    const list = all.filter((a) => !a.graduating);
+    const graduating = all.filter((a) => a.graduating);
     const monthsByTopic = new Map<SignalTopic, Set<number>>();
     const countByTopic = new Map<SignalTopic, number>();
     for (const a of list) {
@@ -239,6 +273,7 @@ export function buildTeacherAnalysis(
     rows.push({
       teacher,
       eventCount: list.length,
+      graduatingCount: graduating.length,
       activeMonths,
       enrolledCount: enrolledByTeacher?.[teacher] ?? null,
       topicTallies,
@@ -257,6 +292,7 @@ export function buildTeacherAnalysis(
         recordGapCount,
       }),
       eventIds: list.map((a) => a.event.id),
+      graduatingEventIds: graduating.map((a) => a.event.id),
     });
   }
 
@@ -314,6 +350,65 @@ function buildCheckPoints(input: {
   }
 
   return points.length > 0 ? points : ["특이 신호 없음 — 먼저 열어볼 이유 낮음"];
+}
+
+// ── 안정 담당(긍정 인정) ─────────────────────────────────────────────
+/** 안정 담당으로 볼 최소 담당 재원수. 표본이 적으면 "없음"이 우연일 수 있다. */
+export const STABLE_MIN_ENROLLED = 10;
+/** 최근 몇 개월을 볼지(달력 기준) */
+export const STABLE_RECENT_MONTHS = 3;
+
+export interface StableTeacher {
+  teacher: string;
+  enrolledCount: number;
+  recentCount: number;
+  /** 0건이면 "clear", 1~2건이면 "steady" */
+  level: "clear" | "steady";
+}
+
+/**
+ * 문제만 보여 주면 화면이 결국 책임 추궁으로 읽힌다.
+ * 담당 재원이 충분한데 최근 퇴원이 없거나 적은 담당을 사실 그대로("퇴원 없음") 인정한다.
+ * 판정은 다른 블록과 같은 기준으로 비고3 사건만 쓴다.
+ */
+export function buildStableTeachers(
+  all: readonly AnalyzedEvent[],
+  enrolledByTeacher: Record<string, number> | undefined,
+  referenceMonth: number,
+): StableTeacher[] {
+  if (!enrolledByTeacher) return [];
+
+  const recentMonths = new Set<number>();
+  for (let i = 0; i < STABLE_RECENT_MONTHS; i += 1) {
+    // 1~12 순환(연도 경계는 월만 보는 기존 화면 규칙을 따른다).
+    recentMonths.add(((referenceMonth - 1 - i + 12) % 12) + 1);
+  }
+
+  const recentByTeacher = new Map<string, number>();
+  for (const a of judgingEvents(all)) {
+    const name = a.event.row.teacher?.trim();
+    if (!name || a.month === null || !recentMonths.has(a.month)) continue;
+    recentByTeacher.set(name, (recentByTeacher.get(name) ?? 0) + 1);
+  }
+
+  const result: StableTeacher[] = [];
+  for (const [teacher, enrolledCount] of Object.entries(enrolledByTeacher)) {
+    if (enrolledCount < STABLE_MIN_ENROLLED) continue;
+    const recentCount = recentByTeacher.get(teacher) ?? 0;
+    if (recentCount > 2) continue;
+    result.push({
+      teacher,
+      enrolledCount,
+      recentCount,
+      level: recentCount === 0 ? "clear" : "steady",
+    });
+  }
+
+  // 퇴원 없음 → 담당 재원 많은 순.
+  result.sort(
+    (a, b) => a.recentCount - b.recentCount || b.enrolledCount - a.enrolledCount,
+  );
+  return result;
 }
 
 // ── 데이터 신뢰도 패널 ───────────────────────────────────────────────

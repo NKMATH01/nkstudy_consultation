@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useMemo, useState } from "react";
 import type { Withdrawal } from "@/types";
+import { WithdrawalInsightBlocks } from "./withdrawal-insight-blocks";
 import {
   buildPrescriptions,
   computeDataQuality,
@@ -1195,11 +1196,14 @@ export function WithdrawalDashboard({
         </div>
       </div>
 
-      {/* ── 5. 학원 주요 문제점 분석 ────────────────────────────── */}
+      {/* ── 5. 사건 기반 원인 분석 (지속·초기이탈·최근변화·원문 큐) ── */}
+      <WithdrawalInsightBlocks withdrawals={filtered} />
+
+      {/* ── 5-b. 기존 진단 근거 (사유·복귀·급증 등 조직 신호) ────── */}
       <DashboardCard
-        title="학원 주요 문제점 분석"
+        title="조직 단위 진단 근거"
         icon={AlertTriangle}
-        subtitle="핵심 진단의 근거 상세"
+        subtitle="사유 집중·복귀 가능성·월별 급증 등 전체 신호"
       >
         <ProblemAnalysisSection filtered={filtered} insightData={insightData} teacherTableData={teacherTableData} />
       </DashboardCard>

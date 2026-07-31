@@ -9,6 +9,7 @@ import {
   type RetrospectiveStatus,
 } from "@/lib/withdrawal-retrospective";
 import { WithdrawalRetrospectiveDialog } from "@/components/withdrawals/withdrawal-retrospective-dialog";
+import { EventAxesSummary } from "@/components/withdrawals/withdrawal-insight-blocks";
 import {
   Plus,
   Pencil,
@@ -696,6 +697,8 @@ export function WithdrawalList({ withdrawals }: Props) {
                             {!w.student_opinion && !w.parent_opinion && !w.teacher_opinion && (
                               <p className="text-xs text-slate-400 italic">기록된 의견이 없습니다</p>
                             )}
+                            {/* 자유서술에서 파생한 4축(떠난 곳·근본 문제·근거 출처·발생 단계) */}
+                            <EventAxesSummary row={w} />
                           </div>
                         </div>
 

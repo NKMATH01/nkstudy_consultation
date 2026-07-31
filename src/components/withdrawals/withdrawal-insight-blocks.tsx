@@ -39,6 +39,9 @@ import {
 } from "@/lib/withdrawal-insight/signals";
 import type { Withdrawal } from "@/types";
 
+/** 기본 노출할 강사 카드 수. 나머지는 "더 보기"로 편다. */
+const TEACHER_PREVIEW_COUNT = 6;
+
 const INK = "#0F2B5B";
 const SUB = "#64748B";
 const LINE = "#E8ECF1";
@@ -111,6 +114,8 @@ export function WithdrawalInsightBlocks({
   const [plans, setPlans] = useState<Record<string, TeacherActionPlan>>({});
   const [planError, setPlanError] = useState<Record<string, string>>({});
   const [addedActions, setAddedActions] = useState<Set<string>>(new Set());
+  // 강사가 많으면 접힌 카드만으로도 섹션이 길어진다. 읽을 순서 상위부터 보여 준다.
+  const [showAllTeachers, setShowAllTeachers] = useState(false);
 
   const analyzed = useMemo(
     () => analyzeEvents(groupWithdrawalEvents(withdrawals)),
@@ -178,6 +183,11 @@ export function WithdrawalInsightBlocks({
       </Panel>
     );
   }
+
+  const visibleTeacherRows = showAllTeachers
+    ? teacherRows
+    : teacherRows.slice(0, TEACHER_PREVIEW_COUNT);
+  const hiddenTeacherCount = teacherRows.length - visibleTeacherRows.length;
 
   const activeTopics = persistence.topics.filter((t) => t.totalEvents > 0);
   const pct = (n: number) => ((n / analyzed.length) * 100).toFixed(1);
@@ -363,7 +373,7 @@ export function WithdrawalInsightBlocks({
           </div>
         ) : (
           <div className="space-y-1.5">
-            {teacherRows.map((t) => {
+            {visibleTeacherRows.map((t) => {
               const open = openTeacher === t.teacher;
               const headline = t.topicTallies.filter((x) => !x.oneOff).slice(0, 2);
               return (
@@ -644,6 +654,19 @@ export function WithdrawalInsightBlocks({
                 </div>
               );
             })}
+
+            {(hiddenTeacherCount > 0 || showAllTeachers) && (
+              <button
+                type="button"
+                onClick={() => setShowAllTeachers((v) => !v)}
+                className="w-full rounded-lg py-2 text-[11.5px] font-bold transition-colors hover:bg-slate-50"
+                style={{ border: `1px dashed ${LINE}`, color: SUB }}
+              >
+                {showAllTeachers
+                  ? "접기"
+                  : `더 보기 (${hiddenTeacherCount}명) — 읽을 순서 하위`}
+              </button>
+            )}
           </div>
         )}
       </div>

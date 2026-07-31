@@ -133,8 +133,6 @@ interface TeacherRow {
   name: string;
   totalStudents: number;
   withdrawalCount: number;
-  /** 재원 분모가 없으면 null = 산출 불가. 0으로 접지 않는다. */
-  withdrawalRate: number | null;
   hasEarlyWithdrawal: boolean;
   earlyWithdrawalTeachers: string[];
   avgDuration: number;
@@ -664,8 +662,8 @@ export function WithdrawalDashboard({
       } else {
         totalStudents = teacherStudentCounts?.[name] || 0;
       }
-      // 분모가 없으면 퇴원율은 "산출 불가"다. 0%로 접으면 최우수처럼 정렬된다.
-      const withdrawalRate = totalStudents > 0 ? (data.count / totalStudents) * 100 : null;
+      // [봉인] 강사 단위 퇴원율은 계산하지 않는다. 분자(이달 퇴원)와 분모(오늘 재원)의
+      // 기간이 어긋나 있어 어떤 값을 내놔도 존재하지 않는 비율이 된다.
       // duration_months > 120 (10년) 은 비정상 데이터로 제외
       const validDurations = data.validDurationCount > 0 ? data.totalDuration : 0;
       const avgDuration =
@@ -678,7 +676,6 @@ export function WithdrawalDashboard({
         name,
         totalStudents,
         withdrawalCount: data.count,
-        withdrawalRate,
         hasEarlyWithdrawal: data.earlyWithdrawals.length > 0,
         earlyWithdrawalTeachers: data.earlyWithdrawals,
         avgDuration,
@@ -688,15 +685,8 @@ export function WithdrawalDashboard({
       };
     });
 
-    // 산출 불가(null)는 정렬에서 제외해 맨 뒤로 보내고, 나머지는 퇴원 건수 기준으로 본다.
-    return rows.sort((a, b) => {
-      if (a.withdrawalRate === null && b.withdrawalRate === null) {
-        return b.withdrawalCount - a.withdrawalCount;
-      }
-      if (a.withdrawalRate === null) return 1;
-      if (b.withdrawalRate === null) return -1;
-      return b.withdrawalCount - a.withdrawalCount;
-    });
+    // 퇴원 건수 기준. 비율이 아니므로 서열이 아니라 "많이 발생한 순"이다.
+    return rows.sort((a, b) => b.withdrawalCount - a.withdrawalCount);
   }, [filtered, teacherStudentCounts, activeMonth, monthlyBaseByTeacher]);
 
   // ─── Reason Analysis (horizontal bar) ──────────────────────────────────
@@ -1396,13 +1386,13 @@ export function WithdrawalDashboard({
         <DashboardCard
           title="담당별 퇴원 현황"
           icon={BarChart3}
-          subtitle="담당별 퇴원 건수와 담당 재원수. 분모가 연결되지 않으면 퇴원율은 산출 불가로 표시됩니다"
+          subtitle="담당별 퇴원 건수와 담당 재원수 (원시 사실만, 비율 없음)"
         >
           <div className="overflow-x-auto -mx-6">
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr style={{ background: NK_BLUE_50 }}>
-                  {["담당", "담당 재원수", "퇴원 수", "퇴원율", "평균 재원기간", "조기 퇴원", ""].map(
+                  {["담당", "담당 재원수", "퇴원 수", "평균 재원기간", "조기 퇴원", ""].map(
                     (h) => (
                       <th
                         key={h}
@@ -1445,17 +1435,6 @@ export function WithdrawalDashboard({
                           >
                             {teacher.withdrawalCount}명
                           </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {teacher.withdrawalRate === null ? (
-                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                              산출 불가
-                            </span>
-                          ) : (
-                            <span className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>
-                              {teacher.withdrawalRate.toFixed(1)}%
-                            </span>
-                          )}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-500">
                           {teacher.avgDuration > 0 ? `${teacher.avgDuration}개월` : "-"}
@@ -1500,7 +1479,7 @@ export function WithdrawalDashboard({
                       </tr>
                       {isExpanded && (
                         <tr>
-                          <td colSpan={7} className="px-4 pb-4 pt-0">
+                          <td colSpan={6} className="px-4 pb-4 pt-0">
                             <div
                               className="rounded-xl p-4 mt-1"
                               style={{

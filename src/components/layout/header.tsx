@@ -27,8 +27,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { CurrentTeacherInfo } from "@/types";
+import { computeInitialSector, getVisibleSectors } from "@/lib/menu-sectors";
 
 const pageTitles: Record<string, { label: string; icon: LucideIcon }> = {
   "/": { label: "대시보드", icon: Home },
@@ -51,6 +52,7 @@ interface HeaderProps {
 
 export function Header({ currentTeacher }: HeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [searchValue, setSearchValue] = useState("");
 
   const titleEntry = Object.entries(pageTitles).find(
@@ -58,6 +60,10 @@ export function Header({ currentTeacher }: HeaderProps) {
   );
   const title = titleEntry?.[1].label || "대시보드";
   const TitleIcon = titleEntry?.[1].icon || Home;
+
+  // 카테고리 탭 — 권한 필터를 거친 카테고리만. 클릭하면 그 카테고리의 첫 메뉴로 이동한다.
+  const sectors = getVisibleSectors(currentTeacher);
+  const activeSectorName = computeInitialSector(pathname);
 
   return (
     <header
@@ -69,7 +75,7 @@ export function Header({ currentTeacher }: HeaderProps) {
         borderColor: "#F0E4DD",
       }}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden">
@@ -97,7 +103,43 @@ export function Header({ currentTeacher }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* 카테고리 탭 — 화면 중앙. 좁은 화면에서는 가로 스크롤로 넘긴다. */}
+      {sectors.length > 0 && (
+        <nav
+          aria-label="카테고리"
+          className="mx-3 flex min-w-0 flex-1 justify-center overflow-x-auto"
+          style={{ scrollbarWidth: "none" }}
+        >
+          <div className="flex flex-shrink-0 items-center gap-1 rounded-full p-1" style={{ background: "#FFF3ED" }}>
+            {sectors.map((sector) => {
+              const active = sector.name === activeSectorName;
+              return (
+                <button
+                  key={sector.name}
+                  type="button"
+                  onClick={() => router.push(sector.items[0].href)}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 transition-all duration-200 ${
+                    active ? "" : "hover:-translate-y-px"
+                  }`}
+                  style={{
+                    fontSize: "12.5px",
+                    fontWeight: 800,
+                    background: active ? "#F0653A" : "transparent",
+                    color: active ? "#FFFFFF" : "#8B8078",
+                    boxShadow: active ? "0 4px 12px rgba(240,101,58,0.28)" : "none",
+                  }}
+                >
+                  <sector.icon className="h-[14px] w-[14px] flex-shrink-0" />
+                  {sector.name}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
+
+      <div className="flex flex-shrink-0 items-center gap-3">
         {/* Search */}
         <div className="relative hidden sm:block">
           <Search

@@ -1,100 +1,69 @@
 "use client";
 
-// 코럴 라이트 스킨(디자인만 변경). 메뉴 구성·이름·순서·링크·권한 로직은 이전과 동일하다.
-// 색·배경만 다크 네이비+골드 → 웜톤 화이트 + 코럴 액센트로 교체했다.
+// 코럴 라이트 스킨. 카테고리(상담 관리/학생 분석/퇴원생 관리/학생 관리) 탭은 헤더 중앙으로 옮겼고,
+// 사이드바는 현재 경로가 속한 카테고리의 세부 메뉴만 보여준다.
+// 메뉴 정의·권한 로직은 src/lib/menu-sectors.ts를 헤더와 공유한다(구성·이름·순서·링크 불변).
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Home,
-  Users,
-  CalendarCheck,
-  ClipboardList,
-  FileText,
-  GraduationCap,
-  BookOpen,
-  UserCog,
-  UserMinus,
-  BarChart3,
   LogOut,
-  Shield,
   BookOpenCheck,
   ArrowLeftCircle,
-  MessageSquareHeart,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { CurrentTeacherInfo } from "@/types";
+import {
+  computeInitialSector,
+  getVisibleSectors,
+  type MenuItem,
+} from "@/lib/menu-sectors";
 
-const consultItems = [
-  { href: "/", label: "상담 및 등록 현황", icon: Home },
-  { href: "/consultations", label: "상담 관리", icon: Users },
-  { href: "/bookings", label: "예약 현황판", icon: CalendarCheck },
-];
+const COLLAPSE_STORAGE_KEY = "nkc:sidebar-collapsed";
 
-const analysisItems = [
-  { href: "/surveys", label: "설문/분석", icon: ClipboardList },
-  { href: "/drip-responses", label: "설문 피드백", icon: MessageSquareHeart },
-  { href: "/onboarding", label: "등록 관리", icon: FileText },
-];
+// 접기 상태를 모듈 스코프 외부 저장소로 둔다.
+// useSyncExternalStore는 hydration 중에는 서버 스냅샷(false)을 쓰고 그 뒤 클라이언트
+// 스냅샷으로 한 번 맞춰주므로, effect에서 setState 하지 않고도 mismatch가 나지 않는다.
+let collapsedState = false;
+let readFromStorage = false;
+const collapseListeners = new Set<() => void>();
 
-const withdrawalItems = [
-  { href: "/withdrawals", label: "퇴원생 현황", icon: UserMinus },
-  { href: "/withdrawals/dashboard", label: "퇴원생 분석", icon: BarChart3 },
-  { href: "/withdrawals/review", label: "월간 반성 리포트", icon: BookOpenCheck },
-  { href: "/withdrawals/teachers", label: "강사 러닝 뷰", icon: GraduationCap },
-];
-
-const studentMgmtItems = [
-  { href: "/settings/students", label: "학생 관리", icon: GraduationCap },
-  { href: "/settings/classes", label: "반 관리", icon: BookOpen },
-  { href: "/settings/teachers", label: "선생님 관리", icon: UserCog },
-];
-
-const adminOnlyItems = [
-  { href: "/settings/permissions", label: "선생님 권한", icon: Shield },
-];
-
-
-type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; newTab?: boolean };
-
-// 권한 설정과 무관하게 모든 강사에게 항상 표시되는 메뉴 (진도현황)
-const ALWAYS_VISIBLE_MENUS = new Set(["/progress", "/drip-responses"]);
-
-function filterMenuItems(
-  items: MenuItem[],
-  currentTeacher: CurrentTeacherInfo | null | undefined,
-): MenuItem[] {
-  if (!currentTeacher) return items; // 정보 없으면 전체 표시 (레거시)
-  if (currentTeacher.role === "admin") return items;
-  if (!currentTeacher.allowed_menus || currentTeacher.allowed_menus.length === 0) return items; // 권한 미설정 시 전체 표시
-  return items.filter(
-    (item) => ALWAYS_VISIBLE_MENUS.has(item.href) || currentTeacher.allowed_menus!.includes(item.href),
-  );
+function subscribeCollapsed(onStoreChange: () => void) {
+  collapseListeners.add(onStoreChange);
+  return () => {
+    collapseListeners.delete(onStoreChange);
+  };
 }
 
-// 목차(섹터) 정의 — 각 섹터는 대표 아이콘 1개 + 소속 메뉴 아이템 배열로 구성.
-// 학생 관리 섹터의 매칭 대상에는 adminOnlyItems 경로도 포함해, 관리자 전용 화면에서도
-// 초기 섹터 계산이 학생 관리로 잡히도록 한다(권한 필터는 렌더 단계에서 별도로 수행).
-const SECTOR_DEFS: { name: string; icon: React.ComponentType<{ className?: string }>; items: MenuItem[] }[] = [
-  { name: "상담 관리", icon: Users, items: consultItems },
-  { name: "학생 분석", icon: BarChart3, items: analysisItems },
-  { name: "퇴원생 관리", icon: UserMinus, items: withdrawalItems },
-  { name: "학생 관리", icon: GraduationCap, items: [...studentMgmtItems, ...adminOnlyItems] },
-];
-
-// 현재 경로가 속한 섹터명을 계산한다.
-// - href === "/" 는 pathname === "/" 로만 매칭(루트 오탐 방지)
-// - 그 외에는 pathname.startsWith(href) 로 매칭
-// - 어느 섹터에도 속하지 않으면 기본값 "상담 관리"
-function computeInitialSector(pathname: string): string {
-  for (const sector of SECTOR_DEFS) {
-    const matched = sector.items.some((item) =>
-      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href),
-    );
-    if (matched) return sector.name;
+function getCollapsedSnapshot(): boolean {
+  // 최초 1회만 localStorage를 읽고 이후에는 캐시값을 돌려준다(스냅샷 안정성).
+  if (!readFromStorage) {
+    readFromStorage = true;
+    try {
+      collapsedState = window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1";
+    } catch {
+      // localStorage 접근 불가(프라이빗 모드 등)면 펼침 기본값을 유지한다.
+    }
   }
-  return "상담 관리";
+  return collapsedState;
+}
+
+function getCollapsedServerSnapshot(): boolean {
+  return false;
+}
+
+function setCollapsedStore(next: boolean) {
+  collapsedState = next;
+  readFromStorage = true;
+  try {
+    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
+  } catch {
+    // 저장 실패는 무시(이번 세션에만 적용).
+  }
+  collapseListeners.forEach((listener) => listener());
 }
 
 interface SidebarProps {
@@ -106,39 +75,24 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isAdmin = currentTeacher?.role === "admin";
+  // 모바일 시트는 항상 펼침이다.
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    getCollapsedSnapshot,
+    getCollapsedServerSnapshot,
+  );
+  const isCollapsed = collapsed && !inSheet;
 
-  const visibleConsult = filterMenuItems(consultItems, currentTeacher);
-  const visibleAnalysis = filterMenuItems(analysisItems, currentTeacher);
-  const visibleWithdrawal = filterMenuItems(withdrawalItems, currentTeacher);
-  const visibleStudentMgmt = filterMenuItems(studentMgmtItems, currentTeacher);
+  const toggleCollapsed = () => setCollapsedStore(!collapsed);
 
-  // 진도 현황(최상단 고정 버튼) 활성 여부
+  // 현재 경로가 속한 카테고리의 메뉴만 렌더한다(카테고리 전환은 헤더 탭이 담당).
+  const visibleSectors = getVisibleSectors(currentTeacher);
+  const pathSectorName = computeInitialSector(pathname);
+  const currentSector =
+    visibleSectors.find((sector) => sector.name === pathSectorName) ?? visibleSectors[0];
+  const activeItems = currentSector?.items ?? [];
+
   const progressActive = pathname.startsWith("/progress");
-
-  // 목차 섹터별 표시 아이템 — 권한 필터를 거친 결과. 학생 관리 섹터는 관리자면 adminOnlyItems도 포함.
-  const sectors = [
-    { name: "상담 관리", icon: Users, items: visibleConsult },
-    { name: "학생 분석", icon: BarChart3, items: visibleAnalysis },
-    { name: "퇴원생 관리", icon: UserMinus, items: visibleWithdrawal },
-    {
-      name: "학생 관리",
-      icon: GraduationCap,
-      items: isAdmin ? [...visibleStudentMgmt, ...adminOnlyItems] : visibleStudentMgmt,
-    },
-  ];
-  // 항목이 0개인 섹터는 목차 버튼 자체를 렌더하지 않는다.
-  const visibleSectors = sectors.filter((s) => s.items.length > 0);
-
-  // 선택된 섹터 상태 — lazy initializer로 최초 1회만 현재 경로 기준 섹터를 계산.
-  // 이후 pathname이 바뀌어도 useEffect로 동기화하지 않아 사용자가 고른 섹터를 유지한다.
-  const [activeSector, setActiveSector] = useState<string>(() => computeInitialSector(pathname));
-
-  // 현재 활성 섹터가 권한상 보이지 않으면 첫 번째 표시 섹터로 대체(버튼 하이라이트·본문 일치 유지).
-  const currentSectorName = visibleSectors.some((s) => s.name === activeSector)
-    ? activeSector
-    : visibleSectors[0]?.name;
-  const activeItems = visibleSectors.find((s) => s.name === currentSectorName)?.items ?? [];
 
   const handleLogout = async () => {
     const supabase = createBrowserClient(
@@ -159,19 +113,20 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           key={item.href}
           href={item.href}
           {...(item.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-          className={`sidebar-item group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-2.5 transition-all duration-200 ${
-            isActive ? "is-active" : "hover:translate-x-0.5"
-          }`}
+          title={item.label}
+          className={`sidebar-item group relative mb-1 flex w-full items-center overflow-hidden rounded-xl transition-all duration-200 ${
+            isCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3.5 py-2.5"
+          } ${isActive ? "is-active" : "hover:translate-x-0.5"}`}
           style={{
             fontSize: "13px",
             fontWeight: isActive ? 800 : 600,
             background: isActive ? "#FFF3ED" : undefined,
             color: isActive ? "#C7521F" : "#8B8078",
-            boxShadow: isActive ? "inset 3px 0 0 #F0653A" : "none",
+            boxShadow: isActive && !isCollapsed ? "inset 3px 0 0 #F0653A" : "none",
           }}
         >
           <span
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
+            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
               isActive
                 ? "text-white"
                 : "text-[#8B8078] group-hover:scale-105 group-hover:bg-[#FFF3ED] group-hover:text-[#C7521F]"
@@ -180,7 +135,9 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           >
             <item.icon className="h-[15px] w-[15px]" />
           </span>
-          <span className="truncate transition-colors duration-200">{item.label}</span>
+          {!isCollapsed && (
+            <span className="truncate transition-colors duration-200">{item.label}</span>
+          )}
         </Link>
       );
     });
@@ -202,28 +159,48 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
   const avatarInitial = displayName[0] || "N";
 
   return (
-    <>
-      <aside
-        className={
-          inSheet
-            ? "flex h-full w-full flex-shrink-0 flex-col border-r print:hidden"
-            : "hidden h-full w-[246px] flex-shrink-0 flex-col border-r md:flex print:hidden"
-        }
-        style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
-      >
-        {/* 메인 프로그램(업무보고) 복귀 버튼 */}
-        <div className="px-4 pb-2 pt-3">
-          <a
-            href="https://nk-work-report.vercel.app"
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2 transition-all hover:-translate-y-px"
-            style={{ background: "#FFF3ED", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
+    <aside
+      className={
+        inSheet
+          ? "flex h-full w-full flex-shrink-0 flex-col border-r print:hidden"
+          : `hidden h-full flex-shrink-0 flex-col border-r transition-[width] duration-200 md:flex print:hidden ${
+              isCollapsed ? "w-[64px]" : "w-[246px]"
+            }`
+      }
+      style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
+    >
+      {/* 상단 — 업무보고 복귀 + 접기 토글 */}
+      <div className={`flex items-center gap-1.5 pb-2 pt-3 ${isCollapsed ? "flex-col px-2" : "px-4"}`}>
+        {!inSheet && (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            title={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
+            aria-label={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
+            aria-expanded={!isCollapsed}
+            className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F] ${
+              isCollapsed ? "" : "order-2"
+            }`}
+            style={{ color: "#A59A90" }}
           >
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-lg transition-transform group-hover:-translate-x-0.5"
-              style={{ background: "#FBE4D8", color: "#C7521F" }}
-            >
-              <ArrowLeftCircle className="h-[16px] w-[16px]" />
-            </span>
+            {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+          </button>
+        )}
+        <a
+          href="https://nk-work-report.vercel.app"
+          title="업무보고 프로그램으로 돌아가기"
+          className={`group flex items-center rounded-xl transition-all hover:-translate-y-px ${
+            isCollapsed ? "h-9 w-9 justify-center" : "min-w-0 flex-1 gap-2.5 px-3.5 py-2"
+          }`}
+          style={{ background: "#FFF3ED", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
+        >
+          <span
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg transition-transform group-hover:-translate-x-0.5"
+            style={{ background: "#FBE4D8", color: "#C7521F" }}
+          >
+            <ArrowLeftCircle className="h-[16px] w-[16px]" />
+          </span>
+          {!isCollapsed && (
             <span className="min-w-0">
               <span className="block truncate text-[12.5px] font-extrabold" style={{ color: "#C7521F" }}>
                 업무보고 프로그램
@@ -232,80 +209,53 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
                 메인으로 돌아가기
               </span>
             </span>
-          </a>
-        </div>
-
-        {/* Navigation — 메뉴가 화면보다 길어지면 이 영역만 스크롤 (상단 버튼·하단 로그아웃 고정) */}
-        <nav
-          className="min-h-0 flex-1 overflow-y-auto px-3 pb-2"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#F0E4DD transparent" }}
-        >
-          {/* 목차 — 섹터 버튼(2열 그리드, pill). 클릭 시 해당 섹터 메뉴만 아래에 표시(탭 방식) */}
-          {sectionLabel("목차")}
-          <div className="grid grid-cols-2 gap-1.5">
-            {visibleSectors.map((sector) => {
-              const active = sector.name === currentSectorName;
-              return (
-                <button
-                  key={sector.name}
-                  type="button"
-                  onClick={() => setActiveSector(sector.name)}
-                  className={`group flex w-full items-center justify-center gap-1.5 rounded-full px-2 py-2.5 transition-all duration-200 ${
-                    active ? "" : "hover:-translate-y-px"
-                  }`}
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: 800,
-                    background: active ? "#FFF3ED" : "#F8EEE8",
-                    color: active ? "#C7521F" : "#8B8078",
-                    boxShadow: active ? "inset 0 0 0 1.5px rgba(240,101,58,0.4)" : "none",
-                  }}
-                >
-                  <sector.icon className="h-[15px] w-[15px] flex-shrink-0" />
-                  <span className="truncate">{sector.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* 선택된 섹터의 메뉴만 렌더(기존 renderItems 스타일 유지) */}
-          {activeItems.length > 0 && (
-            <>
-              {divider}
-              {sectionLabel(currentSectorName ?? "")}
-              {renderItems(activeItems)}
-            </>
           )}
+        </a>
+      </div>
 
-          {divider}
+      {/* Navigation — 현재 카테고리의 세부 메뉴. 길어지면 이 영역만 스크롤 */}
+      <nav
+        className={`min-h-0 flex-1 overflow-y-auto pb-2 ${isCollapsed ? "px-2" : "px-3"}`}
+        style={{ scrollbarWidth: "thin", scrollbarColor: "#F0E4DD transparent" }}
+      >
+        {activeItems.length > 0 && (
+          <>
+            {!isCollapsed && sectionLabel(currentSector?.name ?? "")}
+            {renderItems(activeItems)}
+          </>
+        )}
 
-          {/* 진도 현황 — 메뉴 목록 아래 대형 CTA(권한 무관 항상 표시, 같은 탭 이동). 코럴 CTA 스타일 */}
-          <Link
-            href="/progress"
-            className={`group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3.5 py-3.5 transition-all duration-200 ${
-              progressActive ? "" : "hover:-translate-y-px hover:brightness-105"
-            }`}
-            style={{
-              fontSize: "14px",
-              fontWeight: 800,
-              background: progressActive ? "#C7521F" : "#F0653A",
-              color: "#FFFFFF",
-              boxShadow: progressActive
-                ? "inset 0 0 0 1.5px rgba(255,255,255,0.35), 0 8px 20px rgba(199,82,31,0.3)"
-                : "0 8px 20px rgba(240,101,58,0.28)",
-            }}
+        {divider}
+
+        {/* 진도 현황 — 권한 무관 항상 표시(같은 탭 이동). 코럴 CTA 스타일 */}
+        <Link
+          href="/progress"
+          title="진도 현황"
+          className={`group relative mb-1 flex w-full items-center overflow-hidden rounded-xl transition-all duration-200 ${
+            isCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3.5 py-3.5"
+          } ${progressActive ? "" : "hover:-translate-y-px hover:brightness-105"}`}
+          style={{
+            fontSize: "14px",
+            fontWeight: 800,
+            background: progressActive ? "#C7521F" : "#F0653A",
+            color: "#FFFFFF",
+            boxShadow: progressActive
+              ? "inset 0 0 0 1.5px rgba(255,255,255,0.35), 0 8px 20px rgba(199,82,31,0.3)"
+              : "0 8px 20px rgba(240,101,58,0.28)",
+          }}
+        >
+          <span
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
+            style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
           >
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
-              style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
-            >
-              <BookOpenCheck className="h-[18px] w-[18px]" />
-            </span>
-            <span className="truncate">진도 현황</span>
-          </Link>
-        </nav>
+            <BookOpenCheck className="h-[18px] w-[18px]" />
+          </span>
+          {!isCollapsed && <span className="truncate">진도 현황</span>}
+        </Link>
+      </nav>
 
-        {/* Footer - 공개 링크 (한 줄 3열, 높이 절약을 위해 아이콘 없이 텍스트만) */}
+      {/* Footer - 공개 링크 (접힘에서는 숨김) */}
+      {!isCollapsed && (
         <div className="mx-3 grid grid-cols-3 gap-1.5 pb-3 pt-3" style={{ borderTop: "1px solid #F0E4DD" }}>
           <Link
             href="/survey"
@@ -333,8 +283,21 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             학부모 안내
           </a>
         </div>
+      )}
 
-        {/* User Info — 최하단. 상단에 NK 브랜드 한 줄을 통합해 별도 로고 카드를 없앴다. */}
+      {/* User Info — 최하단. 접힘에서는 로그아웃 아이콘만 남긴다. */}
+      {isCollapsed ? (
+        <div className="mb-2 flex justify-center px-2 pt-2" style={{ borderTop: "1px solid #F0E4DD" }}>
+          <button
+            onClick={handleLogout}
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
+            style={{ color: "#A59A90" }}
+            title={`로그아웃 (${displayName})`}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
         <div className="mx-3 mb-2 rounded-2xl px-3 py-2" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
           <div className="mb-1.5 flex items-center gap-2 border-b pb-1.5" style={{ borderColor: "#F0E4DD" }}>
             <div
@@ -375,7 +338,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             </button>
           </div>
         </div>
-      </aside>
-    </>
+      )}
+    </aside>
   );
 }

@@ -123,41 +123,38 @@ describe("reason-concentration 탐지", () => {
   });
 });
 
-describe("teacher-rate 탐지", () => {
-  it("재원 20명 중 5명 퇴원(25%)이면 높은 점수로 발동한다", () => {
-    const filtered = makeMany(5, { teacher: "김" });
-    const d = find(
-      runDiagnose({ filtered, teacherStudentCounts: { 김: 20 } }),
-      "teacher-rate",
-    );
-    expect(d).toBeDefined();
-    expect(d!.metric).toBe(25);
-    expect(d!.score).toBe(77);
-    expect(d!.severity).toBe("심각");
-    expect(d!.detail).toBe("김");
-  });
-
-  it("재원이 5명이면 발동하지 않는다", () => {
+// [봉인 스펙] 강사 실명 퇴원율은 "생성되지 않는 것"이 요구사항이다.
+// 분자(퇴원 건)·분모(재원수)가 모두 파손돼 존재하지 않는 퇴원율이 심각 등급으로 표시됐다.
+// 아래 테스트는 기능 유지가 아니라 봉인이 유지되는지를 지킨다.
+describe("teacher-rate 봉인", () => {
+  it("퇴원율이 높아 보이는 데이터에서도 teacher-rate 진단을 만들지 않는다", () => {
     const filtered = makeMany(5, { teacher: "김" });
     expect(
-      find(runDiagnose({ filtered, teacherStudentCounts: { 김: 5 } }), "teacher-rate"),
+      find(runDiagnose({ filtered, teacherStudentCounts: { 김: 20 } }), "teacher-rate"),
     ).toBeUndefined();
   });
 
-  it("activeMonth가 지정되면 monthlyBaseByTeacher를 분모로 사용한다", () => {
+  it("월별 분모가 주어져도 teacher-rate 진단을 만들지 않는다", () => {
     const filtered = makeMany(4, { teacher: "김" });
-    const d = find(
-      runDiagnose({
-        filtered,
-        activeMonth: 3,
-        teacherStudentCounts: { 김: 40 },
-        monthlyBaseByTeacher: { 3: { 김: 10 } },
-      }),
-      "teacher-rate",
-    );
-    expect(d).toBeDefined();
-    expect(d!.metric).toBe(40);
-    expect(d!.evidence).toBe("재원 10명 중 4명 퇴원 (40.0%)");
+    expect(
+      find(
+        runDiagnose({
+          filtered,
+          activeMonth: 3,
+          teacherStudentCounts: { 김: 40 },
+          monthlyBaseByTeacher: { 3: { 김: 10 } },
+        }),
+        "teacher-rate",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("어떤 진단에도 강사 실명이 detail로 남지 않는다", () => {
+    const filtered = makeMany(5, { teacher: "김", reason_category: "성적 부진" });
+    const details = runDiagnose({ filtered, teacherStudentCounts: { 김: 20 } })
+      .map((d) => d.detail)
+      .filter(Boolean);
+    expect(details).not.toContain("김");
   });
 });
 
@@ -245,6 +242,8 @@ describe("grade-concentration 탐지", () => {
 });
 
 describe("data-quality 탐지", () => {
+  // 사유 미입력 외에 "강사 귀속 불가(분모 미연결)"·"회고 미작성"도 함께 보고한다.
+  // 모두 조직 단위 사실이며 실명은 넣지 않는다.
   it("사유 미입력 40%면 발동하고 근거에 건수와 비율이 들어간다", () => {
     const filtered = [
       ...makeMany(4, { reason_category: null }),
@@ -253,15 +252,46 @@ describe("data-quality 탐지", () => {
     const d = find(runDiagnose({ filtered }), "data-quality");
     expect(d).toBeDefined();
     expect(d!.metric).toBe(40);
-    expect(d!.evidence).toBe("전체 10건 중 사유 미입력 4건 (40.0%)");
+    expect(d!.evidence).toContain("전체 10건 중");
+    expect(d!.evidence).toContain("사유 미입력 4건 (40.0%)");
   });
 
-  it("사유 미입력 10%면 발동하지 않는다", () => {
-    const filtered = [
-      ...makeMany(1, { reason_category: null }),
-      ...makeMany(9, { reason_category: "성적 부진" }),
-    ];
-    expect(find(runDiagnose({ filtered }), "data-quality")).toBeUndefined();
+  it("분모에 연결되지 않은 담당은 귀속 불가 건수로 보고한다", () => {
+    const filtered = makeMany(5, { teacher: "김", reason_category: "성적 부진" });
+    const linked = find(
+      runDiagnose({ filtered, teacherStudentCounts: { 김: 20 } }),
+      "data-quality",
+    );
+    expect(linked!.evidence).not.toContain("강사 귀속 불가");
+
+    const unlinked = find(runDiagnose({ filtered }), "data-quality");
+    expect(unlinked!.evidence).toContain("강사 귀속 불가 5건 (분모 미연결)");
+  });
+
+  it("회고 미작성 건수를 보고한다", () => {
+    const filtered = makeMany(5, { teacher: "김", reason_category: "성적 부진" });
+    const d = find(runDiagnose({ filtered, teacherStudentCounts: { 김: 20 } }), "data-quality");
+    expect(d!.evidence).toContain("회고 미작성 5건");
+  });
+
+  it("보고할 품질 문제가 없으면 발동하지 않는다", () => {
+    const filtered = makeMany(6, {
+      reason_category: "성적 부진",
+      teacher: "김",
+      retrospective: {
+        first_sign: "a",
+        our_attempts: "b",
+        do_differently: "c",
+        system_change: "d",
+        lesson: "e",
+        manager_comment: "",
+        author: "원장",
+        completed_at: "2026-07-01T00:00:00.000Z",
+      },
+    });
+    expect(
+      find(runDiagnose({ filtered, teacherStudentCounts: { 김: 20 } }), "data-quality"),
+    ).toBeUndefined();
   });
 });
 
@@ -353,9 +383,10 @@ describe("buildPrescriptions", () => {
     expect(card.actions.join(" ")).toContain("온보딩");
   });
 
-  it("강사 퇴원율 진단이면 액션에 강사명을 삽입한다", () => {
-    const [card] = buildPrescriptions([mk("teacher-rate", "김")]);
-    expect(card.actions[0]).toBe("김 T 수업 참관·코칭");
+  // [봉인 스펙] 실명 코칭 처방은 생성하지 않는다.
+  it("teacher-rate 진단이 들어와도 실명 처방을 만들지 않는다", () => {
+    const cards = buildPrescriptions([mk("teacher-rate", "김")]);
+    expect(cards.flatMap((c) => c.actions).join(" ")).not.toContain("김");
   });
 
   it("중복 액션은 카드 간에도 한 번만 노출한다", () => {

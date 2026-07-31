@@ -117,11 +117,12 @@ export function buildTeacherLearning(
     // 데이터 범위가 짧으면 추세로 단정하지 않는다.
     message = `아직 추세를 판단할 만큼 기간이 쌓이지 않았습니다 (최근 3개월 ${recentCount}건, 직전 3개월 ${prevCount}건).`;
   } else if (recentCount < prevCount) {
+    // 건수 사실만 서술한다. 담당 귀속·재원 분모가 파손된 상태라 개선/악화로 단정할 근거가 없다.
     trend = "improving";
-    message = `최근 3개월 ${recentCount}건, 직전 3개월 ${prevCount}건 — 감소 추세입니다. 좋은 변화가 이어지고 있습니다.`;
+    message = `최근 3개월 ${recentCount}건, 직전 3개월 ${prevCount}건 — 건수가 줄었습니다.`;
   } else if (recentCount > prevCount) {
     trend = "worsening";
-    message = `최근 3개월 ${recentCount}건, 직전 3개월 ${prevCount}건 — 늘었습니다. 원인을 함께 점검이 필요한 시점입니다.`;
+    message = `최근 3개월 ${recentCount}건, 직전 3개월 ${prevCount}건 — 건수가 늘었습니다. 배경은 원본 기록으로 확인해 주세요.`;
   } else {
     message = `최근 3개월 ${recentCount}건, 직전 3개월 ${prevCount}건 — 큰 변화가 없습니다.`;
   }

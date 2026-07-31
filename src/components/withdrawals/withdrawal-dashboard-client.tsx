@@ -132,14 +132,14 @@ interface TeacherRow {
   name: string;
   totalStudents: number;
   withdrawalCount: number;
-  withdrawalRate: number;
+  /** 재원 분모가 없으면 null = 산출 불가. 0으로 접지 않는다. */
+  withdrawalRate: number | null;
   hasEarlyWithdrawal: boolean;
   earlyWithdrawalTeachers: string[];
   avgDuration: number;
   validDurationCount: number;
   reasons: Record<string, number>;
   students: string[];
-  problemAnalysis: string[];
 }
 
 // ─── Custom Tooltip Component ────────────────────────────────────────────────
@@ -236,7 +236,6 @@ function ProblemAnalysisSection({
     comebackPromising: number;
     topTeacherName: string;
     topTeacherCount: number;
-    topTeacherRate: string;
   };
   teacherTableData: TeacherRow[];
 }) {
@@ -270,17 +269,8 @@ function ProblemAnalysisSection({
     });
   }
 
-  // 3. Teacher withdrawal rate variance
-  const highRateTeachers = teacherTableData.filter(t => t.withdrawalRate > 15 && t.totalStudents > 0);
-  if (highRateTeachers.length > 0) {
-    const names = highRateTeachers.map(t => `${t.name} T (${t.withdrawalRate.toFixed(1)}%)`).join(", ");
-    problems.push({
-      icon: UserCheck,
-      title: "강사별 퇴원율 편차",
-      severity: highRateTeachers.some(t => t.withdrawalRate > 25) ? "높음" : "중간",
-      description: `퇴원율 15% 초과 강사: ${names}. 강사별 수업 만족도 조사 및 개별 코칭이 권장됩니다.`,
-    });
-  }
+  // 3. [봉인] 강사별 퇴원율 편차 카드는 제거했다. 분자·분모가 파손된 실명 퇴원율이라
+  //    존재하지 않는 편차를 등급과 함께 보여 주고 있었다.
 
   // 4. Low comeback possibility
   const comebackLowCount = filtered.filter(w => w.comeback_possibility === "하").length;
@@ -590,15 +580,6 @@ export function WithdrawalDashboard({
     const topTeacherName = sortedTeachers[0]?.[0] || "-";
     const topTeacherCount = sortedTeachers[0]?.[1] || 0;
     // 특정 월 선택 시 전달 말일 기준 강사별 재원생 수 사용
-    let topTeacherTotal: number;
-    if (activeMonth !== null && monthlyBaseByTeacher?.[activeMonth]) {
-      topTeacherTotal = monthlyBaseByTeacher[activeMonth][topTeacherName] || 0;
-    } else {
-      topTeacherTotal = teacherStudentCounts?.[topTeacherName] || 0;
-    }
-    const topTeacherRate =
-      topTeacherTotal > 0 ? ((topTeacherCount / topTeacherTotal) * 100).toFixed(1) : "-";
-
     return {
       count,
       total,
@@ -611,9 +592,9 @@ export function WithdrawalDashboard({
       comebackPromising,
       topTeacherName,
       topTeacherCount,
-      topTeacherRate,
     };
-  }, [filtered, totalStudentCount, teacherStudentCounts, activeMonth, withdrawals, monthlyBaseTotal, monthlyBaseByTeacher]);
+    // 담당별 재원 분모는 더 이상 이 카드에서 쓰지 않는다(강사 퇴원율 봉인).
+  }, [filtered, totalStudentCount, activeMonth, withdrawals, monthlyBaseTotal]);
 
   // ─── Teacher Withdrawal Rate Table ─────────────────────────────────────
 
@@ -682,7 +663,8 @@ export function WithdrawalDashboard({
       } else {
         totalStudents = teacherStudentCounts?.[name] || 0;
       }
-      const withdrawalRate = totalStudents > 0 ? (data.count / totalStudents) * 100 : 0;
+      // 분모가 없으면 퇴원율은 "산출 불가"다. 0%로 접으면 최우수처럼 정렬된다.
+      const withdrawalRate = totalStudents > 0 ? (data.count / totalStudents) * 100 : null;
       // duration_months > 120 (10년) 은 비정상 데이터로 제외
       const validDurations = data.validDurationCount > 0 ? data.totalDuration : 0;
       const avgDuration =
@@ -690,23 +672,7 @@ export function WithdrawalDashboard({
           ? Math.round((validDurations / data.validDurationCount) * 10) / 10
           : 0;
 
-      const problems: string[] = [];
-      if (data.earlyWithdrawals.length > 0) {
-        problems.push("초기 학생 관리 및 적응 지원 부족");
-      }
-      if (data.reasons["학습 의지 및 태도"]) {
-        problems.push("학습 동기 부여 전략 필요");
-      }
-      if (data.reasons["강사 역량 및 소통"]) {
-        problems.push("수업 방식 개선 및 소통 강화 필요");
-      }
-      if (data.reasons["학습 관리 및 시스템"]) {
-        problems.push("커리큘럼 설명 및 학부모 소통 개선");
-      }
-      if (avgDuration > 0 && avgDuration < 6) {
-        problems.push("장기 유지율 낮음 - 학생 만족도 점검 필요");
-      }
-
+      // [봉인] n=1 표본으로 개인 문제를 단정하던 자동 진단은 제거했다.
       return {
         name,
         totalStudents,
@@ -718,11 +684,18 @@ export function WithdrawalDashboard({
         validDurationCount: data.validDurationCount,
         reasons: data.reasons,
         students: data.students,
-        problemAnalysis: problems,
       };
     });
 
-    return rows.sort((a, b) => b.withdrawalRate - a.withdrawalRate);
+    // 산출 불가(null)는 정렬에서 제외해 맨 뒤로 보내고, 나머지는 퇴원 건수 기준으로 본다.
+    return rows.sort((a, b) => {
+      if (a.withdrawalRate === null && b.withdrawalRate === null) {
+        return b.withdrawalCount - a.withdrawalCount;
+      }
+      if (a.withdrawalRate === null) return 1;
+      if (b.withdrawalRate === null) return -1;
+      return b.withdrawalCount - a.withdrawalCount;
+    });
   }, [filtered, teacherStudentCounts, activeMonth, monthlyBaseByTeacher]);
 
   // ─── Reason Analysis (horizontal bar) ──────────────────────────────────
@@ -1052,9 +1025,6 @@ export function WithdrawalDashboard({
               </div>
               {insightData.earlyCount > 0 && (
                 <>
-                  <div className="text-[10px] text-red-500 font-semibold mt-1">
-                    강사 역량 부족 가능성
-                  </div>
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {insightData.earlyTeachers.map((t) => (
                       <span
@@ -1171,30 +1141,24 @@ export function WithdrawalDashboard({
           onClick={() => setInsightPopup('teacher')}
         >
           <div className="flex justify-between items-start">
+            {/* 등급·퇴원율 없이 건수 사실만 표기한다(강사 결과지표 봉인). */}
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
-                주의 필요 강사
+                퇴원 건수 최다 담당
               </div>
               <div
                 className="text-lg font-extrabold leading-tight"
-                style={{ color: "#DC2626" }}
+                style={{ color: NK_PRIMARY }}
               >
                 {insightData.topTeacherName} T
               </div>
               <div className="text-[11px] text-slate-400 mt-1">
-                {insightData.topTeacherCount}명 퇴원
-                {insightData.topTeacherRate !== "-" && (
-                  <span className="ml-1 font-bold text-red-500">
-                    (퇴원율 {insightData.topTeacherRate}%)
-                  </span>
-                )}
+                {insightData.topTeacherCount}명 퇴원 (건수 기준)
               </div>
             </div>
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-              style={{
-                background: "linear-gradient(135deg, #DC2626, #EF4444)",
-              }}
+              style={{ background: NK_PRIMARY }}
             >
               <UserCheck className="h-[18px] w-[18px]" />
             </div>
@@ -1436,9 +1400,9 @@ export function WithdrawalDashboard({
       {/* ── 7. Teacher Withdrawal Rate Table ─────────────────────────── */}
       {(teacherTableData.length > 0 || (teacherStudentCounts && Object.keys(teacherStudentCounts).length > 0)) && (
         <DashboardCard
-          title="강사별 퇴원율 분석"
+          title="담당별 퇴원 현황"
           icon={BarChart3}
-          subtitle="강사별 재원생 대비 퇴원 비율 및 문제 분석"
+          subtitle="담당별 퇴원 건수와 담당 재원수. 분모가 연결되지 않으면 퇴원율은 산출 불가로 표시됩니다"
         >
           <div className="overflow-x-auto -mx-6">
             <table className="w-full min-w-[900px]">
@@ -1460,15 +1424,11 @@ export function WithdrawalDashboard({
               <tbody>
                 {teacherTableData.map((teacher) => {
                   const isExpanded = expandedTeacherRow === teacher.name;
-                  const isHighRate = teacher.withdrawalRate > 20;
                   return (
                     <Fragment key={teacher.name}>
                       <tr
                         className="border-t transition-colors hover:bg-slate-50/50 cursor-pointer"
-                        style={{
-                          borderColor: "#F1F5F9",
-                          background: isHighRate ? "#FEF2F2" : undefined,
-                        }}
+                        style={{ borderColor: "#F1F5F9" }}
                         onClick={() =>
                           setExpandedTeacherRow(isExpanded ? null : teacher.name)
                         }
@@ -1493,16 +1453,15 @@ export function WithdrawalDashboard({
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className="text-sm font-extrabold"
-                            style={{
-                              color: isHighRate ? "#DC2626" : NK_PRIMARY,
-                            }}
-                          >
-                            {teacher.totalStudents > 0
-                              ? `${teacher.withdrawalRate.toFixed(1)}%`
-                              : "-"}
-                          </span>
+                          {teacher.withdrawalRate === null ? (
+                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                              산출 불가
+                            </span>
+                          ) : (
+                            <span className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>
+                              {teacher.withdrawalRate.toFixed(1)}%
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-500">
                           {teacher.avgDuration > 0 ? `${teacher.avgDuration}개월` : "-"}
@@ -1516,7 +1475,7 @@ export function WithdrawalDashboard({
                                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
                                 >
                                   <AlertTriangle className="w-3 h-3" />
-                                  조기 퇴원 {teacher.earlyWithdrawalTeachers.length}명 - 강사 역량 점검 필요
+                                  조기 퇴원 {teacher.earlyWithdrawalTeachers.length}명
                                 </button>
                                 {expandedEarlyTeacher === teacher.name && (
                                   <div className="absolute z-10 left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-slate-200 p-3 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
@@ -1535,11 +1494,6 @@ export function WithdrawalDashboard({
                                   </div>
                                 )}
                               </div>
-                            )}
-                            {isHighRate && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-100 text-red-700">
-                                퇴원율 경고
-                              </span>
                             )}
                           </div>
                         </td>
@@ -1631,34 +1585,6 @@ export function WithdrawalDashboard({
                                   </div>
                                 </div>
 
-                                {/* Problem analysis */}
-                                <div
-                                  className="bg-white rounded-xl p-4"
-                                  style={{ border: "1px solid #E8ECF1" }}
-                                >
-                                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                                    문제 분석
-                                  </div>
-                                  {teacher.problemAnalysis.length > 0 ? (
-                                    <div className="space-y-1.5">
-                                      {teacher.problemAnalysis.map((problem, i) => (
-                                        <div
-                                          key={i}
-                                          className="flex items-start gap-2 text-xs"
-                                        >
-                                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                                          <span className="text-slate-700 font-medium">
-                                            {problem}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-slate-400">
-                                      특이사항 없음
-                                    </div>
-                                  )}
-                                </div>
                               </div>
                             </div>
                           </td>

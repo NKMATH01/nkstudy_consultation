@@ -108,7 +108,7 @@ describe("buildTeacherLearning — improvement", () => {
     expect(result.improvement.prevCount).toBe(5);
     expect(result.improvement.recentCount).toBe(2);
     expect(result.improvement.trend).toBe("improving");
-    expect(result.improvement.message).toContain("감소 추세입니다");
+    expect(result.improvement.message).toContain("건수가 줄었습니다");
   });
 
   it("최근 3개월과 직전 3개월이 같으면 flat", () => {
@@ -120,7 +120,8 @@ describe("buildTeacherLearning — improvement", () => {
   it("최근 3개월이 늘면 worsening", () => {
     const result = buildTeacherLearning(spread([1, 1, 0], [2, 2, 1]), "김", YEAR, 6);
     expect(result.improvement.trend).toBe("worsening");
-    expect(result.improvement.message).toContain("점검");
+    // 단정("악화") 대신 건수 사실만 서술한다.
+    expect(result.improvement.message).toContain("건수가 늘었습니다");
   });
 
   it("데이터 월 범위가 6개월 미만이면 추세로 단정하지 않는다", () => {

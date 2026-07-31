@@ -35,6 +35,7 @@ export function isCurrentYearMonth(
 
 export type DiagnosisType =
   | "reason-concentration"
+  // teacher-rate 탐지기는 봉인됐다. 과거 저장·테스트 픽스처 호환을 위해 타입만 남긴다.
   | "teacher-rate"
   | "early-withdrawal"
   | "monthly-spike"
@@ -187,38 +188,10 @@ function detectReasonConcentration(filtered: Withdrawal[]): Diagnosis | null {
   };
 }
 
-function detectTeacherRate(input: DiagnoseInput): Diagnosis | null {
-  const { filtered, activeMonth, monthlyBaseByTeacher, teacherStudentCounts } = input;
-  const baseByTeacher =
-    activeMonth !== null && monthlyBaseByTeacher?.[activeMonth]
-      ? monthlyBaseByTeacher[activeMonth]
-      : teacherStudentCounts;
-  if (!baseByTeacher) return null;
-
-  const withdrawalByTeacher = countBy(filtered, (w) => w.teacher);
-  const eligible = Object.entries(withdrawalByTeacher)
-    .map(([name, count]) => ({ name, count, base: baseByTeacher[name] || 0 }))
-    .filter((t) => t.base >= 8 && t.count >= 2)
-    .map((t) => ({ ...t, rate: (t.count / t.base) * 100 }))
-    .sort((a, b) => b.rate - a.rate);
-  const hit = eligible[0];
-  if (!hit) return null;
-
-  const pct = round1(hit.rate);
-  const score = toScore(scale(pct, 8, 30), confidence(hit.base, 15));
-  return {
-    type: "teacher-rate",
-    score,
-    severity: severityOf(score),
-    title: `${hit.name} T 퇴원율 높음`,
-    evidence: `재원 ${hit.base}명 중 ${hit.count}명 퇴원 (${pct.toFixed(1)}%)`,
-    metric: pct,
-    metricUnit: "%",
-    detail: hit.name,
-    affected: hit.count,
-  };
-}
-
+// [봉인] 강사 실명 퇴원율 탐지기는 제거했다. 분자(퇴원 건)와 분모(재원수)가 모두
+// 파손된 상태(중복행·다과목 중복귀속·기간 불일치)라 여기서 나온 실명 퇴원율·심각 등급이
+// 존재하지 않는 사실로 읽혔다. 개인 결과지표는 에피소드 원장이 갖춰진 뒤 재설계한다.
+// 나머지 5개 탐지기(사유 집중·조기 퇴원·월별 급증·학년 집중·데이터 품질)는 그대로 둔다.
 function detectEarlyWithdrawal(filtered: Withdrawal[]): Diagnosis | null {
   const valid = filtered.filter(validDuration);
   const early = valid.filter((w) => (w.duration_months as number) <= EARLY_MONTHS);
@@ -293,36 +266,68 @@ function detectGradeConcentration(filtered: Withdrawal[]): Diagnosis | null {
   };
 }
 
-function detectDataQuality(filtered: Withdrawal[]): Diagnosis | null {
+/**
+ * 데이터 품질 신호. 조직 단위 사실만 담고 실명은 넣지 않는다.
+ * 사유 미입력 외에 "강사 귀속 불가(분모 미연결)"와 "회고 미작성"을 함께 보고한다 —
+ * 강사별 퇴원율을 다시 만들려면 먼저 이 연결부터 복구해야 하기 때문이다.
+ */
+function detectDataQuality(input: DiagnoseInput): Diagnosis | null {
+  const { filtered, activeMonth, monthlyBaseByTeacher, teacherStudentCounts } = input;
   const report = computeDataQuality(filtered);
   if (report.total < 5) return null;
 
-  const pct = report.missingReasonPct;
-  const score = toScore(scale(pct, 20, 60), 1);
-  if (score <= 0) return null;
+  const baseByTeacher =
+    activeMonth !== null && monthlyBaseByTeacher?.[activeMonth]
+      ? monthlyBaseByTeacher[activeMonth]
+      : teacherStudentCounts;
+
+  // 담당이 비었거나, 재원 분모에 그 담당이 없으면 강사 단위 집계에 쓸 수 없다.
+  const unlinkedTeacherCount = filtered.filter((w) => {
+    const name = w.teacher?.trim();
+    if (!name) return true;
+    return !baseByTeacher || !baseByTeacher[name];
+  }).length;
+
+  const missingRetrospectiveCount = filtered.filter(
+    (w) => !w.retrospective?.completed_at,
+  ).length;
+
+  const facts: string[] = [];
+  if (report.missingReasonCount > 0) {
+    facts.push(
+      `사유 미입력 ${report.missingReasonCount}건 (${report.missingReasonPct.toFixed(1)}%)`,
+    );
+  }
+  if (unlinkedTeacherCount > 0) {
+    facts.push(`강사 귀속 불가 ${unlinkedTeacherCount}건 (분모 미연결)`);
+  }
+  if (missingRetrospectiveCount > 0) {
+    facts.push(`회고 미작성 ${missingRetrospectiveCount}건`);
+  }
+  if (facts.length === 0) return null;
+
+  const score = toScore(scale(report.missingReasonPct, 20, 60), 1);
   return {
     type: "data-quality",
     score,
     severity: severityOf(score),
-    title: "퇴원 사유 미입력 과다",
-    evidence: `전체 ${report.total}건 중 사유 미입력 ${report.missingReasonCount}건 (${pct.toFixed(1)}%)`,
-    metric: pct,
+    title: "퇴원 기록 품질 점검 필요",
+    evidence: `전체 ${report.total}건 중 ${facts.join(" · ")}`,
+    metric: report.missingReasonPct,
     metricUnit: "%",
     affected: report.missingReasonCount,
   };
 }
-
 // ─── 진단 ─────────────────────────────────────────────────────────────────────
 
 export function diagnoseWithdrawals(input: DiagnoseInput): Diagnosis[] {
   const { filtered } = input;
   const candidates: Array<Diagnosis | null> = [
     detectReasonConcentration(filtered),
-    detectTeacherRate(input),
     detectEarlyWithdrawal(filtered),
     detectMonthlySpike(input),
     detectGradeConcentration(filtered),
-    detectDataQuality(filtered),
+    detectDataQuality(input),
   ];
 
   return candidates
@@ -401,11 +406,6 @@ export const SIGNAL_ACTION_MAP: Partial<Record<DiagnosisType, string[]>> = {
     "입회 2주·1개월·3개월 정기 상담",
     "초기 레벨 미스매치 여부 조기 점검",
   ],
-  "teacher-rate": [
-    "{강사명} 수업 참관·코칭",
-    "해당 반 학생 만족도 설문",
-    "재원생 케어 콜 우선 배정",
-  ],
   "monthly-spike": [
     "급증 월의 계기(시험 직후·방학·경쟁학원 이벤트) 원인 점검",
     "해당 시기 집중 상담 주간 운영",
@@ -427,12 +427,8 @@ function actionsFor(diagnosis: Diagnosis, topReasonName?: string): string[] {
     const reason = topReasonName || diagnosis.detail;
     return reason ? REASON_ACTION_MAP[reason] || REASON_ACTION_MAP["기타"] : [];
   }
-  const base = SIGNAL_ACTION_MAP[diagnosis.type] || [];
-  if (diagnosis.type === "teacher-rate") {
-    const teacher = diagnosis.detail || "해당 강사";
-    return base.map((a) => a.replace("{강사명}", `${teacher} T`));
-  }
-  return base;
+  // 실명 치환 처방은 없다(강사 결과지표 봉인).
+  return SIGNAL_ACTION_MAP[diagnosis.type] || [];
 }
 
 export function buildPrescriptions(

@@ -124,7 +124,8 @@ describe("detectRepeatPatterns — reason-streak", () => {
 });
 
 describe("detectRepeatPatterns — teacher-streak", () => {
-  it("3개월 연속·총 3건이면 주의", () => {
+  // [봉인 스펙] 실명·등급 경보가 아니라 실명 없는 조직 신호만 낸다.
+  it("3개월 연속이면 실명 없는 조직 신호로 보고한다", () => {
     const pattern = find(
       detectRepeatPatterns(
         [inMonth(5, { teacher: "김" }), inMonth(4, { teacher: "김" }), inMonth(3, { teacher: "김" })],
@@ -135,10 +136,12 @@ describe("detectRepeatPatterns — teacher-streak", () => {
     );
     expect(pattern).toBeDefined();
     expect(pattern!.severity).toBe("주의");
-    expect(pattern!.evidence).toBe("김 T 담당 퇴원 3개월 연속 (총 3건)");
+    expect(pattern!.title).not.toContain("김");
+    expect(pattern!.evidence).not.toContain("김");
+    expect(pattern!.evidence).toContain("담당 구간 1곳");
   });
 
-  it("총 5건 이상이면 심각", () => {
+  it("건수가 많아도 심각 등급으로 올리지 않는다", () => {
     const pattern = find(
       detectRepeatPatterns(
         [
@@ -151,8 +154,9 @@ describe("detectRepeatPatterns — teacher-streak", () => {
       ),
       "teacher-streak"
     );
-    expect(pattern?.severity).toBe("심각");
-    expect(pattern?.evidence).toContain("총 5건");
+    expect(pattern?.severity).toBe("주의");
+    expect(pattern?.evidence).toContain("합계 5건");
+    expect(pattern?.evidence).not.toContain("김");
   });
 
   it("2개월 연속이면 발동하지 않는다", () => {

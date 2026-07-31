@@ -127,6 +127,12 @@ function detectReasonStreak(
   };
 }
 
+/**
+ * 담당 구간에 퇴원이 연속된다는 조직 신호. 실명·등급은 넣지 않는다.
+ * 예전에는 "{강사} T 담당에서 퇴원이 이어지고 있습니다"처럼 실명 경보를 절대 건수로
+ * 띄웠는데, 담당 귀속과 재원 분모가 파손돼 있어 개인 평가로 읽힐 근거가 없었다.
+ * 어느 담당인지는 이행 점검(원장 전용 화면)에서 원본을 보고 판단한다.
+ */
 function detectTeacherStreaks(
   byMonth: Map<number, Withdrawal[]>,
   targetMonth: number
@@ -134,29 +140,32 @@ function detectTeacherStreaks(
   const teachers = new Set<string>();
   byMonth.forEach((rows) => rows.forEach((w) => w.teacher && teachers.add(w.teacher)));
 
-  const patterns: RepeatPattern[] = [];
-  Array.from(teachers)
-    .sort()
-    .forEach((teacher) => {
-      let streak = 0;
-      let total = 0;
-      for (let m = targetMonth; m >= 1; m -= 1) {
-        const count = (byMonth.get(m) ?? []).filter((w) => w.teacher === teacher).length;
-        if (count < 1) break;
-        streak += 1;
-        total += count;
-      }
-      if (streak < 3) return;
-      patterns.push({
-        id: `teacher-streak:${teacher}`,
-        severity: total >= 5 ? "심각" : "주의",
-        title: `${teacher} T 담당에서 퇴원이 이어지고 있습니다`,
-        evidence: `${teacher} T 담당 퇴원 ${streak}개월 연속 (총 ${total}건)`,
-      });
-    });
-  return patterns;
-}
+  let streakTeachers = 0;
+  let streakTotal = 0;
+  teachers.forEach((teacher) => {
+    let streak = 0;
+    let total = 0;
+    for (let m = targetMonth; m >= 1; m -= 1) {
+      const count = (byMonth.get(m) ?? []).filter((w) => w.teacher === teacher).length;
+      if (count < 1) break;
+      streak += 1;
+      total += count;
+    }
+    if (streak < 3) return;
+    streakTeachers += 1;
+    streakTotal += total;
+  });
 
+  if (streakTeachers === 0) return [];
+  return [
+    {
+      id: "teacher-streak:aggregate",
+      severity: "주의",
+      title: "특정 담당 구간에 퇴원 연속 발생 — 상세는 이행 점검에서",
+      evidence: `3개월 이상 연속 퇴원이 이어진 담당 구간 ${streakTeachers}곳 (합계 ${streakTotal}건)`,
+    },
+  ];
+}
 function detectEarlyStreak(
   byMonth: Map<number, Withdrawal[]>,
   targetMonth: number

@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useMemo, useState } from "react";
 import type { Withdrawal } from "@/types";
 import { WithdrawalInsightBlocks } from "./withdrawal-insight-blocks";
+import { isGraduatingGrade } from "@/lib/withdrawal-insight/events";
 import {
   buildPrescriptions,
   computeDataQuality,
@@ -435,6 +436,8 @@ export function WithdrawalDashboard({
     return hasData ? currentMonth : null;
   });
   const [activeSubject, setActiveSubject] = useState<SubjectTab>("전체");
+  // 고3 퇴원은 수능·졸업에 따른 자연 이탈이라 원인 분석을 오염시킨다. 기본 제외.
+  const [excludeGraduating, setExcludeGraduating] = useState(true);
   const [expandedTeacherRow, setExpandedTeacherRow] = useState<string | null>(null);
   const [expandedEarlyTeacher, setExpandedEarlyTeacher] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
@@ -460,9 +463,21 @@ export function WithdrawalDashboard({
     return withdrawals.filter((w) => {
       if (activeMonth !== null && !matchesMonth(w, activeMonth)) return false;
       if (!matchesSubject(w, activeSubject)) return false;
+      if (excludeGraduating && isGraduatingGrade(w.grade)) return false;
       return true;
     });
-  }, [withdrawals, activeMonth, activeSubject, matchesMonth]);
+  }, [withdrawals, activeMonth, activeSubject, excludeGraduating, matchesMonth]);
+
+  // 제외된 고3 건수 — 배지로 몇 건이 빠졌는지 밝힌다.
+  const graduatingExcludedCount = useMemo(
+    () =>
+      withdrawals.filter((w) => {
+        if (activeMonth !== null && !matchesMonth(w, activeMonth)) return false;
+        if (!matchesSubject(w, activeSubject)) return false;
+        return isGraduatingGrade(w.grade);
+      }).length,
+    [withdrawals, activeMonth, activeSubject, matchesMonth],
+  );
 
   // ─── Subject-only filtered data (월별 급증 진단용) ──────────────────────
 
@@ -920,6 +935,38 @@ export function WithdrawalDashboard({
             );
           })}
         </div>
+
+        {/* ── 2-b. 고3 제외 토글 (기본 활성) ─────────────────────────── */}
+        <button
+          type="button"
+          onClick={() => setExcludeGraduating((v) => !v)}
+          aria-pressed={excludeGraduating}
+          className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12.5px] font-semibold transition-all"
+          style={{
+            background: excludeGraduating ? NK_BLUE_50 : "#F1F5F9",
+            color: excludeGraduating ? NK_PRIMARY : "#64748B",
+            boxShadow: excludeGraduating ? `inset 0 0 0 1.5px ${NK_PRIMARY}33` : "none",
+          }}
+          title="고3 퇴원은 수능·졸업에 따른 자연 이탈이라 기본 제외합니다"
+        >
+          <span
+            className="flex h-4 w-4 items-center justify-center rounded"
+            style={{
+              background: excludeGraduating ? NK_PRIMARY : "transparent",
+              boxShadow: excludeGraduating ? "none" : "inset 0 0 0 1.5px #CBD5E1",
+              color: "#FFFFFF",
+              fontSize: 10,
+            }}
+          >
+            {excludeGraduating ? "✓" : ""}
+          </span>
+          고3 제외
+          {excludeGraduating && graduatingExcludedCount > 0 && (
+            <span className="text-[11px] font-bold" style={{ color: "#64748B" }}>
+              {graduatingExcludedCount}건 제외됨 (수능·졸업 자연 이탈)
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ── 3. 핵심 진단 & 개선 액션 ─────────────────────────────────── */}

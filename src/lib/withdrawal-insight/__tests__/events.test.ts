@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveTenureMonths,
+  isGraduatingGrade,
+  normalizeGrade,
   eventMonth,
   groupWithdrawalEvents,
   normalizeStudentName,
@@ -39,6 +41,28 @@ describe("normalizeStudentName", () => {
   it("앞뒤·내부 공백을 모두 제거한다", () => {
     expect(normalizeStudentName("  김 지 민 ")).toBe("김지민");
     expect(normalizeStudentName(null)).toBe("");
+  });
+});
+
+describe("normalizeGrade / isGraduatingGrade", () => {
+  it("공백과 괄호 표기를 흡수한다", () => {
+    expect(normalizeGrade("고3")).toBe("고3");
+    expect(normalizeGrade("고 3")).toBe("고3");
+    expect(normalizeGrade(" 고3(재) ")).toBe("고3");
+    expect(normalizeGrade(null)).toBe("");
+  });
+
+  it("고3만 졸업 학년으로 본다", () => {
+    expect(isGraduatingGrade("고3")).toBe(true);
+    expect(isGraduatingGrade("고 3")).toBe(true);
+    expect(isGraduatingGrade("고3(재)")).toBe(true);
+    for (const g of ["고2", "고1", "중3", "초6", null, undefined, ""]) {
+      expect(isGraduatingGrade(g)).toBe(false);
+    }
+  });
+
+  it("학년이 비어 있으면 제외 대상이 아니다(모르는 것을 지우지 않는다)", () => {
+    expect(isGraduatingGrade(null)).toBe(false);
   });
 });
 

@@ -37,6 +37,27 @@ export interface WithdrawalEvent {
   relatedEventIds: string[];
 }
 
+/**
+ * 학년 정규화. 운영 데이터는 현재 "고3"처럼 깔끔하지만, 공백("고 3")이나
+ * 괄호 표기("고3(재)")가 섞여 들어와도 같은 학년으로 읽도록 방어적으로 처리한다.
+ * 값이 없으면 빈 문자열(=학년 불명)을 돌려준다.
+ */
+export function normalizeGrade(grade: string | null | undefined): string {
+  return (grade ?? "")
+    .replace(/\s+/g, "")
+    .replace(/\(.*\)$/, "")
+    .trim();
+}
+
+/**
+ * 수능·졸업으로 자연스럽게 이탈하는 학년인지.
+ * 고3 퇴원은 경쟁 위험이라기보다 정상 이탈이라 원인 분석에서 기본 제외한다.
+ * 학년이 비어 있으면 제외하지 않는다(모르는 것을 지우지 않는다).
+ */
+export function isGraduatingGrade(grade: string | null | undefined): boolean {
+  return normalizeGrade(grade) === "고3";
+}
+
 /** 이름 정규화: 앞뒤 공백 제거 + 내부 공백 전부 제거. */
 export function normalizeStudentName(name: string | null | undefined): string {
   return (name ?? "").replace(/\s+/g, "");

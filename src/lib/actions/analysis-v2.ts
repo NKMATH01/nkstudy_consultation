@@ -11,7 +11,7 @@ import { callGeminiAPI, extractJSON } from "@/lib/gemini";
 import {
   buildAiSafeInput,
   buildV2AnalysisPrompt,
-  type IntakeV2,
+  intakeFromStored,
 } from "@/lib/assessment/v2/serializer";
 import { validateAiInterpretation } from "@/lib/assessment/v2/ai-contract";
 import {
@@ -31,7 +31,8 @@ interface SurveyV2Row {
   parent_phone: string | null;
   instrument_version: string | null;
   subject_selection: string | null;
-  intake_v2: IntakeV2 | null;
+  /** 저장 원본(snake_case JSONB). AI 입력으로 넘기기 전에 intakeFromStored로 옮긴다. */
+  intake_v2: Record<string, unknown> | null;
   responses_v2: Record<string, unknown> | null;
   score_profile_v2: ScoreProfile | null;
 }
@@ -42,13 +43,19 @@ interface SurveyV2Row {
  */
 async function interpretWithAiOrFallback(
   scoreProfile: ScoreProfile,
-  intake: IntakeV2 | null,
+  /** 저장 원본. 여기서 IntakeV2로 옮긴 뒤 AI 입력을 만든다. */
+  storedIntake: Record<string, unknown> | null,
+  identity: { name: string | null; school: string | null; grade: string | null },
   responses: Record<string, unknown> | null,
   surveyId: string,
   /** studentType 실명 혼입 검사에만 쓴다. AI에는 전송하지 않는다. */
   studentName: string | null
 ): Promise<{ interpretation: AiInterpretation; source: "ai" | "fallback" }> {
-  const aiInput = buildAiSafeInput({ scoreProfile, intake, responses });
+  const aiInput = buildAiSafeInput({
+    scoreProfile,
+    intake: intakeFromStored(storedIntake, identity),
+    responses,
+  });
   const prompt = buildV2AnalysisPrompt(aiInput);
 
   try {
@@ -118,11 +125,12 @@ export async function analyzeSurveyV2(surveyId: string) {
 
   // 이름은 서버 로컬로만 합성(analyses.name NOT NULL). AI에는 전송하지 않는다.
   // 아래 검증에서 studentType에 실명이 섞였는지 확인하는 용도로만 넘긴다.
-  const name = row.intake_v2?.name ?? row.name ?? "(이름 미상)";
+  const name = row.name ?? "(이름 미상)";
 
   const { interpretation: rawInterpretation, source } = await interpretWithAiOrFallback(
     scoreProfile,
     row.intake_v2,
+    { name: row.name, school: row.school, grade: row.grade },
     row.responses_v2,
     surveyId,
     name

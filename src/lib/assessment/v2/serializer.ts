@@ -73,6 +73,74 @@ export interface IntakeV2 {
   mbtiConfidence?: string | null;
 }
 
+/**
+ * surveys.intake_v2(JSONB)에 실제로 저장되는 키 → IntakeV2 필드 매핑.
+ *
+ * 저장은 snake_case, 이 인터페이스는 camelCase다. 두 이름이 다른데 IntakeV2의 모든 필드가
+ * optional이라 그냥 캐스팅하면 타입 검사가 통과해 버린다(전 필드 undefined인 객체도
+ * IntakeV2를 만족한다). 그 결과 MBTI와 학생 주관식이 프롬프트에 하나도 실리지 않았다.
+ * 매핑을 표로 고정해 두면 저장 키가 바뀔 때 여기서 먼저 눈에 띈다.
+ */
+const STORED_TO_INTAKE: Record<string, keyof IntakeV2> = {
+  subject_selection: "subjectSelection",
+  prev_academy: "prevAcademy",
+  prev_academy_duration: "prevAcademyDuration",
+  prev_leave_reason: "prevSwitchReason",
+  prev_complaint: "prevComplaint",
+  referral: "referralPath",
+  referral_friend: "referralFriendName",
+  nk_knowledge: "nkAwareness",
+  nk_expectations: "nkExpectations",
+  preferred_days: "preferredDays",
+  available_time: "availableTime",
+  weekday_selfstudy: "weekdaySelfStudy",
+  clinic_condition: "clinicAvailabilityChoice",
+  commute_method: "commuteMethod",
+  commute_time: "commuteTime",
+  has_future_plan: "hasFuturePlan",
+  dream: "dreamJob",
+  target_university: "targetUniversity",
+  study_core: "studyCore",
+  problem_self: "selfProblem",
+  math_difficulty: "mathDifficulty",
+  english_difficulty: "englishDifficulty",
+  health_note: "healthNote",
+  requests: "requests",
+  mbti: "mbtiType",
+  mbti_confidence: "mbtiConfidence",
+};
+
+/**
+ * 저장된 intake_v2를 IntakeV2로 옮긴다.
+ *
+ * 이름·학년은 intake_v2에 없고 surveys 상위 컬럼에 있다(identity로 받는다).
+ * 이름은 AI로 보내지 않고 서술 마스킹에만 쓰며, 학년은 학교급·숫자만 파생해 보낸다.
+ * 연락처는 어디에도 쓰지 않으므로 옮기지 않는다.
+ */
+export function intakeFromStored(
+  stored: Record<string, unknown> | null | undefined,
+  identity?: { name?: string | null; school?: string | null; grade?: string | null },
+): IntakeV2 {
+  const out: IntakeV2 = {};
+  if (stored) {
+    for (const [storedKey, field] of Object.entries(STORED_TO_INTAKE)) {
+      const value = stored[storedKey];
+      if (value === undefined || value === null) continue;
+      if (field === "nkExpectations") {
+        if (Array.isArray(value)) out.nkExpectations = value as string[];
+        continue;
+      }
+      if (typeof value === "string") {
+        (out as Record<string, unknown>)[field] = value;
+      }
+    }
+  }
+  if (identity?.name) out.name = identity.name;
+  if (identity?.school) out.school = identity.school;
+  if (identity?.grade) out.grade = identity.grade;
+  return out;
+}
+
 /** AI에 전달하는 비식별 입력. 이 객체에는 어떤 §11 금지 필드도 포함되지 않는다. */
 export interface AiSafeInput {
   instrumentVersion: "v2";

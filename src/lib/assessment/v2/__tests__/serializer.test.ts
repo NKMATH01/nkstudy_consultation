@@ -4,6 +4,7 @@ import { computeScoreProfile } from "../scoring";
 import {
   buildAiSafeInput,
   buildV2AnalysisPrompt,
+  intakeFromStored,
   maskStudentName,
   redactNarrative,
   type IntakeV2,
@@ -296,6 +297,117 @@ describe("규칙 기반 fallback 총평도 무점수 계약을 지킨다", () =>
     const all = [...interp.strengths, ...interp.growthAreas].join(" ");
     expect(all).toMatch(/\d+문항 평균 \d+\.\d+\/5/);
     expect(findScoreNotationViolation([...interp.strengths, ...interp.growthAreas])).toBeNull();
+  });
+});
+
+// ── 저장 키(snake_case) → IntakeV2 매핑 ──────────────────────────────
+
+describe("intakeFromStored", () => {
+  // 실제 surveys.intake_v2에 저장되는 키(buildV2InsertPayload 기준).
+  const STORED = {
+    subject_selection: "math",
+    prev_academy: "OO학원",
+    prev_academy_duration: "1년 6개월",
+    prev_leave_reason: "성적이 정체되어서",
+    prev_complaint: "개인별 관리가 부족했다",
+    referral: "친구 소개",
+    referral_friend: "김친구",
+    nk_knowledge: "숙제 관리가 철저하다고 들었다",
+    nk_expectations: ["철저한 숙제 관리"],
+    preferred_days: "월수금",
+    available_time: "평일 저녁 6시 이후",
+    weekday_selfstudy: "평일 2시간",
+    clinic_condition: "요일·시간이 맞으면 가능",
+    commute_method: "도보",
+    commute_time: "15분",
+    has_future_plan: "뚜렷한 목표 있음",
+    dream: "개발자",
+    target_university: "공대",
+    study_core: "꾸준한 복습",
+    problem_self: "집중이 오래 안 된다",
+    math_difficulty: "함수",
+    english_difficulty: "독해",
+    health_note: "특이사항 없음",
+    requests: "질문을 편하게 할 수 있으면 좋겠다",
+    mbti: "ENFP",
+    mbti_confidence: "medium",
+    commitment14: "매일 오답 1개 풀기",
+  };
+
+  it("MBTI와 확신도를 옮긴다", () => {
+    const intake = intakeFromStored(STORED);
+    expect(intake.mbtiType).toBe("ENFP");
+    expect(intake.mbtiConfidence).toBe("medium");
+  });
+
+  it("이름이 다른 주관식 서술을 모두 옮긴다", () => {
+    const intake = intakeFromStored(STORED);
+    expect(intake.dreamJob).toBe("개발자");
+    expect(intake.selfProblem).toBe("집중이 오래 안 된다");
+    expect(intake.prevSwitchReason).toBe("성적이 정체되어서");
+    expect(intake.nkAwareness).toBe("숙제 관리가 철저하다고 들었다");
+    expect(intake.clinicAvailabilityChoice).toBe("요일·시간이 맞으면 가능");
+    expect(intake.weekdaySelfStudy).toBe("평일 2시간");
+    expect(intake.referralPath).toBe("친구 소개");
+  });
+
+  it("배열 필드는 배열로 옮긴다", () => {
+    expect(intakeFromStored(STORED).nkExpectations).toEqual(["철저한 숙제 관리"]);
+  });
+
+  it("이름·학년은 상위 컬럼에서 받는다(intake_v2에 없다)", () => {
+    expect(STORED).not.toHaveProperty("name");
+    expect(STORED).not.toHaveProperty("grade");
+    const intake = intakeFromStored(STORED, {
+      name: "강현찬",
+      school: "안산중",
+      grade: "중2",
+    });
+    expect(intake.name).toBe("강현찬");
+    expect(intake.grade).toBe("중2");
+  });
+
+  it("연락처는 옮기지 않는다", () => {
+    const intake = intakeFromStored(
+      { ...STORED, student_phone: "010-1111-2222", parent_phone: "010-3333-4444" },
+      { name: "강현찬" },
+    );
+    expect(intake.studentPhone).toBeUndefined();
+    expect(intake.parentPhone).toBeUndefined();
+  });
+
+  it("빈 입력에도 안전하다", () => {
+    expect(intakeFromStored(null)).toEqual({});
+    expect(intakeFromStored({})).toEqual({});
+  });
+
+  it("매핑을 거치면 MBTI와 주관식이 실제로 프롬프트에 실린다", () => {
+    // 회귀 방지: 예전에는 저장 원본을 그대로 넘겨 mbti가 항상 null이었다.
+    const aiInput = buildAiSafeInput({
+      scoreProfile: profileFor("math"),
+      intake: intakeFromStored(STORED, { name: "강현찬", grade: "중2" }),
+      responses: fillResponses(4),
+    });
+    expect(aiInput.mbti).toEqual({ type: "ENFP", confidence: "medium" });
+    expect(aiInput.student.grade).toBe(2);
+    expect(aiInput.narratives.futureGoal).toContain("개발자");
+    expect(aiInput.narratives.selfPerception).toContain("집중");
+
+    const prompt = buildV2AnalysisPrompt(aiInput);
+    expect(prompt).toContain("ENFP");
+    expect(prompt).not.toContain("(제공된 서술 없음)");
+  });
+
+  it("저장 원본을 그대로 넘기면 아무것도 실리지 않는다(회귀 증명)", () => {
+    const aiInput = buildAiSafeInput({
+      scoreProfile: profileFor("math"),
+      intake: STORED as never,
+      responses: fillResponses(4),
+    });
+    expect(aiInput.mbti).toBeNull();
+    expect(aiInput.narratives.futureGoal).toBeFalsy();
+    expect(aiInput.narratives.selfPerception).toBeFalsy();
+    expect(buildV2AnalysisPrompt(aiInput)).toContain("(제공된 서술 없음)");
   });
 });
 

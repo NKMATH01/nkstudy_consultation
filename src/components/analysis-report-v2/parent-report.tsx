@@ -11,7 +11,6 @@ import { studentLabel } from "@/lib/assessment/v2/name-substitution";
 import type { CommonScores, Score } from "@/lib/assessment/v2/types";
 import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
 import { ReportSection } from "./report-frame";
-import { CoreSignalsRadar } from "./report-ui";
 import { CautionFooter, RoadmapLine, VerifyLine } from "./report-sections";
 import {
   SIGNAL_BAND_LABEL,
@@ -303,6 +302,44 @@ function toObservable(help: string): string {
 }
 
 /**
+ * "00 한 장 요약"의 정렬 수평 바.
+ * 레이더는 축 순서가 고정돼 무엇을 먼저 도와야 할지 읽기 어려웠다.
+ * 점수 내림차순 수평 바로 바꾸면 위에서부터 "잘 되는 순"이 그대로 읽힌다.
+ */
+function SortedBars({ items }: { items: AnalysisItem[] }) {
+  const sorted = [...items].sort((a, b) => {
+    const av = isNum(a.score) ? (a.score as number) : -1;
+    const bv = isNum(b.score) ? (b.score as number) : -1;
+    return bv - av;
+  });
+
+  return (
+    <div className="glance-bars">
+      {sorted.map((it) => {
+        const band = signalBandOf(it.score);
+        const tone = signalToneOf(band);
+        return (
+          <div key={it.label} className="glance-bars__row">
+            <span className="glance-bars__label">{it.label}</span>
+            <i className="glance-bars__track">
+              <b className={`b-${tone}`} style={{ width: `${pct(it.score)}%` }} />
+            </i>
+            <span className="glance-bars__meta">
+              {isNum(it.score) && band !== "low" && (
+                <b className="glance-bars__score">{toFivePoint(it.score as number)} / 5</b>
+              )}
+              <span className={`analysis-rows__band b-${tone}`}>
+                {band ? SIGNAL_BAND_LABEL[band] : "정보 부족"}
+              </span>
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * "친구와 공부" 카드. 점수·밴드 없이 문항 요지와 학생이 고른 보기만 보여 준다.
  * 응답 원본이 없는(예전에 발급된) 스냅샷에서는 렌더하지 않는다.
  */
@@ -336,7 +373,6 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
     .filter(Boolean)
     .join(" · ");
 
-  const radarAxes = RADAR_KEYS.map((k) => ({ label: CONSTRUCT_LABEL[k], score: s.common[k] }));
 
   const showMath = data.subjectSelection === "math" || data.subjectSelection === "both";
   const showEnglish = data.subjectSelection === "english" || data.subjectSelection === "both";
@@ -373,6 +409,20 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const lowOnes = ascending.filter((it) => (it.score as number) < 45).slice(0, 3);
   const relativeWeak = lowOnes.length === 0;
   const pickedWeak = relativeWeak ? ascending.slice(0, 2) : lowOnes;
+  // 00 요약 강점 칩 — 라벨만 쓴다(점수 노출 금지, 학부모 패널 합의).
+  const strengthLabels = [...scored]
+    .filter((it) => signalBandOf(it.score) === "high")
+    .sort((a, b) => (b.score as number) - (a.score as number))
+    .slice(0, 2)
+    .map((it) => it.label);
+
+  // 밴드가 첫 문장을 이미 보여 주므로 01에서는 그 뒤부터 이어 붙인다.
+  const parentSummaryRest = (() => {
+    const lead = firstSentence(i.parentSummary);
+    const rest = i.parentSummary.slice(lead.length).trim();
+    return rest;
+  })();
+
   const weaknesses: Weakness[] = pickedWeak.map((it) => {
     const band = signalBandOf(it.score) as SignalBand;
     const bd = it.desc[band];
@@ -398,6 +448,42 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         <p className="report-v2-band__summary">{firstSentence(i.parentSummary)}</p>
       </header>
 
+      {/* ⓪ 한 장 요약 — 열자마자 "무엇을 먼저 도울지"가 보이게 */}
+      <ReportSection
+        id="sec-glance"
+        index="00"
+        title="한 장 요약"
+        caption="위에서부터 잘 되고 있는 순서예요. 아래 항목을 먼저 도와드립니다."
+      >
+        <div className="glance">
+          <h3 className="glance__type">{i.studentType}</h3>
+
+          <SortedBars items={analysisItems} />
+
+          <div className="glance__tags">
+            {strengthLabels.length > 0 && (
+              <div className="glance__chips">
+                <b>잘 되는 부분</b>
+                {strengthLabels.map((label) => (
+                  <span key={label} className="glance__chip">
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
+            {weaknesses.length > 0 && (
+              <p className="glance__todo">
+                먼저 도와줄 부분 {weaknesses.length}가지 — 03에서 자세히
+              </p>
+            )}
+          </div>
+
+          <p className="glance__promise">
+            8주 후 같은 검사를 다시 해 이 그래프의 변화를 비교해 드립니다.
+          </p>
+        </div>
+      </ReportSection>
+
       {/* ① 종합 분석 — 전문가 총평을 가장 비중 크게 */}
       <ReportSection
         id="sec-summary"
@@ -409,13 +495,15 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         <div className="executive-statement">
           <span>학습 유형</span>
           <h3>{i.studentType}</h3>
-          <p className="executive-statement__lead">{i.parentSummary}</p>
+          {/* 밴드에 이미 첫 문장이 있어 여기서는 나머지부터 이어 붙인다(같은 문장 반복 방지). */}
+          <p className="executive-statement__lead">{parentSummaryRest || i.parentSummary}</p>
           {summaryParas.length > 0 && (
-            <div className="executive-statement__detail">
+            <details className="executive-statement__detail" open={false}>
+              <summary>자세한 총평 더 보기</summary>
               {summaryParas.map((p, idx) => (
                 <p key={idx}>{p}</p>
               ))}
-            </div>
+            </details>
           )}
           {areaDigest.length > 0 && (
             <div className="summary-areas">
@@ -465,19 +553,11 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         title="항목별 분석"
         caption="핵심 학습 신호를 점수와 함께, 항목별로 상태·실제 모습·도울 방법까지 풀어 정리했습니다."
       >
-        <div className="signal-solo">
-          <figure className="analysis-figure">
-            <figcaption>
-              <span>핵심 학습 신호</span>
-              <strong>다섯 가지 학습 힘 한눈에</strong>
-            </figcaption>
-            <CoreSignalsRadar axes={radarAxes} />
-            <p>
-              <strong>읽는 법</strong> 점수는 다른 학생과의 우열이 아니라 도와줄 순서예요. 낮은 쪽은 혼낼
-              부분이 아니라 먼저 도와줄 부분입니다. 항목별 특징은 아래에서 이어집니다.
-            </p>
-          </figure>
-        </div>
+        {/* 레이더는 00 요약의 정렬 바로 대체했다(축 순서 고정 → 우선순위가 안 읽힘). */}
+        <p className="report-note">
+          점수는 다른 학생과의 우열이 아니라 도와줄 순서예요. 낮은 쪽은 혼낼 부분이 아니라 먼저 도와줄
+          부분입니다.
+        </p>
         <ItemAnalysisRows items={analysisItems} />
 
         {data.peerResponses && data.peerResponses.length > 0 && (

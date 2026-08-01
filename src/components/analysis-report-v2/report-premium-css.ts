@@ -133,6 +133,28 @@ export const REPORT_PREMIUM_CSS = `
 .analysis-rows h4 { margin: 0; color: var(--ink-950); font-size: 13.5px; font-weight: 800; }
 .analysis-rows__badge { display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 .analysis-rows__score { color: var(--navy); font-size: 15px; font-weight: 800; }
+/* ⓪ 한 장 요약 — 정렬 수평 바(레이더 대체) */
+.glance { display: grid; gap: 16px; }
+.glance__type { margin: 0; font-size: 19px; line-height: 1.5; font-weight: 800; color: var(--navy); word-break: keep-all; }
+.glance-bars { display: grid; gap: 9px; }
+.glance-bars__row { display: grid; grid-template-columns: 108px minmax(0,1fr) auto; align-items: center; gap: 10px; }
+.glance-bars__label { font-size: 13px; font-weight: 700; color: var(--ink); }
+.glance-bars__track { display: block; height: 8px; border-radius: 999px; background: #eef1f3; overflow: hidden; }
+.glance-bars__track b { display: block; height: 100%; border-radius: 999px; background: var(--blue); }
+.glance-bars__track b.b-high { background: var(--teal); }
+.glance-bars__track b.b-mid { background: var(--blue); }
+.glance-bars__track b.b-low { background: var(--coral); }
+.glance-bars__track b.b-none { background: #cfd6db; }
+.glance-bars__meta { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.glance-bars__score { font-size: 12px; font-weight: 800; color: var(--muted); }
+.glance__tags { display: grid; gap: 7px; }
+.glance__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.glance__chips b { color: var(--muted); font-weight: 800; }
+.glance__chip { padding: 3px 10px; border-radius: 999px; background: var(--teal-soft); color: var(--teal); font-weight: 800; }
+.glance__todo { margin: 0; font-size: 12.5px; font-weight: 700; color: var(--coral); }
+.glance__promise { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--panel); font-size: 12.5px; color: var(--muted); }
+@media (max-width: 520px) { .glance-bars__row { grid-template-columns: 88px minmax(0,1fr); } .glance-bars__meta { grid-column: 1 / -1; justify-content: flex-end; } }
+
 .analysis-rows__band { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .analysis-rows__band.b-high { background: var(--teal-soft); color: var(--teal); }
 .analysis-rows__band.b-mid { background: var(--navy-soft); color: var(--blue); }
@@ -277,6 +299,10 @@ export const REPORT_PREMIUM_CSS = `
 .executive-statement ul { margin: 14px 0 0; padding: 12px 0 0 18px; display: grid; gap: 6px; border-top: 1px solid var(--line-strong); color: var(--ink-800); font-size: 13px; font-weight: 600; }
 .executive-statement__lead { font-weight: 600; color: var(--ink-900); }
 .executive-statement__detail { margin: 14px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); display: grid; gap: 10px; }
+.executive-statement__detail > summary { cursor: pointer; font-size: 13px; font-weight: 800; color: var(--blue); list-style: none; }
+.executive-statement__detail > summary::-webkit-details-marker { display: none; }
+.executive-statement__detail > summary::after { content: " ▾"; }
+.executive-statement__detail[open] > summary::after { content: " ▴"; }
 .executive-statement__detail p { margin: 0; color: var(--text); font-size: 13.5px; line-height: 1.78; word-break: keep-all; }
 .summary-areas { margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line-strong); }
 .summary-areas__title { display: block; color: var(--brass-dark); font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }

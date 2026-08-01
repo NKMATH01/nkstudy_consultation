@@ -10,6 +10,11 @@ import type {
   SituationEvidence,
 } from "./types";
 import { escapeHtml } from "@/lib/html-escape";
+import {
+  buildConstructDictionary,
+  buildNamingRules,
+  buildStudentTypeRule,
+} from "./construct-guide";
 
 /** 서술형 redaction 후 최대 길이(문자). 과도한 원문 전송을 막는다. */
 export const MAX_NARRATIVE_LENGTH = 300;
@@ -316,9 +321,16 @@ export function buildV2AnalysisPrompt(input: AiSafeInput): string {
 [분량 — 짧고 핵심만]
 - 모든 서술은 기존보다 약 30% 짧게 쓰세요. 같은 말 반복·군더더기·불필요한 수식어를 덜어 내고 핵심만 남깁니다.
 
-[근거 점수 인용 — 매우 중요]
-- 총평(detailedSummary)·강점·약점·과목 전략에서 어떤 특징을 말할 때는, 위 "서버 계산 구조화 데이터"에 있는 점수 수치를 문장 안에 그대로 함께 인용하세요(예: "장기 의지 75.0점과 숙제 신뢰도 87.5점이 보여주듯 목표는 분명하지만 매일의 시작이 흔들려요").
-- 점수는 반드시 입력에 준 서버 값을 그대로 쓰고, 새 숫자를 만들거나 바꾸지 마세요. 표기는 소수 첫째 자리까지(예: 81.3점).
+[지표 사전 — 이 표의 한글 이름·뜻·방향만 사용]
+${buildConstructDictionary()}
+
+${buildNamingRules()}
+
+${buildStudentTypeRule()}
+
+[근거 점수 인용]
+- 총평·강점·약점·과목 전략에서 특징을 말할 때는 근거를 함께 밝히세요.
+- 점수는 반드시 입력에 준 서버 값에서만 가져오고, 새 숫자를 만들거나 바꾸지 마세요.
 - 점수 필드(scores 등)를 JSON에 새로 만들지 마세요. 수치는 오직 서술 문장 안에 인용만 합니다.
 
 [근거 기반 서술 — 매우 중요]
@@ -342,7 +354,7 @@ ${untrusted.length ? untrusted.join("\n") : "(제공된 서술 없음)"}
 
 [출력 형식 — 아래 JSON 구조로만, 다른 텍스트 없이 반환]
 {
-  "studentType": "낙인 없는 지도 관점의 학생 유형명(쉬운 우리말, 영어·약어 금지)",
+  "studentType": "위 studentType 작성 공식대로 만든 한 문장(유형명·분류명·실명·점수 금지)",
   "detailedSummary": "어머님(학부모)이 {{학생}}이 어떤 학생인지 파악하도록 돕는 상세 총평. 반드시 학생을 주어로, 학생의 성향과 공부 습관이 실제로 어떤 모습인지 서술 — 수업 태도·숙제·휴대폰·목표 의지·회복력·친구 관계·선택 과목을 각각 최소 한 번씩 언급하고 관련 서버 점수 수치를 문장 안에 그대로 인용. 3~4문단, 문단당 2~3문장, 쉬운 우리말·짧은 문장. 마지막 문단만 가정에서 지켜봐 주시면 좋은 점 1~2가지로 부드럽게 안심 마무리. 금지: 학원·강사·상담자·NK가 주어인 문장, 지도 방법·코칭 제안, NK 적합도 언급(이런 내용은 coreObservation·recommendedCoaching·nkFitInterpretation에만). 문단은 빈 줄로 구분, 학생은 {{학생}}으로 지칭, 부족한 점도 함께 도와줄 부분으로 표현",
   "coreObservation": "핵심 관찰 1~2문장",
   "operatingCause": "그렇게 작동하는 원인 가설 1~2문장(단정 금지)",

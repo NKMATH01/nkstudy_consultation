@@ -46,7 +46,7 @@ export type AiInterpretation = z.infer<typeof AiInterpretationSchema>;
 
 export type ValidateResult =
   | { ok: true; data: AiInterpretation }
-  | { ok: false; reason: "schema" | "subject" | "numeric"; detail: string };
+  | { ok: false; reason: "schema" | "subject" | "numeric" | "studentType"; detail: string };
 
 /**
  * AI가 서버 점수를 숫자로 재생성/조작하려 했는지 감지한다.
@@ -67,6 +67,43 @@ export function containsNumericScoreClaim(raw: unknown): boolean {
 }
 
 /**
+ * studentType에 들어가면 안 되는 표현.
+ * 내부 분류명·영문 키·내부 코드가 학부모 화면 첫 줄에 그대로 나가던 문제를 막는다.
+ * 학생 실명은 별도 인자로 받아 검사한다(토큰 치환 전이라 {{학생}}은 허용).
+ */
+const STUDENT_TYPE_BANNED = [
+  "혼합 반응",
+  "관찰형",
+  "자기주도형",
+  "타입",
+  "상황문항",
+  "NKFit",
+  "nkFit",
+  "construct",
+  "evidence",
+  "역채점",
+  "위험축",
+  "선호축",
+];
+
+/** 영문 키·내부 코드(learningAttitude, M9 등)가 섞였는지. */
+const LATIN_KEY_RE = /[A-Za-z]{4,}|\b[A-Z]{1,2}\d{1,2}\b/;
+
+export function findStudentTypeViolation(
+  studentType: string,
+  studentName?: string | null,
+): string | null {
+  const text = studentType ?? "";
+  for (const banned of STUDENT_TYPE_BANNED) {
+    if (text.includes(banned)) return `금지 표현 "${banned}" 포함`;
+  }
+  if (LATIN_KEY_RE.test(text)) return "영문 키·내부 코드 포함";
+  const name = studentName?.trim();
+  if (name && name.length >= 2 && text.includes(name)) return "학생 실명 포함";
+  return null;
+}
+
+/**
  * AI 출력 검증.
  * 1) 숫자 점수 조작 필드가 있으면 거부(서버 점수가 유일한 진실).
  * 2) Zod strict 스키마 검증(계약 외 필드·타입 오류 거부).
@@ -74,7 +111,8 @@ export function containsNumericScoreClaim(raw: unknown): boolean {
  */
 export function validateAiInterpretation(
   raw: unknown,
-  subjectSelection: SubjectSelection
+  subjectSelection: SubjectSelection,
+  studentName?: string | null,
 ): ValidateResult {
   if (containsNumericScoreClaim(raw)) {
     return {
@@ -96,6 +134,16 @@ export function validateAiInterpretation(
   }
 
   const data = parsed.data;
+
+  const typeViolation = findStudentTypeViolation(data.studentType, studentName);
+  if (typeViolation) {
+    return {
+      ok: false,
+      reason: "studentType",
+      detail: `studentType 계약 위반: ${typeViolation}`,
+    };
+  }
+
   const needMath = subjectSelection === "math" || subjectSelection === "both";
   const needEnglish =
     subjectSelection === "english" || subjectSelection === "both";

@@ -101,3 +101,56 @@ describe("containsNumericScoreClaim", () => {
     expect(containsNumericScoreClaim(null)).toBe(false);
   });
 });
+
+// studentType은 학부모 화면 첫 줄에 그대로 나가므로 내부 표현이 새면 안 된다.
+describe("studentType 계약", () => {
+  function withType(studentType: string) {
+    return { ...validInterp(), studentType };
+  }
+
+  it("행동 조합 문장은 통과한다", () => {
+    const res = validateAiInterpretation(
+      withType("숙제는 기한 안에 챙기지만, 낮은 점수 뒤 다시 시작까지 시간이 걸리는 학생"),
+      "both",
+      "강현찬",
+    );
+    expect(res.ok).toBe(true);
+  });
+
+  it("내부 분류명이 들어가면 거부한다", () => {
+    for (const bad of ["혼합 반응 유형", "14일 관찰형", "자기주도형 학생"]) {
+      const res = validateAiInterpretation(withType(bad), "both");
+      expect(res.ok, bad).toBe(false);
+      if (!res.ok) expect(res.reason).toBe("studentType");
+    }
+  });
+
+  it("영문 키·문항 ID가 들어가면 거부한다", () => {
+    for (const bad of ["learningAttitude가 높은 학생", "M9 문항이 높은 학생"]) {
+      const res = validateAiInterpretation(withType(bad), "both");
+      expect(res.ok, bad).toBe(false);
+    }
+  });
+
+  it("내부 코드(NKFit·상황문항)가 들어가면 거부한다", () => {
+    for (const bad of ["NKFit이 높은 학생", "상황문항에서 흔들리는 학생"]) {
+      const res = validateAiInterpretation(withType(bad), "both");
+      expect(res.ok, bad).toBe(false);
+    }
+  });
+
+  it("학생 실명이 들어가면 거부한다", () => {
+    const res = validateAiInterpretation(
+      withType("강현찬은 숙제를 잘 챙기는 학생"),
+      "both",
+      "강현찬",
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.detail).toContain("실명");
+  });
+
+  it("이름을 넘기지 않으면 실명 검사는 건너뛴다", () => {
+    const res = validateAiInterpretation(withType("숙제를 잘 챙기는 학생"), "both");
+    expect(res.ok).toBe(true);
+  });
+});

@@ -44,7 +44,9 @@ async function interpretWithAiOrFallback(
   scoreProfile: ScoreProfile,
   intake: IntakeV2 | null,
   responses: Record<string, unknown> | null,
-  surveyId: string
+  surveyId: string,
+  /** studentType 실명 혼입 검사에만 쓴다. AI에는 전송하지 않는다. */
+  studentName: string | null
 ): Promise<{ interpretation: AiInterpretation; source: "ai" | "fallback" }> {
   const aiInput = buildAiSafeInput({ scoreProfile, intake, responses });
   const prompt = buildV2AnalysisPrompt(aiInput);
@@ -52,7 +54,11 @@ async function interpretWithAiOrFallback(
   try {
     const response = await callGeminiAPI(prompt);
     const raw = extractJSON<unknown>(response);
-    const result = validateAiInterpretation(raw, scoreProfile.subjectSelection);
+    const result = validateAiInterpretation(
+      raw,
+      scoreProfile.subjectSelection,
+      studentName,
+    );
     if (result.ok) {
       return { interpretation: result.data, source: "ai" };
     }
@@ -110,15 +116,17 @@ export async function analyzeSurveyV2(surveyId: string) {
     };
   }
 
+  // 이름은 서버 로컬로만 합성(analyses.name NOT NULL). AI에는 전송하지 않는다.
+  // 아래 검증에서 studentType에 실명이 섞였는지 확인하는 용도로만 넘긴다.
+  const name = row.intake_v2?.name ?? row.name ?? "(이름 미상)";
+
   const { interpretation: rawInterpretation, source } = await interpretWithAiOrFallback(
     scoreProfile,
     row.intake_v2,
     row.responses_v2,
-    surveyId
+    surveyId,
+    name
   );
-
-  // 이름은 서버 로컬로만 합성(analyses.name NOT NULL). AI에는 전송하지 않았다.
-  const name = row.intake_v2?.name ?? row.name ?? "(이름 미상)";
 
   // AI/fallback 해석의 "{{학생}}" 토큰을 실제 이름(예: 강현찬 학생)으로 치환하고,
   // AI가 지시를 어겨 쓴 따님/아드님/아이/자녀도 교정한다. 저장 전에 수행해 화면·PDF·공유 모두 일관.

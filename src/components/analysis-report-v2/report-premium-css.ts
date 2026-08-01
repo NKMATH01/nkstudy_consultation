@@ -530,7 +530,8 @@ export const REPORT_PREMIUM_CSS = `
 .report-dock {
   position: fixed; z-index: 120; bottom: max(14px, env(safe-area-inset-bottom)); left: 50%;
   width: min(660px, calc(100% - 24px)); padding: 5px;
-  display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 4px;
+  /* 항목 수가 6~7개로 늘어 auto-fit으로 바꾼다(과목 섹션 유무에 따라 가변). */
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(0,1fr)); gap: 4px;
   background: rgba(20,30,50,0.96); border: 1px solid rgba(176,132,47,0.5); border-radius: 12px;
   box-shadow: 0 10px 30px rgba(16,23,34,0.28); backdrop-filter: blur(14px); transform: translateX(-50%);
 }
@@ -589,6 +590,7 @@ export const REPORT_PREMIUM_CSS = `
 /* ── 인쇄(A4 세로 다중페이지) ─────────────────────────────── */
 @media print {
   @page { size: A4 portrait; margin: 0; }
+  @page { @bottom-right { content: counter(page); font-size: 9pt; color: #7c8794; } }
   html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
   .rptv2-doc { background: #fff !important; }
   .report-v2-toolbar, .report-dock, .rptv2-noprint { display: none !important; }
@@ -596,9 +598,8 @@ export const REPORT_PREMIUM_CSS = `
   .report-v2-cover { border-radius: 0; padding: 16mm 16mm 12mm; }
   .report-v2-band { border-radius: 0; padding: 12mm 16mm; }
   .report-v2-section { padding: 14mm 14mm; }
-  #sec-learning, #sec-life, #sec-fit, #sec-solution { break-before: page; page-break-before: always; }
-  /* 단일화된 학부모 보고서: 항목별 분석·지도 계획을 새 페이지에서 시작 */
-  #sec-signals, #sec-plan { break-before: page; page-break-before: always; }
+  /* 현행 섹션에서 페이지를 나눈다(죽은 ID #sec-learning·#sec-life·#sec-fit·#sec-solution 제거). */
+  #sec-strength, #sec-weakness, #sec-signals, #sec-plan { break-before: page; page-break-before: always; }
   .consultation-context-dossier { break-before: page; page-break-before: always; break-inside: avoid; page-break-inside: avoid; }
   .luxury-section-heading, .subject-dossier__head, .panel-title { break-after: avoid; page-break-after: avoid; }
   .summary-areas__grid article, .summary-areas__title, .executive-statement__detail p,
@@ -607,9 +608,15 @@ export const REPORT_PREMIUM_CSS = `
   .learning-panels, .will-guidance-grid, .phone-feature, .personality-relation-grid, .mbti-adjustment-panel,
   .fit-intro, .fit-consult-note, .strength-growth-grid, .roadmap-line, .final-guidance, .verify-line,
   .report-v2-caution, .evidence-panel, .will-dossier, .coaching-dossier, .personality-panel, .relation-panel,
-  .legacy-list-panel, .fit-feature-list article, .gap-rows article, .roadmap-line article, .subject-v2-profile {
+  .legacy-list-panel, .fit-feature-list article, .gap-rows article, .roadmap-line article, .subject-v2-profile,
+  .glance, .glance-bars__row, .insight-cards article, .weakness-cards > article, .analysis-rows > article,
+  .subject-notes article, .plan-intro, .spectrum-card, .spectrum__row {
     break-inside: avoid; page-break-inside: avoid;
   }
+  /* 접어 둔 총평은 인쇄물에서 항상 펼친다(종이에는 "더 보기"가 없다). */
+  details.executive-statement__detail { display: block !important; }
+  details.executive-statement__detail > summary { display: none !important; }
+  details.executive-statement__detail > * { display: block !important; }
   p, li, blockquote { orphans: 3; widows: 3; }
   svg { max-width: 100%; height: auto; shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }

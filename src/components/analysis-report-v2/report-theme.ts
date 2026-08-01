@@ -128,12 +128,23 @@ export interface DockItem {
 }
 // 단일화된 학부모 공유본 섹션으로 하단 메뉴를 맞춘다(과목 섹션은 선택 노출이라 제외).
 export const DOCK_ITEMS: DockItem[] = [
+  { id: "sec-glance", label: "요약" },
   { id: "sec-summary", label: "종합" },
   { id: "sec-strength", label: "강점" },
   { id: "sec-weakness", label: "약점" },
   { id: "sec-signals", label: "항목별" },
   { id: "sec-plan", label: "계획" },
 ];
+
+/** 과목 섹션이 있을 때만 끼워 넣는 항목(선택 과목이 없으면 렌더되지 않는다). */
+export const DOCK_SUBJECT_ITEM: DockItem = { id: "sec-subject", label: "과목" };
+
+/** 실제 렌더되는 섹션에 맞춘 dock 목록. */
+export function dockItemsFor(hasSubject: boolean): DockItem[] {
+  if (!hasSubject) return DOCK_ITEMS;
+  const idx = DOCK_ITEMS.findIndex((d) => d.id === "sec-plan");
+  return [...DOCK_ITEMS.slice(0, idx), DOCK_SUBJECT_ITEM, ...DOCK_ITEMS.slice(idx)];
+}
 
 export const SUBJECT_LABEL: Record<string, string> = {
   math: "수학",

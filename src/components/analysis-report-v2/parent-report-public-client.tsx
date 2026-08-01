@@ -20,7 +20,7 @@ export function ParentReportPublicClient({
       <ReportSheet>
         <ParentReport data={profile} />
       </ReportSheet>
-      <ReportDock />
+      <ReportDock hasSubject={!!profile.scores.math || !!profile.scores.english} />
     </div>
   );
 }

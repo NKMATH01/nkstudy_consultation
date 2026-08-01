@@ -150,7 +150,7 @@ export function AnalysisReportV2Client({ profile, header, responses, mbti, conta
       <ReportSheet>
         <ParentReport data={parentSafe} />
       </ReportSheet>
-      <ReportDock />
+      <ReportDock hasSubject={!!parentSafe.scores.math || !!parentSafe.scores.english} />
       <AlimtalkSendDialog
         open={showAlimtalk}
         onOpenChange={setShowAlimtalk}

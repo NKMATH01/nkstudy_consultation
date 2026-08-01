@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONSTRUCT_LABEL } from "@/components/analysis-report-v2/report-theme";
+import { CONSTRUCT_LABEL, dockItemsFor } from "@/components/analysis-report-v2/report-theme";
 import { signalBandOf } from "@/components/analysis-report-v2/signal-descriptions";
 import type { CommonScores } from "../types";
 
@@ -94,5 +94,38 @@ describe("밴드 기준(signalBandOf) — 학부모 화면 단일 기준", () =>
 
   it("점수가 산출되지 않으면 밴드도 없다", () => {
     expect(signalBandOf("insufficient")).toBeNull();
+  });
+});
+
+describe("dockItemsFor — 실제 렌더 섹션과 일치", () => {
+  it("00 요약이 첫 항목이다", () => {
+    expect(dockItemsFor(false)[0].id).toBe("sec-glance");
+  });
+
+  it("과목 섹션이 없으면 과목 항목을 넣지 않는다", () => {
+    const ids = dockItemsFor(false).map((d) => d.id);
+    expect(ids).not.toContain("sec-subject");
+  });
+
+  it("과목 섹션이 있으면 계획 앞에 과목을 끼운다", () => {
+    const ids = dockItemsFor(true).map((d) => d.id);
+    expect(ids).toContain("sec-subject");
+    expect(ids.indexOf("sec-subject")).toBeLessThan(ids.indexOf("sec-plan"));
+  });
+
+  it("모든 dock 항목이 결과지에 실제로 있는 섹션 id를 가리킨다", () => {
+    const rendered = new Set([
+      "sec-glance",
+      "sec-summary",
+      "sec-strength",
+      "sec-weakness",
+      "sec-signals",
+      "sec-subject",
+      "sec-preference",
+      "sec-plan",
+    ]);
+    for (const d of dockItemsFor(true)) {
+      expect(rendered.has(d.id), d.id).toBe(true);
+    }
   });
 });

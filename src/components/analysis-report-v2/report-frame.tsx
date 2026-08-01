@@ -7,7 +7,7 @@
 // 데이터·문구는 counselor/parent 리포트가 결정하고 이 파일은 레이아웃 껍데기만 제공한다.
 
 import { useEffect, useState, type ReactNode } from "react";
-import { DOCK_ITEMS, formatDate } from "./report-theme";
+import { dockItemsFor, formatDate } from "./report-theme";
 import { REPORT_PREMIUM_CSS } from "./report-premium-css";
 
 export { REPORT_PREMIUM_CSS };
@@ -165,12 +165,16 @@ export function ReportToolbar({
   );
 }
 
-/** 하단 고정 5메뉴(프로토타입 .report-dock). 스크롤 위치로 현재 영역 강조. 인쇄 숨김. */
-export function ReportDock() {
-  const [active, setActive] = useState(DOCK_ITEMS[0].id);
+/**
+ * 하단 고정 메뉴(.report-dock). 스크롤 위치로 현재 영역 강조. 인쇄 숨김.
+ * 실제 렌더된 섹션만 담기 위해 과목 섹션 존재 여부를 받아 목록을 정한다.
+ */
+export function ReportDock({ hasSubject = false }: { hasSubject?: boolean }) {
+  const items = dockItemsFor(hasSubject);
+  const [active, setActive] = useState(items[0].id);
 
   useEffect(() => {
-    const els = DOCK_ITEMS.map((d) => document.getElementById(d.id)).filter(
+    const els = items.map((d) => document.getElementById(d.id)).filter(
       (e): e is HTMLElement => !!e
     );
     if (els.length === 0) return;
@@ -188,7 +192,7 @@ export function ReportDock() {
     );
     els.forEach((e) => observer.observe(e));
     return () => observer.disconnect();
-  }, []);
+  }, [items]);
 
   const go = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -197,14 +201,14 @@ export function ReportDock() {
 
   return (
     <nav className="report-dock rptv2-noprint" aria-label="보고서 섹션 이동">
-      {DOCK_ITEMS.map((d, idx) => (
+      {items.map((d, idx) => (
         <button
           key={d.id}
           type="button"
           className={active === d.id ? "is-active" : undefined}
           onClick={() => go(d.id)}
         >
-          <b>{String(idx + 1).padStart(2, "0")}</b>
+          <b>{String(idx).padStart(2, "0")}</b>
           <span>{d.label}</span>
         </button>
       ))}

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   validateAiInterpretation,
   containsNumericScoreClaim,
+  findDetailedSummaryViolation,
   type AiInterpretation,
 } from "../ai-contract";
 
@@ -152,5 +153,62 @@ describe("studentType 계약", () => {
   it("이름을 넘기지 않으면 실명 검사는 건너뛴다", () => {
     const res = validateAiInterpretation(withType("숙제를 잘 챙기는 학생"), "both");
     expect(res.ok).toBe(true);
+  });
+});
+
+// ── 자세한 총평 무점수 계약 ──────────────────────────────────────────
+
+describe("findDetailedSummaryViolation", () => {
+  it("점수 표기를 잡는다", () => {
+    expect(findDetailedSummaryViolation("학습 성실성은 82.5점이에요.")).not.toBeNull();
+    expect(findDetailedSummaryViolation("숙제 신뢰도가 3점 수준입니다.")).not.toBeNull();
+  });
+
+  it("5점 만점·백분율·소수 표기를 잡는다", () => {
+    expect(findDetailedSummaryViolation("4문항 평균 1.8/5 입니다.")).not.toBeNull();
+    expect(findDetailedSummaryViolation("상위 20% 수준이에요.")).not.toBeNull();
+    expect(findDetailedSummaryViolation("값은 75.0 입니다.")).not.toBeNull();
+  });
+
+  it("총평에 자연스러운 숫자는 막지 않는다", () => {
+    // 거부는 곧 규칙 기반 fallback이라, 아래 표현까지 막으면 품질이 크게 떨어진다.
+    for (const ok of [
+      "첫 2주 동안 함께 확인해 나가요.",
+      "학원에 오기 전 오답 1개를 다시 풀어보면 좋겠어요.",
+      "집중이 이어지는 시간이 10분 남짓입니다.",
+      "먼저 도와줄 부분은 1~2가지입니다.",
+      "3개월 뒤 목표를 이번 주 할 일과 연결해 말할 수 있어요.",
+    ]) {
+      expect(findDetailedSummaryViolation(ok), ok).toBeNull();
+    }
+  });
+
+  it("숫자가 아예 없는 행동 서술은 통과한다", () => {
+    expect(
+      findDetailedSummaryViolation(
+        "숙제를 시작하는 시각이 자주 늦어지는 편입니다. 스스로 정리하는 힘은 잘 작동하고 있어요.",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("validateAiInterpretation — 총평 점수 거부", () => {
+  it("총평에 점수가 섞이면 계약 위반으로 거부한다", () => {
+    const raw = validInterp({
+      detailedSummary: "학습 성실성은 82.5점이에요. 첫 2주 동안 함께 확인해요.",
+    });
+    const result = validateAiInterpretation(raw, "math");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("detailedSummary");
+  });
+
+  it("강점·개선 영역의 평균 표기는 그대로 허용한다", () => {
+    const raw = validInterp({
+      detailedSummary: "숙제를 시작하는 시각이 자주 늦어지는 편입니다.",
+      strengths: ["학습 태도: 4문항 평균 4.2/5"],
+      growthAreas: ["숙제 신뢰도: 4문항 평균 1.8/5"],
+    });
+    const result = validateAiInterpretation(raw, "math");
+    expect(result.ok).toBe(true);
   });
 });

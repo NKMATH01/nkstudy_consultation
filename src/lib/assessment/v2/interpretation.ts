@@ -84,6 +84,14 @@ export function buildFallbackInterpretation(
   const note = neutralQualityNote(profile);
   const noteSuffix = note ? ` (${note})` : "";
 
+  // 총평은 숫자를 쓰지 않는다(§자세한 총평 규칙). AI 출력이 거부되면 이 fallback이
+  // 그대로 학부모 화면에 나가므로, 여기서도 점수를 문장에 넣지 않는다.
+  const conscientiousnessPlain = isNum(c.conscientiousness)
+    ? `학습 태도와 숙제, 목표를 향한 꾸준함을 함께 보면 ${plainLevel(
+        c.conscientiousness
+      )}.`
+    : "학습 리듬은 응답이 부족해 상담에서 함께 확인하면 좋겠어요.";
+
   const conscientiousnessText = isNum(c.conscientiousness)
     ? `학습 성실성은 ${c.conscientiousness.toFixed(1)}점이에요. 학습 태도 ${scoreText(
         c.learningAttitude
@@ -94,7 +102,7 @@ export function buildFallbackInterpretation(
 
   const detailedSummary = [
     "학생이 직접 작성한 응답을 바탕으로 기본 요약을 정리했어요.",
-    conscientiousnessText,
+    conscientiousnessPlain,
     strengths.length
       ? `잘하고 있는 부분은 ${strengths.map((s) => s.split(":")[0]).join(", ")}이에요.`
       : "뚜렷한 강점을 아직 꼽기 어려워 처음 몇 주간 함께 살펴보면 좋겠어요.",
@@ -104,7 +112,7 @@ export function buildFallbackInterpretation(
           .join(", ")}이에요.`
       : "",
     "새 환경에서 실제 모습은 첫 수업들을 지켜보면 더 정확해져요.",
-    `모든 점수는 학생이 쓴 최근 4주 응답이고, 첫 2주 동안 실제 모습으로 함께 확인해 나가요.${noteSuffix}`,
+    `모두 학생이 직접 쓴 최근 4주 응답을 바탕으로 한 것이고, 첫 2주 동안 실제 모습으로 함께 확인해 나가요.${noteSuffix}`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -162,6 +170,14 @@ export function buildFallbackInterpretation(
 function scoreText(s: Score): string {
   // §8.1 일관된 반올림: 소수 첫째 자리로 고정 표기.
   return isNum(s) ? `${s.toFixed(1)}점` : "정보 부족";
+}
+
+/** 총평용 무숫자 수준 표현. 점수를 말하지 않고 학습 리듬으로 바꿔 쓴다. */
+function plainLevel(score: number): string {
+  if (score >= 75) return "학습 리듬이 대체로 안정적으로 유지되고 있어요";
+  if (score >= 60) return "학습 리듬이 잡혀 있고 상황에 따라 흔들릴 때가 있어요";
+  if (score >= 40) return "학습 리듬이 날에 따라 오르내리는 편이에요";
+  return "학습 리듬을 잡는 데 아직 도움이 필요해요";
 }
 
 function buildVerificationPlan(profile: ScoreProfile): string[] {

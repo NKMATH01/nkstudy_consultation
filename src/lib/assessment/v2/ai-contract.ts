@@ -46,7 +46,11 @@ export type AiInterpretation = z.infer<typeof AiInterpretationSchema>;
 
 export type ValidateResult =
   | { ok: true; data: AiInterpretation }
-  | { ok: false; reason: "schema" | "subject" | "numeric" | "studentType"; detail: string };
+  | {
+      ok: false;
+      reason: "schema" | "subject" | "numeric" | "studentType" | "detailedSummary";
+      detail: string;
+    };
 
 /**
  * AI가 서버 점수를 숫자로 재생성/조작하려 했는지 감지한다.
@@ -104,6 +108,32 @@ export function findStudentTypeViolation(
 }
 
 /**
+ * 자세한 총평에 들어가면 안 되는 "점수 모양" 표기.
+ *
+ * 숫자를 통째로 막지는 않는다. "첫 2주", "오답 1개", "10분" 같은 표현은 총평에서
+ * 자연스럽고 필요하다. 거부는 곧 규칙 기반 fallback으로 떨어진다는 뜻이라
+ * 오탐 하나가 그 학생의 결과지 품질을 통째로 떨어뜨린다.
+ * 그래서 점수로만 읽히는 형태(점·/5·%·소수·문항 평균)만 잡는다.
+ */
+const SCORE_SHAPE_PATTERNS: { re: RegExp; label: string }[] = [
+  { re: /\d+(\.\d+)?\s*점/, label: "점수 표기" },
+  { re: /\d+(\.\d+)?\s*\/\s*5/, label: "5점 만점 표기" },
+  { re: /\d+(\.\d+)?\s*%/, label: "백분율" },
+  { re: /\d+\.\d+/, label: "소수 점수" },
+  { re: /\d+\s*문항\s*평균/, label: "문항 평균 표기" },
+];
+
+/** 총평에 점수가 섞였는지. 위반이면 사유, 없으면 null. */
+export function findDetailedSummaryViolation(text: string): string | null {
+  const value = text ?? "";
+  for (const { re, label } of SCORE_SHAPE_PATTERNS) {
+    const hit = value.match(re);
+    if (hit) return `${label} "${hit[0]}" 포함`;
+  }
+  return null;
+}
+
+/**
  * AI 출력 검증.
  * 1) 숫자 점수 조작 필드가 있으면 거부(서버 점수가 유일한 진실).
  * 2) Zod strict 스키마 검증(계약 외 필드·타입 오류 거부).
@@ -141,6 +171,15 @@ export function validateAiInterpretation(
       ok: false,
       reason: "studentType",
       detail: `studentType 계약 위반: ${typeViolation}`,
+    };
+  }
+
+  const summaryViolation = findDetailedSummaryViolation(data.detailedSummary);
+  if (summaryViolation) {
+    return {
+      ok: false,
+      reason: "detailedSummary",
+      detail: `detailedSummary 계약 위반: ${summaryViolation}`,
     };
   }
 

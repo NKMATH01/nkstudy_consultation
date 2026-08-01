@@ -81,12 +81,46 @@ export interface ScenarioItem {
   options: ScenarioOption[];
 }
 
-export type AssessmentItem = LikertItem | ScenarioItem;
+export interface ForcedChoiceOption {
+  /** 1-based 선택지 번호. 두 개뿐이므로 1 또는 2. */
+  index: 1 | 2;
+  /** "A" | "B" */
+  choice: string;
+  text: string;
+  /**
+   * 이 선택지가 곧바로 뜻하는 construct 점수. 0 또는 100뿐이다.
+   * 리커트처럼 1~5로 환산하지 않는다 — 중간값이 존재하지 않는 이분 응답이다.
+   */
+  score: 0 | 100;
+}
+
+/**
+ * 강제선택 문항. "둘 중 실제로 더 자주 하는 쪽"을 고르게 한다.
+ *
+ * 리커트와 달리 중간(3점)으로 물러설 자리가 없어 선호가 선명하게 갈린다.
+ * 대신 한 사람의 값은 0 또는 100 둘 중 하나뿐이라, 이 문항으로 만든 점수는
+ * 평균·수치로 인용하지 않고 "고른 보기"로만 서술한다(construct-guide 단일문항 규칙).
+ */
+export interface ForcedChoiceItem {
+  id: string;
+  kind: "forcedChoice";
+  subject: Subject;
+  construct: Construct;
+  required: boolean;
+  text: string;
+  evidenceLabel: string;
+  options: [ForcedChoiceOption, ForcedChoiceOption];
+}
+
+export type AssessmentItem = LikertItem | ScenarioItem | ForcedChoiceItem;
+
+/** 선택지 index로 답하는 문항(상황문항·강제선택). 응답은 같은 버킷에 저장한다. */
+export type ChoiceItem = ScenarioItem | ForcedChoiceItem;
 
 /** Likert 응답값. 1~5 정수 또는 "unknown"(잘 모르겠음). */
 export type LikertResponse = number | "unknown";
 export type ResponseMap = Record<string, LikertResponse | null | undefined>;
-/** 상황문항 응답. 1-based 선택지 index. */
+/** 상황문항·강제선택 응답. 1-based 선택지 index. */
 export type ScenarioResponseMap = Record<string, number | null | undefined>;
 
 /** 점수값. 숫자 또는 유효응답 부족을 뜻하는 "insufficient". */

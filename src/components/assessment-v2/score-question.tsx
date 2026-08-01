@@ -8,9 +8,9 @@ import { forwardRef } from "react";
 import { Check } from "lucide-react";
 import type {
   AssessmentItem,
+  ChoiceItem,
   LikertItem,
   LikertResponse,
-  ScenarioItem,
 } from "@/lib/assessment/v2/types";
 import { isLikert } from "@/lib/assessment/v2/definition";
 import { SCALE_LABELS_V2 } from "@/lib/assessment/v2/display";
@@ -94,7 +94,7 @@ export const ScoreQuestion = forwardRef<HTMLHeadingElement, Props>(
         {likert ? (
           <LikertOptions item={item} value={value} onSelect={onSelect} />
         ) : (
-          <ScenarioOptions item={item} value={value} onSelect={onSelect} />
+          <ChoiceOptions item={item} value={value} onSelect={onSelect} />
         )}
 
         {likert && item.supplement && (
@@ -144,12 +144,13 @@ function LikertOptions({
   );
 }
 
-function ScenarioOptions({
+/** 상황문항·강제선택 공용. 둘 다 "선택지 하나 고르기"라 표현이 같다. */
+function ChoiceOptions({
   item,
   value,
   onSelect,
 }: {
-  item: ScenarioItem;
+  item: ChoiceItem;
   value: ScoreValue | null | undefined;
   onSelect: (value: ScoreValue, viaPointer: boolean) => void;
 }) {

@@ -23,7 +23,8 @@ function resultProfileFor(selection: SubjectSelection, value = 4) {
   const scoreProfile = computeScoreProfile({
     subjectSelection: selection,
     responses: fill(value),
-    scenarioResponses: { C1: 3, C2: 2, MS1: 4, MS2: 3, ES1: 3, ES2: 4 },
+    // R2는 강제선택(1|2). 상황문항과 같은 버킷을 쓴다.
+    scenarioResponses: { R2: 2, C1: 3, C2: 2, MS1: 4, MS2: 3, ES1: 3, ES2: 4 },
     clinicAvailability: 100,
     mbti: { type: "ENFP", confidence: "high" },
   });

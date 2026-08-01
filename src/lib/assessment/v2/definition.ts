@@ -4,6 +4,8 @@
 
 import type {
   AssessmentItem,
+  ChoiceItem,
+  ForcedChoiceItem,
   LikertItem,
   ScenarioItem,
   SubjectSelection,
@@ -21,6 +23,13 @@ export const REVERSE_IDS: ReadonlySet<string> = new Set([
 
 /** 8.1 유효응답 최소 비율. 미만이면 해당 composite는 insufficient. */
 export const MIN_VALID_RATIO = 0.75;
+
+/**
+ * 폐기된 문항 ID. 정의에서는 지웠지만 이미 학생 브라우저에 저장돼 있을 수 있어
+ * 제출 검증이 "허용되지 않은 문항"으로 막지 않고 조용히 버린다.
+ * (설문 도중 배포되면 저장된 응답에 남아 있다.)
+ */
+export const RETIRED_ITEM_IDS: ReadonlySet<string> = new Set(["M5"]);
 
 // 내부 헬퍼: 문구를 간결하게 유지하기 위한 Likert 팩토리.
 function likert(
@@ -40,7 +49,7 @@ function likert(
   };
 }
 
-// ── 공통 영역 (36문항) ────────────────────────────────────────────────
+// ── 공통 영역 (38문항) ────────────────────────────────────────────────
 
 const LEARNING_ATTITUDE: LikertItem[] = [
   likert({ id: "LT1", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "수업 진입", text: "수업이 시작되면 필요한 교재를 준비하고 바로 집중한다." }),
@@ -54,6 +63,13 @@ const HOMEWORK: LikertItem[] = [
   likert({ id: "H2", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "기한", text: "어려운 문항이 있어도 할 수 있는 부분까지 기한 안에 제출한다." }),
   likert({ id: "H3", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "품질 확인", text: "제출 전에 빠진 문항과 풀이·근거를 확인한다." }),
   likert({ id: "H4", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "오답 복구", text: "피드백 받은 오답은 틀린 이유를 확인하고 다시 풀어본다." }),
+];
+
+// 지적을 받아들이는 행동을 "동의"가 아니라 "최근 4주에 실제로 한 일"로 묻는다.
+// R3(동의형)와 붙여 두면 같은 답을 그대로 되풀이하기 쉬워, 공통 구간 앞쪽에 떼어 놓는다.
+const FEEDBACK_RESPONSE: LikertItem[] = [
+  likert({ id: "R3-1", subject: "common", construct: "directFeedbackAcceptance", scale: "frequency", evidenceLabel: "즉시 수정", text: "최근 4주 동안, 선생님이 내 풀이의 잘못된 점을 그 자리에서 지적했을 때 바로 고쳐서 다시 해봤다." }),
+  likert({ id: "R3-2", subject: "common", construct: "directFeedbackAcceptance", scale: "frequency", evidenceLabel: "당일 복구", text: "칭찬 없이 고칠 점만 들은 날에도, 그날 안에 그 부분을 다시 봤다." }),
 ];
 
 const PHONE: LikertItem[] = [
@@ -90,11 +106,31 @@ const WILL: LikertItem[] = [
 
 const RESPONSE: LikertItem[] = [
   likert({ id: "R1", subject: "common", construct: "structureNeed", scale: "agreement", evidenceLabel: "적응 방식", text: "낯선 반이나 선생님을 만날 때 진행 방식과 규칙을 미리 알면 적응이 빨라진다." }),
-  likert({ id: "R2", subject: "common", construct: "reflectiveProcessingNeed", scale: "agreement", evidenceLabel: "생각 처리", text: "바로 말하기보다 혼자 생각할 시간을 가진 뒤 1:1로 질문할 때 더 잘 이해한다." }),
   likert({ id: "R3", subject: "common", construct: "directFeedbackAcceptance", scale: "agreement", evidenceLabel: "직접 피드백", text: "선생님이 부족한 점을 분명하고 직접적으로 말해주면 다음 행동이 선명해진다." }),
   likert({ id: "R4", subject: "common", construct: "relationshipSafetyNeed", scale: "agreement", evidenceLabel: "관계 안전", text: "여러 사람 앞에서 지적받으면 고칠 내용보다 감정이 오래 남는 편이다." }),
   likert({ id: "R5", subject: "common", construct: "autonomyNeed", scale: "agreement", evidenceLabel: "자율성", text: "해야 하는 이유를 듣고 순서·방법 중 하나를 선택하면 책임감이 커진다." }),
   likert({ id: "R6", subject: "common", construct: "structureNeed", scale: "agreement", evidenceLabel: "구조 필요", text: "마감·완료 기준·중간 확인 시간이 구체적일수록 시작하기 쉽다." }),
+];
+
+/**
+ * R2 강제선택. 예전에는 "혼자 생각할 시간을 가진 뒤 질문할 때 더 잘 이해한다"는 동의형이었는데
+ * 대부분의 학생이 상위 2점을 골라 변별이 되지 않았다(천장 문항). 동의 여부가 아니라
+ * 실제로 더 자주 하는 행동을 둘 중 하나로 고르게 바꾼다.
+ */
+const REFLECTIVE_FORCED: ForcedChoiceItem[] = [
+  {
+    id: "R2",
+    kind: "forcedChoice",
+    subject: "common",
+    construct: "reflectiveProcessingNeed",
+    required: true,
+    evidenceLabel: "생각 처리",
+    text: "수업 중 모르는 게 생겼을 때, 실제로 더 자주 하는 쪽은?",
+    options: [
+      { index: 1, choice: "A", text: "그 자리에서 바로 손을 들어 질문한다.", score: 0 },
+      { index: 2, choice: "B", text: "일단 표시해 두고 수업이 끝난 뒤 따로 물어본다.", score: 100 },
+    ],
+  },
 ];
 
 const FRIENDS: LikertItem[] = [
@@ -158,22 +194,24 @@ const COMMON_SCENARIOS: ScenarioItem[] = [
 export const COMMON_ITEMS: AssessmentItem[] = [
   ...LEARNING_ATTITUDE,
   ...HOMEWORK,
+  ...FEEDBACK_RESPONSE,
   ...PHONE,
   ...WILL,
   ...RESPONSE,
+  ...REFLECTIVE_FORCED,
   ...FRIENDS,
   ...NK_FIT,
   ...COMMON_SCENARIOS,
 ];
 
-// ── 수학 전용 (12문항) ────────────────────────────────────────────────
+// ── 수학 전용 (11문항) ────────────────────────────────────────────────
 
 const MATH_STRATEGY: LikertItem[] = [
   likert({ id: "M1", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "조건 정리", text: "해설을 보기 전에 주어진 조건과 구해야 할 것을 정리한다." }),
   likert({ id: "M2", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "대안 탐색", text: "한 풀이가 막히면 식, 그림, 표 등 다른 방법을 시도한다." }),
   likert({ id: "M3", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "풀이 기록", text: "나중에 다시 볼 수 있도록 풀이 이유와 단계를 적는다." }),
   likert({ id: "M4", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "오류 분류", text: "틀린 문제를 개념, 조건 해석, 풀이 과정, 계산 실수로 나눠 본다." }),
-  likert({ id: "M5", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "지연 재풀이", text: "오답을 며칠 뒤 해설 없이 다시 푼다." }),
+  // M5(지연 재풀이)는 폐기. 같은 행동을 MS2 상황문항 C 선택지가 이미 묻는다. RETIRED_ITEM_IDS 참조.
   likert({ id: "M6", subject: "math", construct: "mathNoveltyAvoidance", scale: "frequency", evidenceLabel: "낯선 유형", text: "처음 보는 유형이면 시도하기 전부터 못 풀 것 같아 넘긴다." }),
   likert({ id: "M7", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "검산", text: "답을 낸 뒤 조건 누락과 계산 과정을 확인한다." }),
   likert({ id: "M8", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "누적 복습", text: "현재 단원뿐 아니라 이전 단원도 누적해서 복습한다." }),
@@ -302,4 +340,16 @@ export function isLikert(item: AssessmentItem): item is LikertItem {
 
 export function isScenario(item: AssessmentItem): item is ScenarioItem {
   return item.kind === "scenario";
+}
+
+export function isForcedChoice(item: AssessmentItem): item is ForcedChoiceItem {
+  return item.kind === "forcedChoice";
+}
+
+/**
+ * 선택지 index로 답하는 문항. 상황문항과 강제선택은 응답 형태가 같으므로
+ * 저장·검증에서 같은 버킷(scenarios)을 쓴다 — 제출 payload 구조는 그대로다.
+ */
+export function isChoiceItem(item: AssessmentItem): item is ChoiceItem {
+  return item.kind === "scenario" || item.kind === "forcedChoice";
 }

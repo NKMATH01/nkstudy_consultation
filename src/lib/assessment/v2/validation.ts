@@ -7,7 +7,12 @@
 
 import { z } from "zod";
 import { GRADES } from "@/types";
-import { getItemsForSubject, isLikert, isScenario } from "./definition";
+import {
+  RETIRED_ITEM_IDS,
+  getItemsForSubject,
+  isChoiceItem,
+  isLikert,
+} from "./definition";
 import type {
   ClinicAvailability,
   MbtiConfidence,
@@ -248,12 +253,15 @@ export const v2SubmissionSchema = z
     const sel = data.intake.subject_selection as SubjectSelection;
     const items = getItemsForSubject(sel);
     const likertItems = items.filter(isLikert);
-    const scenarioItems = items.filter(isScenario);
+    // 상황문항과 강제선택은 응답 형태(선택지 index)가 같아 같은 버킷을 쓴다.
+    const scenarioItems = items.filter(isChoiceItem);
     const likertIds = new Set(likertItems.map((i) => i.id));
     const scenarioIds = new Set(scenarioItems.map((i) => i.id));
 
     // 과목 불일치·미정의 문항 거부 (클라이언트 조작 차단).
+    // 폐기 문항은 예외 — 설문 도중 배포되면 학생 저장분에 남아 있어 제출을 막으면 안 된다.
     for (const key of Object.keys(data.responses)) {
+      if (RETIRED_ITEM_IDS.has(key)) continue;
       if (!likertIds.has(key)) {
         ctx.addIssue({
           code: "custom",
@@ -263,6 +271,7 @@ export const v2SubmissionSchema = z
       }
     }
     for (const key of Object.keys(data.scenarios)) {
+      if (RETIRED_ITEM_IDS.has(key)) continue;
       if (!scenarioIds.has(key)) {
         ctx.addIssue({
           code: "custom",
@@ -294,13 +303,13 @@ export const v2SubmissionSchema = z
       }
     }
 
-    // 필수 상황문항 응답 검증(선택 index가 실제 옵션 범위인지).
+    // 필수 상황문항·강제선택 응답 검증(선택 index가 실제 옵션 범위인지).
     for (const item of scenarioItems) {
       const v = data.scenarios[item.id];
       if (v === undefined || v === null) {
         ctx.addIssue({
           code: "custom",
-          message: `필수 상황문항에 응답해주세요: ${item.id}`,
+          message: `필수 문항에 응답해주세요: ${item.id}`,
           path: ["scenarios", item.id],
         });
         continue;
@@ -308,12 +317,26 @@ export const v2SubmissionSchema = z
       if (!item.options.some((o) => o.index === v)) {
         ctx.addIssue({
           code: "custom",
-          message: `상황문항 선택지가 올바르지 않습니다: ${item.id}`,
+          message: `선택지가 올바르지 않습니다: ${item.id}`,
           path: ["scenarios", item.id],
         });
       }
     }
-  });
+  })
+  // 폐기 문항은 검증만 통과시키고 저장·채점에는 넘기지 않는다.
+  .transform((data) => ({
+    ...data,
+    responses: dropRetired(data.responses),
+    scenarios: dropRetired(data.scenarios),
+  }));
+
+function dropRetired<T>(values: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (!RETIRED_ITEM_IDS.has(key)) out[key] = value;
+  }
+  return out;
+}
 
 export type V2SubmissionInput = z.input<typeof v2SubmissionSchema>;
 export type V2SubmissionData = z.output<typeof v2SubmissionSchema>;

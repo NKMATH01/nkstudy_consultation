@@ -9,13 +9,16 @@
 //   - 문항 수  = definition.ts의 실제 문항 (하드코딩하지 않고 런타임 집계)
 
 import { CONSTRUCT_LABEL } from "@/components/analysis-report-v2/report-theme";
-import { ALL_ITEMS, isLikert } from "./definition";
+import { ALL_ITEMS, isForcedChoice, isScenario } from "./definition";
 
-/** construct → 소속 Likert 문항 ID. definition.ts를 그대로 집계한다. */
+/**
+ * construct → 소속 문항 ID. definition.ts를 그대로 집계한다.
+ * 점수를 만드는 문항(리커트·강제선택)만 센다. 상황문항은 태그만 남기고 점수가 없다.
+ */
 export const ITEMS_BY_CONSTRUCT: Record<string, string[]> = (() => {
   const map: Record<string, string[]> = {};
   for (const item of ALL_ITEMS) {
-    if (!isLikert(item)) continue;
+    if (isScenario(item)) continue;
     (map[item.construct] ??= []).push(item.id);
   }
   return map;
@@ -31,10 +34,24 @@ export function isSingleItemConstruct(construct: string): boolean {
 }
 
 /**
+ * 강제선택 문항으로 재는 구인. 값이 양 끝(0/100)으로만 나오므로
+ * "정도"가 아니라 "어느 쪽을 골랐는지"로만 서술해야 한다.
+ */
+export const FORCED_CHOICE_CONSTRUCTS: string[] = (() => {
+  const set = new Set<string>();
+  for (const item of ALL_ITEMS) {
+    if (isForcedChoice(item)) set.add(item.construct);
+  }
+  return [...set];
+})();
+
+/**
  * 천장 문항(top2 응답이 79%를 넘어 변별력이 없는 문항).
  * 이 문항 하나만 근거로 강점을 만들면 "누구나 받는 칭찬"이 된다.
+ *
+ * R2는 천장이라 강제선택으로 바꿨다 — 이제 top2 자체가 없어 목록에서 뺀다.
  */
-export const CEILING_ITEMS = ["M9", "LT1", "R1", "R2", "N1", "N2"];
+export const CEILING_ITEMS = ["M9", "LT1", "R1", "N1", "N2"];
 
 type Direction = "positive" | "risk" | "preference";
 
@@ -186,9 +203,10 @@ ${rows.join("\n")}`;
 
 /** 프롬프트에 넣을 표기·인용 규칙. */
 export function buildNamingRules(): string {
-  const singleLabels = SINGLE_ITEM_CONSTRUCTS.map(
-    (k) => CONSTRUCT_LABEL[k as keyof typeof CONSTRUCT_LABEL] ?? k,
-  );
+  const label = (k: string) =>
+    CONSTRUCT_LABEL[k as keyof typeof CONSTRUCT_LABEL] ?? k;
+  const singleLabels = SINGLE_ITEM_CONSTRUCTS.map(label);
+  const forcedLabels = FORCED_CHOICE_CONSTRUCTS.map(label);
 
   return `[지표 이름·표기 규칙 — 매우 중요]
 - 위 표의 "한글 이름"으로만 지표를 지칭하세요. 다른 번역어를 새로 만들지 마세요.
@@ -203,6 +221,7 @@ export function buildNamingRules(): string {
 - 다문항 지표는 "5점 만점 평균"으로만 인용하세요. 표기는 "4문항 평균 1.8/5"처럼 씁니다.
 - 100점 환산 수치(예: "75.0점", "81.3점")를 문장에 쓰지 마세요.
 - 다음 지표는 문항이 하나뿐이라 점수를 말하면 과대 해석이 됩니다 — 점수·평균을 절대 인용하지 말고, 문항이 묻는 내용의 요지와 학생의 응답 라벨로만 서술하세요(예: "생각을 정리할 시간이 필요하다는 문항에 '대체로 그렇다'고 답했습니다"): ${singleLabels.join(", ")}
+- 다음 지표는 둘 중 하나를 고르는 문항이라 "얼마나"가 없습니다 — 정도·강도로 말하지 말고 학생이 고른 행동 그대로만 쓰세요(예: "모르는 게 생기면 수업이 끝난 뒤 따로 물어보는 쪽을 골랐습니다"): ${forcedLabels.join(", ")}
 
 [강점 근거 제한]
 - 다음 문항은 거의 모든 학생이 높게 답해 변별력이 없습니다. 이 문항 하나만 근거로 강점을 만들지 마세요: ${CEILING_ITEMS.join(", ")}

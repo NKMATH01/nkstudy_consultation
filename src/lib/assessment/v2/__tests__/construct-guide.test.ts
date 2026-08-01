@@ -14,11 +14,12 @@ import { CONSTRUCT_LABEL } from "@/components/analysis-report-v2/report-theme";
 
 describe("ITEMS_BY_CONSTRUCT — definition.ts 실측 집계", () => {
   // 하드코딩이 아니라 definition에서 집계하므로 문항이 바뀌면 여기서 먼저 깨진다.
-  it("단일문항 구인 11개를 실제 정의에서 뽑아낸다", () => {
+  // [스펙 변경] 직접 피드백 수용은 R3+R3-1+R3-2 3문항으로 확장돼 단일문항 목록에서 빠졌다.
+  // 숙고 처리 선호는 R2 강제선택 1문항이라 여전히 단일문항이다(점수 인용 금지 대상).
+  it("단일문항 구인 10개를 실제 정의에서 뽑아낸다", () => {
     expect(SINGLE_ITEM_CONSTRUCTS.sort()).toEqual(
       [
         "autonomyNeed",
-        "directFeedbackAcceptance",
         "englishReadingAvoidance",
         "englishSelfEfficacy",
         "englishTestInterference",

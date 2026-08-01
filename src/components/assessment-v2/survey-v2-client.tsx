@@ -10,8 +10,8 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, Sparkles } from
 import { Button } from "@/components/ui/button";
 import {
   getItemsForSubject,
+  isChoiceItem,
   isLikert,
-  isScenario,
   pruneToSubjectScope,
 } from "@/lib/assessment/v2/definition";
 import type { AssessmentItem, SubjectSelection } from "@/lib/assessment/v2/types";
@@ -153,7 +153,7 @@ export function SurveyV2Client() {
     if (phase === "intake") return isIntakeScreenComplete(index, intake);
     if (phase === "commitment") return commitment14.trim().length > 0;
     if (!currentItem) return false;
-    if (isScenario(currentItem)) return scenarios[currentItem.id] !== undefined;
+    if (isChoiceItem(currentItem)) return scenarios[currentItem.id] !== undefined;
     const v = responses[currentItem.id];
     return v !== undefined && v !== null;
   }, [phase, index, intake, commitment14, currentItem, scenarios, responses]);
@@ -179,7 +179,7 @@ export function SurveyV2Client() {
       if (meta.firstSelectAt === undefined) meta.firstSelectAt = now;
       meta.lastEditAt = now;
 
-      const scenario = isScenario(currentItem);
+      const scenario = isChoiceItem(currentItem);
       const hadValue = scenario
         ? scenarios[currentItem.id] !== undefined
         : responses[currentItem.id] !== undefined;
@@ -254,7 +254,7 @@ export function SurveyV2Client() {
       if (!isIntakeScreenComplete(i, intake)) return i;
     }
     const missing = scoreItems.findIndex((item) =>
-      isScenario(item)
+      isChoiceItem(item)
         ? scenarios[item.id] === undefined
         : responses[item.id] === undefined || responses[item.id] === null,
     );
@@ -395,7 +395,7 @@ export function SurveyV2Client() {
             ref={titleRef}
             item={currentItem}
             value={
-              isScenario(currentItem) ? scenarios[currentItem.id] : responses[currentItem.id]
+              isChoiceItem(currentItem) ? scenarios[currentItem.id] : responses[currentItem.id]
             }
             onSelect={handleSelect}
             supplements={supplements}

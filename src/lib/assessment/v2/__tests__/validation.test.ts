@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getItemsForSubject, isLikert, isScenario } from "../definition";
+import { getItemsForSubject, isChoiceItem, isLikert } from "../definition";
 import { computeScoreProfile } from "../scoring";
 import {
   buildScoringInput,
@@ -11,7 +11,7 @@ import {
 } from "../validation";
 import type { SubjectSelection } from "../types";
 
-/** 주어진 과목의 모든 Likert=3, 모든 상황문항=1로 채운 유효 제출 payload. */
+/** 주어진 과목의 모든 Likert=3, 모든 상황문항·강제선택=1로 채운 유효 제출 payload. */
 function validSubmission(
   subject: SubjectSelection,
   overrides: Partial<V2SubmissionInput> = {}
@@ -21,7 +21,7 @@ function validSubmission(
   const scenarios: Record<string, number> = {};
   for (const item of items) {
     if (isLikert(item)) responses[item.id] = 3;
-    else if (isScenario(item)) scenarios[item.id] = 1;
+    else if (isChoiceItem(item)) scenarios[item.id] = 1;
   }
   return {
     intake: {
@@ -240,5 +240,55 @@ describe("buildV2InsertPayload (필드 유실 없음)", () => {
     expect((responses.supplements as Record<string, unknown>).phone_weekday).toBe(
       "1~2시간"
     );
+  });
+});
+
+// ── Phase 3 문항 1차 패키지 ──────────────────────────────────────────
+
+describe("폐기 문항(M5) 관용", () => {
+  it("옛 저장분에 M5가 남아 있어도 제출을 막지 않는다", () => {
+    const payload = validSubmission("math", { responses: { M5: 4 } as never });
+    const r = v2SubmissionSchema.safeParse(payload);
+    expect(r.success).toBe(true);
+  });
+
+  it("검증을 통과해도 M5는 저장 payload에 남지 않는다", () => {
+    const payload = validSubmission("math", { responses: { M5: 4 } as never });
+    const parsed = v2SubmissionSchema.parse(payload);
+    expect(parsed.responses).not.toHaveProperty("M5");
+
+    const insert = buildV2InsertPayload(
+      parsed,
+      computeScoreProfile(buildScoringInput(parsed)),
+    );
+    const stored = (insert.responses_v2 as { responses: Record<string, unknown> }).responses;
+    expect(stored).not.toHaveProperty("M5");
+  });
+
+  it("폐기되지 않은 미정의 문항은 여전히 거부한다", () => {
+    const payload = validSubmission("math", { responses: { ZZ9: 4 } as never });
+    const r = v2SubmissionSchema.safeParse(payload);
+    expect(r.success).toBe(false);
+  });
+});
+
+describe("R2 강제선택 제출", () => {
+  it("R2는 상황문항과 같은 버킷에 저장된다", () => {
+    const parsed = v2SubmissionSchema.parse(validSubmission("math"));
+    expect(parsed.scenarios.R2).toBe(1);
+    expect(parsed.responses).not.toHaveProperty("R2");
+  });
+
+  it("R2 미응답이면 제출을 거부한다", () => {
+    const payload = validSubmission("math");
+    delete (payload.scenarios as Record<string, number>).R2;
+    const r = v2SubmissionSchema.safeParse(payload);
+    expect(r.success).toBe(false);
+  });
+
+  it("선택지 범위 밖 index는 거부한다 (강제선택은 1·2뿐)", () => {
+    const payload = validSubmission("math", { scenarios: { R2: 3 } as never });
+    const r = v2SubmissionSchema.safeParse(payload);
+    expect(r.success).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ import {
   MIN_VALID_RATIO,
   REVERSE_IDS,
   getItemsForSubject,
+  isForcedChoice,
   isLikert,
   isScenario,
 } from "./definition";
@@ -17,6 +18,7 @@ import type {
   Construct,
   CoachingProfile,
   EnglishScores,
+  ForcedChoiceItem,
   LikertItem,
   MathScores,
   MbtiAxes,
@@ -29,6 +31,7 @@ import type {
   ResponseMap,
   ResponseQuality,
   ResponseQualityReason,
+  ScenarioResponseMap,
   Score,
   ScoreProfile,
   ScoringInput,
@@ -95,6 +98,41 @@ function rawComposite(items: LikertItem[], responses: ResponseMap): Score {
 
 function scoreByConstruct(construct: Construct, responses: ResponseMap): Score {
   return rawComposite(LIKERT_BY_CONSTRUCT[construct] ?? [], responses);
+}
+
+// construct → 강제선택 문항 목록.
+const FORCED_BY_CONSTRUCT = ((): Record<string, ForcedChoiceItem[]> => {
+  const map: Record<string, ForcedChoiceItem[]> = {};
+  for (const item of ALL_ITEMS) {
+    if (!isForcedChoice(item)) continue;
+    (map[item.construct] ??= []).push(item);
+  }
+  return map;
+})();
+
+/**
+ * 강제선택 문항만으로 만드는 점수. 선택지 score(0/100)의 평균이다.
+ *
+ * 리커트와 달리 MIN_VALID_RATIO를 적용하지 않는다 — 문항이 한두 개뿐이라
+ * 하나만 빠져도 남은 값으로 평균을 내면 그 학생의 값이 아니게 된다. 전부 응답해야 산출한다.
+ */
+function scoreByForcedChoice(
+  construct: Construct,
+  choices: ScenarioResponseMap
+): Score {
+  const items = FORCED_BY_CONSTRUCT[construct] ?? [];
+  if (items.length === 0) return "insufficient";
+
+  let sum = 0;
+  for (const item of items) {
+    const answer = choices[item.id];
+    const option = isNumericResponse(answer)
+      ? item.options.find((o) => o.index === answer)
+      : undefined;
+    if (!option) return "insufficient";
+    sum += option.score;
+  }
+  return clamp(sum / items.length);
 }
 
 function isNum(score: Score): score is number {
@@ -255,9 +293,9 @@ function axisFromRaw(
 
 function computeMbtiAxes(
   responses: ResponseMap,
+  choices: ScenarioResponseMap,
   mbti: MbtiInput | null | undefined
 ): MbtiAxes {
-  const r2 = responses.R2;
   const r1 = responses.R1;
   const r3 = responses.R3;
   const r4 = responses.R4;
@@ -266,9 +304,12 @@ function computeMbtiAxes(
 
   const norm = (v: unknown) => normalizeResponse(v as number, false);
 
-  // interactionAxis: raw = 100 - normalize(R2). R2 결측 → insufficient.
-  const interactionRaw: Score = isNumericResponse(r2)
-    ? clamp(100 - norm(r2))
+  // interactionAxis: raw = 100 - 숙고 처리 선호(R2 강제선택).
+  // A(그 자리에서 질문)=0 → 축 100(함께 이야기), B(끝난 뒤 따로)=100 → 축 0(혼자 정리).
+  // R2가 이분 응답이므로 이 축도 0 또는 100이며 중간값이 없다.
+  const reflective = scoreByForcedChoice("reflectiveProcessingNeed", choices);
+  const interactionRaw: Score = isNum(reflective)
+    ? clamp(100 - reflective)
     : "insufficient";
 
   // conceptAxis: 직접 관찰 문항 없음 → raw=50 + lowEvidence (결측 대체가 아닌 설계값).
@@ -445,7 +486,12 @@ function computeResponseQuality(
     }
   }
 
-  // opposite_pair_review: positive 환산 pair 절대차 75 이상이 2개 이상.
+  // opposite_pair_review: positive 환산 pair 절대차가 임계 이상인 쌍이 2개 이상.
+  //
+  // 임계 75는 5점 척도에서 사실상 양 끝(1↔5)만 잡아내, 실제 제출 29건 중 1건(3%)에서만
+  // 걸렸다. 50이면 두 칸 차이부터 잡아 21%가 검토 대상이 된다 — 상담 전에 "이 부분은
+  // 직접 물어보라"고 알려주는 게 목적이므로 놓치는 쪽보다 한 번 더 확인하는 쪽을 택한다.
+  const OPPOSITE_PAIR_GAP = 50;
   const pairs: Array<[string, string]> = [
     ["P1", "P2"],
     ["G2", "G4"],
@@ -458,12 +504,12 @@ function computeResponseQuality(
     if (!isNumericResponse(va) || !isNumericResponse(vb)) continue;
     const na = normalizeResponse(va, REVERSE_IDS.has(a));
     const nb = normalizeResponse(vb, REVERSE_IDS.has(b));
-    if (Math.abs(na - nb) >= 75) bigGaps += 1;
+    if (Math.abs(na - nb) >= OPPOSITE_PAIR_GAP) bigGaps += 1;
   }
   if (bigGaps >= 2) {
     reasons.push({
       code: "opposite_pair_review",
-      detail: `${bigGaps}개 반대 문항쌍 강한 불일치`,
+      detail: `${bigGaps}개 반대 문항쌍 불일치(환산 차이 ${OPPOSITE_PAIR_GAP} 이상)`,
     });
   }
 
@@ -541,7 +587,11 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
   const shortTermRecovery = scoreByConstruct("shortTermRecovery", responses);
   const peerLearningResource = scoreByConstruct("peerLearningResource", responses);
   const peerFocusBoundary = scoreByConstruct("peerFocusBoundary", responses);
-  const reflectiveProcessingNeed = scoreByConstruct("reflectiveProcessingNeed", responses);
+  // 숙고 처리 선호는 R2 강제선택 하나로만 잰다(리커트 문항 없음).
+  const reflectiveProcessingNeed = scoreByForcedChoice(
+    "reflectiveProcessingNeed",
+    scenarioResponses
+  );
   const directFeedbackAcceptance = scoreByConstruct("directFeedbackAcceptance", responses);
   const relationshipSafetyNeed = scoreByConstruct("relationshipSafetyNeed", responses);
   const autonomyNeed = scoreByConstruct("autonomyNeed", responses);
@@ -588,7 +638,7 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
   const includeMath = subjectSelection === "math" || subjectSelection === "both";
   const includeEnglish = subjectSelection === "english" || subjectSelection === "both";
 
-  const mbtiAxes = computeMbtiAxes(responses, mbti);
+  const mbtiAxes = computeMbtiAxes(responses, scenarioResponses, mbti);
 
   const nkFit = computeNkFit(
     responses,

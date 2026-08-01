@@ -33,7 +33,9 @@ function uniformResponses(value: number): ResponseMap {
   return r;
 }
 
+// 상황문항 + 강제선택(R2). 둘 다 선택지 index로 답한다.
 const ALL_SCENARIOS: ScenarioResponseMap = {
+  R2: 2,
   C1: 1,
   C2: 1,
   MS1: 1,
@@ -45,12 +47,13 @@ const ALL_SCENARIOS: ScenarioResponseMap = {
 // ── definition 무결성 ────────────────────────────────────────────────
 
 describe("definition 무결성", () => {
-  it("문항 수: 공통 36 / 수학 12 / 영어 12", () => {
+  // [스펙 변경] R3-1·R3-2 추가(공통 +2), M5 폐기(수학 -1) → 순증 +1문항.
+  it("문항 수: 공통 38 / 수학 11 / 영어 12", () => {
     const common = ALL_ITEMS.filter((i) => i.subject === "common");
     const math = ALL_ITEMS.filter((i) => i.subject === "math");
     const english = ALL_ITEMS.filter((i) => i.subject === "english");
-    expect(common).toHaveLength(36);
-    expect(math).toHaveLength(12);
+    expect(common).toHaveLength(38);
+    expect(math).toHaveLength(11);
     expect(english).toHaveLength(12);
   });
 
@@ -231,10 +234,12 @@ describe("지도 유형 4분면", () => {
     expect(classifyCoaching(null, "high")).toBe("혼합 반응·14일 관찰형");
   });
 
-  it("프로필에서 R3/R4 조합으로 coachingType을 결정한다", () => {
+  // [스펙 변경] 직접 피드백 수용이 3문항이 되어 R3 하나만으로는 유효응답 75%에 미치지 못한다.
+  it("프로필에서 직접 피드백 3문항·R4 조합으로 coachingType을 결정한다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { R3: 5, R4: 5 }, // 둘 다 100 → high/high
+      // 직접 피드백 3문항 전부 5, 관계 안전 R4=5 → 둘 다 100 → high/high
+      responses: { R3: 5, "R3-1": 5, "R3-2": 5, R4: 5 },
     });
     expect(p.coaching.coachingType).toBe("따뜻한 도전형");
   });
@@ -316,7 +321,7 @@ describe("MBTI는 핵심 행동점수에 무영향", () => {
   it("원천 문항이 결측이면 해당 축은 insufficient (50 대체 없음)", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: {}, // R2/R3/R4 등 없음
+      responses: {}, // R1/R3/R4 등 없음, R2 강제선택도 미응답
       mbti: { type: "ENFP", confidence: "high" },
     });
     expect(p.mbtiAxes.interactionAxis.raw).toBe("insufficient");
@@ -469,7 +474,7 @@ describe("응답 품질 flag", () => {
   it("동일 응답이 90% 이상이면 straight_line이며 status=review", () => {
     const p = computeScoreProfile({
       subjectSelection: "both",
-      responses: uniformResponses(3), // 60개 Likert 전부 동일
+      responses: uniformResponses(3), // 54개 Likert 전부 동일
     });
     const codes = p.responseQuality.reasons.map((r) => r.code);
     expect(codes).toContain("straight_line");
@@ -512,5 +517,141 @@ describe("응답 품질 flag", () => {
     const codes = p.responseQuality.reasons.map((r) => r.code);
     expect(codes).toContain("too_fast");
     expect(p.responseQuality.status).toBe("review");
+  });
+});
+
+// ── Phase 3 문항 1차 패키지 ──────────────────────────────────────────
+
+describe("R2 강제선택 채점", () => {
+  it("A(그 자리에서 질문)는 0, B(끝난 뒤 따로)는 100이며 중간값이 없다", () => {
+    const a = computeScoreProfile({
+      subjectSelection: "math",
+      responses: {},
+      scenarioResponses: { R2: 1 },
+    });
+    const b = computeScoreProfile({
+      subjectSelection: "math",
+      responses: {},
+      scenarioResponses: { R2: 2 },
+    });
+    expect(a.common.reflectiveProcessingNeed).toBe(0);
+    expect(b.common.reflectiveProcessingNeed).toBe(100);
+  });
+
+  it("R2를 리커트로 답해도(응답 버킷) 점수가 만들어지지 않는다", () => {
+    // 강제선택은 scenarios 버킷에서만 읽는다. 옛 클라이언트가 responses.R2를 보내도 무시된다.
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { R2: 5 } as never,
+      scenarioResponses: {},
+    });
+    expect(p.common.reflectiveProcessingNeed).toBe("insufficient");
+  });
+
+  it("interactionAxis는 R2의 반대편이며 0 또는 100만 나온다", () => {
+    const a = computeScoreProfile({
+      subjectSelection: "math",
+      responses: {},
+      scenarioResponses: { R2: 1 },
+    });
+    const b = computeScoreProfile({
+      subjectSelection: "math",
+      responses: {},
+      scenarioResponses: { R2: 2 },
+    });
+    // A(바로 질문) → 함께 이야기 쪽 100, B(나중에 따로) → 혼자 정리 쪽 0.
+    expect(a.mbtiAxes.interactionAxis.raw).toBe(100);
+    expect(b.mbtiAxes.interactionAxis.raw).toBe(0);
+  });
+
+  it("R2 미응답이면 숙고 처리 선호와 interactionAxis 모두 insufficient", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: positiveMaxResponses(),
+      scenarioResponses: {},
+    });
+    expect(p.common.reflectiveProcessingNeed).toBe("insufficient");
+    expect(p.mbtiAxes.interactionAxis.raw).toBe("insufficient");
+  });
+});
+
+describe("직접 피드백 수용 3문항 확장", () => {
+  it("R3·R3-1·R3-2 세 문항의 평균으로 계산한다", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      // 100 / 50 / 0 → 평균 50
+      responses: { R3: 5, "R3-1": 3, "R3-2": 1 },
+    });
+    expect(p.common.directFeedbackAcceptance).toBe(50.0);
+    expect(p.coaching.challenge).toBe(50.0);
+  });
+
+  it("한 문항만 답하면 유효응답 75%에 못 미쳐 insufficient", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { R3: 5 },
+    });
+    expect(p.common.directFeedbackAcceptance).toBe("insufficient");
+  });
+
+  it("세 문항 중 둘만 답해도 75% 미만이라 insufficient (2/3)", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { R3: 5, "R3-1": 5 },
+    });
+    expect(p.common.directFeedbackAcceptance).toBe("insufficient");
+  });
+});
+
+describe("M5 폐기", () => {
+  it("mathStrategy는 M5 없이 계산된다", () => {
+    const items = ALL_ITEMS.filter((i) => i.id === "M5");
+    expect(items).toHaveLength(0);
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: positiveMaxResponses(),
+      scenarioResponses: ALL_SCENARIOS,
+    });
+    expect(p.math?.mathStrategy).toBe(100.0);
+  });
+
+  it("옛 응답에 M5가 남아 있어도 점수를 흔들지 않는다", () => {
+    const withM5 = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { ...positiveMaxResponses(), M5: 1 },
+      scenarioResponses: ALL_SCENARIOS,
+    });
+    expect(withM5.math?.mathStrategy).toBe(100.0);
+  });
+});
+
+describe("반대 문항쌍 임계 50", () => {
+  it("두 칸 차이(환산 50)가 2쌍이면 review로 올린다", () => {
+    // P1=5(100) vs P2=3(reverse→50) → 차이 50. G2=5(100) vs G4=3(reverse→50) → 차이 50.
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { P1: 5, P2: 3, G2: 5, G4: 3 },
+    });
+    const codes = p.responseQuality.reasons.map((r) => r.code);
+    expect(codes).toContain("opposite_pair_review");
+    expect(p.responseQuality.status).toBe("review");
+  });
+
+  it("한 칸 차이(환산 25)만 있으면 올리지 않는다", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { P1: 5, P2: 2, G2: 5, G4: 2 },
+    });
+    const codes = p.responseQuality.reasons.map((r) => r.code);
+    expect(codes).not.toContain("opposite_pair_review");
+  });
+
+  it("임계를 넘는 쌍이 하나뿐이면 올리지 않는다(2쌍 조건 유지)", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { P1: 5, P2: 5 },
+    });
+    const codes = p.responseQuality.reasons.map((r) => r.code);
+    expect(codes).not.toContain("opposite_pair_review");
   });
 });

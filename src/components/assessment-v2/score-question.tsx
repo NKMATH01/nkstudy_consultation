@@ -24,9 +24,24 @@ interface OptionRowProps {
   marker: string;
   onSelect: (viaPointer: boolean) => void;
   ariaLabel: string;
+  /** 최소 높이 클래스. 점수형은 52px, 상황·강제선택은 48px. */
+  heightClass?: string;
+  /**
+   * 점수 선택지가 아닌 보조 선택("아직 잘 모르겠음").
+   * 같은 강도로 보이면 6번째 점수처럼 읽혀 척도가 6점이 돼 버린다.
+   */
+  muted?: boolean;
 }
 
-function OptionRow({ selected, label, marker, onSelect, ariaLabel }: OptionRowProps) {
+function OptionRow({
+  selected,
+  label,
+  marker,
+  onSelect,
+  ariaLabel,
+  heightClass = "min-h-[48px]",
+  muted = false,
+}: OptionRowProps) {
   return (
     <button
       type="button"
@@ -35,10 +50,12 @@ function OptionRow({ selected, label, marker, onSelect, ariaLabel }: OptionRowPr
       aria-label={ariaLabel}
       // e.detail === 0 → 키보드(Enter/Space) 활성화. >0 → 포인터/터치.
       onClick={(e) => onSelect(e.detail > 0)}
-      className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[14px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+      className={`flex ${heightClass} w-full items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[14px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
         selected
           ? "border-primary bg-primary/[0.06] text-primary"
-          : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted/40"
+          : muted
+            ? "border-dashed border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"
+            : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted/40"
       }`}
     >
       <span
@@ -119,26 +136,32 @@ function LikertOptions({
   onSelect: (value: ScoreValue, viaPointer: boolean) => void;
 }) {
   const labels = SCALE_LABELS_V2[item.scale];
+  // 위에서 아래로 5→1. 긍정이 맨 위에 오면 첫 선택지가 기준점이 되어 읽기 순서가 자연스럽다.
+  // 저장값은 그대로 1~5이며 표시 순서만 뒤집는다.
   return (
     <div role="radiogroup" aria-label={item.text} className="space-y-2">
-      {[1, 2, 3, 4, 5].map((v) => (
+      {[5, 4, 3, 2, 1].map((v) => (
         <OptionRow
           key={v}
           marker={String(v)}
           selected={value === v}
           label={labels[v - 1]}
           ariaLabel={`${v}점: ${labels[v - 1]}`}
+          heightClass="min-h-[52px]"
           onSelect={(viaPointer) => onSelect(v, viaPointer)}
         />
       ))}
       {item.allowUnknown && (
-        <OptionRow
-          marker="?"
-          selected={value === "unknown"}
-          label="아직 잘 모르겠음"
-          ariaLabel="아직 잘 모르겠음"
-          onSelect={(viaPointer) => onSelect("unknown", viaPointer)}
-        />
+        <div className="mt-4 border-t border-border pt-3">
+          <OptionRow
+            marker="?"
+            selected={value === "unknown"}
+            label="아직 잘 모르겠음"
+            ariaLabel="아직 잘 모르겠음"
+            muted
+            onSelect={(viaPointer) => onSelect("unknown", viaPointer)}
+          />
+        </div>
       )}
     </div>
   );

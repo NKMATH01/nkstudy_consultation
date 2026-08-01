@@ -2,11 +2,11 @@
 
 // 설문 V2 학생 UI 오케스트레이터.
 // §7 UX 규칙: 첫 화면부터 실제 설문, 점수형 한 화면 한 문항, 포인터 최초 선택 시 자동 이동,
-// 키보드·기존 답 수정·보조 선택 문항은 자동 이동 예외, 진행 표시는 번호/전체/진행률만,
-// sessionStorage 임시 저장(제출 후 삭제), response_meta 수집.
+// 키보드·기존 답 수정·보조 선택 문항은 자동 이동 예외,
+// localStorage 임시 저장(제출 후 삭제) + 재방문 이어하기, response_meta 수집.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, Sparkles } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getItemsForSubject,
@@ -15,20 +15,34 @@ import {
   pruneToSubjectScope,
 } from "@/lib/assessment/v2/definition";
 import type { AssessmentItem, SubjectSelection } from "@/lib/assessment/v2/types";
+import { estimateRemainingMinutes } from "@/lib/assessment/v2/survey-pace";
 import { v2SubmissionSchema } from "@/lib/assessment/v2/validation";
 import { submitPublicSurveyV2 } from "@/lib/actions/public-survey-v2";
 import { ScoreQuestion, type ScoreValue } from "./score-question";
 import {
   emptyIntake,
+  INTAKE_OPTIONAL_SCREENS,
   INTAKE_SCREEN_COUNT,
   IntakeScreen,
   isIntakeScreenComplete,
+  isIntakeScreenEmpty,
   type IntakeState,
 } from "./intake-screens";
 
 const STORAGE_KEY = "nk-survey-v2";
 const AUTO_ADVANCE_MS = 520; // §7 460~620ms 범위.
 const AUTO_ADVANCE_MS_REDUCED = 200;
+
+/** 통과 알림을 띄우는 간격(문항). */
+const MILESTONE_EVERY = 10;
+const MILESTONE_TOAST_MS = 2000;
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  );
+}
 
 interface ItemMeta {
   exposedAt?: number;
@@ -45,6 +59,40 @@ interface PersistedState {
   index: number;
 }
 
+/**
+ * 저장분을 읽는다. localStorage가 원본이고, sessionStorage는 이 화면이
+ * sessionStorage를 쓰던 시절에 설문을 시작한 학생의 진행분을 살리기 위한 대체 경로다.
+ */
+function readSaved(): Partial<PersistedState> | null {
+  try {
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ??
+      window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Partial<PersistedState>;
+  } catch {
+    // 손상된 저장값은 무시하고 새로 시작한다.
+    return null;
+  }
+}
+
+function clearSaved() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
+/** 이어하기를 물어볼 만큼 진행됐는지. 이름만 적다 만 상태로 배너를 띄우지 않는다. */
+function hasProgress(saved: Partial<PersistedState>): boolean {
+  const answered =
+    Object.keys(saved.responses ?? {}).length +
+    Object.keys(saved.scenarios ?? {}).length;
+  return answered > 0 || (saved.index ?? 0) > 0;
+}
+
 export function SurveyV2Client() {
   const [intake, setIntake] = useState<IntakeState>(emptyIntake);
   const [responses, setResponses] = useState<Record<string, ScoreValue>>({});
@@ -56,6 +104,12 @@ export function SurveyV2Client() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  /** 이어하기를 물어보는 동안 잡아 두는 저장분. 답하기 전까지 설문 화면을 렌더하지 않는다. */
+  const [resume, setResume] = useState<Partial<PersistedState> | null>(null);
+  /** 문항 노출→첫 선택 지연(ms). 남은 시간 추정에 쓴다. */
+  const [delays, setDelays] = useState<number[]>([]);
+  /** 방금 통과한 문항 수. 알림을 띄우는 동안만 값이 있다. */
+  const [milestone, setMilestone] = useState<number | null>(null);
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,28 +138,33 @@ export function SurveyV2Client() {
   const scoreIdx = index - INTAKE_SCREEN_COUNT;
   const currentItem = phase === "score" ? scoreItems[scoreIdx] : null;
 
-  // ── sessionStorage 복원(최초 1회) ──
+  // ── 저장분 확인(최초 1회). 진행분이 있으면 복원하지 않고 먼저 물어본다 ──
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const p = JSON.parse(raw) as Partial<PersistedState>;
-        if (p.intake) setIntake({ ...emptyIntake(), ...p.intake });
-        if (p.responses) setResponses(p.responses);
-        if (p.scenarios) setScenarios(p.scenarios);
-        if (p.supplements) setSupplements(p.supplements);
-        if (typeof p.commitment14 === "string") setCommitment14(p.commitment14);
-        if (typeof p.index === "number") setIndex(p.index);
-      }
-    } catch {
-      // 손상된 저장값은 무시하고 새로 시작한다.
-    }
+    const saved = readSaved();
+    if (saved && hasProgress(saved)) setResume(saved);
     setHydrated(true);
   }, []);
 
-  // ── sessionStorage 저장(제출 후에는 저장하지 않음) ──
+  const restoreSaved = useCallback(() => {
+    const p = resume;
+    if (!p) return;
+    if (p.intake) setIntake({ ...emptyIntake(), ...p.intake });
+    if (p.responses) setResponses(p.responses);
+    if (p.scenarios) setScenarios(p.scenarios);
+    if (p.supplements) setSupplements(p.supplements);
+    if (typeof p.commitment14 === "string") setCommitment14(p.commitment14);
+    if (typeof p.index === "number") setIndex(p.index);
+    setResume(null);
+  }, [resume]);
+
+  const discardSaved = useCallback(() => {
+    clearSaved();
+    setResume(null);
+  }, []);
+
+  // ── localStorage 저장(이어하기를 묻는 중과 제출 후에는 저장하지 않음) ──
   useEffect(() => {
-    if (!hydrated || submitted) return;
+    if (!hydrated || submitted || resume) return;
     try {
       const payload: PersistedState = {
         intake,
@@ -115,11 +174,11 @@ export function SurveyV2Client() {
         commitment14,
         index,
       };
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
       // 용량 초과 등은 무시(진행은 계속 가능).
     }
-  }, [hydrated, submitted, intake, responses, scenarios, supplements, commitment14, index]);
+  }, [hydrated, submitted, resume, intake, responses, scenarios, supplements, commitment14, index]);
 
   // ── 점수형 화면 노출 시각 기록 + 제목 포커스 + active time 측정 ──
   useEffect(() => {
@@ -141,6 +200,23 @@ export function SurveyV2Client() {
       if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     };
   }, []);
+
+  // ── 문항 구간 이탈 경고. 저장은 되지만 학생은 그 사실을 모른 채 닫는다 ──
+  useEffect(() => {
+    if (phase !== "score" || submitted) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [phase, submitted]);
+
+  // ── 통과 알림 자동 닫기 ──
+  useEffect(() => {
+    if (milestone === null) return;
+    const timer = setTimeout(() => setMilestone(null), MILESTONE_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [milestone]);
 
   const clearAutoAdvance = () => {
     if (autoAdvanceRef.current) {
@@ -170,14 +246,30 @@ export function SurveyV2Client() {
     setIndex((i) => Math.max(i - 1, 0));
   }, []);
 
+  /** 이미 답한 점수형 문항 수. 진행 표시와 통과 알림에 쓴다. */
+  const answeredCount = useMemo(
+    () =>
+      scoreItems.filter((item) =>
+        isChoiceItem(item)
+          ? scenarios[item.id] !== undefined
+          : responses[item.id] !== undefined && responses[item.id] !== null,
+      ).length,
+    [scoreItems, scenarios, responses],
+  );
+
   // ── 점수 문항 선택 처리(자동 이동 판단 포함) ──
   const handleSelect = useCallback(
     (value: ScoreValue, viaPointer: boolean) => {
       if (!currentItem) return;
       const meta = (itemMetaRef.current[currentItem.id] ??= {});
       const now = Date.now();
-      if (meta.firstSelectAt === undefined) meta.firstSelectAt = now;
+      const isFirstSelect = meta.firstSelectAt === undefined;
+      if (isFirstSelect) meta.firstSelectAt = now;
       meta.lastEditAt = now;
+
+      if (isFirstSelect && meta.exposedAt !== undefined) {
+        setDelays((d) => [...d, Math.max(0, now - meta.exposedAt!)]);
+      }
 
       const scenario = isChoiceItem(currentItem);
       const hadValue = scenario
@@ -188,6 +280,12 @@ export function SurveyV2Client() {
         setScenarios((s) => ({ ...s, [currentItem.id]: value as number }));
       } else {
         setResponses((s) => ({ ...s, [currentItem.id]: value }));
+      }
+
+      // 10문항마다 통과 알림. 처음 답한 문항일 때만 센다(수정은 세지 않는다).
+      if (!hadValue) {
+        const next = answeredCount + 1;
+        if (next % MILESTONE_EVERY === 0 && next < scoreCount) setMilestone(next);
       }
 
       // §7 자동 이동: 포인터 최초 선택 + 보조 선택 문항 아님 + 마지막 점수 화면 아님.
@@ -205,7 +303,7 @@ export function SurveyV2Client() {
         }, delay);
       }
     },
-    [currentItem, scenarios, responses, totalScreens]
+    [currentItem, scenarios, responses, totalScreens, answeredCount, scoreCount]
   );
 
   const handleSupplementChange = useCallback((fieldId: string, value: string) => {
@@ -306,11 +404,7 @@ export function SurveyV2Client() {
     try {
       const result = await submitPublicSurveyV2(payload);
       if (result.success) {
-        try {
-          sessionStorage.removeItem(STORAGE_KEY);
-        } catch {
-          /* noop */
-        }
+        clearSaved();
         setSubmitted(true);
       } else {
         setError(result.error);
@@ -345,8 +439,25 @@ export function SurveyV2Client() {
     );
   }
 
+  // ── 이어하기 확인 ──
+  // 저장분을 말없이 복원하면 학생은 자기가 어디까지 했는지 모른 채 중간 화면을 마주한다.
+  if (resume) {
+    return (
+      <ResumeBanner
+        saved={resume}
+        onResume={restoreSaved}
+        onRestart={discardSaved}
+      />
+    );
+  }
+
   // ── 진행 표시(§7: 번호/전체/진행률만) ──
   const progressPercent = Math.round((index / (totalScreens - 1)) * 100);
+  const remainingMinutes = estimateRemainingMinutes(
+    delays,
+    scoreCount - answeredCount,
+    AUTO_ADVANCE_MS,
+  );
   const progressLabel =
     phase === "score"
       ? `${scoreIdx + 1} / ${scoreCount} 문항`
@@ -356,13 +467,26 @@ export function SurveyV2Client() {
 
   const answered = isCurrentAnswered();
   const isCommitment = phase === "commitment";
+  // 필수 입력이 없는 사전정보 화면을 비워 뒀다면 "다음" 대신 건너뛰기임을 밝힌다.
+  const canSkip =
+    phase === "intake" &&
+    INTAKE_OPTIONAL_SCREENS.has(index) &&
+    isIntakeScreenEmpty(index, intake);
 
   return (
     <div className="space-y-5">
       {/* 진행 표시 */}
       <div className="space-y-2">
+        <StepIndicator phase={phase} />
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-foreground">{progressLabel}</span>
+          <span className="text-[13px] font-semibold text-foreground">
+            {progressLabel}
+            {phase === "score" && (
+              <span className="ml-1.5 font-medium text-muted-foreground">
+                · 약 {remainingMinutes}분 남음
+              </span>
+            )}
+          </span>
           <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
             {progressPercent}%
           </span>
@@ -379,6 +503,8 @@ export function SurveyV2Client() {
           />
         </div>
       </div>
+
+      {milestone !== null && <MilestoneToast count={milestone} total={scoreCount} />}
 
       {/* 화면 내용 */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
@@ -450,9 +576,14 @@ export function SurveyV2Client() {
           <Button
             onClick={goNext}
             disabled={!answered}
-            className="h-11 rounded-xl bg-primary px-6 font-semibold text-primary-foreground"
+            variant={canSkip ? "outline" : "default"}
+            className={
+              canSkip
+                ? "h-11 rounded-xl px-6 font-semibold"
+                : "h-11 rounded-xl bg-primary px-6 font-semibold text-primary-foreground"
+            }
           >
-            다음
+            {canSkip ? "건너뛰기" : "다음"}
             <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         )}
@@ -460,6 +591,114 @@ export function SurveyV2Client() {
     </div>
   );
 }
+
+/** ① 기본 정보 → ② 문항 → ③ 마무리. 지금 어느 구간인지, 몇 구간이 남았는지 보여준다. */
+function StepIndicator({ phase }: { phase: "intake" | "score" | "commitment" }) {
+  const steps = ["기본 정보", "문항", "마무리"];
+  const current = phase === "intake" ? 0 : phase === "score" ? 1 : 2;
+  return (
+    <ol className="flex items-center gap-1.5">
+      {steps.map((label, i) => {
+        const state = i < current ? "done" : i === current ? "current" : "todo";
+        return (
+          <li key={label} className="flex flex-1 items-center gap-1.5">
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                state === "current"
+                  ? "bg-primary text-primary-foreground"
+                  : state === "done"
+                    ? "bg-primary/20 text-primary"
+                    : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {state === "done" ? <Check className="h-3 w-3" /> : i + 1}
+            </span>
+            <span
+              className={`truncate text-[11.5px] ${
+                state === "current"
+                  ? "font-bold text-foreground"
+                  : "font-medium text-muted-foreground"
+              }`}
+            >
+              {label}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** 10문항 통과 알림. 2초 뒤 사라지며, 모션을 줄인 설정에서는 나타나는 연출을 생략한다. */
+function MilestoneToast({ count, total }: { count: number; total: number }) {
+  const reduced = prefersReducedMotion();
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4 ${
+        reduced ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-300"
+      }`}
+    >
+      <span className="rounded-full bg-foreground px-4 py-2 text-[13px] font-semibold text-background shadow-lg">
+        {count}문항 통과 · {total - count}문항 남았어요
+      </span>
+    </div>
+  );
+}
+
+/** 저장된 진행분을 이어서 할지 물어본다. */
+function ResumeBanner({
+  saved,
+  onResume,
+  onRestart,
+}: {
+  saved: Partial<PersistedState>;
+  onResume: () => void;
+  onRestart: () => void;
+}) {
+  const index = saved.index ?? 0;
+  const where =
+    index >= INTAKE_SCREEN_COUNT
+      ? `${index - INTAKE_SCREEN_COUNT + 1}번 문항까지`
+      : "기본 정보까지";
+
+  return (
+    <div className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div>
+        <h2 className="text-[18px] font-bold text-foreground">
+          이어서 하시겠어요?
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+          이 기기에 {where} 저장되어 있어요. 이어서 하면 적어 둔 답이 그대로 남고,
+          처음부터 하면 저장된 답은 지워집니다.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          onClick={onResume}
+          className="h-11 flex-1 rounded-xl bg-primary font-semibold text-primary-foreground"
+        >
+          이어서 하기
+        </Button>
+        <Button
+          variant="outline"
+          onClick={onRestart}
+          className="h-11 flex-1 rounded-xl font-semibold"
+        >
+          처음부터
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** 마무리 화면 예시. 탭하면 입력칸에 들어가고, 그대로 고쳐 쓸 수 있다. */
+const COMMITMENT_EXAMPLES = [
+  "학원 오기 전 오답 1개 풀기",
+  "숙제는 받은 날 첫 문제까지 풀어두기",
+  "공부 시작할 때 휴대폰 가방에 넣기",
+];
 
 function CommitmentScreen({
   value,
@@ -476,6 +715,18 @@ function CommitmentScreen({
           점수가 아니라, 앞으로 2주간 스스로 지켜볼 작은 행동 하나를 적어주세요.
         </p>
       </div>
+      <div className="flex flex-wrap gap-2">
+        {COMMITMENT_EXAMPLES.map((example) => (
+          <button
+            key={example}
+            type="button"
+            onClick={() => onChange(example)}
+            className="min-h-[36px] rounded-full border border-border bg-muted/30 px-3.5 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+          >
+            {example}
+          </button>
+        ))}
+      </div>
       <textarea
         id="v2-commitment14"
         value={value}
@@ -485,7 +736,7 @@ function CommitmentScreen({
         className="w-full resize-none rounded-xl border border-border bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
       />
       <p className="text-[12px] text-muted-foreground">
-        작성한 약속은 첫 상담과 2주 뒤 확인에 활용됩니다.
+        예시를 눌러 넣은 뒤 자기 말로 고쳐도 됩니다. 작성한 약속은 첫 상담과 2주 뒤 확인에 활용됩니다.
       </p>
     </div>
   );

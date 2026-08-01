@@ -109,6 +109,56 @@ export const INTAKE_SCREEN_LABELS = [
 
 export const INTAKE_SCREEN_COUNT = INTAKE_SCREEN_LABELS.length;
 
+/**
+ * 필수(*) 입력이 하나도 없는 화면. 비워둔 채 넘어갈 수 있고, 아무것도 안 적었으면
+ * 다음 버튼이 "건너뛰기"로 바뀐다 — 안 써도 된다는 사실을 학생이 알아야 이탈이 준다.
+ */
+export const INTAKE_OPTIONAL_SCREENS: ReadonlySet<number> = new Set([1, 2, 3, 4]);
+
+/** 화면별 입력 필드. 건너뛰기 판정에 쓴다. */
+const SCREEN_FIELDS: Record<number, (keyof IntakeState)[]> = {
+  1: [
+    "prev_academy",
+    "prev_academy_duration",
+    "prev_leave_reason",
+    "prev_complaint",
+    "referral",
+    "referral_friend",
+    "nk_knowledge",
+  ],
+  2: [
+    "nk_expectations",
+    "preferred_days",
+    "available_time",
+    "weekday_selfstudy",
+    "clinic_condition",
+    "commute_method",
+    "commute_time",
+  ],
+  3: [
+    "has_future_plan",
+    "dream",
+    "target_university",
+    "study_core",
+    "problem_self",
+    "math_difficulty",
+    "english_difficulty",
+    "health_note",
+    "requests",
+  ],
+  4: ["mbti", "mbti_confidence"],
+};
+
+/** 그 화면에서 아직 아무것도 입력하지 않았는지. */
+export function isIntakeScreenEmpty(index: number, s: IntakeState): boolean {
+  const fields = SCREEN_FIELDS[index];
+  if (!fields) return false;
+  return fields.every((key) => {
+    const v = s[key];
+    return Array.isArray(v) ? v.length === 0 : v.trim() === "";
+  });
+}
+
 /** 각 사전정보 화면의 진행 가능 조건(필수값 검증). */
 export function isIntakeScreenComplete(index: number, s: IntakeState): boolean {
   switch (index) {
@@ -319,18 +369,20 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
   if (index === 1) {
     return (
       <div className="space-y-4">
-        <ScreenHeading title="학습 이력" desc="이전 학원과 NK를 알게 된 경로를 알려주세요." />
+        <ScreenHeading title="학습 이력" desc="이전 학원과 NK를 알게 된 경로를 알려주세요." optional />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField id="v2-prev-academy" label="기존에 다녔던 학원" value={state.prev_academy} onChange={(v) => update({ prev_academy: v })} placeholder="예: OO학원" />
           <TextField id="v2-prev-duration" label="기존 학원 재원 기간" value={state.prev_academy_duration} onChange={(v) => update({ prev_academy_duration: v })} placeholder="예: 1년 6개월" />
         </div>
-        <TextArea id="v2-prev-leave" label="기존 학원을 옮기려는 결정적 이유" value={state.prev_leave_reason} onChange={(v) => update({ prev_leave_reason: v })} placeholder="예: 성적이 정체되어서" />
-        <TextArea id="v2-prev-complaint" label="기존 학원에서 아쉬웠던 점" value={state.prev_complaint} onChange={(v) => update({ prev_complaint: v })} placeholder="예: 개인별 관리가 부족했다" />
         <SelectField id="v2-referral" label="NK를 알게 된 경로" value={state.referral} onChange={(v) => update({ referral: v })} options={REFERRAL_OPTIONS} placeholder="선택해주세요" />
         {state.referral === "친구 소개" && (
           <TextField id="v2-referral-friend" label="소개한 친구 이름" value={state.referral_friend} onChange={(v) => update({ referral_friend: v })} placeholder="친구 이름" required />
         )}
-        <TextArea id="v2-nk-knowledge" label="NK 운영을 얼마나 알고 있나요?" value={state.nk_knowledge} onChange={(v) => update({ nk_knowledge: v })} placeholder="예: 숙제 관리가 철저하다고 들었다" />
+        <OptionalExtras>
+          <TextArea id="v2-prev-leave" label="기존 학원을 옮기려는 결정적 이유" value={state.prev_leave_reason} onChange={(v) => update({ prev_leave_reason: v })} placeholder="예: 성적이 정체되어서" />
+          <TextArea id="v2-prev-complaint" label="기존 학원에서 아쉬웠던 점" value={state.prev_complaint} onChange={(v) => update({ prev_complaint: v })} placeholder="예: 개인별 관리가 부족했다" />
+          <TextArea id="v2-nk-knowledge" label="NK 운영을 얼마나 알고 있나요?" value={state.nk_knowledge} onChange={(v) => update({ nk_knowledge: v })} placeholder="예: 숙제 관리가 철저하다고 들었다" />
+        </OptionalExtras>
       </div>
     );
   }
@@ -338,7 +390,7 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
   if (index === 2) {
     return (
       <div className="space-y-5">
-        <ScreenHeading title="학원·일정" desc="NK에 기대하는 점과 가능한 일정을 알려주세요." />
+        <ScreenHeading title="학원·일정" desc="NK에 기대하는 점과 가능한 일정을 알려주세요." optional />
         <div>
           <FieldLabel>NK에 기대하는 점 (최대 {NK_EXPECTATION_MAX}개)</FieldLabel>
           <NkExpectations
@@ -373,22 +425,24 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
   if (index === 3) {
     return (
       <div className="space-y-4">
-        <ScreenHeading title="미래와 과목" desc="목표와 과목별 어려움을 자유롭게 적어주세요." />
+        <ScreenHeading title="미래와 과목" desc="목표와 과목별 어려움을 자유롭게 적어주세요." optional />
         <TextField id="v2-future-plan" label="미래 계획이 있나요?" value={state.has_future_plan} onChange={(v) => update({ has_future_plan: v })} placeholder="예: 아직 고민 중 / 뚜렷한 목표 있음" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField id="v2-dream" label="하고 싶은 직업 또는 목표" value={state.dream} onChange={(v) => update({ dream: v })} placeholder="예: 의사, 개발자" />
           <TextField id="v2-target-univ" label="목표 대학·계열·전공" value={state.target_university} onChange={(v) => update({ target_university: v })} placeholder="예: 공대, 의예과" />
         </div>
-        <TextArea id="v2-study-core" label="공부의 핵심이 무엇이라고 생각하나요?" value={state.study_core} onChange={(v) => update({ study_core: v })} placeholder="예: 꾸준한 복습" />
-        <TextArea id="v2-problem-self" label="공부할 때 스스로 느끼는 문제점은?" value={state.problem_self} onChange={(v) => update({ problem_self: v })} placeholder="예: 집중이 오래 안 된다" />
         {includeMath && (
           <TextArea id="v2-math-diff" label="수학에서 가장 어려운 단원·영역" value={state.math_difficulty} onChange={(v) => update({ math_difficulty: v })} placeholder="예: 함수, 도형" />
         )}
         {includeEnglish && (
           <TextArea id="v2-eng-diff" label="영어에서 가장 어려운 영역" value={state.english_difficulty} onChange={(v) => update({ english_difficulty: v })} placeholder="예: 독해, 문법" />
         )}
-        <TextArea id="v2-health" label="건강·특이사항" value={state.health_note} onChange={(v) => update({ health_note: v })} placeholder="예: 특이사항 없음" />
-        <TextArea id="v2-requests" label="학원에 바라는 점" value={state.requests} onChange={(v) => update({ requests: v })} placeholder="자유롭게 작성해주세요" />
+        <OptionalExtras>
+          <TextArea id="v2-study-core" label="공부의 핵심이 무엇이라고 생각하나요?" value={state.study_core} onChange={(v) => update({ study_core: v })} placeholder="예: 꾸준한 복습" />
+          <TextArea id="v2-problem-self" label="공부할 때 스스로 느끼는 문제점은?" value={state.problem_self} onChange={(v) => update({ problem_self: v })} placeholder="예: 집중이 오래 안 된다" />
+          <TextArea id="v2-health" label="건강·특이사항" value={state.health_note} onChange={(v) => update({ health_note: v })} placeholder="예: 특이사항 없음" />
+          <TextArea id="v2-requests" label="학원에 바라는 점" value={state.requests} onChange={(v) => update({ requests: v })} placeholder="자유롭게 작성해주세요" />
+        </OptionalExtras>
       </div>
     );
   }
@@ -396,7 +450,7 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
   // index === 4
   return (
     <div className="space-y-4">
-      <ScreenHeading title="성향 참고" desc="MBTI는 지도 방식 참고용으로만 쓰이며, 성실성·의지 점수에는 반영되지 않습니다." />
+      <ScreenHeading title="성향 참고" desc="MBTI는 지도 방식 참고용으로만 쓰이며, 성실성·의지 점수에는 반영되지 않습니다." optional />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <TextField id="v2-mbti" label="알고 있는 MBTI 4글자" value={state.mbti} onChange={(v) => update({ mbti: v.toUpperCase().slice(0, 4) })} placeholder="예: ENFP (모르면 비워두세요)" />
         <SelectField id="v2-mbti-conf" label="MBTI 확신도" value={mbtiConfidenceLabel(state.mbti_confidence)} onChange={(v) => update({ mbti_confidence: mbtiConfidenceValue(v) })} options={MBTI_CONFIDENCE_OPTIONS.map((o) => o.label)} placeholder="선택" />
@@ -422,12 +476,40 @@ function mbtiConfidenceValue(label: string): string {
   return MBTI_CONFIDENCE_OPTIONS.find((o) => o.label === label)?.value ?? "none";
 }
 
-function ScreenHeading({ title, desc }: { title: string; desc: string }) {
+function ScreenHeading({
+  title,
+  desc,
+  optional,
+}: {
+  title: string;
+  desc: string;
+  optional?: boolean;
+}) {
   return (
     <div>
       <h2 className="text-[18px] font-bold text-foreground">{title}</h2>
       <p className="mt-1 text-[13px] text-muted-foreground">{desc}</p>
+      {optional && (
+        <p className="mt-1.5 text-[12px] font-medium text-muted-foreground/80">
+          모두 선택 입력입니다 — 비워두고 넘어가도 됩니다.
+        </p>
+      )}
     </div>
+  );
+}
+
+/**
+ * 선택 자유서술을 접어 둔다. 첫 화면에 긴 서술 칸이 줄줄이 보이면 그때 이탈한다.
+ * 접혀 있어도 입력값은 그대로 유지된다(details는 렌더를 막지 않는다).
+ */
+function OptionalExtras({ children }: { children: ReactNode }) {
+  return (
+    <details className="rounded-xl border border-border bg-muted/20 px-3.5 py-2.5">
+      <summary className="cursor-pointer list-none text-[13px] font-semibold text-foreground marker:content-none">
+        <span className="text-muted-foreground">＋</span> 더 알려주고 싶은 것 (선택)
+      </summary>
+      <div className="mt-3 space-y-4">{children}</div>
+    </details>
   );
 }
 

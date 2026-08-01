@@ -4,11 +4,15 @@ import { computeScoreProfile } from "../scoring";
 import {
   buildAiSafeInput,
   buildV2AnalysisPrompt,
+  maskStudentName,
   redactNarrative,
   type IntakeV2,
 } from "../serializer";
 import { buildFallbackInterpretation } from "../interpretation";
-import { findDetailedSummaryViolation } from "../ai-contract";
+import {
+  findDetailedSummaryViolation,
+  findScoreNotationViolation,
+} from "../ai-contract";
 import type { LikertItem, ResponseMap, ScoreProfile, SubjectSelection } from "../types";
 
 const LIKERT = ALL_ITEMS.filter(isLikert) as LikertItem[];
@@ -286,9 +290,63 @@ describe("규칙 기반 fallback 총평도 무점수 계약을 지킨다", () =>
     expect(findDetailedSummaryViolation(interp.detailedSummary)).toBeNull();
   });
 
-  it("강점·개선 영역에는 점수가 그대로 남는다", () => {
+  // [스펙 변경] fallback도 100점 환산("82.5점") 대신 5점 만점 평균으로 인용한다.
+  it("강점·개선 영역에는 5점 만점 평균이 그대로 남는다", () => {
     const interp = buildFallbackInterpretation(profileFor("both"));
     const all = [...interp.strengths, ...interp.growthAreas].join(" ");
-    expect(all).toMatch(/\d+(\.\d+)?점/);
+    expect(all).toMatch(/\d+문항 평균 \d+\.\d+\/5/);
+    expect(findScoreNotationViolation([...interp.strengths, ...interp.growthAreas])).toBeNull();
+  });
+});
+
+// ── 이름 마스킹 ──────────────────────────────────────────────────────
+
+describe("maskStudentName — 성을 뗀 이름과 조사", () => {
+  it("전체 이름은 조사가 붙어도 지운다", () => {
+    expect(maskStudentName("강현찬은 숙제를 잘합니다.", "강현찬")).toBe(
+      "○○은 숙제를 잘합니다.",
+    );
+  });
+
+  it("성을 뗀 이름 + 조사도 지운다", () => {
+    const cases: [string, string][] = [
+      ["현찬이는 숙제를 미룹니다.", "○○이는 숙제를 미룹니다."],
+      ["현찬이가 먼저 질문했어요.", "○○이가 먼저 질문했어요."],
+      ["현찬을 도와주세요.", "○○을 도와주세요."],
+      ["현찬과 친구가 함께 공부해요.", "○○과 친구가 함께 공부해요."],
+      ["현찬의 목표는 개발자입니다.", "○○의 목표는 개발자입니다."],
+      ["현찬아, 조금만 더 힘내자.", "○○아, 조금만 더 힘내자."],
+      ["현찬도 잘하고 있어요.", "○○도 잘하고 있어요."],
+    ];
+    for (const [input, expected] of cases) {
+      expect(maskStudentName(input, "강현찬"), input).toBe(expected);
+    }
+  });
+
+  it("문장 끝·공백·문장부호 앞에서도 지운다", () => {
+    expect(maskStudentName("열심히 하는 학생은 현찬", "강현찬")).toBe(
+      "열심히 하는 학생은 ○○",
+    );
+    expect(maskStudentName("현찬 은 조용합니다.", "강현찬")).toBe("○○ 은 조용합니다.");
+  });
+
+  it("다른 낱말에 붙은 같은 글자는 지우지 않는다", () => {
+    // "현찬수"는 다른 사람 이름 — 뒤가 조사가 아니라 마스킹 대상이 아니다.
+    expect(maskStudentName("현찬수 선생님", "강현찬")).toBe("현찬수 선생님");
+  });
+
+  it("두 글자 이름은 성을 떼지 않는다(오탐 방지)", () => {
+    // "이도"에서 성을 떼면 "도" 한 글자라 아무 데나 걸린다.
+    expect(maskStudentName("도서관에서 공부해요.", "이도")).toBe("도서관에서 공부해요.");
+  });
+
+  it("이름이 없으면 원문 그대로", () => {
+    expect(maskStudentName("숙제를 잘합니다.", null)).toBe("숙제를 잘합니다.");
+  });
+
+  it("redactNarrative를 통해도 동일하게 적용된다", () => {
+    expect(redactNarrative("현찬이는 집중이 어렵대요.", "강현찬")).toBe(
+      "○○이는 집중이 어렵대요.",
+    );
   });
 });

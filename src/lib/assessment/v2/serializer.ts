@@ -112,6 +112,46 @@ const LONG_DIGITS_RE = /\d{9,}/g;
 const URL_RE = /https?:\/\/\S+/g;
 const SNS_RE = /@[A-Za-z0-9_.]{2,}/g;
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * 이름 뒤에 흔히 붙는 조사·호격의 첫 글자.
+ * 이름만 떼어 쓸 때(성 생략) 오탐을 줄이려고, 뒤가 조사·공백·문장부호·끝일 때만 이름으로 본다.
+ * (예: "현찬이는" → 마스킹 / "현찬수"라는 다른 사람 이름 → 마스킹하지 않음)
+ */
+const NAME_PARTICLE_HEADS = "이가은는을를와과의도만아야에서로부터께한테보다처럼밖";
+
+/**
+ * 서술에서 학생 이름을 지운다.
+ *
+ * 예전에는 저장된 이름과 완전히 같은 문자열만 지웠다. 그런데 학생은 자기 글에서 성을 떼고
+ * "현찬이는 …"처럼 쓰는 일이 많아, 저장된 "강현찬"으로는 하나도 걸리지 않았다.
+ * 성을 뗀 이름도 함께 지우되, 그쪽은 뒤에 조사·공백·문장부호가 올 때만 이름으로 본다.
+ */
+export function maskStudentName(
+  text: string,
+  studentName?: string | null,
+): string {
+  const name = studentName?.trim();
+  if (!name || name.length < 2) return text;
+
+  // 성을 포함한 전체 이름은 다른 낱말과 겹칠 일이 거의 없어 그대로 지운다.
+  let out = text.split(name).join("○○");
+
+  // 한국 이름은 대개 성 1글자 + 이름 2글자. 성을 뗀 형태도 지운다.
+  const givenName = name.slice(1);
+  if (givenName.length >= 2) {
+    const re = new RegExp(
+      `${escapeRegExp(givenName)}(?=[${NAME_PARTICLE_HEADS}]|\\s|[.,!?…"'’”)\\]}]|$)`,
+      "g",
+    );
+    out = out.replace(re, "○○");
+  }
+  return out;
+}
+
 /**
  * 서술형 안의 PII를 제거하고 길이를 제한한다.
  * - 이메일·전화번호·긴 숫자열·URL·SNS 핸들 제거
@@ -129,10 +169,7 @@ export function redactNarrative(
   t = t.replace(PHONE_RE, "[연락처 삭제]");
   t = t.replace(LONG_DIGITS_RE, "[숫자 삭제]");
   t = t.replace(SNS_RE, "[계정 삭제]");
-  const name = studentName?.trim();
-  if (name && name.length >= 2) {
-    t = t.split(name).join("○○");
-  }
+  t = maskStudentName(t, studentName);
   t = t.replace(/\s+/g, " ").trim();
   return t.length > MAX_NARRATIVE_LENGTH
     ? t.slice(0, MAX_NARRATIVE_LENGTH).trim() + "…"

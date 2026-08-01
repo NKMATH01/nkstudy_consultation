@@ -3,6 +3,7 @@ import {
   validateAiInterpretation,
   containsNumericScoreClaim,
   findDetailedSummaryViolation,
+  findScoreNotationViolation,
   type AiInterpretation,
 } from "../ai-contract";
 
@@ -210,5 +211,62 @@ describe("validateAiInterpretation — 총평 점수 거부", () => {
     });
     const result = validateAiInterpretation(raw, "math");
     expect(result.ok).toBe(true);
+  });
+});
+
+// ── 강점·개선 영역 100점 환산 금지 ───────────────────────────────────
+
+describe("findScoreNotationViolation", () => {
+  it("100점 환산 표기를 잡는다", () => {
+    expect(findScoreNotationViolation(["구조 요구 75.0점"])).not.toBeNull();
+    expect(findScoreNotationViolation(["좋음", "학습 태도 81.3 점"])).not.toBeNull();
+  });
+
+  it("5점 만점 평균 표기는 허용한다", () => {
+    expect(
+      findScoreNotationViolation([
+        "숙제 신뢰도: 4문항 평균 2.8/5",
+        "구조 요구: 2문항 평균 3.8/5",
+      ]),
+    ).toBeNull();
+  });
+
+  it("정수 + 점은 잡지 않는다(5점 척도 응답일 수 있음)", () => {
+    expect(findScoreNotationViolation(["문항에 5점으로 답했습니다"])).toBeNull();
+  });
+
+  it("빈 배열에 안전하다", () => {
+    expect(findScoreNotationViolation([])).toBeNull();
+  });
+});
+
+describe("validateAiInterpretation — 강점 점수 표기 거부", () => {
+  it("강점에 100점 환산이 있으면 거부한다", () => {
+    const res = validateAiInterpretation(
+      validInterp({ strengths: ["구조 요구 75.0점"] }),
+      "math",
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("scoreNotation");
+  });
+
+  it("개선 영역에 100점 환산이 있으면 거부한다", () => {
+    const res = validateAiInterpretation(
+      validInterp({ growthAreas: ["단기 회복력 38.0점"] }),
+      "math",
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("scoreNotation");
+  });
+
+  it("평균 표기만 쓰면 통과한다", () => {
+    const res = validateAiInterpretation(
+      validInterp({
+        strengths: ["학습 태도: 4문항 평균 4.2/5"],
+        growthAreas: ["단기 회복력: 4문항 평균 1.8/5"],
+      }),
+      "math",
+    );
+    expect(res.ok).toBe(true);
   });
 });

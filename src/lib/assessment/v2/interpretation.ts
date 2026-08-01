@@ -3,6 +3,7 @@
 // 여기서 만드는 문구는 낙인 없이 band 설명 + 지도 관점으로만 서술한다.
 
 import { interpretBand } from "./scoring";
+import { ITEMS_BY_CONSTRUCT } from "./construct-guide";
 import type {
   CommonScores,
   Score,
@@ -43,13 +44,23 @@ export function neutralQualityNote(profile: ScoreProfile): string {
 function rankConstructs(
   common: CommonScores,
   keys: Array<keyof CommonScores>
-): Array<{ label: string; score: number }> {
+): Array<{ key: keyof CommonScores; label: string; score: number }> {
   return keys
     .map((k) => ({ key: k, score: common[k] }))
     .filter((e): e is { key: keyof CommonScores; score: number } =>
       isNum(e.score)
     )
-    .map((e) => ({ label: CONSTRUCT_LABEL_KO[e.key], score: e.score }));
+    .map((e) => ({ key: e.key, label: CONSTRUCT_LABEL_KO[e.key], score: e.score }));
+}
+
+/**
+ * 강점·개선 영역의 점수 인용 표기.
+ * 100점 환산("82.5점")은 지표 표기 규칙에서 금지라 5점 만점 평균으로 쓴다.
+ */
+function averageNotation(key: keyof CommonScores, score: number): string {
+  const count = ITEMS_BY_CONSTRUCT[key]?.length ?? 0;
+  const average = (score / 20).toFixed(1);
+  return count > 1 ? `${count}문항 평균 ${average}/5` : `평균 ${average}/5`;
 }
 
 /**
@@ -74,12 +85,12 @@ export function buildFallbackInterpretation(
   const strengths = ranked
     .filter((e) => e.score >= 60)
     .slice(0, 3)
-    .map((e) => `${e.label}: ${interpretBand(e.score)} (${e.score.toFixed(1)}점)`);
+    .map((e) => `${e.label}: ${interpretBand(e.score)} (${averageNotation(e.key, e.score)})`);
   const growthAreas = [...ranked]
     .reverse()
     .filter((e) => e.score < 60)
     .slice(0, 3)
-    .map((e) => `${e.label}: ${interpretBand(e.score)} (${e.score.toFixed(1)}점)`);
+    .map((e) => `${e.label}: ${interpretBand(e.score)} (${averageNotation(e.key, e.score)})`);
 
   const note = neutralQualityNote(profile);
   const noteSuffix = note ? ` (${note})` : "";

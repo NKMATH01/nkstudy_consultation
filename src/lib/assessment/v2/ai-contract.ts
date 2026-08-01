@@ -48,7 +48,13 @@ export type ValidateResult =
   | { ok: true; data: AiInterpretation }
   | {
       ok: false;
-      reason: "schema" | "subject" | "numeric" | "studentType" | "detailedSummary";
+      reason:
+        | "schema"
+        | "subject"
+        | "numeric"
+        | "studentType"
+        | "detailedSummary"
+        | "scoreNotation";
       detail: string;
     };
 
@@ -134,6 +140,26 @@ export function findDetailedSummaryViolation(text: string): string | null {
 }
 
 /**
+ * 강점·개선 영역의 100점 환산 표기.
+ *
+ * 이 두 필드는 "4문항 평균 1.8/5"처럼 5점 만점 평균으로만 인용해야 한다(지표 표기 규칙).
+ * 실호출에서 "구조 요구 75.0점"이 나온 적이 있어 계약으로 막는다.
+ *
+ * 총평과 같은 보수 기준을 쓴다 — 소수점이 붙은 "점"만 100점 환산으로 본다.
+ * 정수 + 점("3점")은 5점 척도의 응답 값일 수 있어 잡지 않는다.
+ */
+const CONVERTED_SCORE_RE = /\d+\.\d+\s*점/;
+
+/** strengths·growthAreas에 100점 환산 표기가 섞였는지. */
+export function findScoreNotationViolation(items: string[]): string | null {
+  for (const item of items ?? []) {
+    const hit = item.match(CONVERTED_SCORE_RE);
+    if (hit) return `100점 환산 표기 "${hit[0]}" 포함`;
+  }
+  return null;
+}
+
+/**
  * AI 출력 검증.
  * 1) 숫자 점수 조작 필드가 있으면 거부(서버 점수가 유일한 진실).
  * 2) Zod strict 스키마 검증(계약 외 필드·타입 오류 거부).
@@ -181,6 +207,20 @@ export function validateAiInterpretation(
       reason: "detailedSummary",
       detail: `detailedSummary 계약 위반: ${summaryViolation}`,
     };
+  }
+
+  for (const [field, items] of [
+    ["strengths", data.strengths],
+    ["growthAreas", data.growthAreas],
+  ] as const) {
+    const violation = findScoreNotationViolation(items);
+    if (violation) {
+      return {
+        ok: false,
+        reason: "scoreNotation",
+        detail: `${field} 계약 위반: ${violation}`,
+      };
+    }
   }
 
   const needMath = subjectSelection === "math" || subjectSelection === "both";

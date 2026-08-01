@@ -135,6 +135,21 @@ function scoreByForcedChoice(
   return clamp(sum / items.length);
 }
 
+/**
+ * 구 설문 폴백. R2가 리커트였던 시절에 제출된 응답을 강제선택 값으로 옮긴다.
+ *
+ * 옛 문항은 "혼자 생각할 시간을 가진 뒤 1:1로 질문할 때 더 잘 이해한다"였다.
+ * 그렇다(4·5)는 지금의 B(끝난 뒤 따로 물어본다)=100, 아니다(1·2)는 A(바로 질문)=0에 해당한다.
+ * 중간(3)은 어느 쪽이라고 말할 근거가 없어 판단하지 않는다 — 모르는 것을 지우지 않는다.
+ */
+export function legacyReflectiveScore(responses: ResponseMap): Score {
+  const value = responses.R2;
+  if (!isNumericResponse(value)) return "insufficient";
+  if (value <= 2) return 0;
+  if (value >= 4) return 100;
+  return "insufficient";
+}
+
 function isNum(score: Score): score is number {
   return typeof score === "number";
 }
@@ -291,14 +306,19 @@ function axisFromRaw(
   };
 }
 
+/** 지도 선호 축을 만드는 데 쓰는 구인 점수. 원응답이 아니라 구인 단위로 받는다. */
+interface AxisConstructs {
+  reflectiveProcessingNeed: Score;
+  directFeedbackAcceptance: Score;
+  relationshipSafetyNeed: Score;
+}
+
 function computeMbtiAxes(
   responses: ResponseMap,
-  choices: ScenarioResponseMap,
+  constructs: AxisConstructs,
   mbti: MbtiInput | null | undefined
 ): MbtiAxes {
   const r1 = responses.R1;
-  const r3 = responses.R3;
-  const r4 = responses.R4;
   const r5 = responses.R5;
   const r6 = responses.R6;
 
@@ -307,7 +327,7 @@ function computeMbtiAxes(
   // interactionAxis: raw = 100 - 숙고 처리 선호(R2 강제선택).
   // A(그 자리에서 질문)=0 → 축 100(함께 이야기), B(끝난 뒤 따로)=100 → 축 0(혼자 정리).
   // R2가 이분 응답이므로 이 축도 0 또는 100이며 중간값이 없다.
-  const reflective = scoreByForcedChoice("reflectiveProcessingNeed", choices);
+  const reflective = constructs.reflectiveProcessingNeed;
   const interactionRaw: Score = isNum(reflective)
     ? clamp(100 - reflective)
     : "insufficient";
@@ -315,10 +335,18 @@ function computeMbtiAxes(
   // conceptAxis: 직접 관찰 문항 없음 → raw=50 + lowEvidence (결측 대체가 아닌 설계값).
   const conceptRaw: Score = 50;
 
-  // relationalFeedbackAxis: raw = mean(normalize(R4), 100 - normalize(R3)).
+  // relationalFeedbackAxis: raw = mean(관계 안전 요구, 100 - 직접 피드백 수용).
+  //
+  // 예전에는 R4·R3 원응답을 직접 읽었다. 직접 피드백 수용이 R3 한 문항일 때는 같은 값이지만,
+  // 지금은 R3+R3-1+R3-2 세 문항이라 원응답 하나만 보면 축이 문항 하나에 매달린다.
+  // 방향은 그대로다 — 관계 안전이 높을수록, 직접 피드백 수용이 낮을수록 관계 중심(F) 쪽.
   const relationalRaw: Score =
-    isNumericResponse(r3) && isNumericResponse(r4)
-      ? clamp((norm(r4) + (100 - norm(r3))) / 2)
+    isNum(constructs.relationshipSafetyNeed) && isNum(constructs.directFeedbackAcceptance)
+      ? clamp(
+          (constructs.relationshipSafetyNeed +
+            (100 - constructs.directFeedbackAcceptance)) /
+            2
+        )
       : "insufficient";
 
   // flexibilityAxis: raw = mean(100-normalize(R1), normalize(R5), 100-normalize(R6)).
@@ -588,10 +616,14 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
   const peerLearningResource = scoreByConstruct("peerLearningResource", responses);
   const peerFocusBoundary = scoreByConstruct("peerFocusBoundary", responses);
   // 숙고 처리 선호는 R2 강제선택 하나로만 잰다(리커트 문항 없음).
-  const reflectiveProcessingNeed = scoreByForcedChoice(
+  // 강제선택 응답이 없으면 R2가 리커트였던 시절의 응답을 옮겨 쓴다(구 설문 재채점).
+  const forcedReflective = scoreByForcedChoice(
     "reflectiveProcessingNeed",
     scenarioResponses
   );
+  const reflectiveProcessingNeed = isNum(forcedReflective)
+    ? forcedReflective
+    : legacyReflectiveScore(responses);
   const directFeedbackAcceptance = scoreByConstruct("directFeedbackAcceptance", responses);
   const relationshipSafetyNeed = scoreByConstruct("relationshipSafetyNeed", responses);
   const autonomyNeed = scoreByConstruct("autonomyNeed", responses);
@@ -638,7 +670,11 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
   const includeMath = subjectSelection === "math" || subjectSelection === "both";
   const includeEnglish = subjectSelection === "english" || subjectSelection === "both";
 
-  const mbtiAxes = computeMbtiAxes(responses, scenarioResponses, mbti);
+  const mbtiAxes = computeMbtiAxes(
+    responses,
+    { reflectiveProcessingNeed, directFeedbackAcceptance, relationshipSafetyNeed },
+    mbti
+  );
 
   const nkFit = computeNkFit(
     responses,

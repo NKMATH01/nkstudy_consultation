@@ -11,6 +11,7 @@ import {
   classifyCoaching,
   computeScoreProfile,
   deriveConscientiousness,
+  legacyReflectiveScore,
   normalizeResponse,
 } from "../scoring";
 import type { LikertItem, ResponseMap, ScenarioResponseMap } from "../types";
@@ -538,14 +539,16 @@ describe("R2 강제선택 채점", () => {
     expect(b.common.reflectiveProcessingNeed).toBe(100);
   });
 
-  it("R2를 리커트로 답해도(응답 버킷) 점수가 만들어지지 않는다", () => {
-    // 강제선택은 scenarios 버킷에서만 읽는다. 옛 클라이언트가 responses.R2를 보내도 무시된다.
+  // [스펙 변경] 예전에는 responses.R2(리커트)를 무시했다. 구 설문을 다시 채점할 때
+  // "정보 부족"이 되지 않도록, 강제선택 응답이 없을 때만 옛 리커트 응답을 옮겨 쓴다.
+  it("강제선택 응답이 있으면 옛 리커트 응답보다 우선한다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
+      // 옛 리커트로는 100 쪽이지만 강제선택은 A(=0)를 골랐다.
       responses: { R2: 5 } as never,
-      scenarioResponses: {},
+      scenarioResponses: { R2: 1 },
     });
-    expect(p.common.reflectiveProcessingNeed).toBe("insufficient");
+    expect(p.common.reflectiveProcessingNeed).toBe(0);
   });
 
   it("interactionAxis는 R2의 반대편이며 0 또는 100만 나온다", () => {
@@ -653,5 +656,84 @@ describe("반대 문항쌍 임계 50", () => {
     });
     const codes = p.responseQuality.reasons.map((r) => r.code);
     expect(codes).not.toContain("opposite_pair_review");
+  });
+});
+
+// ── P4-C 정합 잔무 ──────────────────────────────────────────────────
+
+describe("relationalFeedbackAxis 구인 전환", () => {
+  // 라벨은 "결과 중심 ↔ 관계 중심". 높을수록 관계 중심(F)이다.
+  it("관계 안전이 높고 직접 피드백 수용이 낮으면 관계 중심 쪽(높음)", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { R4: 5, R3: 1, "R3-1": 1, "R3-2": 1 },
+      scenarioResponses: { R2: 1 },
+    });
+    expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe(100);
+  });
+
+  it("관계 안전이 낮고 직접 피드백 수용이 높으면 결과 중심 쪽(낮음)", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { R4: 1, R3: 5, "R3-1": 5, "R3-2": 5 },
+      scenarioResponses: { R2: 1 },
+    });
+    expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe(0);
+  });
+
+  it("세 피드백 문항이 같은 값이면 예전 R3 단일 공식과 같은 값이 나온다", () => {
+    // 이전 공식: mean(normalize(R4), 100 - normalize(R3))
+    for (const [r4, r3] of [
+      [5, 2],
+      [3, 4],
+      [2, 2],
+    ]) {
+      const p = computeScoreProfile({
+        subjectSelection: "math",
+        responses: { R4: r4, R3: r3, "R3-1": r3, "R3-2": r3 },
+        scenarioResponses: { R2: 1 },
+      });
+      const legacy =
+        (normalizeResponse(r4, false) + (100 - normalizeResponse(r3, false))) / 2;
+      expect(p.mbtiAxes.relationalFeedbackAxis.raw, `R4=${r4} R3=${r3}`).toBe(legacy);
+    }
+  });
+
+  it("피드백 3문항 중 일부만 답하면 축을 만들지 않는다", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { R4: 5, R3: 5 },
+      scenarioResponses: { R2: 1 },
+    });
+    expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe("insufficient");
+  });
+});
+
+describe("구 설문 R2 리커트 폴백", () => {
+  it("동의(4·5)는 100, 비동의(1·2)는 0으로 옮긴다", () => {
+    expect(legacyReflectiveScore({ R2: 5 })).toBe(100);
+    expect(legacyReflectiveScore({ R2: 4 })).toBe(100);
+    expect(legacyReflectiveScore({ R2: 2 })).toBe(0);
+    expect(legacyReflectiveScore({ R2: 1 })).toBe(0);
+  });
+
+  it("중간(3)은 어느 쪽으로도 옮기지 않는다", () => {
+    expect(legacyReflectiveScore({ R2: 3 })).toBe("insufficient");
+  });
+
+  it("R2가 없거나 unknown이면 판단하지 않는다", () => {
+    expect(legacyReflectiveScore({})).toBe("insufficient");
+    expect(legacyReflectiveScore({ R2: "unknown" })).toBe("insufficient");
+  });
+
+  it("구 설문을 다시 채점해도 숙고 처리 선호가 정보 부족이 되지 않는다", () => {
+    const p = computeScoreProfile({
+      subjectSelection: "math",
+      responses: { ...positiveMaxResponses(), R2: 5 } as never,
+      scenarioResponses: {}, // 강제선택 응답 없음(구 설문)
+    });
+    expect(p.common.reflectiveProcessingNeed).toBe(100);
+    // 축도 함께 살아난다(반대 방향).
+    expect(p.mbtiAxes.interactionAxis.raw).toBe(0);
   });
 });

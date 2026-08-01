@@ -524,7 +524,18 @@ function formatFee(fee: number): string {
   return fee.toLocaleString();
 }
 
-export function buildReportHTML(data: ReportTemplateData): string {
+/**
+ * 등록 안내문 HTML.
+ *
+ * audience로 학부모용/강사용을 나눈다. 담임 매니지먼트 가이드와 점검 체크리스트는
+ * 내부 운영 문서라 학부모 링크에 나가면 안 된다(기존에는 한 HTML에 함께 있었다).
+ * - parent(기본): 관리 전략 섹션과 nav 링크를 출력하지 않는다.
+ * - teacher: 관리 전략 섹션만 출력하고, 연락처 없는 미니 헤더를 붙인다.
+ */
+export function buildReportHTML(
+  data: ReportTemplateData,
+  audience: "parent" | "teacher" = "parent",
+): string {
   const bankInfo = env.NK_ACADEMY_BANK_INFO || "신한 110-383-883419";
   const bankOwner = env.NK_ACADEMY_BANK_OWNER || "노윤희";
   const vehicleFeeRaw = env.NK_ACADEMY_VEHICLE_FEE || "20000";
@@ -533,6 +544,11 @@ export function buildReportHTML(data: ReportTemplateData): string {
     : parseInt(vehicleFeeRaw.replace(/[^0-9]/g, "")) || 20000;
   const vehicleFeeLabel = vehicleFeeNum >= 10000 ? `${vehicleFeeNum / 10000}만원` : `${vehicleFeeNum.toLocaleString()}원`;
   const { page1, page2 } = data;
+  const isTeacher = audience === "teacher";
+  // 강사용은 학생 식별 최소 정보만 싣는다(학생·학부모 연락처 제외).
+  const teacherMiniHeader = isTeacher
+    ? `<div class="card" style="margin-bottom:16px"><div class="info-group"><div class="info-header"><div class="info-label">강사용 · 내부 문서</div><div class="info-value">${data.name} <span style="font-size:14px;color:var(--text-sub);font-weight:500">${data.school} ${data.grade}</span></div></div><div class="schedule-list"><div class="schedule-item"><span class="schedule-subj">배정 반</span><span class="schedule-time">${data.assignedClass || "-"}${data.assignedClass2 ? ` / ${data.assignedClass2}` : ""}</span></div><div class="schedule-item"><span class="schedule-subj">담임</span><span class="schedule-time">${data.teacher || "-"}${data.teacher2 ? ` / ${data.teacher2}` : ""}</span></div><div class="schedule-item"><span class="schedule-subj">등록일</span><span class="schedule-time">${data.registrationDate}</span></div></div></div></div>`
+    : "";
   const isV2Profile = data.profileVersion === "v2";
   const totalFee = data.useVehicle !== "미사용" ? data.tuitionFee + vehicleFeeNum : data.tuitionFee;
   const feeBreakdown = data.useVehicle !== "미사용"
@@ -733,13 +749,14 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
     <p class="hdr-desc">${page2.welcomeTitle}<br>${page2.welcomeSubtitle}</p>
     <div class="profile-card">
       <div class="profile-top"><div class="profile-name">${data.name} 학생</div><div class="profile-badge">${data.school} ${data.grade}</div></div>
-      <div class="profile-bottom"><div class="profile-meta"><span class="meta-label">학생 연락처</span><span class="meta-value">${data.studentPhone || "-"}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">학부모 연락처</span><span class="meta-value">${data.parentPhone || "-"}</span></div></div>
+      ${isTeacher ? "" : `<div class="profile-bottom"><div class="profile-meta"><span class="meta-label">학생 연락처</span><span class="meta-value">${data.studentPhone || "-"}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">학부모 연락처</span><span class="meta-value">${data.parentPhone || "-"}</span></div></div>`}
       <div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)"><div class="profile-meta"><span class="meta-label">입학 예정일</span><span class="meta-value">${regDateFormatted}</span></div><div class="profile-meta" style="text-align:right"><span class="meta-label">차량 이용</span><span class="meta-value">${vehicleDisplay}</span></div></div>${(data.testScore || data.schoolScore) ? `<div class="profile-bottom" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1)">${data.testScore ? `<div class="profile-meta"><span class="meta-label">테스트 점수</span><span class="meta-value">${data.testScore}</span></div>` : ""}${data.schoolScore ? `<div class="profile-meta"${data.testScore ? ' style="text-align:right"' : ""}><span class="meta-label">내신 점수</span><span class="meta-value">${data.schoolScore}</span></div>` : ""}</div>` : ""}${splitLocationBadge}
     </div>
   </header>
-  <nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a><a href="#management">관리 전략</a></div></nav>
+  ${isTeacher ? "" : `<nav class="nav-container"><div class="nav-scroll"><a href="#info" class="active">수강 안내</a><a href="#diagnosis">성향 분석</a></div></nav>`}
   <main class="content-body">
-    <section class="sec animate-up" id="info" style="animation-delay:.1s">
+    ${teacherMiniHeader}
+    ${isTeacher ? "" : `<section class="sec animate-up" id="info" style="animation-delay:.1s">
       <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><h2>수강 정보 및 안내</h2></div>
       <div class="card">${buildScheduleCards()}</div>
       <div class="card"><div class="info-group"><div class="info-header"><div class="info-label">결제 정보 (매월 ${payDay}일 기준)</div><div class="info-value price">${formatFee(totalFee)}원</div><div class="info-sub">${feeBreakdown}</div></div>
@@ -761,12 +778,12 @@ body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
       ${sixFactorHTML ? '<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark)">' + (isV2Profile ? 'V2 핵심 학습 프로필 (0~100)' : '7대 핵심 학습 성향') + '</h3></div>' + sixFactorHTML + '</div>' : ''}
       <div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color:var(--primary-gold)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg><h3 style="font-size:16px;font-weight:700;color:var(--primary-dark)">핵심 학습 포인트</h3></div><div class="num-list">${focusHTML}</div></div>
       ${page2.parentMessage ? '<div class="msg-box"><div class="msg-header"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><h4>학부모님께 드리는 말씀</h4></div><p>' + page2.parentMessage + '</p></div>' : ""}
-    </section>
-    <section class="sec animate-up" id="management" style="animation-delay:.3s">
+    </section>`}
+    ${!isTeacher ? "" : `<section class="sec animate-up" id="management" style="animation-delay:.3s">
       <div class="sec-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg><h2>담임 매니지먼트 가이드</h2></div>
       <div class="card"><div class="num-list">${guideHTML}</div></div>
       <div class="check-card"><div class="check-title"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>담당 선생님 필수 점검 체크리스트</div><ul class="check-list">${checklistHTML}</ul></div>
-    </section>
+    </section>`}
   </main>
   <footer class="footer"><strong>NK</strong> 교육 컨설팅 그룹</footer>
 </div>

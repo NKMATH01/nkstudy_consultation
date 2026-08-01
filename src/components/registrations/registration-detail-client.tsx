@@ -3,7 +3,7 @@
 import { useTransition, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap, MessageCircle, Link2, MessageSquareText, Send } from "lucide-react";
+import { ArrowLeft, Trash2, FileText, Printer, Sparkles, BookOpen, MapPin, Bus, Phone, Calendar, CreditCard, ClipboardList, GraduationCap, MessageCircle, Link2, MessageSquareText, Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { deleteRegistration, regenerateRegistration, updateRegistrationHtml, aiEditRegistrationHtml, updateRegistrationFields } from "@/lib/actions/registration";
+import { deleteRegistration, regenerateRegistration, updateRegistrationHtml, aiEditRegistrationHtml, updateRegistrationFields, getTeacherReportHTML } from "@/lib/actions/registration";
 import { RefreshCw, PenLine, Wand2, Save, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { Registration, Class, Teacher } from "@/types";
@@ -58,6 +58,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
   const [isFieldSaving, setIsFieldSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [showAlimtalk, setShowAlimtalk] = useState(false);
+  const [isTeacherViewLoading, setIsTeacherViewLoading] = useState(false);
 
   // 발송 직전에 새 열람 토큰을 만들어 링크 변수로 넘긴다.
   const prepareAlimtalk = useCallback(async () => {
@@ -159,6 +160,27 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
+  // 강사용 보기: 학부모 링크에는 없는 관리 전략 섹션만 담긴 내부용 HTML을 새 창으로 연다.
+  // 서버에는 저장하지 않으며, 이 화면은 인증된 대시보드 안에서만 렌더링된다.
+  const handleTeacherView = async () => {
+    setIsTeacherViewLoading(true);
+    try {
+      const result = await getTeacherReportHTML(registration.id);
+      if (!result.success || !result.html) {
+        toast.error(result.error || "강사용 보기 생성에 실패했습니다");
+        return;
+      }
+      const blob = new Blob([result.html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      toast.error("강사용 보기 생성에 실패했습니다");
+    } finally {
+      setIsTeacherViewLoading(false);
+    }
+  };
+
   const formatFee = (fee: number | null) => {
     if (!fee) return "-";
     return `${fee.toLocaleString()}원`;
@@ -249,6 +271,16 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
             >
               <RefreshCw className={`h-4 w-4 mr-1.5 ${isRegenerating ? "animate-spin" : ""}`} />
               {isRegenerating ? "재생성 중..." : "보고서 재생성"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTeacherView}
+              disabled={isTeacherViewLoading}
+              className="rounded-xl"
+            >
+              <Users className={`h-4 w-4 mr-1.5 ${isTeacherViewLoading ? "animate-pulse" : ""}`} />
+              {isTeacherViewLoading ? "생성 중..." : "강사용 보기"}
             </Button>
           </>
         )}

@@ -822,6 +822,153 @@ export async function regenerateRegistration(id: string) {
   return { success: true };
 }
 
+// ========== 강사용 보고서 HTML 생성 (내부 열람 전용, 저장 안 함) ==========
+// 저장된 report_data(page1/page2)와 등록 필드를 재사용해 Claude를 다시 호출하지 않고
+// teacher 버전 HTML만 즉석에서 만든다. DB에는 저장하지 않으며, 공개 토큰 경로로는 절대 내보내지 않는다.
+export async function getTeacherReportHTML(id: string): Promise<{ success: boolean; html?: string; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: reg, error: regError } = await supabase
+    .from("registrations")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (regError || !reg) {
+    return { success: false, error: "등록 안내를 찾을 수 없습니다" };
+  }
+
+  const registration = reg as Registration;
+
+  if (!registration.report_data) {
+    return { success: false, error: "저장된 보고서 데이터가 없습니다. 먼저 보고서를 생성/재생성하세요." };
+  }
+
+  const reportData = registration.report_data as Record<string, unknown>;
+
+  // 반 시간표 정보 조회 (regenerateRegistration과 동일 로직)
+  let classInfo: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+  let classInfoMath2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+  let classInfo2: { class_days: string | null; class_time: string | null; clinic_time: string | null; weekly_test_time: string | null } | null = null;
+
+  if (registration.assigned_class) {
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", registration.assigned_class)
+      .single();
+    if (cls) {
+      const raw = cls as Record<string, unknown>;
+      classInfo = { class_days: raw.description as string | null, class_time: cls.class_time, clinic_time: cls.clinic_time, weekly_test_time: raw.weekly_test_time as string | null };
+    }
+  }
+
+  if (registration.assigned_class_math2) {
+    const { data: clsMath2 } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", registration.assigned_class_math2)
+      .single();
+    if (clsMath2) {
+      const rawMath2 = clsMath2 as Record<string, unknown>;
+      classInfoMath2 = { class_days: rawMath2.description as string | null, class_time: clsMath2.class_time, clinic_time: clsMath2.clinic_time, weekly_test_time: rawMath2.weekly_test_time as string | null };
+    }
+  }
+
+  if ((registration.subject === "영어수학" || registration.subject === "영어") && registration.assigned_class_2) {
+    const { data: cls2 } = await supabase
+      .from("classes")
+      .select("description, class_time, clinic_time, weekly_test_time")
+      .eq("name", registration.assigned_class_2)
+      .single();
+    if (cls2) {
+      const raw2 = cls2 as Record<string, unknown>;
+      classInfo2 = { class_days: raw2.description as string | null, class_time: cls2.class_time, clinic_time: cls2.clinic_time, weekly_test_time: raw2.weekly_test_time as string | null };
+    }
+  }
+
+  const page1Data = (reportData.page1 || {}) as ReportTemplateData["page1"];
+  const page2Data = (reportData.page2 || {}) as ReportTemplateData["page2"];
+
+  const templateData: ReportTemplateData = {
+    profileVersion: reportData.instrumentVersion === "v2" ? "v2" : "v1",
+    name: registration.name,
+    school: registration.school || "",
+    grade: registration.grade || "",
+    studentPhone: registration.student_phone || "",
+    parentPhone: registration.parent_phone || "",
+    registrationDate: registration.registration_date || "",
+    assignedClass: registration.assigned_class || "",
+    teacher: registration.teacher || "",
+    assignedClassMath2: registration.assigned_class_math2 || undefined,
+    teacherMath2: registration.teacher_math2 || undefined,
+    assignedClass2: registration.assigned_class_2 || undefined,
+    teacher2: registration.teacher_2 || undefined,
+    subject: registration.subject || "",
+    preferredDays: registration.preferred_days || "",
+    useVehicle: registration.use_vehicle || "미사용",
+    location: registration.location || "",
+    locationMath2: registration.location_math2 || undefined,
+    location2: registration.location_2 || undefined,
+    tuitionFee: registration.tuition_fee || 0,
+    page1: {
+      docNo: page1Data.docNo || "",
+      deptLabel: page1Data.deptLabel || "",
+      profileSummary: page1Data.profileSummary || "",
+      studentBackground: page1Data.studentBackground || undefined,
+      sixFactorScores: page1Data.sixFactorScores || undefined,
+      tendencyAnalysis: page1Data.tendencyAnalysis || [],
+      managementGuide: page1Data.managementGuide || [],
+      actionChecklist: page1Data.actionChecklist || [],
+    },
+    page2: {
+      welcomeTitle: page2Data.welcomeTitle || "",
+      welcomeSubtitle: page2Data.welcomeSubtitle || "",
+      expertDiagnosis: page2Data.expertDiagnosis || "",
+      focusPoints: page2Data.focusPoints || [],
+      parentMessage: page2Data.parentMessage || undefined,
+      academyRules: page2Data.academyRules || undefined,
+    },
+    ...(() => {
+      const classSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.class_time);
+      const clinicSchedule = formatScheduleDisplay(classInfo?.class_days, classInfo?.clinic_time);
+      const classScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.class_time);
+      const clinicScheduleMath2 = formatScheduleDisplay(classInfoMath2?.class_days, classInfoMath2?.clinic_time);
+      const classSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.class_time);
+      const clinicSchedule2 = formatScheduleDisplay(classInfo2?.class_days, classInfo2?.clinic_time);
+      return {
+        classDays: classSchedule?.days || undefined,
+        classTime: classSchedule?.time || undefined,
+        clinicTime: clinicSchedule?.time || undefined,
+        testDays: parseTestDaysFromClass(classInfo?.class_days, classInfo?.weekly_test_time),
+        testTime: parseFirstTime(classInfo?.weekly_test_time),
+        classDaysMath2: classScheduleMath2?.days || undefined,
+        classTimeMath2: classScheduleMath2?.time || undefined,
+        clinicTimeMath2: clinicScheduleMath2?.time || undefined,
+        testDaysMath2: parseTestDaysFromClass(classInfoMath2?.class_days, classInfoMath2?.weekly_test_time),
+        testTimeMath2: parseFirstTime(classInfoMath2?.weekly_test_time),
+        classDays2: classSchedule2?.days || undefined,
+        classTime2: classSchedule2?.time || undefined,
+        clinicTime2: clinicSchedule2?.time || undefined,
+        testDays2: parseTestDaysFromClass(classInfo2?.class_days, classInfo2?.weekly_test_time),
+        testTime2: parseFirstTime(classInfo2?.weekly_test_time),
+      };
+    })(),
+    additionalNote: registration.additional_note || undefined,
+    consultDate: registration.consult_date || undefined,
+    testScore: registration.test_score || undefined,
+    schoolScore: registration.school_score || undefined,
+  };
+
+  try {
+    const html = buildReportHTML(templateData, "teacher");
+    return { success: true, html };
+  } catch (e) {
+    console.error("[Template] 강사용 HTML 생성 실패:", { id, error: e instanceof Error ? e.message : e });
+    return { success: false, error: "강사용 보고서 생성에 실패했습니다" };
+  }
+}
+
 // ========== 등록 안내 필드 수정 + 보고서 재생성 (Claude 호출 없이) ==========
 export async function updateRegistrationFields(
   id: string,

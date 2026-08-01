@@ -21,7 +21,7 @@ import { deleteAnalysis } from "@/lib/actions/analysis";
 import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import { AnalysisReportV2Client } from "@/components/analysis-report-v2/analysis-report-v2-client";
-import { TeacherSheet } from "@/components/analysis-report-v2/teacher-sheet";
+import { TeacherSheet, type TeacherSheetCheck } from "@/components/analysis-report-v2/teacher-sheet";
 import type { CounselorBackground } from "@/components/analysis-report-v2/counselor-report";
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import type { Analysis, Class, Teacher } from "@/types";
@@ -43,6 +43,8 @@ interface Props {
   consultationId?: string | null;
   /** 온보딩 목록에서 ?view=teacher로 들어오면 강사 시트로 시작한다. */
   initialTeacherView?: boolean;
+  /** 저장된 14일 확인 결과. 강사 시트 (5)블록에만 쓴다. */
+  first14Checks?: TeacherSheetCheck[];
 }
 
 export function AnalysisDetailV2Client({
@@ -58,6 +60,7 @@ export function AnalysisDetailV2Client({
   existingRegistrationId,
   consultationId,
   initialTeacherView = false,
+  first14Checks,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -190,6 +193,7 @@ export function AnalysisDetailV2Client({
           header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}
           responses={responses}
           background={background}
+          checks={first14Checks}
         />
       ) : (
         <AnalysisReportV2Client

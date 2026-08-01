@@ -6,6 +6,7 @@ import type { CounselorBackground } from "@/components/analysis-report-v2/counse
 import { ClassRecommendationSection } from "@/components/analyses/class-recommendation-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
+import { getFirst14Checks } from "@/lib/actions/first14";
 import { createClient } from "@/lib/supabase/server";
 import type { ResultStatus } from "@/types";
 import {
@@ -110,6 +111,8 @@ export default async function AnalysisDetailPage({
 
   // 설문 V2(학습 프로필) 분석이면 전용 V2 결과지를 렌더한다(V1 분석은 기존 화면 그대로).
   if (analysis.analysis_version === "v2" && analysis.result_profile_v2) {
+    // 강사 시트 (5)블록에 저장된 14일 확인 결과를 반영한다.
+    const first14Checks = await getFirst14Checks(analysis.id);
     return (
       <div className="space-y-6">
         <AnalysisDetailV2Client
@@ -128,6 +131,7 @@ export default async function AnalysisDetailPage({
           existingRegistrationId={existingReg?.id || null}
           consultationId={linkedConsultation?.id ?? null}
           initialTeacherView={teacherView}
+          first14Checks={first14Checks}
         />
         <ClassRecommendationSection
           analysisId={analysis.id}

@@ -18,11 +18,14 @@ import {
   X,
   Link2,
   UserCog,
+  CalendarCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRegistration } from "@/lib/actions/registration";
 import { createReportToken } from "@/lib/actions/report-token";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
+import { isFirst14Due } from "@/lib/assessment/v2/first14";
+import { First14Dialog } from "./first14-dialog";
 
 const NK_PRIMARY = "var(--primary)";
 const NK_GOLD = "var(--accent-warm)";
@@ -120,6 +123,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
   const [analysisPopup, setAnalysisPopup] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [first14Target, setFirst14Target] = useState<{ analysisId: string; name: string } | null>(null);
 
   // Use local state for onboarding status (will save to DB)
   const [statusMap, setStatusMap] = useState<Record<string, OnboardingStatus>>(() => {
@@ -620,6 +624,29 @@ export function OnboardingList({ registrations, analyses }: Props) {
                             강사용
                           </button>
                         )}
+                        {row.analysis_id && (
+                          <button
+                            onClick={() =>
+                              setFirst14Target({ analysisId: row.analysis_id as string, name: row.name })
+                            }
+                            className={`h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap ${
+                              isFirst14Due(row.registration_date)
+                                ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                            title={
+                              isFirst14Due(row.registration_date)
+                                ? "등록 후 14일이 지났습니다 — 설문 예측을 채점해 주세요"
+                                : "14일 확인"
+                            }
+                          >
+                            <CalendarCheck className="h-3 w-3" />
+                            14일 확인
+                            {isFirst14Due(row.registration_date) && (
+                              <span className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-600" />
+                            )}
+                          </button>
+                        )}
                         <Link
                           href={`/registrations/${row.id}`}
                           className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
@@ -848,6 +875,14 @@ export function OnboardingList({ registrations, analyses }: Props) {
           </div>
         </div>
       )}
+
+      <First14Dialog
+        analysisId={first14Target?.analysisId ?? null}
+        studentName={first14Target?.name ?? ""}
+        onOpenChange={(open) => {
+          if (!open) setFirst14Target(null);
+        }}
+      />
     </>
   );
 }

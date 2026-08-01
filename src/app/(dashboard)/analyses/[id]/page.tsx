@@ -65,16 +65,18 @@ export default async function AnalysisDetailPage({
   let studentPhone: string | null = null;
   let parentPhone: string | null = null;
   let intakeV2: Record<string, unknown> | null = null;
+  let responsesV2: Record<string, unknown> | null = null;
   if (analysis.survey_id) {
     const { data: survey } = await supabase
       .from("surveys")
-      .select("student_phone, parent_phone, intake_v2")
+      .select("student_phone, parent_phone, intake_v2, responses_v2")
       .eq("id", analysis.survey_id)
       .single();
     if (survey) {
       studentPhone = survey.student_phone;
       parentPhone = survey.parent_phone;
       intakeV2 = (survey.intake_v2 as Record<string, unknown> | null) ?? null;
+      responsesV2 = (survey.responses_v2 as Record<string, unknown> | null) ?? null;
     }
   }
 
@@ -112,6 +114,7 @@ export default async function AnalysisDetailPage({
           classes={classes}
           teachers={teachers}
           background={toBackground(intakeV2)}
+          responses={responsesV2}
           contacts={{ studentPhone, parentPhone }}
           consultationData={consultationData}
           existingRegistrationId={existingReg?.id || null}

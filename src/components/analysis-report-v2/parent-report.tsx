@@ -142,10 +142,16 @@ function matchStrengthScore(text: string, items: LabeledScore[]): { score: numbe
   for (const it of items) {
     if (isNum(it.score) && text.includes(it.label)) {
       const band = signalBandOf(it.score);
-      if (band) return { score: it.score, band };
+      // 낮은 밴드를 "강점" 카드에 배지로 달면 카드와 배지가 서로 모순된다.
+      if (band && band !== "low") return { score: it.score, band };
     }
   }
   return null;
+}
+
+/** 0~100 서버 점수를 학부모 화면 표기(5점 만점 평균)로 바꾼다. */
+function toFivePoint(score: number): string {
+  return (score / 20).toFixed(1);
 }
 
 function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: LabeledScore[] }) {
@@ -164,7 +170,7 @@ function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: Lab
                   {head && <strong>{head}</strong>}
                   {matched && (
                     <span className="insight-cards__badge">
-                      <b>{matched.score.toFixed(1)}점</b>
+                      <b>{toFivePoint(matched.score)} / 5</b>
                       <span className={`analysis-rows__band b-${matched.band}`}>
                         {SIGNAL_BAND_LABEL[matched.band]}
                       </span>
@@ -181,13 +187,15 @@ function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: Lab
   );
 }
 
+// 또래 관련 지표는 합산 축에서 뺀다.
+// "도움 받는 힘"과 "집중 흔들림"이 한 점수로 상쇄돼 뜻이 흐려지기 때문이며,
+// 대신 아래 "친구와 공부" 카드에서 문항 요지 + 학생이 고른 보기로 보여 준다.
 const RADAR_KEYS: (keyof CommonScores)[] = [
   "learningAttitude",
   "homeworkReliability",
   "phoneBoundary",
   "longTermPersistence",
   "shortTermRecovery",
-  "peerLearningResource",
 ];
 
 type AnalysisItem = { label: string; score: Score; desc: Record<SignalBand, BandDesc> };
@@ -204,7 +212,9 @@ function ItemAnalysisRows({ items }: { items: AnalysisItem[] }) {
             <header>
               <h4>{it.label}</h4>
               <span className="analysis-rows__badge">
-                <b className="analysis-rows__score">{isNum(it.score) ? it.score.toFixed(1) : "–"}점</b>
+                {isNum(it.score) && signalBandOf(it.score) !== "low" && (
+                  <b className="analysis-rows__score">{toFivePoint(it.score)} / 5</b>
+                )}
                 <span className={`analysis-rows__band b-${tone}`}>
                   {band ? SIGNAL_BAND_LABEL[band] : "정보 부족"}
                 </span>
@@ -250,7 +260,7 @@ function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boole
           <header>
             <h4>{w.label}</h4>
             <span className="weakness-cards__badge">
-              <b>{w.score.toFixed(1)}점</b>
+              <b>{toFivePoint(w.score)} / 5</b>
               <span className={`analysis-rows__band b-${w.band}`}>{SIGNAL_BAND_LABEL[w.band]}</span>
             </span>
           </header>
@@ -266,11 +276,55 @@ function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boole
 
 // 첫 14일 확인 포인트는 상담자 전용 데이터(verificationPlan14Days)를 쓰지 않는다(parent-safe 금지).
 // 가정에서 함께 볼 수 있는 일반 지침으로 제시한다.
-const FIRST_14_DAYS = [
+const FIRST_14_DAYS_FALLBACK = [
   "숙제를 정한 시각에 스스로 시작하는지",
   "공부를 시작하기 전에 휴대폰을 정리하는지",
   "문제가 막혔을 때 무엇부터 다시 시작하는지",
 ];
+
+/**
+ * 첫 14일 확인 포인트를 그 학생의 약점에 맞춰 만든다.
+ * 상담자 전용 verificationPlan14Days는 parent-safe 금지라 쓰지 않고,
+ * 이미 화면에 있는 약점 해설(help)을 "관찰 가능한 문장"으로 바꿔 쓴다.
+ */
+function buildFirst14Days(weaknesses: Weakness[]): string[] {
+  const fromWeak = weaknesses
+    .map((w) => w.help.trim())
+    .filter(Boolean)
+    .map((help) => (help.endsWith("지") ? help : toObservable(help)));
+  const merged = [...new Set([...fromWeak, ...FIRST_14_DAYS_FALLBACK])];
+  return merged.slice(0, 3);
+}
+
+/** help 문장을 "~하는지" 형태의 관찰 문장으로 다듬는다. */
+function toObservable(help: string): string {
+  const trimmed = help.replace(/[.!]$/, "").trim();
+  return `${trimmed}— 이 부분이 지켜지는지`;
+}
+
+/**
+ * "친구와 공부" 카드. 점수·밴드 없이 문항 요지와 학생이 고른 보기만 보여 준다.
+ * 응답 원본이 없는(예전에 발급된) 스냅샷에서는 렌더하지 않는다.
+ */
+function PeerStudyCard({ items }: { items: NonNullable<ParentSafeProfile["peerResponses"]> }) {
+  return (
+    <div className="analysis-rows">
+      {items.map((p, i) => (
+        <article key={i}>
+          <header>
+            <h4>{p.question}</h4>
+            <span className="analysis-rows__badge">
+              <b className="analysis-rows__score">{p.answerLabel}</b>
+            </span>
+          </header>
+        </article>
+      ))}
+      <p className="report-note">
+        친구 관계는 점수로 묶지 않고, 문항별로 어떻게 답했는지 그대로 보여 드립니다.
+      </p>
+    </div>
+  );
+}
 
 export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const s = data.scores;
@@ -415,7 +469,7 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
           <figure className="analysis-figure">
             <figcaption>
               <span>핵심 학습 신호</span>
-              <strong>여섯 가지 힘 한눈에</strong>
+              <strong>다섯 가지 학습 힘 한눈에</strong>
             </figcaption>
             <CoreSignalsRadar axes={radarAxes} />
             <p>
@@ -425,6 +479,13 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
           </figure>
         </div>
         <ItemAnalysisRows items={analysisItems} />
+
+        {data.peerResponses && data.peerResponses.length > 0 && (
+          <>
+            <h3 className="report-subhead">친구와 공부</h3>
+            <PeerStudyCard items={data.peerResponses} />
+          </>
+        )}
       </ReportSection>
 
       {/* ⑤ 과목 이야기 — 전략 해석 1문단(세부 지표 나열 제거) */}
@@ -458,15 +519,13 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         index="06"
         title="NK의 지도 계획"
         caption="위 분석을 바탕으로, 학원이 언제 무엇을 도와줄지 계획으로 정리했습니다."
-        aside={<b className="fit-grade">{s.nkFit.stage}</b>}
       >
         <div className="plan-intro">
           <span>NK의 지도 방향</span>
           <p>{i.nkFitInterpretation}</p>
-          <b>학원과 맞는 정도 · {s.nkFit.stage}</b>
         </div>
         <RoadmapLine roadmap={i.roadmap12Weeks} />
-        <VerifyLine items={FIRST_14_DAYS} />
+        <VerifyLine items={buildFirst14Days(weaknesses)} />
       </ReportSection>
 
       {/* ⑦ 읽는 안내 + 생성일 */}

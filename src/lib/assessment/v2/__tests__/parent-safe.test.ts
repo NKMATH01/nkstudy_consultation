@@ -4,6 +4,7 @@ import { computeScoreProfile } from "../scoring";
 import { buildFallbackInterpretation, buildResultProfileV2 } from "../interpretation";
 import {
   buildParentSafeProfile,
+  buildPeerResponses,
   findForbiddenKeys,
   PARENT_FORBIDDEN_KEYS,
 } from "../parent-safe";
@@ -111,5 +112,57 @@ describe("buildParentSafeProfile allowlist (§12.3)", () => {
     expect(PARENT_FORBIDDEN_KEYS).toContain("teacherBrief");
     expect(PARENT_FORBIDDEN_KEYS).toContain("crossEvidence");
     expect(PARENT_FORBIDDEN_KEYS).toContain("parent_phone");
+  });
+});
+
+// 또래 문항은 합산 점수 대신 "문항 요지 + 고른 보기"로만 내보낸다.
+describe("buildPeerResponses", () => {
+  it("F1·F2·F4를 문항 원문과 보기 문구로 바꾼다", () => {
+    const out = buildPeerResponses({ F1: 4, F2: 5, F4: 2 });
+    expect(out).toHaveLength(3);
+    expect(out[0].question).toContain("먼저 인사하거나 질문");
+    expect(out[0].answerLabel).toBe("대체로 맞다");
+    expect(out[1].answerLabel).toBe("매우 잘 맞다");
+    expect(out[2].answerLabel).toBe("별로 맞지 않다");
+  });
+
+  it("점수를 담지 않는다", () => {
+    for (const item of buildPeerResponses({ F1: 4, F2: 5, F4: 2 })) {
+      expect(Object.keys(item).sort()).toEqual(["answerLabel", "question"]);
+    }
+  });
+
+  // F3은 위험축(집중 흔들림)이라 이 카드에 넣지 않는다.
+  it("F3은 포함하지 않는다", () => {
+    const out = buildPeerResponses({ F1: 3, F3: 5 });
+    expect(out).toHaveLength(1);
+    expect(JSON.stringify(out)).not.toContain("대화 때문에");
+  });
+
+  it("응답이 없거나 범위를 벗어나면 건너뛴다", () => {
+    expect(buildPeerResponses(null)).toEqual([]);
+    expect(buildPeerResponses({})).toEqual([]);
+    expect(buildPeerResponses({ F1: 0, F2: 6, F4: "3" })).toEqual([]);
+  });
+});
+
+describe("buildParentSafeProfile — peerResponses", () => {
+  it("응답을 주면 peerResponses가 담긴다", () => {
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, { F1: 4, F2: 4, F4: 4 });
+    expect(p.peerResponses).toHaveLength(3);
+  });
+
+  // 예전에 발급된 공유 토큰에는 이 필드가 없다. 화면이 없을 때도 동작해야 한다.
+  it("응답을 주지 않으면 필드 자체가 없다", () => {
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY);
+    expect(p.peerResponses).toBeUndefined();
+  });
+
+  it("peerResponses에도 금지 키가 섞이지 않는다", () => {
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, { F1: 4 });
+    const json = JSON.stringify(p.peerResponses);
+    for (const key of PARENT_FORBIDDEN_KEYS) {
+      expect(json).not.toContain(key);
+    }
   });
 });

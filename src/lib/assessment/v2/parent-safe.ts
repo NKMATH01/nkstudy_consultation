@@ -18,6 +18,8 @@
 
 import type { ResultProfileV2 } from "./interpretation";
 import { applyStudentNameToInterpretation } from "./name-substitution";
+import { ALL_ITEMS, isLikert } from "./definition";
+import { SCALE_LABELS_V2 } from "./display";
 import type {
   CommonScores,
   EnglishScores,
@@ -77,6 +79,18 @@ export interface ParentSafeInterpretation {
   englishStrategy: string | null;
 }
 
+/**
+ * "친구와 공부" 카드용 문항 응답.
+ * 또래 관련 문항은 합산 점수로 묶으면 뜻이 흐려져(도움 받는 힘 + 집중 흔들림이 상쇄)
+ * 문항 요지와 학생이 고른 보기만 그대로 보여 준다. **점수·밴드는 담지 않는다.**
+ */
+export interface PeerResponseSafe {
+  /** 문항이 묻는 내용(정의 원문) */
+  question: string;
+  /** 학생이 고른 보기 문구(예: "대체로 맞다") */
+  answerLabel: string;
+}
+
 export interface ParentSafeProfile {
   instrumentVersion: "v2";
   subjectSelection: SubjectSelection;
@@ -85,6 +99,39 @@ export interface ParentSafeProfile {
   display: { name: string; schoolGrade: string };
   scores: ParentSafeScores;
   interpretation: ParentSafeInterpretation;
+  /**
+   * 또래 문항 응답(F1·F2·F4). 응답 원본이 없으면 생략된다.
+   * 기존에 발급된 공유 토큰에는 이 필드가 없으므로 화면은 없을 때도 동작해야 한다.
+   */
+  peerResponses?: PeerResponseSafe[];
+}
+
+/** "친구와 공부" 카드에 쓰는 또래 문항. F3(집중 경계)은 위험축이라 여기 넣지 않는다. */
+const PEER_ITEM_IDS = ["F1", "F2", "F4"] as const;
+
+/**
+ * 또래 문항의 "문항 요지 + 고른 보기"만 뽑는다.
+ * 숫자는 담지 않으므로 학부모 화면에서 점수로 오해될 여지가 없다.
+ */
+export function buildPeerResponses(
+  responses: Record<string, unknown> | null | undefined,
+): PeerResponseSafe[] {
+  if (!responses) return [];
+
+  const result: PeerResponseSafe[] = [];
+  for (const id of PEER_ITEM_IDS) {
+    const item = ALL_ITEMS.find((it) => it.id === id);
+    if (!item || !isLikert(item)) continue;
+
+    const value = responses[id];
+    if (typeof value !== "number" || value < 1 || value > 5) continue;
+
+    result.push({
+      question: item.text,
+      answerLabel: SCALE_LABELS_V2[item.scale][value - 1],
+    });
+  }
+  return result;
 }
 
 function safeNkArea(area: {
@@ -105,12 +152,15 @@ function safeNkArea(area: {
  */
 export function buildParentSafeProfile(
   full: ResultProfileV2,
-  display: { name: string; schoolGrade: string }
+  display: { name: string; schoolGrade: string },
+  /** 또래 문항 응답 원본(선택). 없으면 "친구와 공부" 카드가 생략된다. */
+  responses?: Record<string, unknown> | null
 ): ParentSafeProfile {
   const s = full.scores;
   // 저장 경로(analysis-v2)에서 이미 치환됐더라도, 미저장·프리뷰 렌더까지 일관되게
   // 학생 호칭을 실제 이름으로 확정한다(멱등: 토큰·따님/아이가 없으면 그대로).
   const i = applyStudentNameToInterpretation(full.interpretation, display.name);
+  const peerResponses = buildPeerResponses(responses);
 
   return {
     instrumentVersion: "v2",
@@ -167,6 +217,7 @@ export function buildParentSafeProfile(
       mathStrategy: i.mathStrategy,
       englishStrategy: i.englishStrategy,
     },
+    ...(peerResponses.length > 0 ? { peerResponses } : {}),
   };
 }
 

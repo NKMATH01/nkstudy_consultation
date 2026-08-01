@@ -30,19 +30,26 @@ interface Props {
   // 아래 두 필드는 상담자 전용 보고서에서 쓰던 값. 단일화 후 렌더에는 사용하지 않지만
   // 호출부 호환·향후 복원 대비를 위해 시그니처는 유지한다.
   background?: CounselorBackground | null;
+  /** 또래 문항 응답 원본(선택). parent-safe 스냅샷에 문항 요지+보기만 담긴다. */
+  responses?: Record<string, unknown> | null;
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
   // 알림톡 발송(결과지 링크)용. 없으면 발송 버튼을 노출하지 않는다.
   analysis?: { id: string; school: string | null; grade: string | null } | null;
 }
 
-export function AnalysisReportV2Client({ profile, header, contacts, analysis }: Props) {
+export function AnalysisReportV2Client({ profile, header, responses, contacts, analysis }: Props) {
   const [sharing, setSharing] = useState(false);
   const [showAlimtalk, setShowAlimtalk] = useState(false);
   const parentPhone = contacts?.parentPhone || "";
 
   const parentSafe = useMemo(
-    () => buildParentSafeProfile(profile, { name: header.name, schoolGrade: header.schoolGrade }),
-    [profile, header.name, header.schoolGrade]
+    () =>
+      buildParentSafeProfile(
+        profile,
+        { name: header.name, schoolGrade: header.schoolGrade },
+        responses,
+      ),
+    [profile, header.name, header.schoolGrade, responses]
   );
 
   const makeToken = useCallback(async (): Promise<string | null> => {

@@ -32,6 +32,8 @@ interface Props {
   classes: Class[];
   teachers: Teacher[];
   background?: CounselorBackground | null;
+  /** 또래 문항 응답 원본. "친구와 공부" 카드에만 쓴다. */
+  responses?: Record<string, unknown> | null;
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
   consultationData?: Record<string, string | null> | null;
   existingRegistrationId?: string | null;
@@ -44,6 +46,7 @@ export function AnalysisDetailV2Client({
   classes,
   teachers,
   background,
+  responses,
   contacts,
   consultationData,
   existingRegistrationId,
@@ -156,6 +159,7 @@ export function AnalysisDetailV2Client({
         profile={profile}
         header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}
         background={background}
+        responses={responses}
         contacts={contacts}
         analysis={{ id: analysis.id, school: analysis.school, grade: analysis.grade }}
       />

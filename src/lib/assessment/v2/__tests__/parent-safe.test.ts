@@ -4,6 +4,7 @@ import { computeScoreProfile } from "../scoring";
 import { buildFallbackInterpretation, buildResultProfileV2 } from "../interpretation";
 import {
   buildParentSafeProfile,
+  buildMbtiSafe,
   buildPeerResponses,
   findForbiddenKeys,
   PARENT_FORBIDDEN_KEYS,
@@ -164,5 +165,65 @@ describe("buildParentSafeProfile — peerResponses", () => {
     for (const key of PARENT_FORBIDDEN_KEYS) {
       expect(json).not.toContain(key);
     }
+  });
+});
+
+// MBTI는 "잘 모르겠다"고 답한 경우 결과지에 싣지 않는다(근거 없는 단정 방지).
+describe("buildMbtiSafe — 표시 게이트", () => {
+  it("확신도 high/medium이면 통과한다", () => {
+    expect(buildMbtiSafe({ type: "ENFP", confidence: "high" })).toEqual({
+      type: "ENFP",
+      confidence: "high",
+    });
+    expect(buildMbtiSafe({ type: "istj", confidence: "medium" })?.type).toBe("ISTJ");
+  });
+
+  it("확신도 low/none/미선택이면 표시하지 않는다", () => {
+    for (const c of ["low", "none", "", null, undefined]) {
+      expect(buildMbtiSafe({ type: "ENFP", confidence: c }), String(c)).toBeUndefined();
+    }
+  });
+
+  it("MBTI 형식이 아니면 표시하지 않는다", () => {
+    for (const t of ["ENF", "ENFPX", "XXXX", "", null]) {
+      expect(buildMbtiSafe({ type: t, confidence: "high" }), String(t)).toBeUndefined();
+    }
+  });
+
+  it("입력 자체가 없으면 표시하지 않는다", () => {
+    expect(buildMbtiSafe(null)).toBeUndefined();
+    expect(buildMbtiSafe(undefined)).toBeUndefined();
+  });
+});
+
+describe("buildParentSafeProfile — mbti", () => {
+  it("확신도가 높으면 스냅샷에 담긴다", () => {
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, null, {
+      type: "ENFP",
+      confidence: "high",
+    });
+    expect(p.mbti).toEqual({ type: "ENFP", confidence: "high" });
+  });
+
+  it("확신도가 낮으면 필드 자체가 없다", () => {
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, null, {
+      type: "ENFP",
+      confidence: "low",
+    });
+    expect(p.mbti).toBeUndefined();
+  });
+
+  // 스펙트럼은 raw(설문 응답)로 위치를 정한다. MBTI 가중이 0이라 final === raw여야 한다.
+  it("지도 선호축은 MBTI 보정 없이 raw와 final이 같다", () => {
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, null, {
+      type: "ENFP",
+      confidence: "high",
+    });
+    for (const key of ["interactionAxis", "relationalFeedbackAxis", "flexibilityAxis"] as const) {
+      const axis = p.scores.mbtiAxes[key];
+      expect(axis.final, key).toBe(axis.raw);
+      expect(axis.delta, key).toBe(0);
+    }
+    expect(p.scores.mbtiAxes.applied).toBe(false);
   });
 });

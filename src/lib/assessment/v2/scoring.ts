@@ -190,9 +190,19 @@ export function interpretBand(score: Score): string {
 
 // ── 8.5 / 8.7.4 MBTI 보조축 ─────────────────────────────────────────
 
+/**
+ * MBTI 가중치는 전부 0이다 — 지도 선호 축의 최종값은 학생의 설문 응답(raw)만으로 정한다.
+ *
+ * 예전에는 high 0.08 / medium 0.04로 축을 살짝 밀었는데, 그 결과 화면에 보이는 위치가
+ * "학생이 실제로 답한 위치"가 아니게 됐다. MBTI는 학생이 적어 낸 참고 정보일 뿐이므로
+ * 위치를 정하지 않고, 결과지에서는 별도 마커로 병치해 다르면 첫 2주에 확인한다.
+ *
+ * 타입·저장 구조(AxisScore.raw/delta/final, applied)는 하위호환을 위해 유지한다.
+ * 가중치가 0이므로 delta는 항상 0, final === raw, applied === false가 된다.
+ */
 export const MBTI_CONFIDENCE_WEIGHT: Record<MbtiConfidence, number> = {
-  high: 0.08,
-  medium: 0.04,
+  high: 0,
+  medium: 0,
   low: 0,
   none: 0,
 };

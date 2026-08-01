@@ -6,6 +6,7 @@ import {
 } from "../definition";
 import {
   adjustAxis,
+  MBTI_CONFIDENCE_WEIGHT,
   band,
   classifyCoaching,
   computeScoreProfile,
@@ -239,24 +240,26 @@ describe("지도 유형 4분면", () => {
   });
 });
 
-// ── 8.5 / 8.7.4 MBTI 확신도 0/4/8% ──────────────────────────────────
+// ── MBTI 가중 폐기: 지도 선호 축은 학생 설문 응답(raw)만으로 정한다 ────
+// [스펙 변경] 예전에는 확신도에 따라 축을 4~8% 밀었다. 그러면 화면에 보이는 위치가
+// "학생이 실제로 답한 위치"가 아니게 돼, MBTI가 위치를 정하지 않도록 가중치를 0으로 고정했다.
+// 아래 테스트는 기능 유지가 아니라 "MBTI가 축을 움직이지 않음"을 지킨다.
 
-describe("MBTI 보조축 확신도 가중", () => {
-  it("raw 50·target 100 → 높음 54.0 / 보통 52.0 / 낮음·모름 50.0", () => {
-    expect(adjustAxis(50, 100, "high")).toBe(54.0);
-    expect(adjustAxis(50, 100, "medium")).toBe(52.0);
-    expect(adjustAxis(50, 100, "low")).toBe(50.0);
-    expect(adjustAxis(50, 100, "none")).toBe(50.0);
+describe("MBTI 보조축 가중 폐기", () => {
+  it("어떤 확신도에서도 raw를 움직이지 않는다", () => {
+    for (const conf of ["high", "medium", "low", "none"] as const) {
+      expect(adjustAxis(50, 100, conf), `${conf}/target100`).toBe(50.0);
+      expect(adjustAxis(50, 0, conf), `${conf}/target0`).toBe(50.0);
+    }
   });
 
-  it("raw 50·target 0 → 높음 46.0 / 보통 48.0 / 낮음·모름 50.0", () => {
-    expect(adjustAxis(50, 0, "high")).toBe(46.0);
-    expect(adjustAxis(50, 0, "medium")).toBe(48.0);
-    expect(adjustAxis(50, 0, "low")).toBe(50.0);
-    expect(adjustAxis(50, 0, "none")).toBe(50.0);
+  it("모든 확신도 가중치가 0이다", () => {
+    for (const conf of ["high", "medium", "low", "none"] as const) {
+      expect(MBTI_CONFIDENCE_WEIGHT[conf], conf).toBe(0);
+    }
   });
 
-  it("조정 후에도 0~100으로 clamp된다", () => {
+  it("clamp 경계에서도 raw 그대로", () => {
     expect(adjustAxis(100, 100, "high")).toBe(100.0);
     expect(adjustAxis(0, 0, "high")).toBe(0.0);
   });
@@ -293,9 +296,11 @@ describe("MBTI는 핵심 행동점수에 무영향", () => {
       expect(istj.nkFit.areas[key].readiness).toBe(none.nkFit.areas[key].readiness);
     }
 
-    // MBTI 축만 달라진다.
-    expect(enfp.mbtiAxes.applied).toBe(true);
+    // MBTI는 축도 움직이지 않는다(가중 폐기) — applied는 항상 false.
+    expect(enfp.mbtiAxes.applied).toBe(false);
     expect(none.mbtiAxes.applied).toBe(false);
+    expect(enfp.mbtiAxes.interactionAxis.final).toBe(enfp.mbtiAxes.interactionAxis.raw);
+    expect(enfp.mbtiAxes.interactionAxis.delta).toBe(0);
   });
 
   it("conceptAxis는 lowEvidence로 표시된다", () => {

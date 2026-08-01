@@ -302,6 +302,55 @@ function toObservable(help: string): string {
 }
 
 /**
+ * 지도 선호 스펙트럼 3축.
+ * conceptAxis(개념 처리)는 학부모에게 오해 소지가 커서 화면에 넣지 않는다(계산은 유지).
+ * MBTI 글자는 위치를 정하지 않고 별도 마커로만 병치한다.
+ */
+const PREFERENCE_AXES = [
+  { key: "interactionAxis", left: "혼자 정리", right: "함께 이야기", mbtiIndex: 0, high: "E" },
+  { key: "relationalFeedbackAxis", left: "결과 중심", right: "관계 중심", mbtiIndex: 2, high: "F" },
+  { key: "flexibilityAxis", left: "정해진 순서", right: "유연하게", mbtiIndex: 3, high: "P" },
+] as const;
+
+function PreferenceSpectrum({
+  axes,
+  mbti,
+}: {
+  axes: ParentSafeProfile["scores"]["mbtiAxes"];
+  mbti?: ParentSafeProfile["mbti"];
+}) {
+  return (
+    <div className="spectrum">
+      {PREFERENCE_AXES.map((ax) => {
+        // 위치는 설문 응답 raw만 쓴다(final은 MBTI 보정이 섞일 수 있던 값이라 쓰지 않는다).
+        const raw = axes[ax.key].raw;
+        if (!isNum(raw)) return null;
+        const letter = mbti?.type?.[ax.mbtiIndex];
+        const mbtiPct = letter ? (letter === ax.high ? 100 : 0) : null;
+        return (
+          <div key={ax.key} className="spectrum__row">
+            <span className="spectrum__end">{ax.left}</span>
+            <i className="spectrum__track">
+              <b className="spectrum__survey" style={{ left: `${pct(raw)}%` }} title="설문 응답 위치" />
+              {mbtiPct !== null && (
+                <b className="spectrum__mbti" style={{ left: `${mbtiPct}%` }} title={`MBTI ${letter}`} />
+              )}
+            </i>
+            <span className="spectrum__end">{ax.right}</span>
+          </div>
+        );
+      })}
+      <p className="spectrum__note">
+        ● 학생의 행동 응답이 위치를 정합니다 — MBTI는 위치를 정하지 않습니다.
+      </p>
+      {mbti && (
+        <p className="spectrum__note">◇ 두 표시가 다르면 첫 2주 수업에서 확인합니다.</p>
+      )}
+    </div>
+  );
+}
+
+/**
  * "00 한 장 요약"의 정렬 수평 바.
  * 레이더는 축 순서가 고정돼 무엇을 먼저 도와야 할지 읽기 어려웠다.
  * 점수 내림차순 수평 바로 바꾸면 위에서부터 "잘 되는 순"이 그대로 읽힌다.
@@ -387,11 +436,13 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const who = studentLabel(data.display.name);
 
   // 항목별 분석: 핵심 6신호 + 선택 과목 학습전략 신호(6~8개).
-  const analysisItems: AnalysisItem[] = RADAR_KEYS.map((k) => ({
+  // 00 요약 정렬 바는 공통 5축만 쓴다(과목 전략은 "과목 이야기" 섹션이 따로 다룬다).
+  const glanceItems: AnalysisItem[] = RADAR_KEYS.map((k) => ({
     label: CONSTRUCT_LABEL[k],
     score: s.common[k],
     desc: SIGNAL_DESC[k],
   }));
+  const analysisItems: AnalysisItem[] = [...glanceItems];
   if (showMath && s.math) {
     analysisItems.push({ label: "수학 학습전략", score: s.math.mathStrategy, desc: SUBJECT_SIGNAL_DESC.math });
   }
@@ -446,6 +497,13 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         </h1>
         <div className="report-v2-band__meta">{bandMeta}</div>
         <p className="report-v2-band__summary">{firstSentence(i.parentSummary)}</p>
+        {/* MBTI는 확신도 high/medium일 때만. 그래프·숫자와 붙이지 않는다. */}
+        {data.mbti && (
+          <div className="report-v2-band__mbti">
+            <span className="mbti-pill">{data.mbti.type}</span>
+            <span className="mbti-caption">학생이 적은 성향 · 지도 방식 참고용</span>
+          </div>
+        )}
       </header>
 
       {/* ⓪ 한 장 요약 — 열자마자 "무엇을 먼저 도울지"가 보이게 */}
@@ -458,7 +516,7 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         <div className="glance">
           <h3 className="glance__type">{i.studentType}</h3>
 
-          <SortedBars items={analysisItems} />
+          <SortedBars items={glanceItems} />
 
           <div className="glance__tags">
             {strengthLabels.length > 0 && (
@@ -593,10 +651,22 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         </ReportSection>
       )}
 
+      {/* ⑤ 지도 선호 — 점수 카드와 시각 문법을 분리한 스펙트럼 */}
+      <ReportSection
+        id="sec-preference"
+        index="06"
+        title="지도 선호"
+        caption="어떤 방식으로 도와줄 때 더 잘 따라오는지, 학생의 응답 위치로 정리했습니다."
+      >
+        <div className="spectrum-card">
+          <PreferenceSpectrum axes={s.mbtiAxes} mbti={data.mbti} />
+        </div>
+      </ReportSection>
+
       {/* ⑥ NK의 지도 계획 — 12주 로드맵 + 첫 14일 확인 포인트 */}
       <ReportSection
         id="sec-plan"
-        index="06"
+        index="07"
         title="NK의 지도 계획"
         caption="위 분석을 바탕으로, 학원이 언제 무엇을 도와줄지 계획으로 정리했습니다."
       >

@@ -115,6 +115,10 @@ export default async function AnalysisDetailPage({
           teachers={teachers}
           background={toBackground(intakeV2)}
           responses={responsesV2}
+          mbti={{
+            type: (intakeV2?.mbti as string | null) ?? null,
+            confidence: (intakeV2?.mbti_confidence as string | null) ?? null,
+          }}
           contacts={{ studentPhone, parentPhone }}
           consultationData={consultationData}
           existingRegistrationId={existingReg?.id || null}

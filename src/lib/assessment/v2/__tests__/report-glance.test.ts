@@ -92,7 +92,7 @@ describe("밴드 기준(signalBandOf) — 학부모 화면 단일 기준", () =>
     expect(signalBandOf(44)).toBe("low");
   });
 
-  it("점수가 없으면 밴드도 없다", () => {
-    expect(signalBandOf(null)).toBeNull();
+  it("점수가 산출되지 않으면 밴드도 없다", () => {
+    expect(signalBandOf("insufficient")).toBeNull();
   });
 });

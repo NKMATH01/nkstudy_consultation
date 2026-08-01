@@ -32,12 +32,14 @@ interface Props {
   background?: CounselorBackground | null;
   /** 또래 문항 응답 원본(선택). parent-safe 스냅샷에 문항 요지+보기만 담긴다. */
   responses?: Record<string, unknown> | null;
+  /** 학생이 적어 낸 MBTI(참고용). parent-safe에서 type+확신도만 통과시킨다. */
+  mbti?: { type?: string | null; confidence?: string | null } | null;
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
   // 알림톡 발송(결과지 링크)용. 없으면 발송 버튼을 노출하지 않는다.
   analysis?: { id: string; school: string | null; grade: string | null } | null;
 }
 
-export function AnalysisReportV2Client({ profile, header, responses, contacts, analysis }: Props) {
+export function AnalysisReportV2Client({ profile, header, responses, mbti, contacts, analysis }: Props) {
   const [sharing, setSharing] = useState(false);
   const [showAlimtalk, setShowAlimtalk] = useState(false);
   const parentPhone = contacts?.parentPhone || "";
@@ -48,8 +50,9 @@ export function AnalysisReportV2Client({ profile, header, responses, contacts, a
         profile,
         { name: header.name, schoolGrade: header.schoolGrade },
         responses,
+        mbti,
       ),
-    [profile, header.name, header.schoolGrade, responses]
+    [profile, header.name, header.schoolGrade, responses, mbti]
   );
 
   const makeToken = useCallback(async (): Promise<string | null> => {

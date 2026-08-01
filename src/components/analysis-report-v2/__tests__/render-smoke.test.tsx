@@ -98,8 +98,11 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     expect(html).not.toContain("선생님 메모");
     expect(html).not.toContain("핵심 지도 판정");
     expect(html).not.toContain("상담 배경과 학생이 쓴 이야기");
-    // 점수 echo 제거: MBTI 조정 패널이 학부모 화면에 없다(레이더 축 라벨은 정상 노출).
-    expect(html).not.toContain("MBTI");
+    // 상담자용 MBTI 조정 패널(축 보정 수치)은 학부모 화면에 없다.
+    // 단, 지도 선호 스펙트럼 캡션의 "MBTI는 위치를 정하지 않습니다" 고지는 의도된 문구다.
+    expect(html).not.toContain("MBTI 조정");
+    expect(html).not.toContain("confidenceWeight");
+    expect(html).toContain("MBTI는 위치를 정하지 않습니다");
   });
 
   it("응답 품질 review이면 중립 확인 문구를 표시한다", () => {

@@ -91,6 +91,15 @@ export interface PeerResponseSafe {
   answerLabel: string;
 }
 
+/**
+ * 학생이 스스로 적어 낸 MBTI. 점수를 만들지 않으며 지도 방식 참고용으로만 쓴다.
+ * 확신도가 low/none이면 결과지에 아예 표시하지 않으므로 여기에도 담지 않는다.
+ */
+export interface MbtiSafe {
+  type: string;
+  confidence: "high" | "medium";
+}
+
 export interface ParentSafeProfile {
   instrumentVersion: "v2";
   subjectSelection: SubjectSelection;
@@ -104,6 +113,8 @@ export interface ParentSafeProfile {
    * 기존에 발급된 공유 토큰에는 이 필드가 없으므로 화면은 없을 때도 동작해야 한다.
    */
   peerResponses?: PeerResponseSafe[];
+  /** 확신도 high/medium일 때만 존재. 없으면 화면에서 MBTI 블록 자체를 렌더하지 않는다. */
+  mbti?: MbtiSafe;
 }
 
 /** "친구와 공부" 카드에 쓰는 또래 문항. F3(집중 경계)은 위험축이라 여기 넣지 않는다. */
@@ -154,13 +165,16 @@ export function buildParentSafeProfile(
   full: ResultProfileV2,
   display: { name: string; schoolGrade: string },
   /** 또래 문항 응답 원본(선택). 없으면 "친구와 공부" 카드가 생략된다. */
-  responses?: Record<string, unknown> | null
+  responses?: Record<string, unknown> | null,
+  /** 학생이 적어 낸 MBTI(선택). 확신도 high/medium만 통과시킨다. */
+  mbtiInput?: { type?: string | null; confidence?: string | null } | null
 ): ParentSafeProfile {
   const s = full.scores;
   // 저장 경로(analysis-v2)에서 이미 치환됐더라도, 미저장·프리뷰 렌더까지 일관되게
   // 학생 호칭을 실제 이름으로 확정한다(멱등: 토큰·따님/아이가 없으면 그대로).
   const i = applyStudentNameToInterpretation(full.interpretation, display.name);
   const peerResponses = buildPeerResponses(responses);
+  const mbti = buildMbtiSafe(mbtiInput);
 
   return {
     instrumentVersion: "v2",
@@ -218,7 +232,23 @@ export function buildParentSafeProfile(
       englishStrategy: i.englishStrategy,
     },
     ...(peerResponses.length > 0 ? { peerResponses } : {}),
+    ...(mbti ? { mbti } : {}),
   };
+}
+
+/**
+ * MBTI를 학부모 화면에 실어도 되는지 판정한다.
+ * 4글자 형식이 맞고 확신도가 high/medium일 때만 통과 — low/none/미입력은 표시하지 않는다
+ * ("잘 모르겠다"고 답한 정보를 결과지에 실으면 근거 없는 단정이 된다).
+ */
+export function buildMbtiSafe(
+  input?: { type?: string | null; confidence?: string | null } | null,
+): MbtiSafe | undefined {
+  const type = input?.type?.trim().toUpperCase() ?? "";
+  const confidence = input?.confidence?.trim() ?? "";
+  if (!/^[EI][SN][TF][JP]$/.test(type)) return undefined;
+  if (confidence !== "high" && confidence !== "medium") return undefined;
+  return { type, confidence };
 }
 
 /** parent-safe payload에 절대 존재해서는 안 되는 키(테스트·런타임 감사용). */

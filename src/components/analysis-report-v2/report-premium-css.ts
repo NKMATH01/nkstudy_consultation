@@ -133,6 +133,24 @@ export const REPORT_PREMIUM_CSS = `
 .analysis-rows h4 { margin: 0; color: var(--ink-950); font-size: 13.5px; font-weight: 800; }
 .analysis-rows__badge { display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 .analysis-rows__score { color: var(--navy); font-size: 15px; font-weight: 800; }
+/* MBTI 배지 — 그래프·숫자와 비인접, 참고용임을 캡션으로 명시 */
+.report-v2-band__mbti { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.mbti-pill { padding: 3px 12px; border-radius: 999px; border: 1px solid var(--brass); color: var(--brass); background: transparent; font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em; }
+.mbti-caption { font-size: 11px; color: rgba(255,255,255,0.62); }
+
+/* 지도 선호 스펙트럼 — 점수 카드와 시각 문법 분리(아이보리 + 좌측 골드 라인) */
+.spectrum-card { padding: 16px 18px; border-radius: 12px; background: var(--ivory, #faf7f1); border-left: 3px solid var(--brass); }
+.spectrum { display: grid; gap: 14px; }
+.spectrum__row { display: grid; grid-template-columns: 74px minmax(0,1fr) 74px; align-items: center; gap: 10px; }
+.spectrum__end { font-size: 11.5px; color: var(--muted); }
+.spectrum__end:last-of-type { text-align: right; }
+.spectrum__track { position: relative; display: block; height: 2px; background: #ddd5c6; border-radius: 2px; }
+.spectrum__survey, .spectrum__mbti { position: absolute; top: 50%; width: 11px; height: 11px; margin-left: -5.5px; transform: translateY(-50%); }
+.spectrum__survey { background: var(--navy); border-radius: 50%; }
+.spectrum__mbti { background: transparent; border: 1.5px solid var(--brass); border-radius: 2px; rotate: 45deg; }
+.spectrum__note { margin: 0; font-size: 11.5px; color: var(--muted); }
+@media (max-width: 520px) { .spectrum__row { grid-template-columns: 62px minmax(0,1fr) 62px; gap: 7px; } .spectrum__end { font-size: 10.5px; } }
+
 /* ⓪ 한 장 요약 — 정렬 수평 바(레이더 대체) */
 .glance { display: grid; gap: 16px; }
 .glance__type { margin: 0; font-size: 19px; line-height: 1.5; font-weight: 800; color: var(--navy); word-break: keep-all; }

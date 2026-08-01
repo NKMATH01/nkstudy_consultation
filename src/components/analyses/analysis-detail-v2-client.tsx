@@ -34,6 +34,8 @@ interface Props {
   background?: CounselorBackground | null;
   /** 또래 문항 응답 원본. "친구와 공부" 카드에만 쓴다. */
   responses?: Record<string, unknown> | null;
+  /** 학생이 적어 낸 MBTI(참고용). 확신도 high/medium만 결과지에 표시된다. */
+  mbti?: { type?: string | null; confidence?: string | null } | null;
   contacts?: { studentPhone?: string | null; parentPhone?: string | null } | null;
   consultationData?: Record<string, string | null> | null;
   existingRegistrationId?: string | null;
@@ -47,6 +49,7 @@ export function AnalysisDetailV2Client({
   teachers,
   background,
   responses,
+  mbti,
   contacts,
   consultationData,
   existingRegistrationId,
@@ -160,6 +163,7 @@ export function AnalysisDetailV2Client({
         header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}
         background={background}
         responses={responses}
+        mbti={mbti}
         contacts={contacts}
         analysis={{ id: analysis.id, school: analysis.school, grade: analysis.grade }}
       />

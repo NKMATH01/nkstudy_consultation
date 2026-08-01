@@ -131,9 +131,14 @@ export function isIntakeScreenComplete(index: number, s: IntakeState): boolean {
       return s.nk_expectations.length <= NK_EXPECTATION_MAX;
     case 3:
       return true;
-    case 4:
-      // MBTI를 입력했다면 유효한 4글자여야 한다.
-      return s.mbti.trim() === "" || MBTI_RE.test(s.mbti.trim().toUpperCase());
+    case 4: {
+      // MBTI를 비워 두면 확신도도 묻지 않는다.
+      const mbti = s.mbti.trim().toUpperCase();
+      if (mbti === "") return true;
+      // 입력했다면 4글자가 정확해야 하고, 확신도도 반드시 골라야 한다.
+      // 확신도가 비면 결과지에서 MBTI를 어느 강도로 쓸지 정할 수 없다(무확신 = 미표시).
+      return MBTI_RE.test(mbti) && s.mbti_confidence.trim() !== "";
+    }
     default:
       return true;
   }
@@ -399,6 +404,11 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
       {state.mbti.trim() !== "" && !MBTI_RE.test(state.mbti.trim().toUpperCase()) && (
         <p className="text-[12px] font-medium text-destructive">
           MBTI 4글자를 정확히 입력하거나 비워주세요 (예: ENFP).
+        </p>
+      )}
+      {MBTI_RE.test(state.mbti.trim().toUpperCase()) && state.mbti_confidence.trim() === "" && (
+        <p className="text-[12px] font-medium text-destructive">
+          MBTI를 적었다면 확신도도 골라주세요. 얼마나 확신하는지에 따라 결과지에 반영되는 정도가 달라집니다.
         </p>
       )}
     </div>

@@ -44,11 +44,15 @@ function toBackground(intake: Record<string, unknown> | null): CounselorBackgrou
 
 export default async function AnalysisDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await checkPagePermission("/analyses");
   const { id } = await params;
+  // 온보딩 목록의 "강사용" 버튼이 이 쿼리로 강사 시트를 바로 연다.
+  const teacherView = (await searchParams)?.view === "teacher";
   const [analysis, classes, teachers] = await Promise.all([
     getAnalysis(id),
     getClasses(),
@@ -123,6 +127,7 @@ export default async function AnalysisDetailPage({
           consultationData={consultationData}
           existingRegistrationId={existingReg?.id || null}
           consultationId={linkedConsultation?.id ?? null}
+          initialTeacherView={teacherView}
         />
         <ClassRecommendationSection
           analysisId={analysis.id}

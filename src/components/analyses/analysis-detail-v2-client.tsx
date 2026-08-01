@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, ClipboardList, ExternalLink, FileCheck, MessageSquareText, Trash2 } from "lucide-react";
+import { ArrowLeft, ClipboardList, ExternalLink, FileCheck, MessageSquareText, Printer, Trash2, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import { deleteAnalysis } from "@/lib/actions/analysis";
 import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import { AnalysisReportV2Client } from "@/components/analysis-report-v2/analysis-report-v2-client";
+import { TeacherSheet } from "@/components/analysis-report-v2/teacher-sheet";
 import type { CounselorBackground } from "@/components/analysis-report-v2/counselor-report";
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import type { Analysis, Class, Teacher } from "@/types";
@@ -40,6 +41,8 @@ interface Props {
   consultationData?: Record<string, string | null> | null;
   existingRegistrationId?: string | null;
   consultationId?: string | null;
+  /** 온보딩 목록에서 ?view=teacher로 들어오면 강사 시트로 시작한다. */
+  initialTeacherView?: boolean;
 }
 
 export function AnalysisDetailV2Client({
@@ -54,11 +57,14 @@ export function AnalysisDetailV2Client({
   consultationData,
   existingRegistrationId,
   consultationId,
+  initialTeacherView = false,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
   const [showRegForm, setShowRegForm] = useState(false);
+  // 기본은 학부모용. 상담 중 화면을 그대로 보여주다 강사용 메모가 노출되는 사고를 막는다.
+  const [teacherView, setTeacherView] = useState(initialTeacherView);
 
   const schoolGrade = [analysis.school, analysis.grade].filter(Boolean).join(" ");
 
@@ -129,6 +135,26 @@ export function AnalysisDetailV2Client({
           </Button>
         )}
         <Button
+          variant={teacherView ? "default" : "outline"}
+          size="sm"
+          onClick={() => setTeacherView((v) => !v)}
+          className="rounded-xl text-xs"
+          title="강사용 A4 한 장 (직원 전용)"
+        >
+          <UserCog className="mr-1 h-3.5 w-3.5" />
+          {teacherView ? "학부모용으로" : "강사용"}
+        </Button>
+        {teacherView && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+            className="rounded-xl text-xs"
+          >
+            <Printer className="mr-1 h-3.5 w-3.5" /> 인쇄
+          </Button>
+        )}
+        <Button
           size="sm"
           onClick={handleRegisterClick}
           className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 text-xs"
@@ -158,15 +184,24 @@ export function AnalysisDetailV2Client({
         </div>
       )}
 
-      <AnalysisReportV2Client
-        profile={profile}
-        header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}
-        background={background}
-        responses={responses}
-        mbti={mbti}
-        contacts={contacts}
-        analysis={{ id: analysis.id, school: analysis.school, grade: analysis.grade }}
-      />
+      {teacherView ? (
+        <TeacherSheet
+          profile={profile}
+          header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}
+          responses={responses}
+          background={background}
+        />
+      ) : (
+        <AnalysisReportV2Client
+          profile={profile}
+          header={{ name: analysis.name, schoolGrade, createdAt: analysis.created_at }}
+          background={background}
+          responses={responses}
+          mbti={mbti}
+          contacts={contacts}
+          analysis={{ id: analysis.id, school: analysis.school, grade: analysis.grade }}
+        />
+      )}
 
       <RegistrationForm
         open={showRegForm}

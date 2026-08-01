@@ -17,6 +17,7 @@ import {
   Plus,
   X,
   Link2,
+  UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRegistration } from "@/lib/actions/registration";
@@ -607,6 +608,16 @@ export function OnboardingList({ registrations, analyses }: Props) {
                           >
                             <Sparkles className="h-3 w-3" />
                             분석
+                          </button>
+                        )}
+                        {row.analysis_id && (
+                          <button
+                            onClick={() => window.open(`/analyses/${row.analysis_id}?view=teacher`, '_blank')}
+                            className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            title="강사용 A4 한 장 (직원 전용)"
+                          >
+                            <UserCog className="h-3 w-3" />
+                            강사용
                           </button>
                         )}
                         <Link

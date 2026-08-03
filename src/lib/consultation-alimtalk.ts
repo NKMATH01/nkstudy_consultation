@@ -1,6 +1,6 @@
 import type { Consultation } from "@/types";
 
-export const CONSULT_CONFIRM_TEMPLATE_CODE = "consult_confirm";
+export const CONSULT_CONFIRM_TEMPLATE_CODE = "consult_confirm_v2";
 
 export type AlimtalkSendStatus = "pending" | "sent" | "failed";
 

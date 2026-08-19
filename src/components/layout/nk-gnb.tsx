@@ -10,6 +10,7 @@
 import Link from "next/link";
 
 import { ClaudeCodeButton } from "./claude-code-button";
+import { ProgramFeedbackButton } from "./program-feedback-button";
 
 /** 전환 목록 — 모든 프로그램이 같은 목록·같은 순서를 갖는다.
  *  순서가 프로그램마다 다르면 쓰는 사람이 매번 눈으로 다시 찾아야 한다. */
@@ -27,7 +28,7 @@ const NK_APPS = [
 /** 이 프로그램. 전환 줄에서 활성 필로 표시된다. */
 const CURRENT_APP = "등록·퇴원";
 
-export function NkGnb() {
+export function NkGnb({ userName = "" }: { userName?: string }) {
   return (
     <header className="nk-gnb" data-nk-app="consult">
       {/* 워드마크 — "NK" 만 브라스. 이 화면에서 브라스를 쓰는 첫 자리다. */}
@@ -58,6 +59,8 @@ export function NkGnb() {
         {/* 야간 모드 토글은 두지 않는다 — 이 앱은 코럴 라이트 스킨 한 벌뿐이라
             눌러도 상단 바 색만 바뀌고 본문은 그대로다. 앱에 야간 팔레트가 생기면
             그때 design-system README 3단계대로 붙인다. */}
+        {/* 오류·개선 제안 — 작성자는 로그인 강사 이름으로 채운다. */}
+        <ProgramFeedbackButton userName={userName} />
         <ClaudeCodeButton />
         {/* 로그아웃은 사이드바 하단 사용자 카드에 이미 있다 — 두 곳에 두지 않는다. */}
       </div>

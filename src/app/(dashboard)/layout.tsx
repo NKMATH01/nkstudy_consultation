@@ -31,7 +31,7 @@ export default async function DashboardLayout({
       />
     <div className="flex h-screen flex-col overflow-hidden app-chrome">
       {/* NK 공통 상단 바 — 프로그램 전환은 모든 NK 앱이 같은 자리에서 한다. */}
-      <NkGnb />
+      <NkGnb userName={currentTeacher?.name ?? ""} />
       {/* 사이드바+본문. 인쇄에서는 이 래퍼가 높이를 잘라내지 않도록 풀어 준다. */}
       <div className="flex min-h-0 flex-1 overflow-hidden print:block print:h-auto print:overflow-visible">
         <Sidebar currentTeacher={currentTeacher} />

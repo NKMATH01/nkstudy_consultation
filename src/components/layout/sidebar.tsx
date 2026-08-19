@@ -10,7 +10,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LogOut,
   BookOpenCheck,
-  ArrowLeftCircle,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
@@ -169,53 +168,27 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       }
       style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
     >
-      {/* 상단 — 업무보고 복귀 + 접기 토글 */}
-      <div className={`flex items-center gap-1.5 pb-2 pt-3 ${isCollapsed ? "flex-col px-2" : "px-4"}`}>
-        {!inSheet && (
+      {/* 상단 — 접기 토글.
+          업무보고 복귀 링크는 공통 GNB 의 프로그램 전환 줄로 옮겼다(같은 링크를 두 곳에 두지 않는다). */}
+      {!inSheet && (
+        <div className="flex items-center justify-end px-3 pb-2 pt-3">
           <button
             type="button"
             onClick={toggleCollapsed}
             title={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
             aria-label={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
             aria-expanded={!isCollapsed}
-            className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F] ${
-              isCollapsed ? "" : "order-2"
-            }`}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
             style={{ color: "#A59A90" }}
           >
             {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
           </button>
-        )}
-        <a
-          href="https://nk-work-report.vercel.app"
-          title="업무보고 프로그램으로 돌아가기"
-          className={`group flex items-center rounded-xl transition-all hover:-translate-y-px ${
-            isCollapsed ? "h-9 w-9 justify-center" : "min-w-0 flex-1 gap-2.5 px-3.5 py-2"
-          }`}
-          style={{ background: "#FFF3ED", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
-        >
-          <span
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg transition-transform group-hover:-translate-x-0.5"
-            style={{ background: "#FBE4D8", color: "#C7521F" }}
-          >
-            <ArrowLeftCircle className="h-[16px] w-[16px]" />
-          </span>
-          {!isCollapsed && (
-            <span className="min-w-0">
-              <span className="block truncate text-[12.5px] font-extrabold" style={{ color: "#C7521F" }}>
-                업무보고 프로그램
-              </span>
-              <span className="block text-[9.5px] font-bold uppercase" style={{ color: "#A59A90", letterSpacing: "0.1em" }}>
-                메인으로 돌아가기
-              </span>
-            </span>
-          )}
-        </a>
-      </div>
+        </div>
+      )}
 
       {/* Navigation — 현재 카테고리의 세부 메뉴. 길어지면 이 영역만 스크롤 */}
       <nav
-        className={`min-h-0 flex-1 overflow-y-auto pb-2 ${isCollapsed ? "px-2" : "px-3"}`}
+        className={`min-h-0 flex-1 overflow-y-auto pb-2 ${isCollapsed ? "px-2" : "px-3"} ${inSheet ? "pt-3" : ""}`}
         style={{ scrollbarWidth: "thin", scrollbarColor: "#F0E4DD transparent" }}
       >
         {activeItems.length > 0 && (

@@ -1,0 +1,454 @@
+/* ============================================================================
+   NK 공통 디자인 토큰 + 공통 GNB
+   ----------------------------------------------------------------------------
+   NK 학원의 모든 프로그램(업무보고·보강관리·학습관리·숙제관리·학생상담·
+   등록퇴원·설문조사·클리닉 강사 관리)이 같은 얼굴을 갖도록 하는 한 벌.
+
+   순수 CSS 다. React·Tailwind·빌드 도구가 없어도 <link> 한 줄로 쓸 수 있다.
+   업무보고(nk-work-report)의 app/globals.css 에서 추출했고, 값이 바뀌면
+   그쪽을 먼저 고치고 이 파일에 옮긴다 — 두 곳이 어긋나면 얼굴이 갈라진다.
+
+   ── 지켜야 할 세 가지 ──
+   1) 색은 여기 있는 변수로만 쓴다. 컴포넌트에 hex 를 박지 않는다.
+      한 번 박으면 야간 모드에서 그 자리만 안 바뀌고 남는다.
+   2) 브라스(놋쇠 금색)는 한 화면에 두 곳까지. 기본은 워드마크의 "NK" 한 곳이다.
+      강조가 흔해지면 강조가 아니게 된다.
+   3) 상태는 색과 글자를 같이 낸다. 색맹·흑백 인쇄·저조도에서도 읽혀야 한다.
+   ============================================================================ */
+
+/* ── 라이트 (기본) ────────────────────────────────────────────────────────
+   [data-theme="day"] 는 '이 안쪽만 라이트로 되돌린다'는 탈출구다.
+   커스텀 속성은 자손에서 다시 선언하면 그 아래가 이기므로, 특정 화면만
+   야간에서 제외하고 싶을 때 그 래퍼에 달면 된다. */
+:root,
+[data-theme='day'] {
+  /* 브랜드 네이비 — 주 액션·확인 버튼·상단 바 */
+  --wr-navy: 22 48 79;
+  --wr-navy-strong: 13 32 55;
+  --wr-navy-soft: 228 234 242;
+  --wr-navy-ink: 255 255 255;
+
+  /* 브라스 — 강조 전용. 화면당 두 곳까지.
+     bright 는 어두운 네이비 바 위에서만 쓴다(라이트 배경에선 너무 흐리다). */
+  --wr-brass: 154 123 46;
+  --wr-brass-bright: 201 169 97;
+  --wr-brass-soft: 243 236 220;
+
+  /* 기능색 — 경고와 위험. 채도를 올려 튀게 만들지 않는다.
+     급한 것은 색이 아니라 자리(위쪽)와 굵기로 부각시킨다. */
+  --wr-warn: 160 94 11;
+  --wr-warn-soft: 250 238 224;
+  --wr-danger: 155 44 31;
+  --wr-danger-soft: 247 230 227;
+
+  /* 카테고리색 — 분류 구분용. 상태(경고·위험)에는 쓰지 않는다. */
+  --wr-cat-1: 59 92 126;
+  --wr-cat-2: 62 99 78;
+  --wr-cat-3: 110 84 112;
+  --wr-cat-4: 122 90 69;
+
+  /* 표면 · 선 · 글자 */
+  --wr-bg: 242 243 245;
+  --wr-surface: 255 255 255;
+  --wr-sunken: 235 237 241;
+  --wr-row-hover: 238 241 245;
+  --wr-line: 214 219 226;
+  --wr-line-soft: 232 235 240;
+  --wr-ink: 20 24 31;
+  --wr-ink-sub: 84 92 105;
+  --wr-ink-hint: 133 141 154;
+
+  /* 상단 네이비 바 전용.
+     어두운 배경 위에서는 라이트 화면 감각으로 고르면 반드시 어둡다.
+     비활성 글자도 8:1 이상 나오는 밝기로 잡아 뒀다.
+     칩 테두리·채움은 알파가 아니라 전용 토큰이다 — 알파는 배경이 바뀌면 같이 무너진다. */
+  --wr-nav-ink: 240 244 249;
+  --wr-nav-muted: 190 202 218;
+  --wr-nav-line: 122 146 178;
+  --wr-nav-fill: 34 57 88;
+
+  /* 상태색 — 명도가 아니라 색상으로 가른다.
+     완료=초록 · 진행=파랑 · 대기=중립회색 · 경고=앰버 · 지연=붉음.
+     대기 회색에서 파랑 기운을 뺀 이유는, 파랑 계열이면 '진행'과 다시 붙기 때문이다. */
+  --wr-status-done: 27 107 74;
+  --wr-status-done-soft: 223 242 231;
+  --wr-status-progress: 35 83 138;
+  --wr-status-progress-soft: 220 232 247;
+  --wr-status-wait: 90 100 114;
+  --wr-status-wait-soft: 232 233 236;
+  --wr-status-warn: 160 94 11;
+  --wr-status-warn-soft: 251 235 214;
+  --wr-status-late: 155 44 31;
+  --wr-status-late-soft: 249 227 224;
+
+  /* 타이포 — 본문은 Pretendard, 숫자·시각·건수는 모노.
+     숫자를 모노로 두는 이유는 값이 갱신될 때 자릿수가 바뀌어도 칸 안에서
+     좌우로 흔들리지 않게 하기 위해서다. */
+  --wr-font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, 'Malgun Gothic', sans-serif;
+  --wr-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ── 야간 ─────────────────────────────────────────────────────────────────
+   ★ 여기에 새 변수 이름을 만들지 마라. 위에 있는 이름만 덮어써야
+     컴포넌트를 한 줄도 안 고치고 밤/낮이 바뀐다. */
+:root[data-theme='night'] {
+  --wr-navy: 96 138 190;
+  --wr-navy-strong: 8 20 34;
+  --wr-navy-soft: 26 39 56;
+  --wr-navy-ink: 8 16 26;
+
+  --wr-brass: 198 166 96;
+  --wr-brass-bright: 214 186 124;
+  --wr-brass-soft: 48 41 26;
+
+  --wr-warn: 214 148 74;
+  --wr-warn-soft: 54 39 22;
+  --wr-danger: 219 122 108;
+  --wr-danger-soft: 55 28 24;
+
+  --wr-cat-1: 132 165 199;
+  --wr-cat-2: 130 168 142;
+  --wr-cat-3: 175 149 178;
+  --wr-cat-4: 186 154 128;
+
+  --wr-bg: 13 18 26;
+  --wr-surface: 20 27 37;
+  --wr-sunken: 16 22 31;
+  --wr-row-hover: 27 36 48;
+  --wr-line: 42 54 70;
+  --wr-line-soft: 32 42 56;
+  --wr-ink: 231 236 243;
+  --wr-ink-sub: 160 172 189;
+  --wr-ink-hint: 118 131 148;
+
+  --wr-nav-ink: 236 241 248;
+  --wr-nav-muted: 176 190 208;
+  --wr-nav-line: 96 120 152;
+  --wr-nav-fill: 24 40 62;
+
+  --wr-status-done: 111 211 162;
+  --wr-status-done-soft: 18 50 39;
+  --wr-status-progress: 127 179 236;
+  --wr-status-progress-soft: 20 38 60;
+  --wr-status-wait: 152 162 176;
+  --wr-status-wait-soft: 35 40 47;
+  --wr-status-warn: 214 148 74;
+  --wr-status-warn-soft: 54 39 22;
+  --wr-status-late: 219 122 108;
+  --wr-status-late-soft: 55 28 24;
+}
+
+:root[data-theme='night'] body {
+  background-color: rgb(var(--wr-bg));
+  color: rgb(var(--wr-ink));
+}
+
+/* ── 폰트 ────────────────────────────────────────────────────────────────
+   Pretendard 는 CDN 에서 온다. 각 앱이 자체 호스팅한다면 이 import 는 빼고
+   같은 이름의 @font-face 를 쓰면 된다(변수 이름은 그대로 두면 된다). */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* ============================================================================
+   공통 GNB — 모든 NK 프로그램의 맨 위
+   ============================================================================ */
+
+.nk-gnb {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  height: 4rem;
+  flex-shrink: 0;
+  padding: 0 1.5rem;
+  background: rgb(var(--wr-navy-strong));
+  font-family: var(--wr-font-sans);
+  box-sizing: border-box;
+}
+
+/* 워드마크 — "NK" 만 브라스. 이 화면에서 브라스를 쓰는 첫 자리다. */
+.nk-gnb__wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.nk-gnb__wordmark-nk {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: rgb(var(--wr-brass-bright));
+}
+.nk-gnb__wordmark-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgb(var(--wr-nav-ink));
+}
+
+/* 프로그램 전환 줄 — 같은 창에서 이동한다.
+   새 탭으로 열면 탭이 쌓이고, 쓰는 사람에게 '여러 프로그램'으로 느껴진다. */
+.nk-gnb__apps {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.nk-gnb__apps::-webkit-scrollbar {
+  display: none;
+}
+
+.nk-gnb__app {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  flex-shrink: 0;
+  padding: 0 0.75rem;
+  border: 1px solid rgb(var(--wr-nav-line));
+  border-radius: 9999px;
+  background: rgb(var(--wr-nav-fill));
+  color: rgb(var(--wr-nav-ink));
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.nk-gnb__app:hover {
+  border-color: rgb(var(--wr-nav-ink));
+  background: rgb(var(--wr-navy));
+}
+
+/* 지금 보고 있는 프로그램 — 밝은 면으로 뒤집는다.
+   글자 밝기 차이만으로는 어두운 바 위에서 활성/비활성이 둘 다 묻힌다. */
+.nk-gnb__app--active {
+  background: rgb(var(--wr-nav-ink));
+  border-color: rgb(var(--wr-nav-ink));
+  color: rgb(var(--wr-navy-strong));
+  font-weight: 700;
+}
+.nk-gnb__app--active:hover {
+  background: rgb(var(--wr-nav-ink));
+}
+
+.nk-gnb__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* 알림·테마·로그아웃은 같은 잉크 레벨로 맞춘다.
+   하나만 흐리면 눌러도 되는 버튼인지 헷갈린다. */
+.nk-gnb__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: rgb(var(--wr-nav-ink));
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.nk-gnb__icon-btn:hover {
+  background: rgb(var(--wr-nav-fill));
+}
+
+/* Claude Code 버튼 묶음 — 버튼 + 도움말 물음표 + 안내 팝오버 */
+.nk-gnb__claude {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.nk-gnb__help {
+  position: absolute;
+  top: 2.5rem;
+  right: 0;
+  z-index: 50;
+  width: 20rem;
+  padding: 0.75rem;
+  border: 1px solid rgb(var(--wr-line));
+  border-radius: 0.5rem;
+  background: rgb(var(--wr-surface));
+  color: rgb(var(--wr-ink-sub));
+  font-size: 0.75rem;
+  line-height: 1.6;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+}
+.nk-gnb__help p {
+  margin: 0 0 0.5rem;
+}
+.nk-gnb__help-title {
+  font-weight: 600;
+  color: rgb(var(--wr-ink));
+}
+.nk-gnb__help-note {
+  margin-bottom: 0 !important;
+  font-size: 0.6875rem;
+  color: rgb(var(--wr-ink-hint));
+}
+.nk-gnb__help code {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+  margin-bottom: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.25rem;
+  background: rgb(var(--wr-sunken));
+  color: rgb(var(--wr-ink));
+  font-size: 0.6875rem;
+}
+
+.nk-gnb__logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: rgb(var(--wr-nav-ink));
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.nk-gnb__logout:hover {
+  background: rgb(var(--wr-nav-fill));
+}
+
+/* 좁은 화면 — 전환 줄은 가로 스크롤로 두고 줄바꿈하지 않는다. */
+@media (max-width: 720px) {
+  .nk-gnb {
+    height: 3.5rem;
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+  }
+  .nk-gnb__wordmark-nk,
+  .nk-gnb__wordmark-name {
+    font-size: 0.875rem;
+  }
+}
+
+/* ============================================================================
+   공통 조각 — 각 앱에서 바로 쓸 수 있는 최소 세트
+   ============================================================================ */
+
+/* 숫자·시각·건수. 값이 갱신돼도 자릿수 때문에 칸이 흔들리지 않는다. */
+.wr-num {
+  font-family: var(--wr-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
+
+/* 상태 칩 — 반드시 글자를 함께 낸다. 색만으로 상태를 말하지 않는다. */
+.wr-status {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.wr-status--done {
+  background: rgb(var(--wr-status-done-soft));
+  color: rgb(var(--wr-status-done));
+}
+.wr-status--progress {
+  background: rgb(var(--wr-status-progress-soft));
+  color: rgb(var(--wr-status-progress));
+}
+.wr-status--wait {
+  background: rgb(var(--wr-status-wait-soft));
+  color: rgb(var(--wr-status-wait));
+}
+.wr-status--warn {
+  background: rgb(var(--wr-status-warn-soft));
+  color: rgb(var(--wr-status-warn));
+}
+.wr-status--late {
+  background: rgb(var(--wr-status-late-soft));
+  color: rgb(var(--wr-status-late));
+}
+
+/* 주 액션 버튼 */
+.wr-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: rgb(var(--wr-navy));
+  color: rgb(var(--wr-navy-ink));
+  font-family: var(--wr-font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wr-btn-primary:hover {
+  background: rgb(var(--wr-navy-strong));
+}
+
+/* 본문 지면·카드 */
+.wr-page {
+  background: rgb(var(--wr-bg));
+  color: rgb(var(--wr-ink));
+  font-family: var(--wr-font-sans);
+}
+.wr-card {
+  background: rgb(var(--wr-surface));
+  border: 1px solid rgb(var(--wr-line));
+  border-radius: 0.75rem;
+}
+
+/* ── 인쇄 ────────────────────────────────────────────────────────────────
+   종이에서는 색을 빼고 명도로만 구분한다. 상단 바는 남길 이유가 없다. */
+@media print {
+  :root,
+  [data-theme='day'],
+  :root[data-theme='night'] {
+    --wr-bg: 255 255 255;
+    --wr-surface: 255 255 255;
+    --wr-sunken: 255 255 255;
+    --wr-line: 120 120 120;
+    --wr-line-soft: 190 190 190;
+    --wr-ink: 0 0 0;
+    --wr-ink-sub: 55 55 55;
+    --wr-ink-hint: 105 105 105;
+    --wr-navy: 45 45 45;
+    --wr-brass: 60 60 60;
+    --wr-status-done: 45 45 45;
+    --wr-status-done-soft: 255 255 255;
+    --wr-status-progress: 70 70 70;
+    --wr-status-progress-soft: 255 255 255;
+    --wr-status-wait: 110 110 110;
+    --wr-status-wait-soft: 255 255 255;
+    --wr-status-warn: 70 70 70;
+    --wr-status-warn-soft: 255 255 255;
+    --wr-status-late: 0 0 0;
+    --wr-status-late-soft: 255 255 255;
+  }
+  .nk-gnb,
+  [data-print='hide'] {
+    display: none !important;
+  }
+  * {
+    box-shadow: none !important;
+  }
+}

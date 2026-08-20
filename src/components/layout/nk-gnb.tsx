@@ -20,7 +20,18 @@ import { ClaudeCodeButton } from "./claude-code-button";
 import { ProgramFeedbackButton } from "./program-feedback-button";
 import { CURRENT_PROGRAM } from "@/constants/nk-programs";
 
-export function NkGnb({ userName = "" }: { userName?: string }) {
+export function NkGnb({
+  userName = "",
+  showClaudeCode = false,
+}: {
+  userName?: string;
+  /**
+   * Claude Code 버튼 노출 여부 — 대표급(director·principal·admin)에게만 준다
+   * (대표 지시, 2026-08-20). 판정은 레이아웃이 하고 여기는 받기만 한다.
+   * 기본값 false: 역할을 모르는 자리에서 실수로 새어 나가지 않게.
+   */
+  showClaudeCode?: boolean;
+}) {
   return (
     <header className="nk-gnb" data-nk-app="consult">
       {/* 워드마크 — "NK" 만 브라스. 이 화면에서 브라스를 쓰는 첫 자리다. */}
@@ -36,9 +47,10 @@ export function NkGnb({ userName = "" }: { userName?: string }) {
         {/* 야간 모드 토글은 두지 않는다 — 이 앱은 코럴 라이트 스킨 한 벌뿐이라
             눌러도 상단 바 색만 바뀌고 본문은 그대로다. 앱에 야간 팔레트가 생기면
             그때 design-system README 3단계대로 붙인다. */}
-        {/* 오류·개선 제안 — 작성자는 로그인 강사 이름으로 채운다. */}
+        {/* 오류·개선 제안 — 전 직원. 작성자는 로그인 강사 이름으로 채운다. */}
         <ProgramFeedbackButton userName={userName} />
-        <ClaudeCodeButton />
+        {/* Claude Code — 대표급만. 저장소를 여는 버튼이라 선생님에게는 쓸 일이 없다. */}
+        {showClaudeCode ? <ClaudeCodeButton /> : null}
         {/* 로그아웃은 사이드바 하단 사용자 카드에 이미 있다 — 두 곳에 두지 않는다. */}
       </div>
     </header>

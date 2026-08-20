@@ -28,8 +28,10 @@ export default async function DashboardLayout({
         }}
       />
     <div className="flex h-screen flex-col overflow-hidden app-chrome">
-      {/* NK 공통 상단 바 — 프로그램 전환은 모든 NK 앱이 같은 자리에서 한다. */}
-      <NkGnb userName={currentTeacher?.name ?? ""} />
+      {/* NK 공통 상단 바 — 프로그램 전환은 사이드바 맨 위로 옮겼다(구조 v2).
+          Claude Code 버튼은 대표급만 본다 (대표 지시). AI 비서를 여는 조건과 같은
+          역할 집합을 쓴다 — 같은 '대표급'을 두 군데서 다르게 정의하지 않는다. */}
+      <NkGnb userName={currentTeacher?.name ?? ""} showClaudeCode={isExecutive} />
       {/* 사이드바+본문. 인쇄에서는 이 래퍼가 높이를 잘라내지 않도록 풀어 준다. */}
       <div className="flex min-h-0 flex-1 overflow-hidden print:block print:h-auto print:overflow-visible">
         <Sidebar currentTeacher={currentTeacher} />

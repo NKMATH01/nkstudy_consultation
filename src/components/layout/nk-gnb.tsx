@@ -1,32 +1,24 @@
 // NK 공통 GNB — 모든 NK 프로그램의 맨 위.
 // 기준 구현: 업무보고 저장소 design-system/nk-gnb.html
 //
-// 스타일은 public/nk-shared.css 의 .nk-gnb* 클래스가 전부 갖고 있다. 여기서 프로그램마다
-// 달라지는 것은 워드마크 이름과 활성 표시 두 가지뿐이다.
+// 스타일은 public/nk-shared.css 의 .nk-gnb* 클래스가 전부 갖고 있다.
 //
-// 서버 컴포넌트로 둔다 — 링크 목록은 정적이고, 상호작용이 있는 Claude Code 버튼만
-// 클라이언트 컴포넌트로 따로 분리돼 있다.
+// ★ 2026-08-20 부터 '미니 GNB' 다 (대표 지시, 공통 구조 v2).
+//   전에는 여기 가운데에 프로그램 전환 링크 8개가 얹혀 있어서, 옮겨 다닐 때만 쓰는
+//   줄이 화면에서 가장 눈에 띄는 자리를 차지했다. 그 줄은 사이드바 맨 위
+//   'NK 프로그램' 접이식 섹션으로 내렸다(layout/sidebar 참고).
+//   여기 남는 것은 '어느 프로그램인지'와 늘 손 닿아야 하는 것뿐이다.
+//
+// 바꿔 끼우는 곳은 한 군데뿐이다 — constants/nk-programs 의 CURRENT_PROGRAM_ID.
+//
+// 서버 컴포넌트로 둔다 — 남은 것 중 상호작용이 있는 버튼만 클라이언트 컴포넌트로
+// 따로 분리돼 있다.
 
 import Link from "next/link";
 
 import { ClaudeCodeButton } from "./claude-code-button";
 import { ProgramFeedbackButton } from "./program-feedback-button";
-
-/** 전환 목록 — 모든 프로그램이 같은 목록·같은 순서를 갖는다.
- *  순서가 프로그램마다 다르면 쓰는 사람이 매번 눈으로 다시 찾아야 한다. */
-const NK_APPS = [
-  { label: "업무보고", href: "https://nk-work-report.vercel.app" },
-  { label: "보강관리", href: "https://nk-bogang.vercel.app" },
-  { label: "학습 관리", href: "https://nk-academy.vercel.app" },
-  { label: "숙제 관리", href: "https://nkhomework.vercel.app" },
-  { label: "학생 상담", href: "https://nk-counseling-management.vercel.app" },
-  { label: "등록·퇴원", href: "https://nkstudy-consultation.vercel.app" },
-  { label: "설문조사", href: "https://nk-survey.vercel.app" },
-  { label: "클리닉 강사 관리", href: "https://gangsa-clinic.vercel.app" },
-] as const;
-
-/** 이 프로그램. 전환 줄에서 활성 필로 표시된다. */
-const CURRENT_APP = "등록·퇴원";
+import { CURRENT_PROGRAM } from "@/constants/nk-programs";
 
 export function NkGnb({ userName = "" }: { userName?: string }) {
   return (
@@ -34,26 +26,11 @@ export function NkGnb({ userName = "" }: { userName?: string }) {
       {/* 워드마크 — "NK" 만 브라스. 이 화면에서 브라스를 쓰는 첫 자리다. */}
       <Link className="nk-gnb__wordmark" href="/">
         <span className="nk-gnb__wordmark-nk">NK</span>
-        <span className="nk-gnb__wordmark-name">등록·퇴원</span>
+        <span className="nk-gnb__wordmark-name">{CURRENT_PROGRAM.label}</span>
       </Link>
 
-      {/* 같은 창에서 이동한다 — 새 탭으로 열면 탭이 쌓이고 '여러 프로그램'으로 느껴진다. */}
-      <nav className="nk-gnb__apps" aria-label="프로그램 전환">
-        {NK_APPS.map((app) => {
-          const active = app.label === CURRENT_APP;
-          return (
-            <a
-              key={app.href}
-              href={app.href}
-              className={active ? "nk-gnb__app nk-gnb__app--active" : "nk-gnb__app"}
-              aria-current={active ? "page" : undefined}
-              title={active ? undefined : `${app.label}으로 이동`}
-            >
-              {app.label}
-            </a>
-          );
-        })}
-      </nav>
+      {/* 가운데는 비워 둔다. 프로그램 전환은 사이드바 맨 위로 옮겼다(구조 v2). */}
+      <div className="flex-1" />
 
       <div className="nk-gnb__right">
         {/* 야간 모드 토글은 두지 않는다 — 이 앱은 코럴 라이트 스킨 한 벌뿐이라

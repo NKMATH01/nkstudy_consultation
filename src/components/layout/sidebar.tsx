@@ -10,8 +10,10 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LogOut,
   BookOpenCheck,
+  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
+  LayoutGrid,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { CurrentTeacherInfo } from "@/types";
@@ -20,6 +22,12 @@ import {
   getVisibleSectors,
   type MenuItem,
 } from "@/lib/menu-sectors";
+import {
+  CURRENT_PROGRAM,
+  CURRENT_PROGRAM_ID,
+  SIDEBAR_OPEN_KEY,
+  VISIBLE_NK_PROGRAMS,
+} from "@/constants/nk-programs";
 
 const COLLAPSE_STORAGE_KEY = "nkc:sidebar-collapsed";
 
@@ -65,6 +73,63 @@ function setCollapsedStore(next: boolean) {
   collapseListeners.forEach((listener) => listener());
 }
 
+/*
+  사이드 섹션 아코디언 — 접기 상태와 같은 방식의 외부 저장소다.
+
+  ★ 저장 키(nk:sidebar-open-sections)를 전 프로그램이 공유한다. 업무보고에서 접어 둔
+    'NK 프로그램'은 여기서도 접힌 채로 열린다.
+  ★ 저장값이 없을 때만 기본값을 쓴다. 한 번 접어 둔 것을 화면을 옮길 때마다 되돌리면
+    접는 기능이 있으나 마나가 된다.
+*/
+const DEFAULT_OPEN_SECTIONS = ["consult-sector"];
+
+let openSectionsRaw: string | null = null;
+let openSectionsRead = false;
+const openListeners = new Set<() => void>();
+
+function subscribeOpenSections(onStoreChange: () => void) {
+  openListeners.add(onStoreChange);
+  return () => {
+    openListeners.delete(onStoreChange);
+  };
+}
+
+function getOpenSectionsSnapshot(): string | null {
+  if (!openSectionsRead) {
+    openSectionsRead = true;
+    try {
+      openSectionsRaw = window.localStorage.getItem(SIDEBAR_OPEN_KEY);
+    } catch {
+      // localStorage 접근 불가(프라이빗 모드 등)면 기본값을 유지한다.
+    }
+  }
+  return openSectionsRaw;
+}
+
+function getOpenSectionsServerSnapshot(): string | null {
+  return null;
+}
+
+function setOpenSections(next: Set<string>) {
+  openSectionsRaw = JSON.stringify([...next]);
+  openSectionsRead = true;
+  try {
+    window.localStorage.setItem(SIDEBAR_OPEN_KEY, openSectionsRaw);
+  } catch {
+    // 저장 실패는 무시(이번 세션에만 적용).
+  }
+  openListeners.forEach((listener) => listener());
+}
+
+function parseOpenSections(raw: string | null): Set<string> {
+  if (!raw) return new Set(DEFAULT_OPEN_SECTIONS);
+  try {
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set(DEFAULT_OPEN_SECTIONS);
+  }
+}
+
 interface SidebarProps {
   currentTeacher?: CurrentTeacherInfo | null;
   inSheet?: boolean;
@@ -83,6 +148,22 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
   const isCollapsed = collapsed && !inSheet;
 
   const toggleCollapsed = () => setCollapsedStore(!collapsed);
+
+  const openSections = parseOpenSections(
+    useSyncExternalStore(
+      subscribeOpenSections,
+      getOpenSectionsSnapshot,
+      getOpenSectionsServerSnapshot,
+    ),
+  );
+  const toggleSection = (id: string) => {
+    const next = new Set(openSections);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setOpenSections(next);
+  };
+  const programsOpen = openSections.has("nk-programs");
+  const sectorOpen = openSections.has("consult-sector");
 
   // 현재 경로가 속한 카테고리의 메뉴만 렌더한다(카테고리 전환은 헤더 탭이 담당).
   const visibleSectors = getVisibleSectors(currentTeacher);
@@ -140,16 +221,29 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
 
   const divider = <div className="mx-3 my-2.5 h-px bg-nk-line-soft" />;
 
-  const sectionLabel = (label: string) => (
-    <div className="mb-2 flex items-center gap-1.5 px-3.5">
-      <span className="h-1 w-1 rounded-full bg-nk-navy" />
+  // 섹션 머리 — 누르면 접히고 펴진다. 접혀 있을 때만 안쪽 사정을 힌트로 알린다.
+  const sectionHead = (id: string, label: string, open: boolean, hint?: string) => (
+    <button
+      type="button"
+      onClick={() => toggleSection(id)}
+      aria-expanded={open}
+      className="mb-2 flex w-full items-center gap-1.5 rounded-md px-3.5 py-1 text-left transition-colors hover:bg-nk-navy-soft"
+    >
+      <ChevronDown
+        className={`h-3 w-3 flex-shrink-0 text-nk-ink-hint transition-transform ${open ? "" : "-rotate-90"}`}
+      />
       <span
-        className="uppercase text-nk-ink-hint"
+        className="flex-1 truncate uppercase text-nk-ink-hint"
         style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em" }}
       >
         {label}
       </span>
-    </div>
+      {!open && hint ? (
+        <span className="max-w-[86px] truncate text-[10px] font-semibold text-nk-ink-sub">
+          {hint}
+        </span>
+      ) : null}
+    </button>
   );
 
   // 사용자 표시 정보
@@ -189,10 +283,71 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         className={`min-h-0 flex-1 overflow-y-auto pb-2 ${isCollapsed ? "px-2" : "px-3"} ${inSheet ? "pt-3" : ""}`}
         style={{ scrollbarWidth: "thin" }}
       >
+        {/* ── NK 프로그램 전환 — 기본 접힘 ────────────────────────────────
+            상단바에 있던 8개 링크를 여기로 내렸다(공통 구조 v2). 접혀 있을 때는
+            지금 어느 프로그램에 있는지만 보여 주고, 펼치면 전부 나온다.
+            같은 창에서 이동한다 — 새 탭으로 열면 탭이 쌓이고 '여러 프로그램'으로 느껴진다. */}
+        {isCollapsed ? (
+          // 아이콘만 남는 폭에서는 8줄을 넣을 자리가 없다. 누르면 사이드바를 펴면서
+          // 프로그램 섹션을 함께 연다 — 좁혀 뒀다고 전환 길이 막히면 안 된다.
+          <button
+            type="button"
+            onClick={() => {
+              setCollapsedStore(false);
+              if (!programsOpen) toggleSection("nk-programs");
+            }}
+            title="NK 프로그램"
+            aria-label="NK 프로그램 열기"
+            className="mb-1 flex w-full items-center justify-center rounded-lg px-0 py-2 text-nk-ink-hint transition-colors hover:bg-nk-navy-soft hover:text-nk-navy"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-nk-sunken">
+              <LayoutGrid className="h-[15px] w-[15px]" />
+            </span>
+          </button>
+        ) : (
+          <>
+            {sectionHead("nk-programs", "NK 프로그램", programsOpen, CURRENT_PROGRAM.label)}
+            {programsOpen &&
+              VISIBLE_NK_PROGRAMS.map((program) => {
+                const here = program.id === CURRENT_PROGRAM_ID;
+                return (
+                  <a
+                    key={program.id}
+                    href={program.url}
+                    aria-current={here ? "page" : undefined}
+                    title={
+                      here
+                        ? `${program.label} (지금 보는 프로그램)`
+                        : `${program.label}으로 이동`
+                    }
+                    className={`group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-lg px-3.5 py-2 ${
+                      here ? "bg-nk-navy-soft text-nk-navy" : "text-nk-ink-sub hover:bg-nk-navy-soft/60"
+                    }`}
+                    style={{ fontSize: "13px", fontWeight: here ? 700 : 600 }}
+                  >
+                    <span
+                      className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${
+                        here
+                          ? "bg-nk-navy text-nk-navy-ink"
+                          : "bg-nk-sunken text-nk-ink-hint group-hover:bg-nk-navy-soft group-hover:text-nk-navy"
+                      }`}
+                    >
+                      <program.Icon className="h-[15px] w-[15px]" />
+                    </span>
+                    <span className="flex-1 truncate">{program.label}</span>
+                    {here && <span className="text-[10px] font-bold">현재</span>}
+                  </a>
+                );
+              })}
+          </>
+        )}
+
+        {divider}
+
         {activeItems.length > 0 && (
           <>
-            {!isCollapsed && sectionLabel(currentSector?.name ?? "")}
-            {renderItems(activeItems)}
+            {!isCollapsed && sectionHead("consult-sector", currentSector?.name ?? "", sectorOpen, `${activeItems.length}개`)}
+            {(sectorOpen || isCollapsed) && renderItems(activeItems)}
           </>
         )}
 

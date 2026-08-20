@@ -42,9 +42,9 @@ import type { Withdrawal } from "@/types";
 /** 기본 노출할 강사 카드 수. 나머지는 "더 보기"로 편다. */
 const TEACHER_PREVIEW_COUNT = 6;
 
-const INK = "#0F2B5B";
-const SUB = "#64748B";
-const LINE = "#E8ECF1";
+const INK = "rgb(var(--wr-navy-strong))";
+const SUB = "rgb(var(--wr-ink-sub))";
+const LINE = "rgb(var(--wr-line-soft))";
 
 function Panel({
   title,
@@ -56,7 +56,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl bg-white p-5" style={{ border: `1px solid ${LINE}` }}>
+    <div className="rounded-2xl bg-nk-surface p-5" style={{ border: `1px solid ${LINE}` }}>
       <div className="mb-3">
         <div className="text-[13px] font-extrabold" style={{ color: INK }}>
           {title}
@@ -92,7 +92,7 @@ function MiniBars({
             className="w-[10px] rounded-sm"
             style={{
               height: `${Math.max(2, (v / max) * 28)}px`,
-              background: v === 0 ? "#EEF2F6" : INK,
+              background: v === 0 ? "rgb(var(--wr-sunken))" : INK,
               opacity: v === 0 ? 1 : 0.35 + (v / max) * 0.65,
             }}
           />
@@ -197,12 +197,12 @@ export function WithdrawalInsightBlocks({
       {/* 데이터 신뢰도 — 아래 숫자를 어디까지 믿을지 먼저 밝힌다 */}
       <div
         className="rounded-2xl p-4"
-        style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}
+        style={{ background: "rgb(var(--wr-status-warn-soft))", border: "1px solid rgb(var(--wr-status-warn-soft))" }}
       >
-        <div className="text-[12px] font-extrabold mb-2" style={{ color: "#92400E" }}>
+        <div className="text-[12px] font-extrabold mb-2" style={{ color: "rgb(var(--wr-status-warn))" }}>
           이 화면의 데이터 신뢰도
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1.5 text-[11.5px]" style={{ color: "#92400E" }}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1.5 text-[11.5px]" style={{ color: "rgb(var(--wr-status-warn))" }}>
           <div>퇴원 기록 {reliability.totalRows}행 → 사건 {reliability.totalEvents}건 (중복 {reliability.mergedRows}행 병합)</div>
           <div>상담일 미기록 {reliability.missingConsultDate}/{reliability.totalEvents}건</div>
           <div>
@@ -241,7 +241,7 @@ export function WithdrawalInsightBlocks({
                   <MiniBars months={persistence.months} counts={t.monthlyCounts} />
                   <span
                     className="ml-auto rounded-md px-2 py-0.5 text-[10px] font-bold"
-                    style={{ background: "#EEF2F6", color: INK }}
+                    style={{ background: "rgb(var(--wr-sunken))", color: INK }}
                   >
                     {t.monthsWithEvents}/{persistence.months.length}개월 지속
                   </span>
@@ -288,7 +288,7 @@ export function WithdrawalInsightBlocks({
                   key={topic}
                   title={SIGNAL_GLOSS[topic]}
                   className="rounded-md px-2 py-0.5 text-[10.5px] font-semibold"
-                  style={{ background: "#EEF2F6", color: INK }}
+                  style={{ background: "rgb(var(--wr-sunken))", color: INK }}
                 >
                   {SIGNAL_LABEL[topic]} {n}
                 </span>
@@ -334,7 +334,7 @@ export function WithdrawalInsightBlocks({
       </div>
 
       {/* ④ 강사별 확인 포인트 */}
-      <div className="rounded-2xl bg-white p-5" style={{ border: `1px solid ${LINE}` }}>
+      <div className="rounded-2xl bg-nk-surface p-5" style={{ border: `1px solid ${LINE}` }}>
         <div className="mb-1 text-[13px] font-extrabold" style={{ color: INK }}>
           강사별 확인 포인트
         </div>
@@ -346,9 +346,9 @@ export function WithdrawalInsightBlocks({
         {stableTeachers.length > 0 && (
           <div
             className="mb-3 rounded-xl px-3 py-2.5"
-            style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}
+            style={{ background: "rgb(var(--wr-status-done-soft))", border: "1px solid rgb(var(--wr-status-done-soft))" }}
           >
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-extrabold" style={{ color: "#15803D" }}>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-extrabold" style={{ color: "rgb(var(--wr-status-done))" }}>
               <CheckCircle2 className="h-3.5 w-3.5" />
               안정 담당 (담당 재원 {STABLE_MIN_ENROLLED}명 이상 · 최근 {STABLE_RECENT_MONTHS}개월 기준)
             </div>
@@ -356,8 +356,8 @@ export function WithdrawalInsightBlocks({
               {stableTeachers.map((st) => (
                 <span
                   key={st.teacher}
-                  className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold"
-                  style={{ color: "#15803D", boxShadow: "inset 0 0 0 1px #BBF7D0" }}
+                  className="rounded-full bg-nk-surface px-2.5 py-1 text-[11px] font-semibold"
+                  style={{ color: "rgb(var(--wr-status-done))", boxShadow: "inset 0 0 0 1px rgb(var(--wr-status-done-soft))" }}
                 >
                   {st.teacher} T · 담당 {st.enrolledCount}명 ·{" "}
                   {st.recentCount === 0 ? "최근 3개월 퇴원 없음" : `최근 3개월 ${st.recentCount}건`}
@@ -381,7 +381,7 @@ export function WithdrawalInsightBlocks({
                   <button
                     type="button"
                     onClick={() => setOpenTeacher(open ? null : t.teacher)}
-                    className="flex w-full flex-wrap items-center gap-2 px-3 py-2 text-left hover:bg-slate-50"
+                    className="flex w-full flex-wrap items-center gap-2 px-3 py-2 text-left hover:bg-nk-sunken"
                   >
                     {open ? (
                       <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ color: SUB }} />
@@ -401,7 +401,7 @@ export function WithdrawalInsightBlocks({
                       <span
                         key={x.topic}
                         className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                        style={{ background: "#EEF2F6", color: INK }}
+                        style={{ background: "rgb(var(--wr-sunken))", color: INK }}
                       >
                         {SIGNAL_LABEL[x.topic]}
                       </span>
@@ -409,7 +409,7 @@ export function WithdrawalInsightBlocks({
                     {t.holdJudgement && (
                       <span
                         className="rounded px-1.5 py-0.5 text-[10px] font-bold"
-                        style={{ background: "#EEF2F6", color: SUB }}
+                        style={{ background: "rgb(var(--wr-sunken))", color: SUB }}
                       >
                         판단 보류 (n&lt;{MIN_EVENTS_FOR_READING})
                       </span>
@@ -455,7 +455,7 @@ export function WithdrawalInsightBlocks({
                             {t.teachingSnippets.map((sn, i) => (
                               <div
                                 key={i}
-                                className="rounded-md bg-slate-50 px-2.5 py-1.5 text-[11px]"
+                                className="rounded-md bg-nk-sunken px-2.5 py-1.5 text-[11px]"
                                 style={{ color: SUB }}
                               >
                                 <span className="font-semibold" style={{ color: INK }}>
@@ -506,17 +506,17 @@ export function WithdrawalInsightBlocks({
                             // 고3 사건은 숨기지 않되 회색 톤 + 뱃지로 판정 대상이 아님을 밝힌다.
                             return (
                               <div key={id} className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                                <span className="font-bold" style={{ color: a.graduating ? "#94A3B8" : INK }}>
+                                <span className="font-bold" style={{ color: a.graduating ? "rgb(var(--wr-ink-hint))" : INK }}>
                                   {a.event.row.name}
                                 </span>
-                                <span style={{ color: a.graduating ? "#94A3B8" : SUB }}>
+                                <span style={{ color: a.graduating ? "rgb(var(--wr-ink-hint))" : SUB }}>
                                   {a.month !== null ? `${a.month}월` : "월 미상"} ·{" "}
                                   {TENURE_BAND_LABEL[a.event.tenureBand]}
                                 </span>
                                 {a.graduating && (
                                   <span
                                     className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                                    style={{ background: "#F1F5F9", color: "#94A3B8" }}
+                                    style={{ background: "rgb(var(--wr-sunken))", color: "rgb(var(--wr-ink-hint))" }}
                                   >
                                     고3 (수능·졸업 자연 이탈 가능)
                                   </span>
@@ -526,8 +526,8 @@ export function WithdrawalInsightBlocks({
                                     key={tp}
                                     className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
                                     style={{
-                                      background: a.graduating ? "#F1F5F9" : "#EEF2F6",
-                                      color: a.graduating ? "#94A3B8" : INK,
+                                      background: a.graduating ? "rgb(var(--wr-sunken))" : "rgb(var(--wr-sunken))",
+                                      color: a.graduating ? "rgb(var(--wr-ink-hint))" : INK,
                                     }}
                                   >
                                     {SIGNAL_LABEL[tp]}
@@ -546,7 +546,7 @@ export function WithdrawalInsightBlocks({
                           onClick={() => handleGeneratePlan(t.teacher)}
                           disabled={planning === t.teacher}
                           className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-bold transition-colors disabled:opacity-60"
-                          style={{ background: "#EEF2F6", color: INK }}
+                          style={{ background: "rgb(var(--wr-sunken))", color: INK }}
                         >
                           {planning === t.teacher ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -559,7 +559,7 @@ export function WithdrawalInsightBlocks({
                         {planError[t.teacher] && (
                           <div
                             className="mt-2 rounded-md px-2.5 py-1.5 text-[11px]"
-                            style={{ background: "#FEF2F2", color: "#B91C1C" }}
+                            style={{ background: "rgb(var(--wr-status-late-soft))", color: "rgb(var(--wr-status-late))" }}
                           >
                             {planError[t.teacher]}
                           </div>
@@ -597,14 +597,14 @@ export function WithdrawalInsightBlocks({
                                   const key = `${t.teacher}:${i}`;
                                   const added = addedActions.has(key);
                                   return (
-                                    <div key={i} className="rounded-md bg-slate-50 px-2.5 py-2">
+                                    <div key={i} className="rounded-md bg-nk-sunken px-2.5 py-2">
                                       <div className="flex items-start gap-2">
                                         <div className="min-w-0 flex-1">
                                           <div className="text-[11.5px] font-bold" style={{ color: INK }}>
                                             {ac.title}
                                             <span
                                               className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                                              style={{ background: "#EEF2F6", color: SUB }}
+                                              style={{ background: "rgb(var(--wr-sunken))", color: SUB }}
                                             >
                                               {ac.timeframe}
                                             </span>
@@ -623,7 +623,7 @@ export function WithdrawalInsightBlocks({
                                           disabled={added}
                                           onClick={() => handleAddAction(t.teacher, ac.title, ac.detail, key)}
                                           className="flex-shrink-0 rounded-md px-2 py-1 text-[10.5px] font-bold transition-colors disabled:opacity-50"
-                                          style={{ background: added ? "#F1F5F9" : "#EEF2F6", color: added ? SUB : INK }}
+                                          style={{ background: added ? "rgb(var(--wr-sunken))" : "rgb(var(--wr-sunken))", color: added ? SUB : INK }}
                                         >
                                           {added ? "추가됨" : "실행 항목으로 추가"}
                                         </button>
@@ -635,12 +635,12 @@ export function WithdrawalInsightBlocks({
                             </div>
 
                             {plans[t.teacher].positiveNotes.length > 0 && (
-                              <div className="rounded-md px-2.5 py-2" style={{ background: "#F0FDF4" }}>
-                                <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: "#15803D" }}>
+                              <div className="rounded-md px-2.5 py-2" style={{ background: "rgb(var(--wr-status-done-soft))" }}>
+                                <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: "rgb(var(--wr-status-done))" }}>
                                   잘하고 있는 점
                                 </div>
                                 {plans[t.teacher].positiveNotes.map((n, i) => (
-                                  <div key={i} className="text-[11.5px]" style={{ color: "#166534" }}>
+                                  <div key={i} className="text-[11.5px]" style={{ color: "rgb(var(--wr-status-done))" }}>
                                     · {n}
                                   </div>
                                 ))}
@@ -659,7 +659,7 @@ export function WithdrawalInsightBlocks({
               <button
                 type="button"
                 onClick={() => setShowAllTeachers((v) => !v)}
-                className="w-full rounded-lg py-2 text-[11.5px] font-bold transition-colors hover:bg-slate-50"
+                className="w-full rounded-lg py-2 text-[11.5px] font-bold transition-colors hover:bg-nk-sunken"
                 style={{ border: `1px dashed ${LINE}`, color: SUB }}
               >
                 {showAllTeachers
@@ -700,7 +700,7 @@ export function EventAxesSummary({ row }: { row: Withdrawal }) {
   ];
 
   return (
-    <div className="rounded-xl p-3" style={{ background: "#F8FAFC", border: `1px solid ${LINE}` }}>
+    <div className="rounded-xl p-3" style={{ background: "rgb(var(--wr-sunken))", border: `1px solid ${LINE}` }}>
       <div className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: SUB }}>
         자동 추정 4축 (판정 아님)
       </div>
@@ -717,7 +717,7 @@ export function EventAxesSummary({ row }: { row: Withdrawal }) {
         ))}
       </div>
       {parentCopied && (
-        <div className="mt-2 text-[11px]" style={{ color: "#92400E" }}>
+        <div className="mt-2 text-[11px]" style={{ color: "rgb(var(--wr-status-warn))" }}>
           학부모 의견은 학생 의견과 동일합니다(별도 진술 아님).
         </div>
       )}

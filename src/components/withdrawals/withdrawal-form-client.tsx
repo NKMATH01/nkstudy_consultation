@@ -306,9 +306,9 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
     });
   };
 
-  const inputCls = "w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-  const selectCls = "w-full h-9 rounded-md border border-slate-200 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-  const labelCls = "text-xs font-semibold text-slate-500 mb-1 block";
+  const inputCls = "w-full h-9 rounded-md border border-nk-line-soft bg-nk-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress";
+  const selectCls = "w-full h-9 rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress";
+  const labelCls = "text-xs font-semibold text-nk-ink-sub mb-1 block";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -322,9 +322,9 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
 
         <div className="space-y-5">
           {/* Text paste area */}
-          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+          <div className="rounded-xl border border-nk-progress bg-nk-progress-soft/50 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-bold text-blue-700">퇴원 기록 텍스트 붙여넣기</span>
+              <span className="text-sm font-bold text-nk-progress">퇴원 기록 텍스트 붙여넣기</span>
               <Button
                 type="button"
                 size="sm"
@@ -340,14 +340,14 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               placeholder="NK학원 퇴원 기록 텍스트를 여기에 붙여넣으세요..."
-              className="w-full h-32 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full h-32 rounded-lg border border-nk-progress bg-nk-surface px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-nk-progress"
             />
           </div>
 
           {/* Basic Info */}
           <div>
-            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <h4 className="text-sm font-bold text-nk-ink mb-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-nk-progress" />
               기본 정보
             </h4>
             <div className="grid grid-cols-4 gap-3">
@@ -400,8 +400,8 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
 
           {/* Learning Status */}
           <div>
-            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <h4 className="text-sm font-bold text-nk-ink mb-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-nk-done" />
               학습 상태
             </h4>
             <div className="grid grid-cols-4 gap-3">
@@ -442,15 +442,15 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
 
           {/* Withdrawal Reasons */}
           <div>
-            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            <h4 className="text-sm font-bold text-nk-ink mb-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-nk-late" />
               퇴원 사유
             </h4>
             <div className="mb-3">
               <div className="flex items-center gap-2 mb-1">
                 <label className={`${labelCls} mb-0`}>퇴원 사유 분류</label>
                 {isReasonInferred && (
-                  <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                  <span className="inline-flex items-center rounded-md bg-nk-warn-soft px-2 py-0.5 text-[11px] font-semibold text-nk-warn ring-1 ring-inset ring-nk-warn">
                     자동 추론된 사유 — 확인 후 저장하세요
                   </span>
                 )}
@@ -463,26 +463,26 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>학생 의견</label>
-                <textarea className="w-full h-16 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="학생의 퇴원 의견" value={fields.student_opinion || ""} onChange={(e) => updateField("student_opinion", e.target.value)} />
+                <textarea className="w-full h-16 rounded-md border border-nk-line-soft bg-nk-surface px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-nk-progress" placeholder="학생의 퇴원 의견" value={fields.student_opinion || ""} onChange={(e) => updateField("student_opinion", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>학부모 의견</label>
-                <textarea className="w-full h-16 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="학부모의 퇴원 의견" value={fields.parent_opinion || ""} onChange={(e) => updateField("parent_opinion", e.target.value)} />
+                <textarea className="w-full h-16 rounded-md border border-nk-line-soft bg-nk-surface px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-nk-progress" placeholder="학부모의 퇴원 의견" value={fields.parent_opinion || ""} onChange={(e) => updateField("parent_opinion", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>담당선생님 추측</label>
-                <textarea className="w-full h-20 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="담당 선생님의 추측" value={fields.teacher_opinion || ""} onChange={(e) => updateField("teacher_opinion", e.target.value)} />
+                <textarea className="w-full h-20 rounded-md border border-nk-line-soft bg-nk-surface px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-nk-progress" placeholder="담당 선생님의 추측" value={fields.teacher_opinion || ""} onChange={(e) => updateField("teacher_opinion", e.target.value)} />
               </div>
             </div>
           </div>
 
           {/* Final Consultation */}
           <div>
-            <h4 className="text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <h4 className="text-sm font-bold text-nk-ink mb-1.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-nk-warn" />
               최종 상담
             </h4>
-            <p className="text-xs text-slate-400 mb-3">퇴원 상담 직전에 진행한 마지막 정기 상담 내용을 기록합니다</p>
+            <p className="text-xs text-nk-ink-hint mb-3">퇴원 상담 직전에 진행한 마지막 정기 상담 내용을 기록합니다</p>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className={labelCls}>상담 일시</label>
@@ -501,8 +501,8 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
 
           {/* Follow-up */}
           <div>
-            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            <h4 className="text-sm font-bold text-nk-ink mb-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-nk-cat-3" />
               향후 관리
             </h4>
             <div className="grid grid-cols-3 gap-3">

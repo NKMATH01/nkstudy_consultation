@@ -17,11 +17,11 @@ export default async function PermissionsPage() {
       <div>
         <h1
           className="text-xl font-extrabold"
-          style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}
+          style={{ color: "rgb(var(--wr-ink))", letterSpacing: "-0.02em", marginBottom: "3px" }}
         >
           선생님 권한 관리
         </h1>
-        <p className="text-[12.5px]" style={{ color: "#64748B" }}>
+        <p className="text-[12.5px]" style={{ color: "rgb(var(--wr-ink-sub))" }}>
           각 선생님이 볼 수 있는 사이드 메뉴를 설정합니다
         </p>
       </div>

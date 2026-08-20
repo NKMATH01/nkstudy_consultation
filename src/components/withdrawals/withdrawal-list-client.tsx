@@ -108,7 +108,7 @@ function WithdrawalInsightStrip({ withdrawals }: { withdrawals: Withdrawal[] }) 
         insight.trend == null
           ? `직전 90일 ${insight.prev90}명`
           : `직전 90일 대비 ${insight.trend > 0 ? "+" : ""}${insight.trend}%`,
-      color: trendUp ? "#DC2626" : "#0F766E",
+      color: trendUp ? "rgb(var(--wr-status-late))" : "rgb(var(--wr-status-done))",
       alert: trendUp,
     },
     {
@@ -122,21 +122,21 @@ function WithdrawalInsightStrip({ withdrawals }: { withdrawals: Withdrawal[] }) 
       label: "최다 퇴원 강사",
       value: insight.topTeacher ? `${insight.topTeacher[0]} T` : "-",
       sub: insight.topTeacher ? `${insight.topTeacher[1]}명 — 분석 대시보드에서 상세 확인` : "강사 데이터 없음",
-      color: "#DC2626",
+      color: "rgb(var(--wr-status-late))",
       alert: Boolean(insight.topTeacher && insight.topTeacher[1] >= 3),
     },
     {
       label: "복귀 유망",
       value: `${insight.comebackPromising}명`,
       sub: "복귀 가능성 상/중상 — 재원 유도 연락 대상",
-      color: "#0F766E",
+      color: "rgb(var(--wr-status-done))",
       alert: false,
     },
     {
       label: "회고 작성률",
       value: `${retroRate.rate}%`,
       sub: `${retroRate.completed}건 완료 / 총 ${retroRate.total}건`,
-      color: retroRate.completed < retroRate.total ? "#B45309" : "#0F766E",
+      color: retroRate.completed < retroRate.total ? "rgb(var(--wr-status-warn))" : "rgb(var(--wr-status-done))",
       alert: retroRate.completed < retroRate.total,
     },
   ];
@@ -146,19 +146,19 @@ function WithdrawalInsightStrip({ withdrawals }: { withdrawals: Withdrawal[] }) 
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-2xl border bg-white px-4 py-3.5"
+          className="rounded-2xl border bg-nk-surface px-4 py-3.5"
           style={{
-            borderColor: card.alert ? "#FCA5A5" : "#E8ECF1",
+            borderColor: card.alert ? "rgb(var(--wr-status-late-soft))" : "rgb(var(--wr-line-soft))",
             boxShadow: card.alert
-              ? "0 4px 14px rgba(220,38,38,0.10)"
-              : "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+              ? "0 4px 14px rgb(var(--wr-status-late) / 0.10)"
+              : "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
           }}
         >
-          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">{card.label}</p>
-          <p className="mt-1 truncate text-lg font-extrabold leading-tight" style={{ color: card.color }}>
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-nk-ink-hint">{card.label}</p>
+          <p className="wr-num mt-1 truncate text-lg font-extrabold leading-tight" style={{ color: card.color }}>
             {card.value}
           </p>
-          <p className="mt-0.5 truncate text-[11px] text-slate-400" title={card.sub}>
+          <p className="mt-0.5 truncate text-[11px] text-nk-ink-hint" title={card.sub}>
             {card.sub}
           </p>
         </div>
@@ -169,15 +169,15 @@ function WithdrawalInsightStrip({ withdrawals }: { withdrawals: Withdrawal[] }) 
 
 /* ─── Comeback Possibility Badge ─── */
 function ComebackBadge({ value }: { value: string | null }) {
-  if (!value) return <span className="text-xs text-slate-400">-</span>;
+  if (!value) return <span className="text-xs text-nk-ink-hint">-</span>;
   const v = value.trim();
-  let cls = "bg-red-100 text-red-700 ring-red-200";
-  if (v === "상") cls = "bg-emerald-100 text-emerald-700 ring-emerald-200";
-  else if (v === "중상") cls = "bg-green-100 text-green-700 ring-green-200";
-  else if (v === "중") cls = "bg-amber-100 text-amber-700 ring-amber-200";
-  else if (v === "중하") cls = "bg-orange-100 text-orange-700 ring-orange-200";
-  else if (v === "하") cls = "bg-red-100 text-red-700 ring-red-200";
-  else if (v === "최하") cls = "bg-red-200 text-red-800 ring-red-300";
+  let cls = "bg-nk-late-soft text-nk-late ring-nk-late";
+  if (v === "상") cls = "bg-nk-done-soft text-nk-done ring-nk-done";
+  else if (v === "중상") cls = "bg-nk-done-soft text-nk-done ring-nk-done";
+  else if (v === "중") cls = "bg-nk-warn-soft text-nk-warn ring-nk-warn";
+  else if (v === "중하") cls = "bg-nk-warn-soft text-nk-warn ring-nk-warn";
+  else if (v === "하") cls = "bg-nk-late-soft text-nk-late ring-nk-late";
+  else if (v === "최하") cls = "bg-nk-late-soft text-nk-late ring-nk-late";
   return (
     <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full ring-1 ring-inset ${cls}`}>
       <RotateCcw className="h-3 w-3 mr-1 opacity-70" />
@@ -188,21 +188,21 @@ function ComebackBadge({ value }: { value: string | null }) {
 
 /* ─── Reason Category Badge ─── */
 function ReasonBadge({ value }: { value: string | null }) {
-  if (!value) return <span className="text-xs text-slate-400">-</span>;
+  if (!value) return <span className="text-xs text-nk-ink-hint">-</span>;
   const colors: Record<string, string> = {
-    "성적 부진": "bg-red-50 text-red-600 ring-red-200",
-    "학습 의지 및 태도": "bg-orange-50 text-orange-600 ring-orange-200",
-    "학습량 부담": "bg-amber-50 text-amber-600 ring-amber-200",
-    "학습 관리 및 시스템": "bg-purple-50 text-purple-600 ring-purple-200",
-    "수업 내용 및 방식": "bg-blue-50 text-blue-600 ring-blue-200",
-    "강사 역량 및 소통": "bg-pink-50 text-pink-600 ring-pink-200",
-    "타 학원/과외로 이동": "bg-indigo-50 text-indigo-600 ring-indigo-200",
-    "친구 문제": "bg-rose-50 text-rose-600 ring-rose-200",
-    "스케줄 변동": "bg-cyan-50 text-cyan-600 ring-cyan-200",
-    "개인 사유": "bg-slate-100 text-slate-600 ring-slate-200",
-    "기타": "bg-gray-100 text-gray-600 ring-gray-200",
+    "성적 부진": "bg-nk-late-soft text-nk-late ring-nk-late",
+    "학습 의지 및 태도": "bg-nk-warn-soft text-nk-warn ring-nk-warn",
+    "학습량 부담": "bg-nk-warn-soft text-nk-warn ring-nk-warn",
+    "학습 관리 및 시스템": "bg-nk-cat-3-soft text-nk-cat-3 ring-nk-cat-3",
+    "수업 내용 및 방식": "bg-nk-progress-soft text-nk-progress ring-nk-progress",
+    "강사 역량 및 소통": "bg-nk-late-soft text-nk-late ring-nk-late",
+    "타 학원/과외로 이동": "bg-nk-progress-soft text-nk-progress ring-nk-progress",
+    "친구 문제": "bg-nk-late-soft text-nk-late ring-nk-late",
+    "스케줄 변동": "bg-nk-cat-1-soft text-nk-cat-1 ring-nk-cat-1",
+    "개인 사유": "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft",
+    "기타": "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft",
   };
-  const cls = colors[value] || "bg-slate-100 text-slate-600 ring-slate-200";
+  const cls = colors[value] || "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft";
   return (
     <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md ring-1 ring-inset whitespace-nowrap ${cls}`}>
       {value}
@@ -212,9 +212,9 @@ function ReasonBadge({ value }: { value: string | null }) {
 
 /* ─── Retrospective Status Badge ─── */
 const RETRO_BADGE: Record<RetrospectiveStatus, { label: string; cls: string }> = {
-  none: { label: "회고 필요", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
-  draft: { label: "작성 중", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
-  complete: { label: "회고 완료", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  none: { label: "회고 필요", cls: "bg-nk-warn-soft text-nk-warn ring-nk-warn" },
+  draft: { label: "작성 중", cls: "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft" },
+  complete: { label: "회고 완료", cls: "bg-nk-done-soft text-nk-done ring-nk-done" },
 };
 
 function RetrospectiveBadge({
@@ -239,12 +239,12 @@ function RetrospectiveBadge({
 
 /* ─── Subject Badge ─── */
 function SubjectBadge({ value }: { value: string | null }) {
-  if (!value) return <span className="text-xs text-slate-400">-</span>;
-  let cls = "bg-slate-100 text-slate-600 ring-slate-200";
-  if (value.includes("수학")) cls = "bg-blue-50 text-blue-700 ring-blue-200";
-  if (value.includes("영어")) cls = "bg-violet-50 text-violet-700 ring-violet-200";
+  if (!value) return <span className="text-xs text-nk-ink-hint">-</span>;
+  let cls = "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft";
+  if (value.includes("수학")) cls = "bg-nk-progress-soft text-nk-progress ring-nk-progress";
+  if (value.includes("영어")) cls = "bg-nk-cat-3-soft text-nk-cat-3 ring-nk-cat-3";
   if (value.includes("영어수학") || value.includes("영수"))
-    cls = "bg-indigo-50 text-indigo-700 ring-indigo-200";
+    cls = "bg-nk-progress-soft text-nk-progress ring-nk-progress";
   return (
     <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md ring-1 ring-inset ${cls}`}>
       {value}
@@ -256,10 +256,10 @@ function SubjectBadge({ value }: { value: string | null }) {
 function DetailItem({ label, value, icon: Icon }: { label: string; value: string | null | undefined; icon?: React.ElementType }) {
   return (
     <div className="flex items-start gap-2">
-      {Icon && <Icon className="h-3.5 w-3.5 mt-0.5 text-slate-400 flex-shrink-0" />}
+      {Icon && <Icon className="h-3.5 w-3.5 mt-0.5 text-nk-ink-hint flex-shrink-0" />}
       <div>
-        <p className="text-[11px] text-slate-400 leading-tight">{label}</p>
-        <p className="text-sm text-slate-700 font-medium leading-snug">{value || "-"}</p>
+        <p className="text-[11px] text-nk-ink-hint leading-tight">{label}</p>
+        <p className="text-sm text-nk-ink font-medium leading-snug">{value || "-"}</p>
       </div>
     </div>
   );
@@ -361,30 +361,29 @@ export function WithdrawalList({ withdrawals }: Props) {
   };
 
   const filterSelectCls =
-    "h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/50 transition-colors";
+    "h-8 rounded-lg border border-nk-line-soft bg-nk-surface px-3 text-xs text-nk-ink focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/50 transition-colors";
 
   return (
     <>
       <WithdrawalInsightStrip withdrawals={withdrawals} />
       <div
-        className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
-        style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.04)" }}
+        className="bg-nk-surface rounded-2xl border border-nk-line-soft overflow-hidden"
+        style={{ boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.04)" }}
       >
         {/* ─── Header ─── */}
         <div className="border-b px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)" }}>
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center">
-              <UserMinus className="h-5 w-5 text-white" />
+            <div className="h-9 w-9 rounded-xl bg-nk-surface/15 flex items-center justify-center">
+              <UserMinus className="h-5 w-5 text-nk-navy-ink" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-sm">퇴원생 목록</h3>
-              <p className="text-[11px] text-white/60">총 {withdrawals.length}명 등록</p>
+              <h3 className="font-bold text-nk-navy-ink text-sm">퇴원생 목록</h3>
+              <p className="text-[11px] text-nk-navy-ink/60">총 {withdrawals.length}명 등록</p>
             </div>
           </div>
           <button
             onClick={() => { setEditTarget(undefined); setShowForm(true); }}
-            className="h-8 px-4 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all hover:-translate-y-px hover:shadow-lg"
-            style={{ background: "var(--accent-warm)", color: "var(--primary)" }}
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-nk-surface px-4 text-xs font-bold text-nk-navy transition-colors hover:bg-nk-sunken"
           >
             <Plus className="h-3.5 w-3.5" />
             퇴원생 등록
@@ -393,20 +392,20 @@ export function WithdrawalList({ withdrawals }: Props) {
 
         {/* ─── Monthly Tabs ─── */}
         {availableMonths.length > 0 && (
-          <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-2 flex-wrap" style={{ background: "#F8FAFC" }}>
-            <CalendarDays className="h-4 w-4 text-slate-400 mr-1" />
+          <div className="px-6 py-3 border-b border-nk-line-soft flex items-center gap-2 flex-wrap" style={{ background: "rgb(var(--wr-sunken))" }}>
+            <CalendarDays className="h-4 w-4 text-nk-ink-hint mr-1" />
             <button
               onClick={() => setActiveMonth(null)}
               className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
                 activeMonth === null
-                  ? "text-white shadow-sm"
-                  : "bg-[#F1F5F9] text-slate-500 hover:bg-slate-200"
+                  ? "text-nk-navy-ink shadow-sm"
+                  : "bg-[rgb(var(--wr-sunken))] text-nk-ink-sub hover:bg-nk-line"
               }`}
               style={activeMonth === null ? { background: "var(--primary)" } : undefined}
             >
               전체
               {activeMonth === null && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "var(--accent-warm)", color: "var(--primary)" }}>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "rgb(var(--wr-brass-bright))", color: "rgb(var(--wr-navy-strong))" }}>
                   {withdrawals.length}
                 </span>
               )}
@@ -420,19 +419,19 @@ export function WithdrawalList({ withdrawals }: Props) {
                   onClick={() => setActiveMonth(isActive ? null : month)}
                   className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
                     isActive
-                      ? "text-white shadow-sm"
-                      : "bg-[#F1F5F9] text-slate-500 hover:bg-slate-200"
+                      ? "text-nk-navy-ink shadow-sm"
+                      : "bg-[rgb(var(--wr-sunken))] text-nk-ink-sub hover:bg-nk-line"
                   }`}
                   style={isActive ? { background: "var(--primary)" } : undefined}
                 >
                   {month}월
                   {isActive && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "var(--accent-warm)", color: "var(--primary)" }}>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: "rgb(var(--wr-brass-bright))", color: "rgb(var(--wr-navy-strong))" }}>
                       {count}
                     </span>
                   )}
                   {!isActive && (
-                    <span className="text-[10px] text-slate-400">{count}</span>
+                    <span className="text-[10px] text-nk-ink-hint">{count}</span>
                   )}
                 </button>
               );
@@ -442,28 +441,28 @@ export function WithdrawalList({ withdrawals }: Props) {
 
         {/* ─── Subject Summary Bar ─── */}
         {withdrawals.length > 0 && (
-          <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3 flex-wrap" style={{ background: "#FAFBFD" }}>
-            <Users className="h-4 w-4 text-slate-400" />
-            <span className="text-xs font-semibold text-slate-500">과목별:</span>
+          <div className="px-6 py-3 border-b border-nk-line-soft flex items-center gap-3 flex-wrap" style={{ background: "rgb(var(--wr-sunken))" }}>
+            <Users className="h-4 w-4 text-nk-ink-hint" />
+            <span className="text-xs font-semibold text-nk-ink-sub">과목별:</span>
             {Object.entries(subjectStats)
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([subject, count]) => {
-                let dotColor = "bg-slate-400";
-                if (subject.includes("수학")) dotColor = "bg-blue-500";
-                if (subject.includes("영어")) dotColor = "bg-violet-500";
+                let dotColor = "bg-nk-ink-hint";
+                if (subject.includes("수학")) dotColor = "bg-nk-progress";
+                if (subject.includes("영어")) dotColor = "bg-nk-cat-3";
                 if (subject.includes("영어수학") || subject.includes("영수"))
-                  dotColor = "bg-indigo-500";
+                  dotColor = "bg-nk-progress";
                 return (
                   <button
                     key={subject}
                     onClick={() => setFilterSubject(filterSubject === subject ? "" : subject)}
                     className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-all ${
                       filterSubject === subject
-                        ? "bg-[var(--primary)] text-white font-bold shadow-sm"
-                        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                        ? "bg-[var(--primary)] text-nk-navy-ink font-bold shadow-sm"
+                        : "bg-nk-surface text-nk-ink-sub hover:bg-nk-sunken border border-nk-line-soft"
                     }`}
                   >
-                    <span className={`h-2 w-2 rounded-full ${filterSubject === subject ? "bg-white" : dotColor}`} />
+                    <span className={`h-2 w-2 rounded-full ${filterSubject === subject ? "bg-nk-surface" : dotColor}`} />
                     {subject} <span className="font-bold">{count}</span>
                   </button>
                 );
@@ -472,8 +471,8 @@ export function WithdrawalList({ withdrawals }: Props) {
         )}
 
         {/* ─── Filters ─── */}
-        <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3 flex-wrap">
-          <Filter className="h-4 w-4 text-slate-400" />
+        <div className="px-6 py-3 border-b border-nk-line-soft flex items-center gap-3 flex-wrap">
+          <Filter className="h-4 w-4 text-nk-ink-hint" />
           <select className={filterSelectCls} value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}>
             <option value="">전체 과목</option>
             {uniqueSubjects.map((s) => (
@@ -496,8 +495,8 @@ export function WithdrawalList({ withdrawals }: Props) {
             onClick={() => setOnlyMissingRetro((v) => !v)}
             className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
               onlyMissingRetro
-                ? "text-white shadow-sm"
-                : "bg-[#F1F5F9] text-slate-500 hover:bg-slate-200"
+                ? "text-nk-navy-ink shadow-sm"
+                : "bg-[rgb(var(--wr-sunken))] text-nk-ink-sub hover:bg-nk-line"
             }`}
             style={onlyMissingRetro ? { background: "var(--primary)" } : undefined}
           >
@@ -513,7 +512,7 @@ export function WithdrawalList({ withdrawals }: Props) {
               필터 초기화
             </button>
           )}
-          <span className="text-xs text-slate-400 ml-auto font-medium">
+          <span className="text-xs text-nk-ink-hint ml-auto font-medium">
             {hasFilter ? `${filtered.length}명 / ${withdrawals.length}명` : `${filtered.length}명`}
           </span>
         </div>
@@ -521,19 +520,16 @@ export function WithdrawalList({ withdrawals }: Props) {
         {/* ─── Content ─── */}
         {withdrawals.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center px-6">
-            <div
-              className="h-20 w-20 rounded-2xl flex items-center justify-center mb-5"
-              style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, transparent) 0%, color-mix(in srgb, var(--accent-warm) 20%, transparent) 100%)" }}
-            >
-              <UserMinus className="h-10 w-10" style={{ color: "var(--primary)" }} />
+            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-nk-sunken">
+              <UserMinus className="h-10 w-10 text-nk-navy" />
             </div>
-            <h3 className="text-base font-bold text-slate-700 mb-1">등록된 퇴원생이 없습니다</h3>
-            <p className="text-sm text-slate-400 mb-6 max-w-xs">
+            <h3 className="text-base font-bold text-nk-ink mb-1">등록된 퇴원생이 없습니다</h3>
+            <p className="text-sm text-nk-ink-hint mb-6 max-w-xs">
               퇴원 기록을 추가하여 퇴원 사유와 패턴을 분석해보세요
             </p>
             <button
               onClick={() => { setEditTarget(undefined); setShowForm(true); }}
-              className="h-9 px-5 rounded-xl text-white text-sm font-bold flex items-center gap-2 transition-all hover:-translate-y-px hover:shadow-lg"
+              className="h-9 px-5 rounded-xl text-nk-navy-ink text-sm font-bold flex items-center gap-2 transition-all hover:-translate-y-px hover:shadow-lg"
               style={{ background: "var(--primary)" }}
             >
               <Plus className="h-4 w-4" />
@@ -542,11 +538,11 @@ export function WithdrawalList({ withdrawals }: Props) {
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-16 flex flex-col items-center justify-center text-center px-6">
-            <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <Filter className="h-8 w-8 text-slate-300" />
+            <div className="h-16 w-16 rounded-2xl bg-nk-sunken flex items-center justify-center mb-4">
+              <Filter className="h-8 w-8 text-nk-ink-hint" />
             </div>
-            <h3 className="text-sm font-bold text-slate-600 mb-1">필터 결과가 없습니다</h3>
-            <p className="text-xs text-slate-400 mb-4">조건을 변경하거나 필터를 초기화해보세요</p>
+            <h3 className="text-sm font-bold text-nk-ink-sub mb-1">필터 결과가 없습니다</h3>
+            <p className="text-xs text-nk-ink-hint mb-4">조건을 변경하거나 필터를 초기화해보세요</p>
             <button
               onClick={clearFilters}
               className="text-xs text-[var(--primary)] font-semibold hover:underline"
@@ -557,18 +553,18 @@ export function WithdrawalList({ withdrawals }: Props) {
         ) : (
           <div>
             {/* ─── Column Header ─── */}
-            <div className="px-6 py-2 flex items-center gap-4 border-b border-slate-100 bg-slate-50/50">
+            <div className="px-6 py-2 flex items-center gap-4 border-b border-nk-line-soft bg-nk-sunken/50">
               <span className="w-5 flex-shrink-0" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[80px] flex-shrink-0">퇴원일</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[60px] flex-shrink-0">이름</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[52px] flex-shrink-0">과목</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[80px] flex-shrink-0">반</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[56px] flex-shrink-0">선생님</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[40px] flex-shrink-0">학년</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[140px] flex-shrink-0">퇴원 사유</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[48px] flex-shrink-0">재원</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[60px] flex-shrink-0">복귀 가능</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[76px] flex-shrink-0">회고</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[80px] flex-shrink-0">퇴원일</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[60px] flex-shrink-0">이름</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[52px] flex-shrink-0">과목</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[80px] flex-shrink-0">반</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[56px] flex-shrink-0">선생님</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[40px] flex-shrink-0">학년</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[140px] flex-shrink-0">퇴원 사유</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[48px] flex-shrink-0">재원</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[60px] flex-shrink-0">복귀 가능</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[76px] flex-shrink-0">회고</span>
               <span className="ml-auto w-[90px] flex-shrink-0" />
             </div>
 
@@ -576,27 +572,27 @@ export function WithdrawalList({ withdrawals }: Props) {
             {filtered.map((w) => {
               const isExpanded = expandedId === w.id;
               return (
-                <div key={w.id} className={`border-b border-slate-100 last:border-b-0 transition-colors ${isExpanded ? "bg-[var(--primary)]/[0.015]" : ""}`}>
+                <div key={w.id} className={`border-b border-nk-line-soft last:border-b-0 transition-colors ${isExpanded ? "bg-[var(--primary)]/[0.015]" : ""}`}>
                   {/* ─ Summary Row ─ */}
                   <div
-                    className="px-6 py-3 flex items-center gap-4 hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                    className="px-6 py-3 flex items-center gap-4 hover:bg-nk-sunken/80 transition-colors cursor-pointer group"
                     onClick={() => setExpandedId(isExpanded ? null : w.id)}
                   >
                     <span className="flex-shrink-0 w-5 flex items-center justify-center">
                       {isExpanded ? (
                         <ChevronDown className="h-4 w-4 text-[var(--primary)]" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                        <ChevronRight className="h-4 w-4 text-nk-ink-hint group-hover:text-nk-ink-sub transition-colors" />
                       )}
                     </span>
-                    <span className="text-xs text-slate-400 w-[80px] flex-shrink-0 tabular-nums">{w.withdrawal_date || "-"}</span>
-                    <span className="font-bold text-sm text-slate-800 w-[60px] flex-shrink-0 truncate">{w.name}</span>
+                    <span className="text-xs text-nk-ink-hint w-[80px] flex-shrink-0 tabular-nums">{w.withdrawal_date || "-"}</span>
+                    <span className="font-bold text-sm text-nk-ink w-[60px] flex-shrink-0 truncate">{w.name}</span>
                     <span className="w-[52px] flex-shrink-0"><SubjectBadge value={w.subject} /></span>
-                    <span className="text-sm text-slate-500 w-[80px] flex-shrink-0 truncate">{w.class_name || "-"}</span>
-                    <span className="text-sm text-slate-500 w-[56px] flex-shrink-0 truncate">{w.teacher || "-"}</span>
-                    <span className="text-xs text-slate-500 w-[40px] flex-shrink-0 font-medium">{w.grade || "-"}</span>
+                    <span className="text-sm text-nk-ink-sub w-[80px] flex-shrink-0 truncate">{w.class_name || "-"}</span>
+                    <span className="text-sm text-nk-ink-sub w-[56px] flex-shrink-0 truncate">{w.teacher || "-"}</span>
+                    <span className="text-xs text-nk-ink-sub w-[40px] flex-shrink-0 font-medium">{w.grade || "-"}</span>
                     <span className="w-[140px] flex-shrink-0"><ReasonBadge value={w.reason_category} /></span>
-                    <span className="text-xs text-slate-400 w-[48px] flex-shrink-0 tabular-nums">{w.duration_months ? `${w.duration_months}개월` : "-"}</span>
+                    <span className="text-xs text-nk-ink-hint w-[48px] flex-shrink-0 tabular-nums">{w.duration_months ? `${w.duration_months}개월` : "-"}</span>
                     <span className="w-[60px] flex-shrink-0"><ComebackBadge value={w.comeback_possibility} /></span>
                     <span className="w-[76px] flex-shrink-0">
                       <RetrospectiveBadge
@@ -608,7 +604,7 @@ export function WithdrawalList({ withdrawals }: Props) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-amber-600 hover:bg-amber-50 opacity-0 group-hover:opacity-100 transition-all"
+                        className="h-7 w-7 text-nk-ink-hint hover:text-nk-warn hover:bg-nk-warn-soft opacity-0 group-hover:opacity-100 transition-all"
                         onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
                       >
                         <NotebookPen className="h-3.5 w-3.5" />
@@ -616,7 +612,7 @@ export function WithdrawalList({ withdrawals }: Props) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-blue-600 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
+                        className="h-7 w-7 text-nk-ink-hint hover:text-nk-progress hover:bg-nk-progress-soft opacity-0 group-hover:opacity-100 transition-all"
                         onClick={(e) => { e.stopPropagation(); setEditTarget(w); setShowForm(true); }}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -624,7 +620,7 @@ export function WithdrawalList({ withdrawals }: Props) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                        className="h-7 w-7 text-nk-ink-hint hover:text-nk-late hover:bg-nk-late-soft opacity-0 group-hover:opacity-100 transition-all"
                         onClick={(e) => { e.stopPropagation(); setDeleteTarget(w); }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -634,17 +630,17 @@ export function WithdrawalList({ withdrawals }: Props) {
 
                   {/* ─ Expanded Detail Panel ─ */}
                   {isExpanded && (
-                    <div className="mx-6 mb-4 rounded-xl border border-slate-200 overflow-hidden" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
+                    <div className="mx-6 mb-4 rounded-xl border border-nk-line-soft overflow-hidden" style={{ boxShadow: "0 1px 4px rgb(var(--wr-navy-strong) / 0.03)" }}>
                       {/* Detail Header Strip */}
-                      <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--primary) 8%, transparent) 0%, color-mix(in srgb, var(--accent-warm) 8%, transparent) 100%)" }}>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                          <span><span className="text-slate-400">학교:</span> <span className="font-semibold text-slate-700">{w.school || "-"}</span></span>
-                          <span className="text-slate-200">|</span>
-                          <span><span className="text-slate-400">등원:</span> <span className="font-semibold text-slate-700">{w.enrollment_start || "-"}</span></span>
-                          <span className="text-slate-200">|</span>
-                          <span><span className="text-slate-400">퇴원:</span> <span className="font-semibold text-slate-700">{w.enrollment_end || "-"}</span></span>
-                          <span className="text-slate-200">|</span>
-                          <span><span className="text-slate-400">재원기간:</span> <span className="font-semibold text-slate-700">{w.duration_months ? `${w.duration_months}개월` : "-"}</span></span>
+                      <div className="flex items-center justify-between bg-nk-sunken px-5 py-2.5">
+                        <div className="flex items-center gap-4 text-xs text-nk-ink-sub">
+                          <span><span className="text-nk-ink-hint">학교:</span> <span className="font-semibold text-nk-ink">{w.school || "-"}</span></span>
+                          <span className="text-nk-line">|</span>
+                          <span><span className="text-nk-ink-hint">등원:</span> <span className="font-semibold text-nk-ink">{w.enrollment_start || "-"}</span></span>
+                          <span className="text-nk-line">|</span>
+                          <span><span className="text-nk-ink-hint">퇴원:</span> <span className="font-semibold text-nk-ink">{w.enrollment_end || "-"}</span></span>
+                          <span className="text-nk-line">|</span>
+                          <span><span className="text-nk-ink-hint">재원기간:</span> <span className="font-semibold text-nk-ink">{w.duration_months ? `${w.duration_months}개월` : "-"}</span></span>
                         </div>
                       </div>
 
@@ -653,10 +649,10 @@ export function WithdrawalList({ withdrawals }: Props) {
                         {/* Column 1: Learning Status */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="h-6 w-6 rounded-lg bg-blue-50 flex items-center justify-center">
-                              <BookOpen className="h-3.5 w-3.5 text-blue-600" />
+                            <div className="h-6 w-6 rounded-lg bg-nk-progress-soft flex items-center justify-center">
+                              <BookOpen className="h-3.5 w-3.5 text-nk-progress" />
                             </div>
-                            <h4 className="text-xs font-bold text-slate-700">학습 상태</h4>
+                            <h4 className="text-xs font-bold text-nk-ink">학습 상태</h4>
                           </div>
                           <div className="space-y-2.5 pl-1">
                             <DetailItem label="수업 태도" value={w.class_attitude} />
@@ -670,32 +666,32 @@ export function WithdrawalList({ withdrawals }: Props) {
                         {/* Column 2: Withdrawal Reason */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="h-6 w-6 rounded-lg bg-orange-50 flex items-center justify-center">
-                              <MessageSquare className="h-3.5 w-3.5 text-orange-600" />
+                            <div className="h-6 w-6 rounded-lg bg-nk-warn-soft flex items-center justify-center">
+                              <MessageSquare className="h-3.5 w-3.5 text-nk-warn" />
                             </div>
-                            <h4 className="text-xs font-bold text-slate-700">퇴원 사유</h4>
+                            <h4 className="text-xs font-bold text-nk-ink">퇴원 사유</h4>
                           </div>
                           <div className="space-y-3 pl-1">
                             {w.student_opinion && (
                               <div>
-                                <p className="text-[11px] text-slate-400 mb-0.5">학생 의견</p>
-                                <p className="text-sm text-slate-700 leading-relaxed">{w.student_opinion}</p>
+                                <p className="text-[11px] text-nk-ink-hint mb-0.5">학생 의견</p>
+                                <p className="text-sm text-nk-ink leading-relaxed">{w.student_opinion}</p>
                               </div>
                             )}
                             {w.parent_opinion && (
                               <div>
-                                <p className="text-[11px] text-slate-400 mb-0.5">학부모 의견</p>
-                                <p className="text-sm text-slate-700 leading-relaxed">{w.parent_opinion}</p>
+                                <p className="text-[11px] text-nk-ink-hint mb-0.5">학부모 의견</p>
+                                <p className="text-sm text-nk-ink leading-relaxed">{w.parent_opinion}</p>
                               </div>
                             )}
                             {w.teacher_opinion && (
                               <div>
-                                <p className="text-[11px] text-slate-400 mb-0.5">선생님 의견</p>
-                                <p className="text-sm text-slate-700 leading-relaxed">{w.teacher_opinion}</p>
+                                <p className="text-[11px] text-nk-ink-hint mb-0.5">선생님 의견</p>
+                                <p className="text-sm text-nk-ink leading-relaxed">{w.teacher_opinion}</p>
                               </div>
                             )}
                             {!w.student_opinion && !w.parent_opinion && !w.teacher_opinion && (
-                              <p className="text-xs text-slate-400 italic">기록된 의견이 없습니다</p>
+                              <p className="text-xs text-nk-ink-hint italic">기록된 의견이 없습니다</p>
                             )}
                             {/* 자유서술에서 파생한 4축(떠난 곳·근본 문제·근거 출처·발생 단계) */}
                             <EventAxesSummary row={w} />
@@ -705,10 +701,10 @@ export function WithdrawalList({ withdrawals }: Props) {
                         {/* Column 3: Consultation & Follow-up */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="h-6 w-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                              <ClipboardCheck className="h-3.5 w-3.5 text-emerald-600" />
+                            <div className="h-6 w-6 rounded-lg bg-nk-done-soft flex items-center justify-center">
+                              <ClipboardCheck className="h-3.5 w-3.5 text-nk-done" />
                             </div>
-                            <h4 className="text-xs font-bold text-slate-700">최종 상담 / 향후 관리</h4>
+                            <h4 className="text-xs font-bold text-nk-ink">최종 상담 / 향후 관리</h4>
                           </div>
                           <div className="space-y-2.5 pl-1">
                             <DetailItem
@@ -718,8 +714,8 @@ export function WithdrawalList({ withdrawals }: Props) {
                             />
                             {w.final_consult_summary && (
                               <div>
-                                <p className="text-[11px] text-slate-400 mb-0.5">상담 요약</p>
-                                <p className="text-sm text-slate-700 leading-relaxed">{w.final_consult_summary}</p>
+                                <p className="text-[11px] text-nk-ink-hint mb-0.5">상담 요약</p>
+                                <p className="text-sm text-nk-ink leading-relaxed">{w.final_consult_summary}</p>
                               </div>
                             )}
                             <DetailItem
@@ -731,8 +727,8 @@ export function WithdrawalList({ withdrawals }: Props) {
                             )}
                             {w.special_notes && w.special_notes !== "-" && (
                               <div>
-                                <p className="text-[11px] text-slate-400 mb-0.5">특이사항</p>
-                                <p className="text-sm text-slate-700 leading-relaxed">{w.special_notes}</p>
+                                <p className="text-[11px] text-nk-ink-hint mb-0.5">특이사항</p>
+                                <p className="text-sm text-nk-ink leading-relaxed">{w.special_notes}</p>
                               </div>
                             )}
                           </div>
@@ -740,13 +736,13 @@ export function WithdrawalList({ withdrawals }: Props) {
                       </div>
 
                       {/* Retrospective */}
-                      <div className="border-t border-slate-100 px-5 py-4" style={{ background: "#FAFBFD" }}>
+                      <div className="border-t border-nk-line-soft px-5 py-4" style={{ background: "rgb(var(--wr-sunken))" }}>
                         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                           <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded-lg bg-amber-50 flex items-center justify-center">
-                              <NotebookPen className="h-3.5 w-3.5 text-amber-600" />
+                            <div className="h-6 w-6 rounded-lg bg-nk-warn-soft flex items-center justify-center">
+                              <NotebookPen className="h-3.5 w-3.5 text-nk-warn" />
                             </div>
-                            <h4 className="text-xs font-bold text-slate-700">퇴원 회고</h4>
+                            <h4 className="text-xs font-bold text-nk-ink">퇴원 회고</h4>
                             <RetrospectiveBadge
                               status={retrospectiveStatus(w.retrospective)}
                               onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
@@ -769,26 +765,26 @@ export function WithdrawalList({ withdrawals }: Props) {
                                 { label: "④ 시스템 변경", value: w.retrospective.system_change },
                               ].map((item) => (
                                 <div key={item.label}>
-                                  <p className="text-[11px] text-slate-400 mb-0.5">{item.label}</p>
-                                  <p className="text-sm text-slate-700 leading-relaxed">
-                                    {item.value || <span className="text-slate-300">미작성</span>}
+                                  <p className="text-[11px] text-nk-ink-hint mb-0.5">{item.label}</p>
+                                  <p className="text-sm text-nk-ink leading-relaxed">
+                                    {item.value || <span className="text-nk-ink-hint">미작성</span>}
                                   </p>
                                 </div>
                               ))}
                             </div>
                             {w.retrospective.lesson && (
-                              <div className="rounded-lg px-3 py-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
-                                <p className="text-[11px] font-bold text-amber-700 mb-0.5">배움 한 줄</p>
-                                <p className="text-sm text-amber-900">{w.retrospective.lesson}</p>
+                              <div className="rounded-lg px-3 py-2" style={{ background: "rgb(var(--wr-status-warn-soft))", border: "1px solid rgb(var(--wr-status-warn-soft))" }}>
+                                <p className="text-[11px] font-bold text-nk-warn mb-0.5">배움 한 줄</p>
+                                <p className="text-sm text-nk-warn">{w.retrospective.lesson}</p>
                               </div>
                             )}
                             {w.retrospective.manager_comment && (
                               <div>
-                                <p className="text-[11px] text-slate-400 mb-0.5">원장 코멘트</p>
-                                <p className="text-sm text-slate-700 leading-relaxed">{w.retrospective.manager_comment}</p>
+                                <p className="text-[11px] text-nk-ink-hint mb-0.5">원장 코멘트</p>
+                                <p className="text-sm text-nk-ink leading-relaxed">{w.retrospective.manager_comment}</p>
                               </div>
                             )}
-                            <p className="text-[11px] text-slate-400">
+                            <p className="text-[11px] text-nk-ink-hint">
                               작성자: {w.retrospective.author || "-"}
                               {w.retrospective.completed_at && (
                                 <span className="ml-2">
@@ -798,7 +794,7 @@ export function WithdrawalList({ withdrawals }: Props) {
                             </p>
                           </div>
                         ) : (
-                          <p className="text-xs text-slate-400 italic">
+                          <p className="text-xs text-nk-ink-hint italic">
                             아직 회고가 작성되지 않았습니다 — 첫 징후와 시스템 개선점을 남겨주세요
                           </p>
                         )}

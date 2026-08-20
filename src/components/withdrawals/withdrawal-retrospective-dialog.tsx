@@ -106,8 +106,8 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
   };
 
   const textareaCls =
-    "w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500";
-  const labelCls = "text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1.5";
+    "w-full rounded-md border border-nk-line-soft bg-nk-surface px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-nk-progress";
+  const labelCls = "text-xs font-semibold text-nk-ink-sub mb-1 flex items-center gap-1.5";
 
   const infoItems = [
     { label: "퇴원일", value: withdrawal.withdrawal_date || "-" },
@@ -127,7 +127,7 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
             <NotebookPen className="h-5 w-5" />
             퇴원 회고 — {withdrawal.name}
             {withdrawal.class_name && (
-              <span className="text-sm font-normal text-slate-400">({withdrawal.class_name})</span>
+              <span className="text-sm font-normal text-nk-ink-hint">({withdrawal.class_name})</span>
             )}
           </DialogTitle>
         </DialogHeader>
@@ -136,11 +136,11 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
           {/* 읽기 전용 정보 스트립 */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {infoItems.map((item) => (
-              <div key={item.label} className="rounded-lg px-3 py-2" style={{ background: "#F1F5F9" }}>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div key={item.label} className="rounded-lg px-3 py-2" style={{ background: "rgb(var(--wr-sunken))" }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-nk-ink-hint">
                   {item.label}
                 </div>
-                <div className="text-xs font-bold text-slate-700 mt-0.5 truncate">{item.value}</div>
+                <div className="text-xs font-bold text-nk-ink mt-0.5 truncate">{item.value}</div>
               </div>
             ))}
           </div>
@@ -148,17 +148,17 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
           {/* 상태 pill */}
           <div className="flex items-center gap-2 flex-wrap">
             {complete ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-nk-done-soft px-2.5 py-1 text-[11px] font-bold text-nk-done ring-1 ring-inset ring-nk-done">
                 <CircleCheck className="h-3 w-3" />
                 회고 완료 조건 충족
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 ring-1 ring-inset ring-slate-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-nk-sunken px-2.5 py-1 text-[11px] font-bold text-nk-ink-sub ring-1 ring-inset ring-nk-line-soft">
                 <PencilLine className="h-3 w-3" />
                 작성 중
               </span>
             )}
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-nk-ink-hint">
               부분 저장도 가능합니다 — 나중에 이어서 작성할 수 있습니다
             </span>
           </div>
@@ -169,7 +169,7 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
               <div key={q.key}>
                 <label className={labelCls}>
                   <span
-                    className="inline-flex items-center justify-center h-4 w-4 rounded text-[10px] font-extrabold text-white"
+                    className="inline-flex items-center justify-center h-4 w-4 rounded text-[10px] font-extrabold text-nk-navy-ink"
                     style={{ background: "var(--primary)" }}
                   >
                     {q.no}
@@ -188,18 +188,18 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
           </div>
 
           {/* 배움 한 줄 */}
-          <div className="rounded-xl p-4" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
-            <label className="text-xs font-bold text-amber-800 mb-1 block">
-              배움 한 줄 <span className="font-normal text-amber-600">(최대 120자)</span>
+          <div className="rounded-xl p-4" style={{ background: "rgb(var(--wr-status-warn-soft))", border: "1px solid rgb(var(--wr-status-warn-soft))" }}>
+            <label className="text-xs font-bold text-nk-warn mb-1 block">
+              배움 한 줄 <span className="font-normal text-nk-warn">(최대 120자)</span>
             </label>
             <input
-              className="w-full h-9 rounded-md border border-amber-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full h-9 rounded-md border border-nk-warn bg-nk-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-nk-warn"
               maxLength={120}
               placeholder="이 퇴원에서 학원이 배운 것 한 문장"
               value={draft.lesson}
               onChange={(e) => updateField("lesson", e.target.value)}
             />
-            <div className="text-[10px] text-amber-600 mt-1 text-right">{draft.lesson.length}/120</div>
+            <div className="text-[10px] text-nk-warn mt-1 text-right">{draft.lesson.length}/120</div>
           </div>
 
           {/* 원장 코멘트 · 작성자 */}
@@ -217,7 +217,7 @@ export function WithdrawalRetrospectiveDialog({ open, onOpenChange, withdrawal }
             {/* 작성자는 서버가 로그인 계정으로 기록한다(입력값을 신뢰하지 않음). */}
             <div className="w-56">
               <label className={labelCls}>작성자</label>
-              <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+              <div className="flex h-9 items-center rounded-md border border-nk-line-soft bg-nk-sunken px-3 text-sm text-nk-ink-sub">
                 {draft.author || "로그인 계정으로 기록됩니다"}
               </div>
             </div>

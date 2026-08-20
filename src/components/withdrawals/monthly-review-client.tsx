@@ -29,18 +29,18 @@ import {
 } from "@/lib/improvement-actions";
 
 const NK_PRIMARY = "var(--primary)";
-const CARD_BORDER = "#E8ECF1";
+const CARD_BORDER = "rgb(var(--wr-line-soft))";
 
 const RETRO_BADGE: Record<RetrospectiveStatus, { label: string; cls: string }> = {
-  none: { label: "회고 필요", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
-  draft: { label: "작성 중", cls: "bg-slate-100 text-slate-600 ring-slate-200" },
-  complete: { label: "회고 완료", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  none: { label: "회고 필요", cls: "bg-nk-warn-soft text-nk-warn ring-nk-warn" },
+  draft: { label: "작성 중", cls: "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft" },
+  complete: { label: "회고 완료", cls: "bg-nk-done-soft text-nk-done ring-nk-done" },
 };
 
 const ACTION_BADGE: Record<ImprovementAction["status"], { label: string; cls: string }> = {
-  done: { label: "완료", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  pending: { label: "미완료", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
-  dropped: { label: "보류", cls: "bg-slate-100 text-slate-500 ring-slate-200" },
+  done: { label: "완료", cls: "bg-nk-done-soft text-nk-done ring-nk-done" },
+  pending: { label: "미완료", cls: "bg-nk-warn-soft text-nk-warn ring-nk-warn" },
+  dropped: { label: "보류", cls: "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft" },
 };
 
 function StatusBadge({ status }: { status: RetrospectiveStatus }) {
@@ -67,10 +67,10 @@ function ReviewCard({
 }) {
   return (
     <section
-      className="bg-white rounded-2xl p-6 break-inside-avoid print:shadow-none print:break-inside-avoid"
+      className="bg-nk-surface rounded-2xl p-6 break-inside-avoid print:shadow-none print:break-inside-avoid"
       style={{
         border: `1px solid ${CARD_BORDER}`,
-        boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+        boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
       }}
     >
       <div className="mb-4">
@@ -80,7 +80,7 @@ function ReviewCard({
             {title}
           </h2>
         </div>
-        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-nk-ink-hint mt-0.5">{subtitle}</p>}
       </div>
       {children}
     </section>
@@ -141,18 +141,18 @@ export function MonthlyReviewClient({
             className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 print:hidden"
             style={{ background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)" }}
           >
-            <BookOpenCheck className="h-6 w-6 text-white" />
+            <BookOpenCheck className="h-6 w-6 text-nk-navy-ink" />
           </div>
           <div>
             <h1
               className="text-xl font-extrabold"
-              style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "2px" }}
+              style={{ color: "rgb(var(--wr-ink))", letterSpacing: "-0.02em", marginBottom: "2px" }}
             >
               월간 반성 리포트
             </h1>
-            <div className="flex items-center gap-2 text-[12.5px]" style={{ color: "#64748B" }}>
+            <div className="flex items-center gap-2 text-[12.5px]" style={{ color: "rgb(var(--wr-ink-sub))" }}>
               <span>{month !== null ? `${currentYear}년 ${month}월` : "표시할 달이 없습니다"}</span>
-              <span className="text-slate-300">|</span>
+              <span className="text-nk-ink-hint">|</span>
               <span>
                 퇴원 <span className="font-bold" style={{ color: NK_PRIMARY }}>{monthRows.length}</span>건
               </span>
@@ -162,7 +162,7 @@ export function MonthlyReviewClient({
 
         <div className="flex items-center gap-2 print:hidden">
           <select
-            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+            className="h-9 rounded-lg border border-nk-line-soft bg-nk-surface px-3 text-sm text-nk-ink focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
             value={month ?? ""}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
             disabled={availableMonths.length === 0}
@@ -177,7 +177,7 @@ export function MonthlyReviewClient({
           <button
             type="button"
             onClick={() => window.print()}
-            className="h-9 px-4 rounded-lg text-white text-xs font-bold flex items-center gap-1.5 transition-all hover:-translate-y-px"
+            className="h-9 px-4 rounded-lg text-nk-navy-ink text-xs font-bold flex items-center gap-1.5 transition-all hover:-translate-y-px"
             style={{ background: NK_PRIMARY }}
           >
             <Printer className="h-3.5 w-3.5" />
@@ -207,19 +207,19 @@ export function MonthlyReviewClient({
         ].map((item) => (
           <div
             key={item.label}
-            className="bg-white rounded-2xl p-5 print:shadow-none"
+            className="bg-nk-surface rounded-2xl p-5 print:shadow-none"
             style={{
               border: `1px solid ${CARD_BORDER}`,
-              boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+              boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
             }}
           >
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-nk-ink-hint mb-2">
               {item.label}
             </div>
-            <div className="text-3xl font-extrabold leading-tight tracking-tight" style={{ color: "#0F172A" }}>
+            <div className="text-3xl font-extrabold leading-tight tracking-tight" style={{ color: "rgb(var(--wr-ink))" }}>
               {item.value}
             </div>
-            <div className="text-[11px] text-slate-400 mt-1">{item.sub}</div>
+            <div className="text-[11px] text-nk-ink-hint mt-1">{item.sub}</div>
           </div>
         ))}
       </div>
@@ -227,12 +227,12 @@ export function MonthlyReviewClient({
       {/* ── 2. 퇴원 전건 ─────────────────────────────────────────────── */}
       <ReviewCard title="이 달의 퇴원" icon={ListChecks} subtitle="해당 월 퇴원 전건">
         {monthRows.length === 0 ? (
-          <p className="text-sm text-slate-400 py-6 text-center">이 달에 기록된 퇴원이 없습니다</p>
+          <p className="text-sm text-nk-ink-hint py-6 text-center">이 달에 기록된 퇴원이 없습니다</p>
         ) : (
           <div className="overflow-x-auto -mx-6">
             <table className="w-full min-w-[720px]">
               <thead>
-                <tr style={{ background: "#EFF4FB" }}>
+                <tr style={{ background: "rgb(var(--wr-sunken))" }}>
                   {["이름", "반", "강사", "재원기간", "사유", "회고"].map((h) => (
                     <th
                       key={h}
@@ -246,19 +246,19 @@ export function MonthlyReviewClient({
               </thead>
               <tbody>
                 {monthRows.map((w) => (
-                  <tr key={w.id} className="border-t" style={{ borderColor: "#F1F5F9" }}>
+                  <tr key={w.id} className="border-t" style={{ borderColor: "rgb(var(--wr-sunken))" }}>
                     <td className="px-4 py-2.5 text-sm font-bold" style={{ color: NK_PRIMARY }}>
                       {w.name}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">{w.class_name || "-"}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-600">
+                    <td className="px-4 py-2.5 text-xs text-nk-ink-sub">{w.class_name || "-"}</td>
+                    <td className="px-4 py-2.5 text-xs text-nk-ink-sub">
                       {w.teacher ? `${w.teacher} T` : "-"}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">
+                    <td className="px-4 py-2.5 text-xs text-nk-ink-sub">
                       {w.duration_months != null ? `${w.duration_months}개월` : "-"}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-700">
-                      {w.reason_category || <span className="text-slate-300">미입력</span>}
+                    <td className="px-4 py-2.5 text-xs text-nk-ink">
+                      {w.reason_category || <span className="text-nk-ink-hint">미입력</span>}
                     </td>
                     <td className="px-4 py-2.5">
                       <StatusBadge status={retrospectiveStatus(w.retrospective)} />
@@ -275,10 +275,10 @@ export function MonthlyReviewClient({
       <ReviewCard title="이 달의 배움" icon={Quote} subtitle="회고에서 남긴 한 줄">
         {lessons.length === 0 ? (
           <div className="py-6 text-center">
-            <p className="text-sm text-slate-500 font-medium">
+            <p className="text-sm text-nk-ink-sub font-medium">
               이 달의 배움이 아직 기록되지 않았습니다
             </p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-nk-ink-hint mt-1">
               퇴원생 현황에서 회고를 작성하면 여기에 모입니다
             </p>
           </div>
@@ -288,10 +288,10 @@ export function MonthlyReviewClient({
               <blockquote
                 key={`${l.name}-${i}`}
                 className="rounded-xl p-4 break-inside-avoid"
-                style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}
+                style={{ background: "rgb(var(--wr-status-warn-soft))", border: "1px solid rgb(var(--wr-status-warn-soft))" }}
               >
-                <p className="text-sm text-amber-900 leading-relaxed">&ldquo;{l.lesson}&rdquo;</p>
-                <footer className="text-[11px] text-amber-700 mt-2">
+                <p className="text-sm text-nk-warn leading-relaxed">&ldquo;{l.lesson}&rdquo;</p>
+                <footer className="text-[11px] text-nk-warn mt-2">
                   — {l.author} · {l.name} ({l.teacher} T)
                 </footer>
               </blockquote>
@@ -305,23 +305,23 @@ export function MonthlyReviewClient({
         {patterns.length === 0 ? (
           <div
             className="flex items-center gap-2.5 rounded-xl px-4 py-3"
-            style={{ background: "#ECFDF5", border: "1px solid #A7F3D0" }}
+            style={{ background: "rgb(var(--wr-status-done-soft))", border: "1px solid rgb(var(--wr-status-done-soft))" }}
           >
-            <CircleCheck className="w-4 h-4 flex-shrink-0" style={{ color: "#059669" }} />
-            <span className="text-[13px] font-semibold text-emerald-700">
+            <CircleCheck className="w-4 h-4 flex-shrink-0" style={{ color: "rgb(var(--wr-status-done))" }} />
+            <span className="text-[13px] font-semibold text-nk-done">
               반복 패턴이 감지되지 않았습니다
             </span>
           </div>
         ) : (
           <div className="space-y-3">
             {patterns.map((p) => {
-              const accent = p.severity === "심각" ? "#DC2626" : "#F59E0B";
+              const accent = p.severity === "심각" ? "rgb(var(--wr-status-late))" : "rgb(var(--wr-status-warn))";
               return (
                 <div
                   key={p.id}
                   className="rounded-xl p-4 break-inside-avoid"
                   style={{
-                    background: "#FAFBFD",
+                    background: "rgb(var(--wr-sunken))",
                     border: `1px solid ${CARD_BORDER}`,
                     borderLeftWidth: "4px",
                     borderLeftColor: accent,
@@ -329,7 +329,7 @@ export function MonthlyReviewClient({
                 >
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span
-                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white"
+                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-nk-navy-ink"
                       style={{ background: accent }}
                     >
                       {p.severity}
@@ -338,7 +338,7 @@ export function MonthlyReviewClient({
                       {p.title}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{p.evidence}</p>
+                  <p className="text-xs text-nk-ink-sub leading-relaxed">{p.evidence}</p>
                 </div>
               );
             })}
@@ -353,16 +353,16 @@ export function MonthlyReviewClient({
         subtitle={`${prevLabel}에 채택한 개선 액션의 결과`}
       >
         {prevActions.length === 0 ? (
-          <p className="text-sm text-slate-400 py-6 text-center">
+          <p className="text-sm text-nk-ink-hint py-6 text-center">
             {prevLabel}에 채택된 실행 항목이 없습니다
           </p>
         ) : (
           <>
             <div className="flex items-baseline gap-2 mb-3">
-              <span className="text-2xl font-extrabold" style={{ color: "#0F172A" }}>
+              <span className="text-2xl font-extrabold" style={{ color: "rgb(var(--wr-ink))" }}>
                 {prevStats.rate}%
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-nk-ink-hint">
                 {prevStats.done}건 완료 / {prevStats.done + prevStats.pending}건
               </span>
             </div>
@@ -371,15 +371,15 @@ export function MonthlyReviewClient({
                 <li
                   key={a.id}
                   className="flex items-center gap-3 rounded-xl px-3 py-2.5"
-                  style={{ background: "#FAFBFD", border: `1px solid ${CARD_BORDER}` }}
+                  style={{ background: "rgb(var(--wr-sunken))", border: `1px solid ${CARD_BORDER}` }}
                 >
                   <span
                     className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md ring-1 ring-inset whitespace-nowrap ${ACTION_BADGE[a.status].cls}`}
                   >
                     {ACTION_BADGE[a.status].label}
                   </span>
-                  <span className="text-[13px] text-slate-700 flex-1 min-w-0">{a.action_text}</span>
-                  {a.owner && <span className="text-[11px] text-slate-400">{a.owner}</span>}
+                  <span className="text-[13px] text-nk-ink flex-1 min-w-0">{a.action_text}</span>
+                  {a.owner && <span className="text-[11px] text-nk-ink-hint">{a.owner}</span>}
                 </li>
               ))}
             </ul>

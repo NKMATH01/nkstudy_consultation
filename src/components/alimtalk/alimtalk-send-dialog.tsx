@@ -156,35 +156,35 @@ export function AlimtalkSendDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          <div className="rounded-lg border border-nk-line-soft bg-nk-sunken px-3 py-2 text-sm text-nk-ink-sub">
             대상:{" "}
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-nk-ink">
               {targetLabel} · {preview.data?.maskedPhone ?? "-"} · 1명
             </span>
           </div>
 
           {preview.loading ? (
-            <div className="rounded-lg border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">
+            <div className="rounded-lg border border-nk-line-soft bg-nk-surface p-5 text-center text-sm text-nk-ink-sub">
               미리보기를 불러오는 중입니다.
             </div>
           ) : preview.error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+            <div className="rounded-lg border border-nk-late bg-nk-late-soft px-3 py-2 text-sm font-semibold text-nk-late">
               {preview.error}
             </div>
           ) : (
-            <div className="rounded-lg bg-[#FEE500] p-4 text-sm leading-6 text-slate-950 shadow-sm">
+            <div className="rounded-lg bg-nk-kakao p-4 text-sm leading-6 text-nk-ink shadow-sm">
               <div className="whitespace-pre-wrap">{preview.data?.text ?? ""}</div>
             </div>
           )}
 
           {missing.length > 0 && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+            <div className="rounded-lg border border-nk-late bg-nk-late-soft px-3 py-2 text-sm font-semibold text-nk-late">
               미치환 변수: {missing.join(", ")}
             </div>
           )}
 
           {templateUnapproved && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+            <div className="rounded-lg border border-nk-warn bg-nk-warn-soft px-3 py-2 text-sm font-semibold text-nk-warn">
               카카오 승인 대기 — 템플릿이 승인되어야 발송할 수 있습니다
             </div>
           )}
@@ -193,7 +193,7 @@ export function AlimtalkSendDialog({
             !preview.data.sendable &&
             missing.length === 0 &&
             !templateUnapproved && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+              <div className="rounded-lg border border-nk-late bg-nk-late-soft px-3 py-2 text-sm font-semibold text-nk-late">
                 대상 전화번호를 확인해 주세요
               </div>
             )}
@@ -204,7 +204,7 @@ export function AlimtalkSendDialog({
             type="button"
             onClick={() => handleClose(false)}
             disabled={sending}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-nk-line-soft bg-nk-surface px-4 py-2 text-sm font-semibold text-nk-ink-sub transition-colors hover:bg-nk-sunken disabled:opacity-50"
           >
             취소
           </button>
@@ -212,7 +212,7 @@ export function AlimtalkSendDialog({
             type="button"
             onClick={handleSend}
             disabled={sendDisabled}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-nk-navy-strong px-4 py-2 text-sm font-bold text-nk-navy-ink transition-colors hover:bg-nk-navy-strong disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
             {sending ? "발송 중" : "발송하기"}

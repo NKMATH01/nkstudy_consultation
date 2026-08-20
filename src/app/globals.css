@@ -50,6 +50,67 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+/* ── NK 공통 토큰 브리지 ────────────────────────────────────────────────────
+ * 색값 자체는 public/nk-shared.css(업무보고 design-system/nk-shared.css 복제본)에
+ * `--wr-*` 로 들어 있고, (dashboard) 레이아웃에서만 로드된다. 여기서는 그 토큰에
+ * Tailwind 유틸리티 이름(bg-nk-surface, text-nk-ink-sub …)만 붙인다.
+ *
+ * inline 이어야 한다. inline 이 아니면 Tailwind 가 값을 :root 한 곳에서 풀어 버려,
+ * 나중에 야간 팔레트가 붙었을 때 하위에서 `--wr-*` 를 덮어써도 따라오지 않는다.
+ * inline 이면 유틸리티가 rgb(var(--wr-…)) 를 그대로 들고 있어 쓰는 자리에서 풀린다. */
+@theme inline {
+  --color-nk-navy: rgb(var(--wr-navy));
+  --color-nk-navy-strong: rgb(var(--wr-navy-strong));
+  --color-nk-navy-soft: rgb(var(--wr-navy-soft));
+  --color-nk-navy-ink: rgb(var(--wr-navy-ink));
+
+  --color-nk-brass: rgb(var(--wr-brass));
+  --color-nk-brass-bright: rgb(var(--wr-brass-bright));
+  --color-nk-brass-soft: rgb(var(--wr-brass-soft));
+
+  --color-nk-bg: rgb(var(--wr-bg));
+  --color-nk-surface: rgb(var(--wr-surface));
+  --color-nk-sunken: rgb(var(--wr-sunken));
+  --color-nk-hover: rgb(var(--wr-row-hover));
+  --color-nk-line: rgb(var(--wr-line));
+  --color-nk-line-soft: rgb(var(--wr-line-soft));
+  --color-nk-ink: rgb(var(--wr-ink));
+  --color-nk-ink-sub: rgb(var(--wr-ink-sub));
+  --color-nk-ink-hint: rgb(var(--wr-ink-hint));
+
+  /* 상태 — 명도가 아니라 색상(hue)으로 가른다. 칩에는 항상 글자를 같이 낸다. */
+  --color-nk-done: rgb(var(--wr-status-done));
+  --color-nk-done-soft: rgb(var(--wr-status-done-soft));
+  --color-nk-progress: rgb(var(--wr-status-progress));
+  --color-nk-progress-soft: rgb(var(--wr-status-progress-soft));
+  --color-nk-wait: rgb(var(--wr-status-wait));
+  --color-nk-wait-soft: rgb(var(--wr-status-wait-soft));
+  --color-nk-warn: rgb(var(--wr-status-warn));
+  --color-nk-warn-soft: rgb(var(--wr-status-warn-soft));
+  --color-nk-late: rgb(var(--wr-status-late));
+  --color-nk-late-soft: rgb(var(--wr-status-late-soft));
+
+  /* 분류색 — 과목·유형처럼 '무엇인가'를 가르는 자리에만. 상태에는 쓰지 않는다. */
+  --color-nk-cat-1: rgb(var(--wr-cat-1));
+  --color-nk-cat-2: rgb(var(--wr-cat-2));
+  --color-nk-cat-3: rgb(var(--wr-cat-3));
+  --color-nk-cat-4: rgb(var(--wr-cat-4));
+
+  /* 분류색의 옅은 면. nk-shared.css 에 soft 토큰이 없어 표면색과 섞어 만든다 —
+     새 hex 를 만들지 않으므로 야간 팔레트가 붙어도 같이 어두워진다. */
+  --color-nk-cat-1-soft: color-mix(in srgb, rgb(var(--wr-cat-1)) 12%, rgb(var(--wr-surface)));
+  --color-nk-cat-2-soft: color-mix(in srgb, rgb(var(--wr-cat-2)) 12%, rgb(var(--wr-surface)));
+  --color-nk-cat-3-soft: color-mix(in srgb, rgb(var(--wr-cat-3)) 12%, rgb(var(--wr-surface)));
+  --color-nk-cat-4-soft: color-mix(in srgb, rgb(var(--wr-cat-4)) 12%, rgb(var(--wr-surface)));
+
+  /* 카카오 공유 버튼 한 곳. 남의 브랜드 색이라 우리 팔레트로 바꾸면 안 되고,
+     대신 토큰으로 묶어 컴포넌트에 hex 가 남지 않게 한다. */
+  --color-nk-kakao: rgb(254 229 0);
+  --color-nk-kakao-ink: rgb(25 22 20);
+
+  --font-nk-mono: var(--wr-font-mono);
+}
+
 :root {
   --radius: 0.625rem;
   /* Refined ink / champagne / cool gray theme */
@@ -98,16 +159,56 @@
   }
 }
 
-/* 코럴 리디자인 스킨: (dashboard) 영역 배경·폰트를 웜톤/Pretendard로.
- * 폰트는 .app-chrome 하위에만 적용되어 공개 설문(/survey)·V2 결과지(.rptv2-doc 자체 font-family)에는 영향 없음.
- * Pretendard CDN은 (dashboard)/layout.tsx의 <link>로 로드한다. */
+/* ── 직원 화면(대시보드)만 NK 네이비·브라스로 ────────────────────────────────
+ * shadcn 의미 토큰을 nk 토큰으로 갈아끼운다. 이 한 블록으로 Button·Card·Input·
+ * Select·Dialog 같은 프리미티브가 전부 따라온다.
+ *
+ * .app-chrome 이 아니라 :root:has(.app-chrome) 에 거는 이유 — 다이얼로그·시트·
+ * 드롭다운은 포털로 body 바로 밑에 붙어서 .app-chrome 바깥이다. 래퍼에 걸면
+ * 모달만 옛 색으로 남는다.
+ *
+ * 학부모가 보는 화면(/survey · /booking · /report · /feedback)은 .app-chrome 이
+ * 없으므로 위쪽 :root 값을 그대로 쓴다 — 결과지 브랜드는 건드리지 않는다. */
+:root:has(.app-chrome) {
+  --background: rgb(var(--wr-bg));
+  --foreground: rgb(var(--wr-ink));
+  --card: rgb(var(--wr-surface));
+  --card-foreground: rgb(var(--wr-ink));
+  --popover: rgb(var(--wr-surface));
+  --popover-foreground: rgb(var(--wr-ink));
+  --primary: rgb(var(--wr-navy));
+  --primary-foreground: rgb(var(--wr-navy-ink));
+  /* 그라데이션 짝꿍으로만 쓰이는 값이라 옅은 면(navy-soft)이 아니라 짙은 쪽을 준다.
+     옅게 두면 네이비 밴드가 오른쪽으로 갈수록 하얗게 바래 밴드로 안 읽힌다. */
+  --primary-soft: rgb(var(--wr-navy-strong));
+  --secondary: rgb(var(--wr-sunken));
+  --secondary-foreground: rgb(var(--wr-ink-sub));
+  --muted: rgb(var(--wr-sunken));
+  --muted-foreground: rgb(var(--wr-ink-sub));
+  --accent: rgb(var(--wr-navy-soft));
+  --accent-foreground: rgb(var(--wr-navy));
+  /* 기존 골드 액센트가 걸려 있던 자리는 네이비로 받는다. 브라스는 화면당 두 곳까지라
+     장식으로 흩뿌릴 수 없다 — 브라스를 쓸 자리는 컴포넌트에서 --wr-brass 를 직접 부른다. */
+  --accent-warm: rgb(var(--wr-navy));
+  --accent-warm-foreground: rgb(var(--wr-navy));
+  --destructive: rgb(var(--wr-status-late));
+  --border: rgb(var(--wr-line));
+  --input: rgb(var(--wr-line));
+  --ring: rgb(var(--wr-navy));
+  --chart-1: rgb(var(--wr-navy));
+  --chart-2: rgb(var(--wr-status-done));
+  --chart-3: rgb(var(--wr-cat-1));
+  --chart-4: rgb(var(--wr-brass));
+  --chart-5: rgb(var(--wr-status-late));
+}
+
+/* 지면. 그라데이션을 걷어내고 단색 바탕으로 둔다 — 운영실 보드는 종이처럼 조용해야
+ * 카드 위 숫자가 먼저 보인다. 폰트는 .app-chrome 하위에만 걸려 공개 설문·V2
+ * 결과지(.rptv2-doc 자체 font-family)에는 닿지 않는다. */
 .app-chrome {
-  background:
-    radial-gradient(circle at 12% -4%, rgba(240, 101, 58, 0.05), transparent 30%),
-    linear-gradient(180deg, #fffbf9 0%, #fbf4ef 100%);
-  font-family:
-    "Pretendard Variable", Pretendard, var(--font-noto), -apple-system,
-    "Apple SD Gothic Neo", system-ui, sans-serif;
+  background: rgb(var(--wr-bg));
+  color: rgb(var(--wr-ink));
+  font-family: var(--wr-font-sans);
 }
 
 .page-shell {
@@ -122,33 +223,26 @@
   letter-spacing: -0.035em !important;
 }
 
+/* 카드 — 떠 있는 느낌 대신 선으로 구분한다. 그림자는 겹침을 알리는 최소치만. */
 .page-shell .card-shadow,
 .page-shell .card-elevated,
-.page-shell .bg-white.rounded-2xl,
-.page-shell .bg-white.rounded-xl,
-.page-shell .bg-white.rounded-lg {
-  border: 1px solid #f0e4dd;
-  border-radius: 16px;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.7) inset,
-    0 1px 2px rgba(58, 52, 47, 0.03),
-    0 12px 34px rgba(58, 52, 47, 0.06);
+.page-shell .bg-nk-surface.rounded-2xl,
+.page-shell .bg-nk-surface.rounded-xl,
+.page-shell .bg-nk-surface.rounded-lg {
+  border: 1px solid rgb(var(--wr-line));
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgb(var(--wr-navy-strong) / 0.04);
 }
 
 .page-shell .card-elevated {
   transition:
-    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .page-shell .card-elevated:hover {
-  border-color: #e4d3c8;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.78) inset,
-    0 1px 2px rgba(58, 52, 47, 0.04),
-    0 20px 50px rgba(58, 52, 47, 0.1);
-  transform: translateY(-2px);
+  border-color: rgb(var(--wr-navy) / 0.35);
+  box-shadow: 0 2px 10px rgb(var(--wr-navy-strong) / 0.08);
 }
 
 .page-shell table {
@@ -156,38 +250,57 @@
   border-spacing: 0;
 }
 
+/* 표 머리 — 가라앉은 한 톤. 본문 행과 헷갈리지 않을 만큼만 어둡게. */
 .page-shell thead tr {
-  background: linear-gradient(180deg, #fbf4ef 0%, #f5ebe3 100%) !important;
+  background: rgb(var(--wr-sunken)) !important;
 }
 
 .page-shell th {
-  color: #8b8078 !important;
-  font-weight: 800 !important;
+  color: rgb(var(--wr-ink-sub)) !important;
+  font-weight: 700 !important;
   letter-spacing: 0.02em;
 }
 
 .page-shell tbody tr {
-  transition:
-    background-color 0.16s ease,
-    box-shadow 0.16s ease;
+  transition: background-color 0.16s ease;
 }
 
 .page-shell tbody tr:hover {
-  background-color: #fff8f4 !important;
+  background-color: rgb(var(--wr-row-hover)) !important;
 }
 
-.page-shell input,
-.page-shell select,
-.page-shell textarea {
-  border-color: #e4d3c8;
-  border-radius: 9px;
-  box-shadow:
-    inset 0 1px 0 rgba(58, 52, 47, 0.02),
-    0 1px 0 rgba(255, 255, 255, 0.8);
+/* 입력 기본값은 base 레이어에 둔다. utilities 보다 앞 레이어라야, 어두운 밴드 위에서
+ * bg-nk-surface/10 같은 유틸리티로 일부러 비워 둔 입력을 흰 상자로 덮어쓰지 않는다. */
+@layer base {
+  .page-shell input,
+  .page-shell select,
+  .page-shell textarea {
+    border-color: rgb(var(--wr-line));
+    border-radius: 8px;
+    background-color: rgb(var(--wr-surface));
+    color: rgb(var(--wr-ink));
+  }
+
+  .page-shell input:focus-visible,
+  .page-shell select:focus-visible,
+  .page-shell textarea:focus-visible {
+    border-color: rgb(var(--wr-navy));
+    outline: 2px solid rgb(var(--wr-navy) / 0.28);
+    outline-offset: 0;
+  }
 }
 
 .page-shell button {
   letter-spacing: 0;
+}
+
+/* 숫자·시각·건수는 모노. 값이 갱신돼도 자릿수 때문에 칸이 흔들리지 않는다.
+ * 클래스 이름은 nk-shared.css 의 .wr-num 과 같게 두어 앱끼리 어긋나지 않게 한다. */
+.wr-num {
+  font-family: var(--wr-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
 }
 
 /* Animations */
@@ -203,14 +316,6 @@
   from { opacity: 0; transform: translateX(12px); }
   to { opacity: 1; transform: translateX(0); }
 }
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212,168,83,0.25); }
-  50% { box-shadow: 0 0 0 8px rgba(212,168,83,0); }
-}
 @keyframes subtlePulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
@@ -218,7 +323,6 @@
 .fade-in { animation: fadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
 .fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 .slide-in-right { animation: slideInRight 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
-.pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
 .subtle-pulse { animation: subtlePulse 2s ease-in-out infinite; }
 
 /* Staggered fade-in for lists */
@@ -227,96 +331,26 @@
 .stagger-3 { animation-delay: 0.15s; animation-fill-mode: backwards; }
 .stagger-4 { animation-delay: 0.2s; animation-fill-mode: backwards; }
 
-/* Card shadows - layered for depth */
+/* 카드 그림자 — 선으로 이미 나뉘어 있으므로 그림자는 겹침만 알린다. */
 .card-shadow {
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 1px 2px rgba(0,0,0,0.04),
-    0 4px 16px rgba(0,0,0,0.04);
-}
-.card-shadow-hover {
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 4px 8px rgba(0,0,0,0.06),
-    0 12px 40px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgb(var(--wr-navy-strong) / 0.05);
 }
 
-/* Elevated card (stats, charts) */
 .card-elevated {
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 2px 4px rgba(0,0,0,0.04),
-    0 8px 24px rgba(0,0,0,0.06);
-  transition: box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 1px 2px rgb(var(--wr-navy-strong) / 0.05);
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
 }
 .card-elevated:hover {
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,0.03),
-    0 8px 16px rgba(0,0,0,0.08),
-    0 20px 48px rgba(0,0,0,0.1);
-  transform: translateY(-2px);
+  box-shadow: 0 2px 10px rgb(var(--wr-navy-strong) / 0.09);
 }
 
-/* Glass effect for header */
-.glass-header {
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-}
-
-/* Navy button gradient */
-.btn-gradient-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-soft));
-  box-shadow: 0 1px 3px rgba(94, 147, 172, 0.26);
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.btn-gradient-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(94, 147, 172, 0.32);
-}
-.btn-gradient-primary:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(94, 147, 172, 0.26);
-}
-
-/* Gold accent button */
-.btn-gradient-accent {
-  background: linear-gradient(135deg, var(--accent-warm), var(--chart-4));
-  box-shadow: 0 2px 8px rgba(245, 197, 126, 0.25);
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.btn-gradient-accent:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(212,168,83,0.35);
-}
-.btn-gradient-accent:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(212,168,83,0.25);
-}
-
-/* Focus ring */
-.input-focus:focus {
-  border-color: #2563EB;
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
-}
-
-/* Sidebar menu item hover (코럴 라이트 스킨) */
+/* 사이드바 항목 hover — 활성 항목은 자기 색을 지킨다. */
 .sidebar-item {
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 .sidebar-item:not(.is-active):hover {
-  background: #fff8f4 !important;
-  color: #3a342f !important;
-}
-
-/* Table row hover */
-.row-hover {
-  transition: background-color 0.15s ease;
-}
-.row-hover:hover {
-  background-color: #F8FAFC;
+  background: rgb(var(--wr-row-hover)) !important;
+  color: rgb(var(--wr-ink)) !important;
 }
 
 /* Smooth page transitions */
@@ -324,8 +358,8 @@
   animation: fadeInUp 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* 스크롤바 — 지면 선 색과 같은 계열로 두어 따로 눈에 띄지 않게 한다. */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: rgb(var(--wr-line, 214 219 226)); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--wr-ink-hint, 133 141 154)); }

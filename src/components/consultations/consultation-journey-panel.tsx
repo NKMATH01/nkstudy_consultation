@@ -115,30 +115,30 @@ function JourneyChip({ step, index }: { step: JourneyStep; index: number }) {
     <div
       className={`group relative h-full min-h-[108px] min-w-[126px] rounded-xl border px-3 py-3 transition-all ${
         step.current
-          ? "border-blue-700 bg-blue-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+          ? "border-nk-progress bg-nk-progress text-nk-navy-ink shadow-[0_10px_24px_rgb(var(--wr-navy-strong)_/_0.16)]"
           : step.complete
-            ? "border-slate-200 bg-white text-slate-800 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
-            : "border-dashed border-slate-200 bg-slate-50/80 text-slate-400"
+            ? "border-nk-line-soft bg-nk-surface text-nk-ink hover:-translate-y-0.5 hover:border-nk-progress hover:shadow-md"
+            : "border-dashed border-nk-line-soft bg-nk-sunken/80 text-nk-ink-hint"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <span
           className={`flex h-7 w-7 items-center justify-center rounded-lg ${
             step.current
-              ? "bg-white/15 text-amber-300"
+              ? "bg-nk-surface/15 text-nk-warn"
               : step.complete
-                ? "bg-blue-50 text-blue-700"
-                : "bg-slate-100 text-slate-400"
+                ? "bg-nk-progress-soft text-nk-progress"
+                : "bg-nk-sunken text-nk-ink-hint"
           }`}
         >
           <Icon className="h-3.5 w-3.5" />
         </span>
-        <span className={`text-[9px] font-black tracking-[0.16em] ${step.current ? "text-white/45" : "text-slate-300"}`}>
+        <span className={`text-[9px] font-black tracking-[0.16em] ${step.current ? "text-nk-navy-ink/45" : "text-nk-ink-hint"}`}>
           {String(index + 1).padStart(2, "0")}
         </span>
       </div>
       <p className="mt-2 text-[12px] font-extrabold tracking-tight">{step.label}</p>
-      <p className={`mt-0.5 text-[10px] leading-4 ${step.current ? "text-white/65" : "text-slate-500"}`}>
+      <p className={`mt-0.5 text-[10px] leading-4 ${step.current ? "text-nk-navy-ink/65" : "text-nk-ink-sub"}`}>
         {step.complete ? step.detail : "미진행"}
       </p>
       {step.badges && step.badges.length > 0 && (
@@ -148,10 +148,10 @@ function JourneyChip({ step, index }: { step: JourneyStep; index: number }) {
               key={badge.label}
               className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
                 badge.tone === "rose"
-                  ? "bg-rose-100 text-rose-700"
+                  ? "bg-nk-late-soft text-nk-late"
                   : badge.tone === "amber"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-slate-100 text-slate-600"
+                    ? "bg-nk-warn-soft text-nk-warn"
+                    : "bg-nk-sunken text-nk-ink-sub"
               }`}
             >
               {badge.label}
@@ -163,7 +163,7 @@ function JourneyChip({ step, index }: { step: JourneyStep; index: number }) {
   );
 
   return step.href ? (
-    <Link href={step.href} className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+    <Link href={step.href} className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-nk-progress">
       {content}
     </Link>
   ) : (
@@ -247,13 +247,13 @@ export function ConsultationJourneyPanel({
 
   return (
     <section className="space-y-4" aria-label="학생 여정과 변경 이력">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)] shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div className="overflow-hidden rounded-2xl border border-nk-line-soft bg-nk-surface shadow-[0_8px_30px_rgb(var(--wr-navy-strong)_/_0.05)]">
+        <div className="flex items-center justify-between border-b border-nk-line-soft px-5 py-4">
           <div>
-            <p className="text-[10px] font-black tracking-[0.18em] text-blue-700">STUDENT JOURNEY</p>
-            <h2 className="mt-0.5 text-[15px] font-extrabold text-slate-900">학생 여정</h2>
+            <p className="text-[10px] font-black tracking-[0.18em] text-nk-progress">STUDENT JOURNEY</p>
+            <h2 className="mt-0.5 text-[15px] font-extrabold text-nk-ink">학생 여정</h2>
           </div>
-          <p className="text-[10px] font-medium text-slate-400">완료된 단계를 눌러 바로 이동</p>
+          <p className="text-[10px] font-medium text-nk-ink-hint">완료된 단계를 눌러 바로 이동</p>
         </div>
         <div className="overflow-x-auto px-5 py-5">
           <div className="flex min-w-max items-stretch gap-2.5">
@@ -264,44 +264,44 @@ export function ConsultationJourneyPanel({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+      <div className="rounded-2xl border border-nk-line-soft bg-nk-surface px-5 py-5 shadow-[0_8px_30px_rgb(var(--wr-navy-strong)_/_0.04)]">
         <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-amber-300">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-nk-navy-strong text-nk-warn">
             <History className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="text-[14px] font-extrabold text-slate-900">변경 이력</h2>
-            <p className="text-[10px] text-slate-400">상담 일정과 상태의 운영 기록</p>
+            <h2 className="text-[14px] font-extrabold text-nk-ink">변경 이력</h2>
+            <p className="text-[10px] text-nk-ink-hint">상담 일정과 상태의 운영 기록</p>
           </div>
         </div>
 
         {events.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-[12px] text-slate-400">
+          <div className="rounded-xl border border-dashed border-nk-line-soft bg-nk-sunken px-4 py-6 text-center text-[12px] text-nk-ink-hint">
             변경 이력이 없습니다
           </div>
         ) : (
-          <ol className="relative ml-2 border-l border-slate-200">
+          <ol className="relative ml-2 border-l border-nk-line-soft">
             {events.map((event) => {
               const summary = eventSummary(event);
               return (
                 <li key={event.id} className="relative pb-5 pl-6 last:pb-0">
-                  <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-600 shadow-[0_0_0_1px_#cbd5e1]" />
+                  <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-nk-surface bg-nk-progress shadow-[0_0_0_1px_rgb(var(--wr-line))]" />
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                    <p className="text-[12px] font-extrabold text-slate-800">
+                    <p className="text-[12px] font-extrabold text-nk-ink">
                       {EVENT_LABELS[event.event_type]}
                     </p>
-                    <time className="text-[10px] font-medium tabular-nums text-slate-400">
+                    <time className="text-[10px] font-medium tabular-nums text-nk-ink-hint">
                       {formatTimestamp(event.created_at)}
                     </time>
                   </div>
                   {summary && (
-                    <p className="mt-1 font-mono text-[11px] font-semibold text-blue-800">{summary}</p>
+                    <p className="mt-1 font-mono text-[11px] font-semibold text-nk-progress">{summary}</p>
                   )}
                   {event.reason && (
-                    <p className="mt-1 text-[11px] leading-4 text-slate-600">사유 · {event.reason}</p>
+                    <p className="mt-1 text-[11px] leading-4 text-nk-ink-sub">사유 · {event.reason}</p>
                   )}
                   {event.created_by_label && (
-                    <p className="mt-1 text-[10px] text-slate-400">처리 · {event.created_by_label}</p>
+                    <p className="mt-1 text-[10px] text-nk-ink-hint">처리 · {event.created_by_label}</p>
                   )}
                 </li>
               );

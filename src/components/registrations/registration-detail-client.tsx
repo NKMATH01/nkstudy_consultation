@@ -202,22 +202,22 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header - 보고서 스타일 */}
-      <div className="flex items-start justify-between border-b-[3px] border-emerald-800 pb-4">
+      <div className="flex items-start justify-between border-b-[3px] border-nk-done pb-4">
         <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100 mt-0.5">
+          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-nk-sunken mt-0.5">
             <Link href="/onboarding">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
           <div>
-            <p className="text-xs font-bold text-emerald-600 tracking-widest uppercase">NK EDUCATION</p>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NK 등록 안내서</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Student Registration Guide</p>
+            <p className="text-xs font-bold text-nk-done tracking-widest uppercase">NK EDUCATION</p>
+            <h1 className="text-2xl font-black text-nk-ink tracking-tight">NK 등록 안내서</h1>
+            <p className="text-xs text-nk-ink-hint mt-0.5">Student Registration Guide</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-lg font-extrabold text-emerald-900">{registration.name}</p>
-          <p className="text-sm text-slate-500">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
+          <p className="text-lg font-extrabold text-nk-done">{registration.name}</p>
+          <p className="text-sm text-nk-ink-sub">{schoolInfo}{createdDate && ` · ${createdDate}`}</p>
         </div>
       </div>
 
@@ -332,16 +332,16 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
 
       {/* AI 수정 입력 */}
       {isAiEditing && (
-        <div className="bg-gradient-to-r from-violet-50 to-blue-50 border border-violet-200 rounded-2xl p-4 space-y-3">
+        <div className="bg-gradient-to-r from-nk-cat-3-soft to-nk-progress-soft border border-nk-cat-3 rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Wand2 className="h-4 w-4 text-violet-600" />
-            <span className="text-sm font-bold text-violet-900">AI로 안내문 수정</span>
+            <Wand2 className="h-4 w-4 text-nk-cat-3" />
+            <span className="text-sm font-bold text-nk-cat-3">AI로 안내문 수정</span>
           </div>
           <textarea
             value={aiInstruction}
             onChange={(e) => setAiInstruction(e.target.value)}
             placeholder="수정할 내용을 입력하세요. 예: '수업료를 40만원으로 변경', '학부모 메시지 추가'"
-            className="w-full h-20 px-3 py-2 rounded-xl border border-violet-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+            className="w-full h-20 px-3 py-2 rounded-xl border border-nk-cat-3 text-sm focus:outline-none focus:ring-2 focus:ring-nk-cat-3 resize-none"
           />
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsAiEditing(false)} className="rounded-xl">
@@ -367,7 +367,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
                   setIsSaving(false);
                 }
               }}
-              className="rounded-xl bg-violet-600 hover:bg-violet-700"
+              className="rounded-xl bg-nk-cat-3 hover:bg-nk-cat-3"
             >
               <Wand2 className={`h-3.5 w-3.5 mr-1 ${isSaving ? "animate-spin" : ""}`} />
               {isSaving ? "수정 중..." : "AI 수정 실행"}
@@ -380,8 +380,8 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-5 bg-emerald-600 rounded-sm" />
-            <h3 className="text-base font-extrabold text-emerald-900">수업 정보</h3>
+            <div className="w-1.5 h-5 bg-nk-done rounded-sm" />
+            <h3 className="text-base font-extrabold text-nk-done">수업 정보</h3>
           </div>
           <Button
             variant="outline"
@@ -404,23 +404,23 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
             수정
           </Button>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-nk-surface rounded-2xl border border-nk-line-soft shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
               {[
-                { icon: BookOpen, label: "과목", value: registration.subject, color: "text-blue-600" },
-                { icon: GraduationCap, label: "배정반", value: classDisplay, color: "text-violet-600" },
-                { icon: ClipboardList, label: "담임", value: teacherDisplay, color: "text-violet-600" },
-                { icon: Calendar, label: "희망요일", value: registration.preferred_days, color: "text-amber-600" },
-                { icon: Calendar, label: "등록 예정일", value: registration.registration_date, color: "text-emerald-600" },
-                { icon: CreditCard, label: "월 수업료", value: formatFee(registration.tuition_fee), color: "text-emerald-600", bold: true },
+                { icon: BookOpen, label: "과목", value: registration.subject, color: "text-nk-progress" },
+                { icon: GraduationCap, label: "배정반", value: classDisplay, color: "text-nk-cat-3" },
+                { icon: ClipboardList, label: "담임", value: teacherDisplay, color: "text-nk-cat-3" },
+                { icon: Calendar, label: "희망요일", value: registration.preferred_days, color: "text-nk-warn" },
+                { icon: Calendar, label: "등록 예정일", value: registration.registration_date, color: "text-nk-done" },
+                { icon: CreditCard, label: "월 수업료", value: formatFee(registration.tuition_fee), color: "text-nk-done", bold: true },
               ].map((item) => (
-                <tr key={item.label} className="border-b border-slate-100 last:border-b-0">
+                <tr key={item.label} className="border-b border-nk-line-soft last:border-b-0">
                   <td className="px-4 py-3 w-10">
                     <item.icon className={`h-4 w-4 ${item.color}`} />
                   </td>
-                  <td className="px-2 py-3 font-bold text-slate-600 w-28">{item.label}</td>
-                  <td className={`px-4 py-3 ${item.bold ? "font-extrabold text-emerald-800 text-base" : "font-semibold text-slate-800"}`}>
+                  <td className="px-2 py-3 font-bold text-nk-ink-sub w-28">{item.label}</td>
+                  <td className={`px-4 py-3 ${item.bold ? "font-extrabold text-nk-done text-base" : "font-semibold text-nk-ink"}`}>
                     {item.value || "-"}
                   </td>
                 </tr>
@@ -433,8 +433,8 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
       {/* 기타 정보 */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-1.5 h-5 bg-slate-500 rounded-sm" />
-          <h3 className="text-base font-extrabold text-slate-800">기타 정보</h3>
+          <div className="w-1.5 h-5 bg-nk-ink-hint rounded-sm" />
+          <h3 className="text-base font-extrabold text-nk-ink">기타 정보</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
@@ -443,13 +443,13 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
             { icon: Phone, label: "학생 연락처", value: registration.student_phone },
             { icon: Phone, label: "학부모 연락처", value: registration.parent_phone },
           ].map((item) => (
-            <div key={item.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                <item.icon className="h-4 w-4 text-slate-500" />
+            <div key={item.label} className="bg-nk-surface rounded-2xl border border-nk-line-soft shadow-sm p-4 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-nk-sunken flex items-center justify-center shrink-0">
+                <item.icon className="h-4 w-4 text-nk-ink-sub" />
               </div>
               <div>
-                <p className="text-xs text-slate-400 font-medium">{item.label}</p>
-                <p className="font-bold text-sm text-slate-800 mt-0.5">{item.value || "-"}</p>
+                <p className="text-xs text-nk-ink-hint font-medium">{item.label}</p>
+                <p className="font-bold text-sm text-nk-ink mt-0.5">{item.value || "-"}</p>
               </div>
             </div>
           ))}
@@ -460,32 +460,32 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
       {(registration.test_score || registration.test_note || registration.additional_note || registration.consult_date) && (
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-5 bg-amber-500 rounded-sm" />
-            <h3 className="text-base font-extrabold text-slate-800">테스트 및 특이사항</h3>
+            <div className="w-1.5 h-5 bg-nk-warn rounded-sm" />
+            <h3 className="text-base font-extrabold text-nk-ink">테스트 및 특이사항</h3>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+          <div className="bg-nk-surface rounded-2xl border border-nk-line-soft shadow-sm p-5 space-y-3">
             {registration.test_score && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500 w-28 shrink-0">테스트 점수</span>
-                <span className="font-bold text-blue-800">{registration.test_score}</span>
+                <span className="text-xs font-bold text-nk-ink-sub w-28 shrink-0">테스트 점수</span>
+                <span className="font-bold text-nk-progress">{registration.test_score}</span>
               </div>
             )}
             {registration.test_note && (
               <div className="flex items-start gap-2">
-                <span className="text-xs font-bold text-slate-500 w-28 shrink-0 pt-0.5">테스트 특이사항</span>
-                <p className="text-sm text-slate-700 leading-relaxed">{registration.test_note}</p>
+                <span className="text-xs font-bold text-nk-ink-sub w-28 shrink-0 pt-0.5">테스트 특이사항</span>
+                <p className="text-sm text-nk-ink leading-relaxed">{registration.test_note}</p>
               </div>
             )}
             {registration.consult_date && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500 w-28 shrink-0">학부모 상담일</span>
-                <span className="font-semibold text-slate-800">{registration.consult_date}</span>
+                <span className="text-xs font-bold text-nk-ink-sub w-28 shrink-0">학부모 상담일</span>
+                <span className="font-semibold text-nk-ink">{registration.consult_date}</span>
               </div>
             )}
             {registration.additional_note && (
               <div className="flex items-start gap-2">
-                <span className="text-xs font-bold text-slate-500 w-28 shrink-0 pt-0.5">추가 조치사항</span>
-                <p className="text-sm text-slate-700 leading-relaxed">{registration.additional_note}</p>
+                <span className="text-xs font-bold text-nk-ink-sub w-28 shrink-0 pt-0.5">추가 조치사항</span>
+                <p className="text-sm text-nk-ink leading-relaxed">{registration.additional_note}</p>
               </div>
             )}
           </div>
@@ -496,10 +496,10 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
       {registration.report_html && (
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-5 bg-emerald-600 rounded-sm" />
-            <h3 className="text-base font-extrabold text-emerald-900">등록 보고서</h3>
+            <div className="w-1.5 h-5 bg-nk-done rounded-sm" />
+            <h3 className="text-base font-extrabold text-nk-done">등록 보고서</h3>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-nk-surface rounded-2xl border border-nk-line-soft shadow-sm overflow-hidden">
             <iframe
               ref={(el) => {
                 if (el) {
@@ -525,8 +525,8 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
       )}
 
       {/* 푸터 */}
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-center text-white shadow-xl">
-        <p className="text-sm font-extrabold text-emerald-300">NK EDUCATION</p>
+      <div className="bg-gradient-to-br from-nk-navy-strong to-nk-navy-strong rounded-2xl p-5 text-center text-nk-navy-ink shadow-xl">
+        <p className="text-sm font-extrabold text-nk-done">NK EDUCATION</p>
         <p className="text-xs opacity-60 mt-1">
           생성일: {new Date(registration.created_at).toLocaleDateString("ko-KR")}
         </p>
@@ -569,7 +569,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-bold text-slate-600 mb-1 block">등록 예정일</label>
+              <label className="text-xs font-bold text-nk-ink-sub mb-1 block">등록 예정일</label>
               <Input
                 type="date"
                 value={editFields.registration_date}
@@ -578,11 +578,11 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-600 mb-1 block">과목</label>
+              <label className="text-xs font-bold text-nk-ink-sub mb-1 block">과목</label>
               <select
                 value={editFields.subject}
                 onChange={(e) => setEditFields({ ...editFields, subject: e.target.value })}
-                className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                className="w-full h-9 rounded-lg border border-nk-line-soft bg-nk-surface px-3 text-sm"
               >
                 <option value="수학">수학</option>
                 <option value="영어">영어</option>
@@ -591,13 +591,13 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-slate-600 mb-1 block">
+                <label className="text-xs font-bold text-nk-ink-sub mb-1 block">
                   배정반 {editFields.subject === "영어수학" ? "(수학)" : ""}
                 </label>
                 <select
                   value={editFields.assigned_class}
                   onChange={(e) => setEditFields({ ...editFields, assigned_class: e.target.value })}
-                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                  className="w-full h-9 rounded-lg border border-nk-line-soft bg-nk-surface px-3 text-sm"
                 >
                   <option value="">선택</option>
                   {classes.filter(c => c.active).map((c) => (
@@ -606,13 +606,13 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
                 </select>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-600 mb-1 block">
+                <label className="text-xs font-bold text-nk-ink-sub mb-1 block">
                   담임 {editFields.subject === "영어수학" ? "(수학)" : ""}
                 </label>
                 <select
                   value={editFields.teacher}
                   onChange={(e) => setEditFields({ ...editFields, teacher: e.target.value })}
-                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                  className="w-full h-9 rounded-lg border border-nk-line-soft bg-nk-surface px-3 text-sm"
                 >
                   <option value="">선택</option>
                   {teachers.filter(t => t.active).map((t) => (
@@ -624,11 +624,11 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
             {editFields.subject === "영어수학" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">배정반 (영어)</label>
+                  <label className="text-xs font-bold text-nk-ink-sub mb-1 block">배정반 (영어)</label>
                   <select
                     value={editFields.assigned_class_2}
                     onChange={(e) => setEditFields({ ...editFields, assigned_class_2: e.target.value })}
-                    className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                    className="w-full h-9 rounded-lg border border-nk-line-soft bg-nk-surface px-3 text-sm"
                   >
                     <option value="">선택</option>
                     {classes.filter(c => c.active).map((c) => (
@@ -637,11 +637,11 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">담임 (영어)</label>
+                  <label className="text-xs font-bold text-nk-ink-sub mb-1 block">담임 (영어)</label>
                   <select
                     value={editFields.teacher_2}
                     onChange={(e) => setEditFields({ ...editFields, teacher_2: e.target.value })}
-                    className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                    className="w-full h-9 rounded-lg border border-nk-line-soft bg-nk-surface px-3 text-sm"
                   >
                     <option value="">선택</option>
                     {teachers.filter(t => t.active).map((t) => (
@@ -652,7 +652,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
               </div>
             )}
             <div>
-              <label className="text-xs font-bold text-slate-600 mb-1 block">월 수업료 (원)</label>
+              <label className="text-xs font-bold text-nk-ink-sub mb-1 block">월 수업료 (원)</label>
               <Input
                 type="number"
                 value={editFields.tuition_fee}
@@ -660,7 +660,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
                 className="rounded-lg"
               />
               {registration.grade && (
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-nk-ink-hint mt-1">
                   기준: {registration.grade} {editFields.subject} = {formatFee(TUITION_TABLE[registration.grade] || null)}
                 </p>
               )}
@@ -687,7 +687,7 @@ export function RegistrationDetailClient({ registration, analysisReportHtml, cla
                   setIsFieldSaving(false);
                 }
               }}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+              className="rounded-xl bg-nk-done hover:bg-nk-done"
             >
               <Save className={`h-3.5 w-3.5 mr-1 ${isFieldSaving ? "animate-spin" : ""}`} />
               {isFieldSaving ? "저장 중..." : "저장"}

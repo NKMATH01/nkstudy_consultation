@@ -15,9 +15,9 @@ interface ConfirmationCardProps {
 }
 
 const OPERATION_STYLES = {
-  create: { bg: "bg-blue-50", border: "border-blue-300", icon: Plus, iconColor: "text-blue-600", badge: "bg-blue-100 text-blue-700" },
-  update: { bg: "bg-amber-50", border: "border-amber-300", icon: Pencil, iconColor: "text-amber-600", badge: "bg-amber-100 text-amber-700" },
-  delete: { bg: "bg-red-50", border: "border-red-300", icon: Trash2, iconColor: "text-red-600", badge: "bg-red-100 text-red-700" },
+  create: { bg: "bg-nk-progress-soft", border: "border-nk-progress", icon: Plus, iconColor: "text-nk-progress", badge: "bg-nk-progress-soft text-nk-progress" },
+  update: { bg: "bg-nk-warn-soft", border: "border-nk-warn", icon: Pencil, iconColor: "text-nk-warn", badge: "bg-nk-warn-soft text-nk-warn" },
+  delete: { bg: "bg-nk-late-soft", border: "border-nk-late", icon: Trash2, iconColor: "text-nk-late", badge: "bg-nk-late-soft text-nk-late" },
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -97,50 +97,50 @@ export function ConfirmationCard({
         <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${style.badge}`}>
           {operationLabel}
         </span>
-        <span className="font-medium text-slate-700">{entityLabel}</span>
-        <span className="text-slate-500">—</span>
-        <span className="font-semibold text-slate-800">{proposal.targetName}</span>
+        <span className="font-medium text-nk-ink">{entityLabel}</span>
+        <span className="text-nk-ink-sub">—</span>
+        <span className="font-semibold text-nk-ink">{proposal.targetName}</span>
       </div>
 
       {/* 설명 */}
-      <p className="text-slate-600 mb-2">{proposal.description}</p>
-      {summary && <p className="text-[11px] text-slate-500 mb-2">{summary}</p>}
+      <p className="text-nk-ink-sub mb-2">{proposal.description}</p>
+      {summary && <p className="text-[11px] text-nk-ink-sub mb-2">{summary}</p>}
 
       {/* 변경 내용 */}
       {proposal.operation === "update" && proposal.currentData && (
-        <div className="bg-white/60 rounded p-2 mb-2 space-y-1">
+        <div className="bg-nk-surface/60 rounded p-2 mb-2 space-y-1">
           {Object.entries(proposal.changes).map(([key, newVal]) => (
             <div key={key} className="flex items-start gap-1">
-              <span className="text-slate-500 min-w-[70px]">{FIELD_LABELS[key] || key}:</span>
-              <span className="text-red-500 line-through">{formatValue(proposal.currentData?.[key])}</span>
-              <span className="text-slate-400 mx-0.5">&rarr;</span>
-              <span className="text-green-700 font-medium">{formatValue(newVal)}</span>
+              <span className="text-nk-ink-sub min-w-[70px]">{FIELD_LABELS[key] || key}:</span>
+              <span className="text-nk-late line-through">{formatValue(proposal.currentData?.[key])}</span>
+              <span className="text-nk-ink-hint mx-0.5">&rarr;</span>
+              <span className="text-nk-done font-medium">{formatValue(newVal)}</span>
             </div>
           ))}
         </div>
       )}
 
       {proposal.operation === "create" && Object.keys(proposal.changes).length > 0 && (
-        <div className="bg-white/60 rounded p-2 mb-2 space-y-1">
+        <div className="bg-nk-surface/60 rounded p-2 mb-2 space-y-1">
           {Object.entries(proposal.changes).map(([key, val]) => (
             <div key={key} className="flex items-start gap-1">
-              <span className="text-slate-500 min-w-[70px]">{FIELD_LABELS[key] || key}:</span>
-              <span className="text-slate-800">{formatValue(val)}</span>
+              <span className="text-nk-ink-sub min-w-[70px]">{FIELD_LABELS[key] || key}:</span>
+              <span className="text-nk-ink">{formatValue(val)}</span>
             </div>
           ))}
         </div>
       )}
 
       {proposal.operation === "delete" && proposal.currentData && (
-        <div className="bg-white/60 rounded p-2 mb-2 space-y-1">
-          <div className="flex items-center gap-1 text-red-600 mb-1">
+        <div className="bg-nk-surface/60 rounded p-2 mb-2 space-y-1">
+          <div className="flex items-center gap-1 text-nk-late mb-1">
             <AlertTriangle className="w-3 h-3" />
             <span className="font-medium">이 데이터가 삭제됩니다</span>
           </div>
           {Object.entries(proposal.currentData).map(([key, val]) => (
             <div key={key} className="flex items-start gap-1">
-              <span className="text-slate-500 min-w-[70px]">{FIELD_LABELS[key] || key}:</span>
-              <span className="text-slate-800">{formatValue(val)}</span>
+              <span className="text-nk-ink-sub min-w-[70px]">{FIELD_LABELS[key] || key}:</span>
+              <span className="text-nk-ink">{formatValue(val)}</span>
             </div>
           ))}
         </div>
@@ -151,15 +151,15 @@ export function ConfirmationCard({
         <div className="flex gap-2 mt-2">
           <button
             onClick={handleConfirm}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md text-white text-xs font-medium transition hover:opacity-90"
-            style={{ background: "#7C3AED" }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md text-nk-navy-ink text-xs font-medium transition hover:opacity-90"
+            style={{ background: "rgb(var(--wr-cat-3))" }}
           >
             <Check className="w-3 h-3" />
             확인 (실행)
           </button>
           <button
             onClick={handleCancel}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-slate-200 text-slate-600 text-xs font-medium transition hover:bg-slate-300"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-nk-line text-nk-ink-sub text-xs font-medium transition hover:bg-nk-line"
           >
             <X className="w-3 h-3" />
             취소
@@ -168,28 +168,28 @@ export function ConfirmationCard({
       )}
 
       {status === "loading" && (
-        <div className="flex items-center gap-2 mt-2 text-violet-600">
+        <div className="flex items-center gap-2 mt-2 text-nk-cat-3">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
           <span>실행 중...</span>
         </div>
       )}
 
       {status === "confirmed" && (
-        <div className="flex items-center gap-2 mt-2 text-green-600">
+        <div className="flex items-center gap-2 mt-2 text-nk-done">
           <Check className="w-3.5 h-3.5" />
           <span className="font-medium">{resultMessage}</span>
         </div>
       )}
 
       {status === "cancelled" && (
-        <div className="flex items-center gap-2 mt-2 text-slate-400">
+        <div className="flex items-center gap-2 mt-2 text-nk-ink-hint">
           <X className="w-3.5 h-3.5" />
           <span>취소되었습니다</span>
         </div>
       )}
 
       {status === "error" && (
-        <div className="flex items-center gap-2 mt-2 text-red-600">
+        <div className="flex items-center gap-2 mt-2 text-nk-late">
           <AlertTriangle className="w-3.5 h-3.5" />
           <span>{resultMessage}</span>
         </div>

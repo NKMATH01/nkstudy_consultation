@@ -12,12 +12,12 @@ export default async function StudentsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between border-b border-slate-200/70 pb-4">
+      <div className="flex items-end justify-between border-b border-nk-line-soft/70 pb-4">
         <div>
-        <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
+        <h1 className="text-xl font-extrabold" style={{ color: "rgb(var(--wr-ink))", letterSpacing: "-0.02em", marginBottom: "3px" }}>
           학생 관리
         </h1>
-        <p className="text-[12.5px]" style={{ color: "#64748B" }}>
+        <p className="text-[12.5px]" style={{ color: "rgb(var(--wr-ink-sub))" }}>
           {students.length}명
         </p>
         </div>

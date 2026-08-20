@@ -76,24 +76,26 @@ function formatHeaderDate(): string {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${DAY_NAMES[d.getDay()]}요일`;
 }
 
+// 장소도 분류다. 앰버(경고)를 쓰면 자이점 상담만 문제가 있는 것처럼 읽힌다.
 function shortLocation(loc: string | null): { text: string; cls: string } {
   if (!loc) return { text: "-", cls: "" };
-  if (loc.includes("B동 4층")) return { text: "B4층", cls: "bg-indigo-100 text-indigo-700" };
-  if (loc.includes("A동 7층")) return { text: "A7층", cls: "bg-sky-100 text-sky-700" };
-  if (loc.includes("자이")) return { text: "자이", cls: "bg-orange-100 text-orange-700" };
-  return { text: loc.slice(0, 4), cls: "bg-gray-100 text-gray-600" };
+  if (loc.includes("B동 4층")) return { text: "B4층", cls: "bg-nk-cat-1-soft text-nk-cat-1" };
+  if (loc.includes("A동 7층")) return { text: "A7층", cls: "bg-nk-cat-1-soft text-nk-cat-1" };
+  if (loc.includes("자이")) return { text: "자이", cls: "bg-nk-cat-4-soft text-nk-cat-4" };
+  return { text: loc.slice(0, 4), cls: "bg-nk-sunken text-nk-ink-sub" };
 }
 
+// 과목은 상태가 아니라 분류다 — 초록·파랑(완료·진행) 대신 분류색을 쓴다.
 function subjectBadge(subj: string | null): { text: string; cls: string } {
   if (!subj) return { text: "-", cls: "" };
   const s = subj.toLowerCase();
   if (s.includes("영어") && s.includes("수학"))
-    return { text: "영어, 수학", cls: "bg-purple-100 text-purple-700" };
+    return { text: "영어, 수학", cls: "bg-nk-cat-3-soft text-nk-cat-3" };
   if (s.includes("영수"))
-    return { text: "영어, 수학", cls: "bg-purple-100 text-purple-700" };
-  if (s.includes("수학")) return { text: "수학", cls: "bg-emerald-100 text-emerald-700" };
-  if (s.includes("영어")) return { text: "영어", cls: "bg-blue-100 text-blue-700" };
-  return { text: subj, cls: "bg-gray-100 text-gray-600" };
+    return { text: "영어, 수학", cls: "bg-nk-cat-3-soft text-nk-cat-3" };
+  if (s.includes("수학")) return { text: "수학", cls: "bg-nk-cat-1-soft text-nk-cat-1" };
+  if (s.includes("영어")) return { text: "영어", cls: "bg-nk-cat-2-soft text-nk-cat-2" };
+  return { text: subj, cls: "bg-nk-sunken text-nk-ink-sub" };
 }
 
 function formatMethod(type: string): { text: string; isInPerson: boolean } {
@@ -134,11 +136,12 @@ function getAlimtalkButtonTitle(send?: AlimtalkSendEntry): string {
   return `알림톡 발송됨 · ${sentAt}`;
 }
 
-// 결과에 따른 행 스타일
+// 결과에 따른 행 스타일. 등록은 완료 초록, 고민중은 경고 앰버, 미등록은 가라앉힌 면이다 —
+// 예전에는 등록이 붉은 면이었는데, 붉음은 이 체계에서 지연·위험 자리라 뜻이 반대로 읽혔다.
 function rowStyleByResult(status: string): string {
-  if (status === "registered") return "bg-red-50";
-  if (status === "hold") return "bg-amber-50";
-  if (status === "other") return "bg-neutral-900 text-neutral-400";
+  if (status === "registered") return "bg-nk-done-soft";
+  if (status === "hold") return "bg-nk-warn-soft";
+  if (status === "other") return "bg-nk-sunken text-nk-ink-hint";
   return "";
 }
 
@@ -157,10 +160,10 @@ function formatYearMonth(ym: string): string {
 }
 
 const STATUS_FILTER_OPTIONS: { value: ResultStatus | null; label: string; cls: string; activeCls: string }[] = [
-  { value: null, label: "전체", cls: "bg-white text-slate-500 border-slate-200", activeCls: "bg-[#F0653A] text-white border-[#F0653A]" },
-  { value: "registered", label: "등록", cls: "bg-white text-red-500 border-red-200", activeCls: "bg-red-500 text-white border-red-500" },
-  { value: "hold", label: "고민중", cls: "bg-white text-amber-500 border-amber-200", activeCls: "bg-amber-400 text-white border-amber-400" },
-  { value: "other", label: "미등록", cls: "bg-white text-neutral-500 border-neutral-200", activeCls: "bg-neutral-600 text-white border-neutral-600" },
+  { value: null, label: "전체", cls: "bg-nk-surface text-nk-ink-sub border-nk-line", activeCls: "bg-nk-navy text-nk-navy-ink border-nk-navy" },
+  { value: "registered", label: "등록", cls: "bg-nk-surface text-nk-done border-nk-done", activeCls: "bg-nk-done text-nk-navy-ink border-nk-done" },
+  { value: "hold", label: "고민중", cls: "bg-nk-surface text-nk-warn border-nk-warn", activeCls: "bg-nk-warn text-nk-navy-ink border-nk-warn" },
+  { value: "other", label: "미등록", cls: "bg-nk-surface text-nk-wait border-nk-line", activeCls: "bg-nk-wait text-nk-navy-ink border-nk-wait" },
 ];
 
 type AlimtalkPreviewState = {
@@ -504,12 +507,12 @@ export function ConsultationListClient({
 
   const tableHead = (
     <thead>
-      <tr className="border-t border-b border-slate-200">
+      <tr className="border-t border-b border-nk-line-soft">
         {["시간", "이름", "학교", "과목", "장소", "방식", "연락처", "진행", "테스트비", "결과", ""].map(
           (label, i) => (
             <th
               key={i}
-              className={`text-left py-2 px-1.5 text-[11px] font-semibold text-slate-400 whitespace-nowrap ${i < 10 ? "border-r border-slate-100" : ""}`}
+              className={`text-left py-2 px-1.5 text-[11px] font-semibold text-nk-ink-hint whitespace-nowrap ${i < 10 ? "border-r border-nk-line-soft" : ""}`}
             >
               {label}
             </th>
@@ -566,25 +569,18 @@ export function ConsultationListClient({
 
   return (
     <div className="space-y-2">
-      {/* Header — 웜 다크 밴드 + 코럴 포인트 */}
-      <div
-        className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-4"
-        style={{
-          background:
-            "radial-gradient(circle at 10% 0%, rgba(240,101,58,0.24), transparent 36%), linear-gradient(135deg, #3A342F 0%, #6B5145 100%)",
-          boxShadow: "0 10px 30px rgba(58,52,47,0.22)",
-        }}
-      >
+      {/* Header — 네이비 밴드. 이 화면의 주 액션이 여기 모여 있다. */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-nk-navy-strong px-5 py-4">
         <div className="flex items-center gap-3">
           <div
             className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ background: "rgba(255,255,255,0.14)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)" }}
+            style={{ background: "rgb(var(--wr-navy-ink) / 0.14)", boxShadow: "inset 0 0 0 1px rgb(var(--wr-navy-ink) / 0.18)" }}
           >
-            <LayoutGrid className="h-5 w-5 text-white" />
+            <LayoutGrid className="h-5 w-5 text-nk-navy-ink" />
           </div>
           <div>
-            <span className="block text-lg font-black tracking-tight text-white">상담 현황</span>
-            <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-white/55">
+            <span className="block text-lg font-black tracking-tight text-nk-navy-ink">상담 현황</span>
+            <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-nk-navy-ink/55">
               <Calendar className="h-3.5 w-3.5" />
               {formatHeaderDate()}
             </span>
@@ -592,25 +588,25 @@ export function ConsultationListClient({
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-nk-ink-hint" />
             <input
               type="text"
               placeholder="이름, 학교, 연락처 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-52 rounded-lg border border-white/20 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(240,101,58,0.55)]"
+              className="h-9 w-52 rounded-lg border border-nk-surface/20 bg-nk-surface pl-9 pr-3 text-sm text-nk-ink placeholder-nk-ink-hint shadow-sm focus:outline-none focus:ring-2 focus:ring-nk-navy/40"
             />
           </div>
           <button
             onClick={() => startTransition(() => router.refresh())}
-            className="rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-2 text-nk-navy-ink/60 transition-colors hover:bg-nk-surface/10 hover:text-nk-navy-ink"
           >
             <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={() => setShowTextParse(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold text-white transition-all hover:-translate-y-px"
-            style={{ background: "rgba(255,255,255,0.12)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.2)" }}
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold text-nk-navy-ink transition-all hover:-translate-y-px"
+            style={{ background: "rgb(var(--wr-navy-ink) / 0.12)", boxShadow: "inset 0 0 0 1px rgb(var(--wr-navy-ink) / 0.2)" }}
           >
             <FileText className="h-4 w-4" />
             텍스트 등록
@@ -620,12 +616,7 @@ export function ConsultationListClient({
               setEditingConsultation(undefined);
               setShowForm(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition-all hover:-translate-y-px hover:shadow-lg"
-            style={{
-              background: "linear-gradient(135deg, #F58A68, #F0653A)",
-              color: "#FFFFFF",
-              boxShadow: "0 6px 18px rgba(240,101,58,0.32)",
-            }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-nk-surface px-4 py-2 text-sm font-bold text-nk-navy transition-colors hover:bg-nk-sunken"
           >
             <Plus className="h-4 w-4" />
             일정 추가
@@ -637,11 +628,11 @@ export function ConsultationListClient({
       <div className="space-y-2">
         {/* 월별 필터 */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <CalendarDays className="h-3.5 w-3.5 text-slate-400 mr-0.5" />
+          <CalendarDays className="h-3.5 w-3.5 text-nk-ink-hint mr-0.5" />
           <button
             onClick={() => setMonthFilter(null)}
             className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
-              monthFilter === null ? "border-transparent bg-[#F0653A] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              monthFilter === null ? "border-transparent bg-nk-navy text-nk-navy-ink" : "bg-nk-surface text-nk-ink-sub border-nk-line-soft hover:bg-nk-sunken"
             }`}
           >
             전체
@@ -651,7 +642,7 @@ export function ConsultationListClient({
               key={ym}
               onClick={() => setMonthFilter(monthFilter === ym ? null : ym)}
               className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
-                monthFilter === ym ? "border-transparent bg-[#F0653A] text-white shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                monthFilter === ym ? "border-transparent bg-nk-navy text-nk-navy-ink" : "bg-nk-surface text-nk-ink-sub border-nk-line-soft hover:bg-nk-sunken"
               }`}
             >
               {formatYearMonth(ym)}
@@ -660,7 +651,7 @@ export function ConsultationListClient({
         </div>
         {/* 등록상태 필터 */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <Filter className="h-3.5 w-3.5 text-slate-400 mr-0.5" />
+          <Filter className="h-3.5 w-3.5 text-nk-ink-hint mr-0.5" />
           {STATUS_FILTER_OPTIONS.map((opt) => (
             <button
               key={opt.label}
@@ -689,14 +680,14 @@ export function ConsultationListClient({
           <div key={date}>
             <div className="flex items-center gap-2 py-3">
               {isDateToday && (
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-700 tracking-wide">
+                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-nk-progress-soft text-nk-progress tracking-wide">
                   TODAY
                 </span>
               )}
-              <span className="text-sm font-bold text-slate-700">
+              <span className="text-sm font-bold text-nk-ink">
                 {formatGroupDate(date)}
               </span>
-              <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
+              <span className="text-xs text-nk-ink-hint bg-nk-sunken px-1.5 py-0.5 rounded font-medium">
                 {items.length}건
               </span>
             </div>
@@ -718,8 +709,8 @@ export function ConsultationListClient({
                       const isUnregistered = item.result_status === "other";
                       const isCancelled = item.status === "cancelled";
                       const cellStrike = isUnregistered || isCancelled ? "line-through" : "";
-                      const vBorder = "border-r border-slate-100";
-                      const vBorderDark = "border-r border-neutral-700";
+                      const vBorder = "border-r border-nk-line-soft";
+                      const vBorderDark = "border-r border-nk-line";
                       const vb = isUnregistered ? vBorderDark : vBorder;
                       const hasParentSeparate = !!(item.parent_consult_date || item.parent_consult_time || item.parent_location);
                       const alimtalkSend = localAlimtalkSendMap[item.id];
@@ -728,63 +719,63 @@ export function ConsultationListClient({
                       return (
                         <Fragment key={item.id}>
                         <tr
-                          className={`border-t border-slate-100 transition-colors ${rowStyleByResult(item.result_status)} ${!isUnregistered ? "hover:bg-slate-50/80" : ""} ${isCancelled ? "opacity-50" : ""}`}
+                          className={`border-t border-nk-line-soft transition-colors ${rowStyleByResult(item.result_status)} ${!isUnregistered ? "hover:bg-nk-sunken/80" : ""} ${isCancelled ? "opacity-50" : ""}`}
                         >
-                          <td className={`py-2 px-1.5 font-semibold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-700"}`}>
+                          <td className={`py-2 px-1.5 font-semibold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-nk-ink-sub" : "text-nk-ink"}`}>
                             {item.consult_time?.slice(0, 5) || "-"}
                           </td>
-                          <td className={`py-2 px-1.5 font-bold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-400" : "text-slate-800"}`}>
+                          <td className={`py-2 px-1.5 font-bold whitespace-nowrap ${cellStrike} ${vb} ${isUnregistered ? "text-nk-ink-hint" : "text-nk-ink"}`}>
                             {item.name}
                             {isCancelled && (
-                              <span className="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">
+                              <span className="ml-1 rounded bg-nk-line px-1.5 py-0.5 text-[9px] font-bold text-nk-ink-sub">
                                 취소됨
                               </span>
                             )}
                             {!isCancelled && item.rescheduled_at && (
-                              <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                              <span className="ml-1 rounded bg-nk-warn-soft px-1.5 py-0.5 text-[9px] font-bold text-nk-warn">
                                 시간변경
                               </span>
                             )}
                           </td>
-                          <td className={`py-2 px-1.5 text-xs whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
+                          <td className={`py-2 px-1.5 text-xs whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-nk-ink-sub" : "text-nk-ink-sub"}`}>
                             {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
                           </td>
                           <td className={`py-2 px-1.5 whitespace-nowrap ${cellStrike} ${vb}`}>
                             {isUnregistered ? (
-                              <span className="text-neutral-500 text-xs">{subj.text}</span>
+                              <span className="text-nk-ink-sub text-xs">{subj.text}</span>
                             ) : subj.cls ? (
                               <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${subj.cls}`}>
                                 {subj.text}
                               </span>
                             ) : (
-                              <span className="text-slate-400 text-xs">-</span>
+                              <span className="text-nk-ink-hint text-xs">-</span>
                             )}
                           </td>
                           <td className={`py-2 px-1.5 whitespace-nowrap ${cellStrike} ${vb}`}>
                             {isUnregistered ? (
-                              <span className="text-neutral-500 text-xs">{loc.text}</span>
+                              <span className="text-nk-ink-sub text-xs">{loc.text}</span>
                             ) : loc.cls ? (
                               <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${loc.cls}`}>
                                 {loc.text}
                               </span>
                             ) : (
-                              <span className="text-slate-400 text-xs">-</span>
+                              <span className="text-nk-ink-hint text-xs">-</span>
                             )}
                           </td>
                           <td className={`py-2 px-1.5 whitespace-nowrap ${cellStrike} ${vb}`}>
                             {isUnregistered ? (
-                              <span className="text-neutral-500 text-xs">{method.text}</span>
+                              <span className="text-nk-ink-sub text-xs">{method.text}</span>
                             ) : method.isInPerson ? (
-                              <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold border border-orange-300 bg-orange-50 text-orange-600">
+                              <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold border border-nk-warn bg-nk-warn-soft text-nk-warn">
                                 {method.text}
                               </span>
                             ) : (
-                              <span className="text-xs font-semibold text-indigo-600">
+                              <span className="text-xs font-semibold text-nk-progress">
                                 {method.text}
                               </span>
                             )}
                           </td>
-                          <td className={`py-2 px-1.5 text-xs font-mono whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-neutral-500" : "text-slate-500"}`}>
+                          <td className={`py-2 px-1.5 text-xs font-mono whitespace-nowrap truncate ${cellStrike} ${vb} ${isUnregistered ? "text-nk-ink-sub" : "text-nk-ink-sub"}`}>
                             {item.parent_phone || "-"}
                           </td>
                           <td className={`py-2 px-1.5 whitespace-nowrap ${vb}`}>
@@ -799,14 +790,14 @@ export function ConsultationListClient({
                                   onClick={() => handleToggleField(item.id, field, value)}
                                   className={`inline-flex items-center gap-0 text-[11px] transition-colors ${
                                     isUnregistered
-                                      ? "text-neutral-600"
+                                      ? "text-nk-ink-sub"
                                       : value
-                                        ? "text-emerald-600 font-semibold"
-                                        : "text-slate-400 hover:text-slate-600"
+                                        ? "text-nk-done font-semibold"
+                                        : "text-nk-ink-hint hover:text-nk-ink-sub"
                                   }`}
                                 >
                                   {value ? (
-                                    <Check className={`h-3 w-3 ${isUnregistered ? "text-neutral-600" : "text-emerald-500"}`} />
+                                    <Check className={`h-3 w-3 ${isUnregistered ? "text-nk-ink-sub" : "text-nk-done"}`} />
                                   ) : (
                                     <Circle className="h-3 w-3" />
                                   )}
@@ -817,7 +808,7 @@ export function ConsultationListClient({
                           </td>
                           <td className={`py-2 px-1.5 whitespace-nowrap ${vb}`}>
                             {isUnregistered ? (
-                              <span className="text-neutral-500 text-xs">-</span>
+                              <span className="text-nk-ink-sub text-xs">-</span>
                             ) : (
                               <div className="flex items-center gap-1">
                                 <button
@@ -844,8 +835,8 @@ export function ConsultationListClient({
                                   }}
                                   className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                     item.test_fee_paid
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : "text-slate-400 hover:bg-slate-100"
+                                      ? "bg-nk-done-soft text-nk-done"
+                                      : "text-nk-ink-hint hover:bg-nk-sunken"
                                   }`}
                                 >
                                   {item.test_fee_paid ? "납부" : "미납"}
@@ -866,10 +857,10 @@ export function ConsultationListClient({
                                     }}
                                     className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                       item.test_fee_method === "card"
-                                        ? "bg-blue-100 text-blue-700"
+                                        ? "bg-nk-progress-soft text-nk-progress"
                                         : item.test_fee_method === "exempt"
-                                          ? "bg-slate-200 text-slate-700"
-                                          : "bg-amber-100 text-amber-700"
+                                          ? "bg-nk-line text-nk-ink"
+                                          : "bg-nk-warn-soft text-nk-warn"
                                     }`}
                                   >
                                     {item.test_fee_method === "card"
@@ -888,10 +879,10 @@ export function ConsultationListClient({
                                 onClick={() => handleResultChange(item.id, "registered")}
                                 className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                   item.result_status === "registered"
-                                    ? "bg-red-500 text-white"
+                                    ? "bg-nk-late text-nk-navy-ink"
                                     : isUnregistered
-                                      ? "text-neutral-600 hover:bg-neutral-800"
-                                      : "text-slate-400 hover:bg-slate-100"
+                                      ? "text-nk-ink-sub hover:bg-nk-navy-strong"
+                                      : "text-nk-ink-hint hover:bg-nk-sunken"
                                 }`}
                               >
                                 등록
@@ -900,10 +891,10 @@ export function ConsultationListClient({
                                 onClick={() => handleResultChange(item.id, "hold")}
                                 className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                   item.result_status === "hold"
-                                    ? "bg-amber-400 text-white"
+                                    ? "bg-nk-warn text-nk-navy-ink"
                                     : isUnregistered
-                                      ? "text-neutral-600 hover:bg-neutral-800"
-                                      : "text-slate-400 hover:bg-slate-100"
+                                      ? "text-nk-ink-sub hover:bg-nk-navy-strong"
+                                      : "text-nk-ink-hint hover:bg-nk-sunken"
                                 }`}
                               >
                                 고민
@@ -912,8 +903,8 @@ export function ConsultationListClient({
                                 onClick={() => handleResultChange(item.id, "other")}
                                 className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                   item.result_status === "other"
-                                    ? "bg-neutral-600 text-white line-through"
-                                    : "text-slate-400 hover:bg-slate-100"
+                                    ? "bg-nk-ink-sub text-nk-navy-ink line-through"
+                                    : "text-nk-ink-hint hover:bg-nk-sunken"
                                 }`}
                               >
                                 미등록
@@ -925,10 +916,10 @@ export function ConsultationListClient({
                                   }
                                   className={`inline-flex items-center gap-0 px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                                     isUnregistered
-                                      ? item.notify_sent ? "bg-neutral-700 text-neutral-400" : "bg-neutral-800 text-neutral-500 border border-neutral-700"
+                                      ? item.notify_sent ? "bg-nk-ink-sub text-nk-ink-hint" : "bg-nk-navy-strong text-nk-ink-sub border border-nk-line"
                                       : item.notify_sent
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                        ? "bg-nk-done-soft text-nk-done"
+                                        : "bg-nk-done-soft text-nk-done border border-nk-done"
                                   }`}
                                 >
                                   {item.notify_sent ? (
@@ -946,7 +937,7 @@ export function ConsultationListClient({
                               <div className="flex items-center gap-0.5">
                                 <button
                                   onClick={() => handleCopy(item)}
-                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${isUnregistered ? "text-nk-ink-sub hover:bg-nk-navy-strong" : "text-nk-ink-hint hover:bg-nk-sunken hover:text-nk-ink-sub"}`}
                                   title="클립보드 복사"
                                 >
                                   <ClipboardCopy className="h-3.5 w-3.5" />
@@ -955,12 +946,12 @@ export function ConsultationListClient({
                                   onClick={() => handleOpenAlimtalk(item)}
                                   className={`inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-[10px] font-bold transition-colors ${
                                     alimtalkSend?.status === "failed"
-                                      ? "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                                      ? "bg-nk-late-soft text-nk-late hover:bg-nk-late-soft hover:text-nk-late"
                                       : alimtalkSend
-                                        ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                        ? "bg-nk-warn-soft text-nk-warn hover:bg-nk-warn-soft"
                                         : isUnregistered
-                                          ? "text-neutral-600 hover:bg-neutral-800"
-                                          : "text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                          ? "text-nk-ink-sub hover:bg-nk-navy-strong"
+                                          : "text-nk-warn hover:bg-nk-warn-soft hover:text-nk-warn"
                                   }`}
                                   title={alimtalkTitle}
                                   aria-label={alimtalkTitle}
@@ -978,8 +969,8 @@ export function ConsultationListClient({
                                   onClick={() => handleCreateDripLink(item)}
                                   className={`inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-[10px] font-bold transition-colors ${
                                     isUnregistered
-                                      ? "text-neutral-600 hover:bg-neutral-800"
-                                      : "text-sky-600 hover:bg-sky-50 hover:text-sky-700"
+                                      ? "text-nk-ink-sub hover:bg-nk-navy-strong"
+                                      : "text-nk-progress hover:bg-nk-progress-soft hover:text-nk-progress"
                                   }`}
                                   title="1주 설문 링크"
                                   aria-label="1주 설문 링크"
@@ -989,12 +980,12 @@ export function ConsultationListClient({
                                 </button>
                               </div>
 
-                              <span aria-hidden className="mx-0.5 h-4 border-l border-slate-200" />
+                              <span aria-hidden className="mx-0.5 h-4 border-l border-nk-line-soft" />
 
                               <div className="flex items-center gap-0.5">
                                 <button
                                   onClick={() => handleEdit(item)}
-                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${isUnregistered ? "text-neutral-600 hover:bg-neutral-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${isUnregistered ? "text-nk-ink-sub hover:bg-nk-navy-strong" : "text-nk-ink-hint hover:bg-nk-sunken hover:text-nk-ink-sub"}`}
                                   title="수정"
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
@@ -1005,7 +996,7 @@ export function ConsultationListClient({
                                       setCancelTarget(item);
                                       setCancelReason("");
                                     }}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-nk-ink-hint transition-colors hover:bg-nk-sunken hover:text-nk-ink"
                                     title="취소"
                                   >
                                     <XCircle className="h-3.5 w-3.5" />
@@ -1013,7 +1004,7 @@ export function ConsultationListClient({
                                 )}
                                 <button
                                   onClick={() => handleDelete(item.id, item.name)}
-                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-nk-late transition-colors hover:bg-nk-late-soft hover:text-nk-late"
                                   title="완전삭제"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -1023,15 +1014,15 @@ export function ConsultationListClient({
                           </td>
                         </tr>
                         {hasParentSeparate && (
-                          <tr className={`border-t border-dashed border-amber-200 ${rowStyleByResult(item.result_status) || "bg-amber-50/40"}`}>
+                          <tr className={`border-t border-dashed border-nk-warn ${rowStyleByResult(item.result_status) || "bg-nk-warn-soft/40"}`}>
                             <td colSpan={11} className="py-1.5 px-2">
                               <div className="flex items-center gap-2 text-[11px]">
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold shrink-0">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-nk-warn-soft text-nk-warn font-semibold shrink-0">
                                   학부모 별도
                                 </span>
                                 {item.parent_consult_date && (
-                                  <span className="text-slate-600">
-                                    <span className="text-slate-400 mr-0.5">날짜</span>
+                                  <span className="text-nk-ink-sub">
+                                    <span className="text-nk-ink-hint mr-0.5">날짜</span>
                                     {(() => {
                                       const d = new Date(item.parent_consult_date + "T00:00:00");
                                       return `${d.getMonth() + 1}/${d.getDate()}(${DAY_NAMES[d.getDay()]})`;
@@ -1039,14 +1030,14 @@ export function ConsultationListClient({
                                   </span>
                                 )}
                                 {item.parent_consult_time && (
-                                  <span className="text-slate-600">
-                                    <span className="text-slate-400 mr-0.5">시간</span>
+                                  <span className="text-nk-ink-sub">
+                                    <span className="text-nk-ink-hint mr-0.5">시간</span>
                                     {item.parent_consult_time.slice(0, 5)}
                                   </span>
                                 )}
                                 {item.parent_location && (
-                                  <span className="text-slate-600">
-                                    <span className="text-slate-400 mr-0.5">장소</span>
+                                  <span className="text-nk-ink-sub">
+                                    <span className="text-nk-ink-hint mr-0.5">장소</span>
                                     {item.parent_location}
                                   </span>
                                 )}
@@ -1065,7 +1056,7 @@ export function ConsultationListClient({
       })}
 
       {sortedDates.length === 0 && (
-        <div className="text-center py-20 text-slate-400">
+        <div className="text-center py-20 text-nk-ink-hint">
           <LayoutGrid className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="text-lg font-semibold mb-1">등록된 상담이 없습니다</p>
           <p className="text-sm">텍스트 등록 또는 일정 추가로 상담을 등록해보세요</p>
@@ -1085,7 +1076,7 @@ export function ConsultationListClient({
           <DialogHeader>
             <DialogTitle>상담 취소</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-nk-ink-sub">
             상담을 취소 상태로 변경하고 예약과 변경 이력을 함께 보존합니다.
           </p>
           <Input
@@ -1097,7 +1088,7 @@ export function ConsultationListClient({
             <button
               type="button"
               onClick={() => setCancelTarget(null)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600"
+              className="rounded-lg border border-nk-line-soft px-4 py-2 text-sm font-semibold text-nk-ink-sub"
             >
               닫기
             </button>
@@ -1105,7 +1096,7 @@ export function ConsultationListClient({
               type="button"
               onClick={handleCancel}
               disabled={isPending}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className="rounded-lg bg-nk-navy-strong px-4 py-2 text-sm font-bold text-nk-navy-ink disabled:opacity-50"
             >
               {isPending ? "취소 처리 중..." : "상담 취소"}
             </button>
@@ -1131,29 +1122,29 @@ export function ConsultationListClient({
 
           <div className="space-y-4">
             {currentAlimtalkSend && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+              <div className="rounded-lg border border-nk-warn bg-nk-warn-soft px-3 py-2 text-sm font-semibold text-nk-warn">
                 이 상담에는 {formatAlimtalkSendAt(currentAlimtalkSend.sendAt)}에
                 발송한 이력이 있습니다
               </div>
             )}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            <div className="rounded-lg border border-nk-line-soft bg-nk-sunken px-3 py-2 text-sm text-nk-ink-sub">
               대상:{" "}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-nk-ink">
                 {alimtalkTarget?.name ?? "-"} ·{" "}
                 {alimtalkPreview.data?.maskedPhone ?? "-"} · 1명
               </span>
             </div>
 
             {alimtalkPreview.loading ? (
-              <div className="rounded-lg border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">
+              <div className="rounded-lg border border-nk-line-soft bg-nk-surface p-5 text-center text-sm text-nk-ink-sub">
                 미리보기를 불러오는 중입니다.
               </div>
             ) : alimtalkPreview.error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+              <div className="rounded-lg border border-nk-late bg-nk-late-soft px-3 py-2 text-sm font-semibold text-nk-late">
                 {alimtalkPreview.error}
               </div>
             ) : (
-              <div className="rounded-lg bg-[#FEE500] p-4 text-sm leading-6 text-slate-950 shadow-sm">
+              <div className="rounded-lg bg-nk-kakao p-4 text-sm leading-6 text-nk-ink shadow-sm">
                 <div className="whitespace-pre-wrap">
                   {alimtalkPreview.data?.text ?? ""}
                 </div>
@@ -1161,13 +1152,13 @@ export function ConsultationListClient({
             )}
 
             {alimtalkMissing.length > 0 && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+              <div className="rounded-lg border border-nk-late bg-nk-late-soft px-3 py-2 text-sm font-semibold text-nk-late">
                 미치환 변수: {alimtalkMissing.join(", ")}
               </div>
             )}
 
             {alimtalkTemplateUnapproved && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+              <div className="rounded-lg border border-nk-late bg-nk-late-soft px-3 py-2 text-sm font-semibold text-nk-late">
                 미승인 템플릿
               </div>
             )}
@@ -1176,13 +1167,13 @@ export function ConsultationListClient({
               !alimtalkPreview.data.sendable &&
               alimtalkMissing.length === 0 &&
               !alimtalkTemplateUnapproved && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                <div className="rounded-lg border border-nk-late bg-nk-late-soft px-3 py-2 text-sm font-semibold text-nk-late">
                   대상 전화번호를 확인해 주세요
                 </div>
               )}
 
             {showAlimtalkNightNotice && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+              <div className="rounded-lg border border-nk-warn bg-nk-warn-soft px-3 py-2 text-sm font-semibold text-nk-warn">
                 야간 시간대 — 서버에서 발송이 차단될 수 있습니다
               </div>
             )}
@@ -1193,7 +1184,7 @@ export function ConsultationListClient({
               type="button"
               onClick={() => handleCloseAlimtalk(false)}
               disabled={sendingAlimtalk}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-lg border border-nk-line-soft bg-nk-surface px-4 py-2 text-sm font-semibold text-nk-ink-sub transition-colors hover:bg-nk-sunken disabled:opacity-50"
             >
               취소
             </button>
@@ -1201,7 +1192,7 @@ export function ConsultationListClient({
               type="button"
               onClick={handleSendAlimtalk}
               disabled={alimtalkSendDisabled}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-nk-navy-strong px-4 py-2 text-sm font-bold text-nk-navy-ink transition-colors hover:bg-nk-navy-strong disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send className="h-4 w-4" />
               {sendingAlimtalk ? "발송 중" : "발송하기"}

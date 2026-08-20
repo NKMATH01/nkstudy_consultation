@@ -307,8 +307,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
   return (
     <>
       <div
-        className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
-        style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.04)" }}
+        className="bg-nk-surface rounded-2xl border border-nk-line-soft overflow-hidden"
+        style={{ boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.04)" }}
       >
         {/* Header */}
         <div
@@ -316,36 +316,36 @@ export function OnboardingList({ registrations, analyses }: Props) {
           style={{ background: `linear-gradient(135deg, ${NK_PRIMARY} 0%, var(--primary-soft) 100%)` }}
         >
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center">
-              <UserPlus className="h-5 w-5 text-white" />
+            <div className="h-9 w-9 rounded-xl bg-nk-surface/15 flex items-center justify-center">
+              <UserPlus className="h-5 w-5 text-nk-navy-ink" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-sm">등록 관리</h3>
-              <p className="text-[11px] text-white/60">
+              <h3 className="font-bold text-nk-navy-ink text-sm">등록 관리</h3>
+              <p className="text-[11px] text-nk-navy-ink/60">
                 등록 완료 학생의 온보딩 진행 현황 · {registrations.length}명
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-nk-navy-ink/40" />
               <input
                 type="text"
                 placeholder="이름 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 pl-8 pr-3 rounded-lg text-xs bg-white/10 text-white placeholder-white/40 border border-white/10 focus:outline-none focus:border-white/30 w-40"
+                className="h-8 pl-8 pr-3 rounded-lg text-xs bg-nk-surface/10 text-nk-navy-ink placeholder-nk-navy-ink/45 border border-nk-surface/10 focus:outline-none focus:border-nk-surface/30 w-40"
               />
             </div>
           </div>
         </div>
 
         {/* Progress Legend */}
-        <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-4 flex-wrap" style={{ background: "#FAFBFD" }}>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">진행 단계:</span>
+        <div className="px-6 py-3 border-b border-nk-line-soft flex items-center gap-4 flex-wrap" style={{ background: "rgb(var(--wr-sunken))" }}>
+          <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider">진행 단계:</span>
           {ONBOARDING_STEPS.map((step) => (
-            <span key={step.key} className="text-[11px] text-slate-500 flex items-center gap-1">
-              <Circle className="h-2.5 w-2.5 text-slate-300" />
+            <span key={step.key} className="text-[11px] text-nk-ink-sub flex items-center gap-1">
+              <Circle className="h-2.5 w-2.5 text-nk-ink-hint" />
               {step.label}
             </span>
           ))}
@@ -356,29 +356,29 @@ export function OnboardingList({ registrations, analyses }: Props) {
           <div className="py-20 flex flex-col items-center justify-center text-center px-6">
             <div
               className="h-20 w-20 rounded-2xl flex items-center justify-center mb-5"
-              style={{ background: `linear-gradient(135deg, ${NK_PRIMARY}10 0%, ${NK_GOLD}20 100%)` }}
+              style={{ background: "rgb(var(--wr-navy-soft))" }}
             >
               <UserPlus className="h-10 w-10" style={{ color: NK_PRIMARY }} />
             </div>
-            <h3 className="text-base font-bold text-slate-700 mb-1">등록된 신입생이 없습니다</h3>
-            <p className="text-sm text-slate-400 max-w-xs">
+            <h3 className="text-base font-bold text-nk-ink mb-1">등록된 신입생이 없습니다</h3>
+            <p className="text-sm text-nk-ink-hint max-w-xs">
               등록 안내문을 생성하면 자동으로 신입생 목록에 추가됩니다
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             {/* Column Headers */}
-            <div className="px-4 py-2.5 flex items-center gap-0 border-b border-slate-100 bg-slate-50/50 min-w-[1500px]">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[80px] flex-shrink-0 px-2">등록일</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">이름</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[70px] flex-shrink-0 px-2">학교</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[52px] flex-shrink-0 px-2">과목</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[72px] flex-shrink-0 px-2">반명</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[60px] flex-shrink-0 px-2">담당</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-2">학생연락처</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[105px] flex-shrink-0 px-1">학부모연락처</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-1 min-w-[510px] px-1 text-center">진행 현황</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[160px] flex-shrink-0 px-2 text-center">문서</span>
+            <div className="px-4 py-2.5 flex items-center gap-0 border-b border-nk-line-soft bg-nk-sunken/50 min-w-[1500px]">
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[80px] flex-shrink-0 px-2">등록일</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[70px] flex-shrink-0 px-2">이름</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[70px] flex-shrink-0 px-2">학교</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[52px] flex-shrink-0 px-2">과목</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[72px] flex-shrink-0 px-2">반명</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[60px] flex-shrink-0 px-2">담당</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[105px] flex-shrink-0 px-2">학생연락처</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[105px] flex-shrink-0 px-1">학부모연락처</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider flex-1 min-w-[510px] px-1 text-center">진행 현황</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[160px] flex-shrink-0 px-2 text-center">문서</span>
             </div>
 
             {/* Rows */}
@@ -389,30 +389,30 @@ export function OnboardingList({ registrations, analyses }: Props) {
               const progressPct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
               const isSub = !row._isFirstRow; // 영어수학 두 번째 행 (영어)
               const subjectColor = row._displaySubject === "수학" || row._displaySubject.includes("수학")
-                ? { bg: "#DBEAFE", text: "#1D4ED8", ring: "#BFDBFE" }
+                ? { bg: "rgb(var(--wr-status-progress-soft))", text: "rgb(var(--wr-status-progress))", ring: "rgb(var(--wr-status-progress-soft))" }
                 : row._displaySubject === "영어" || row._displaySubject.includes("영어")
-                  ? { bg: "#F3E8FF", text: "#7C3AED", ring: "#DDD6FE" }
-                  : { bg: "#F1F5F9", text: "#64748B", ring: "#E2E8F0" };
+                  ? { bg: "rgb(var(--wr-sunken))", text: "rgb(var(--wr-cat-3))", ring: "rgb(var(--wr-sunken))" }
+                  : { bg: "rgb(var(--wr-sunken))", text: "rgb(var(--wr-ink-sub))", ring: "rgb(var(--wr-line))" };
 
               return (
                 <Fragment key={row._rowKey}>
                   {row._showCompletionHeader && (
-                    <div className="min-w-[1500px] border-y border-emerald-100 bg-emerald-50/70 px-6 py-2 text-xs font-extrabold text-emerald-700">
+                    <div className="min-w-[1500px] border-y border-nk-done bg-nk-done-soft/70 px-6 py-2 text-xs font-extrabold text-nk-done">
                       온보딩 완료
                     </div>
                   )}
                   <div
-                    className={`px-4 flex items-center gap-0 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-[1500px] ${isSub ? "py-2 bg-slate-50/30" : "py-3"}`}
+                    className={`px-4 flex items-center gap-0 border-b border-nk-line-soft hover:bg-nk-sunken/50 transition-colors min-w-[1500px] ${isSub ? "py-2 bg-nk-sunken/30" : "py-3"}`}
                   >
                   {/* 등록일 - 두 번째 행은 비움 */}
-                  <span className="text-xs text-slate-500 w-[80px] flex-shrink-0 px-2 tabular-nums">
+                  <span className="text-xs text-nk-ink-sub w-[80px] flex-shrink-0 px-2 tabular-nums">
                     {isSub ? "" : (row.registration_date || "-")}
                   </span>
 
                   {/* 이름 - 두 번째 행은 └ 표시 */}
                   <span className="w-[70px] flex-shrink-0 px-2 truncate">
                     {isSub ? (
-                      <span className="text-xs text-slate-300 pl-1">└</span>
+                      <span className="text-xs text-nk-ink-hint pl-1">└</span>
                     ) : (
                       <Link
                         href={`/registrations/${row.id}`}
@@ -425,7 +425,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   </span>
 
                   {/* 학교 - 두 번째 행은 비움 */}
-                  <span className="text-xs text-slate-500 w-[70px] flex-shrink-0 px-2 truncate">
+                  <span className="text-xs text-nk-ink-sub w-[70px] flex-shrink-0 px-2 truncate">
                     {isSub ? "" : (row.school || "-")}
                   </span>
 
@@ -444,22 +444,22 @@ export function OnboardingList({ registrations, analyses }: Props) {
                   </span>
 
                   {/* 반명 */}
-                  <span className="text-xs text-slate-600 w-[72px] flex-shrink-0 px-2 truncate font-medium">
+                  <span className="text-xs text-nk-ink-sub w-[72px] flex-shrink-0 px-2 truncate font-medium">
                     {row._displayClass || "-"}
                   </span>
 
                   {/* 담당 */}
-                  <span className="text-xs text-slate-500 w-[60px] flex-shrink-0 px-2 truncate">
+                  <span className="text-xs text-nk-ink-sub w-[60px] flex-shrink-0 px-2 truncate">
                     {row._displayTeacher || "-"}
                   </span>
 
                   {/* 학생 연락처 */}
-                  <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-2 tabular-nums whitespace-nowrap">
+                  <span className="text-xs text-nk-ink-hint w-[105px] flex-shrink-0 px-2 tabular-nums whitespace-nowrap">
                     {row.student_phone || "-"}
                   </span>
 
                   {/* 학부모 연락처 */}
-                  <span className="text-xs text-slate-400 w-[105px] flex-shrink-0 px-1 tabular-nums whitespace-nowrap">
+                  <span className="text-xs text-nk-ink-hint w-[105px] flex-shrink-0 px-1 tabular-nums whitespace-nowrap">
                     {row.parent_phone || "-"}
                   </span>
 
@@ -469,17 +469,17 @@ export function OnboardingList({ registrations, analyses }: Props) {
                       <div className="flex w-[54px] flex-shrink-0 flex-col items-center gap-1 pt-0.5">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-black ${
-                            progressPct === 100 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                            progressPct === 100 ? "bg-nk-done-soft text-nk-done" : "bg-nk-sunken text-nk-ink-sub"
                           }`}
                         >
                           {progress.done}/{progress.total}
                         </span>
-                        <div className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-1.5 w-12 overflow-hidden rounded-full bg-nk-sunken">
                           <div
                             className="h-full rounded-full transition-all duration-300"
                             style={{
                               width: `${progressPct}%`,
-                              background: progressPct === 100 ? "#059669" : NK_GOLD,
+                              background: progressPct === 100 ? "rgb(var(--wr-status-done))" : NK_GOLD,
                             }}
                           />
                         </div>
@@ -494,19 +494,19 @@ export function OnboardingList({ registrations, analyses }: Props) {
                               onClick={() => toggleStep(row.id, step.key)}
                               className={`flex min-h-[34px] w-full items-start gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${
                                 done
-                                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                                  : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                                  ? "border-nk-done bg-nk-done-soft text-nk-done"
+                                  : "border-nk-line-soft bg-nk-surface text-nk-ink hover:border-nk-line hover:bg-nk-sunken"
                               }`}
                               title={step.label}
                             >
                               <span
                                 className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
-                                  done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 bg-white text-transparent"
+                                  done ? "border-nk-done bg-nk-done text-nk-navy-ink" : "border-nk-line bg-nk-surface text-transparent"
                                 }`}
                               >
                                 <Check className="h-3 w-3" />
                               </span>
-                              <span className={`text-[12px] font-bold leading-snug whitespace-normal ${done ? "text-emerald-700 line-through decoration-emerald-400/70" : "text-slate-800"}`}>
+                              <span className={`text-[12px] font-bold leading-snug whitespace-normal ${done ? "text-nk-done line-through decoration-nk-done/70" : "text-nk-ink"}`}>
                                 {step.label}
                               </span>
                             </button>
@@ -518,8 +518,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
                             key={item.id}
                             className={`group flex min-h-[34px] items-start gap-2 rounded-lg border px-2.5 py-1.5 transition ${
                               item.done
-                                ? "border-blue-100 bg-blue-50 text-blue-700"
-                                : "border-amber-200 bg-amber-50 text-amber-800"
+                                ? "border-nk-progress bg-nk-progress-soft text-nk-progress"
+                                : "border-nk-warn bg-nk-warn-soft text-nk-warn"
                             }`}
                           >
                             <button
@@ -529,18 +529,18 @@ export function OnboardingList({ registrations, analyses }: Props) {
                             >
                               <span
                                 className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
-                                  item.done ? "border-blue-500 bg-blue-500 text-white" : "border-amber-300 bg-white text-transparent"
+                                  item.done ? "border-nk-progress bg-nk-progress text-nk-navy-ink" : "border-nk-warn bg-nk-surface text-transparent"
                                 }`}
                               >
                                 <Check className="h-3 w-3" />
                               </span>
-                              <span className={`text-[12px] font-bold leading-snug whitespace-normal ${item.done ? "text-blue-700 line-through decoration-blue-400/70" : "text-amber-800"}`}>
+                              <span className={`text-[12px] font-bold leading-snug whitespace-normal ${item.done ? "text-nk-progress line-through decoration-nk-progress/70" : "text-nk-warn"}`}>
                                 {item.label}
                               </span>
                             </button>
                             <button
                               onClick={() => deleteCustomItem(row.id, item.id)}
-                              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-nk-ink-hint transition hover:bg-nk-late-soft hover:text-nk-late"
                               title="삭제"
                             >
                               <X className="h-3 w-3" />
@@ -552,7 +552,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                           addingCustomFor === row.id ? (
                             <form
                               onSubmit={(e) => { e.preventDefault(); addCustomItem(row.id, customInput); }}
-                              className="flex min-h-[34px] items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5"
+                              className="flex min-h-[34px] items-center gap-1.5 rounded-lg border border-nk-progress bg-nk-progress-soft px-2.5 py-1.5"
                             >
                               <input
                                 autoFocus
@@ -561,16 +561,16 @@ export function OnboardingList({ registrations, analyses }: Props) {
                                 onChange={(e) => setCustomInput(e.target.value)}
                                 onBlur={() => { if (!customInput.trim()) { setAddingCustomFor(null); setCustomInput(""); } }}
                                 placeholder="항목 입력"
-                                className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                className="h-7 min-w-0 flex-1 rounded-md border border-nk-line-soft px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-nk-progress"
                               />
-                              <button type="submit" className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-500 text-white">
+                              <button type="submit" className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-nk-progress text-nk-navy-ink">
                                 <Check className="h-3.5 w-3.5" />
                               </button>
                             </form>
                           ) : (
                             <button
                               onClick={() => { setAddingCustomFor(row.id); setCustomInput(""); }}
-                              className="flex min-h-[34px] items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1.5 text-left text-[12px] font-bold text-slate-400 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-500"
+                              className="flex min-h-[34px] items-center gap-2 rounded-lg border border-dashed border-nk-line-soft bg-nk-sunken px-2.5 py-1.5 text-left text-[12px] font-bold text-nk-ink-hint transition hover:border-nk-progress hover:bg-nk-progress-soft hover:text-nk-progress"
                               title="항목 추가"
                             >
                               <Plus className="h-3.5 w-3.5 flex-shrink-0" />
@@ -590,7 +590,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                           <button
                             onClick={() => setReportPopup(row.id)}
                             className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap"
-                            style={{ background: `${NK_PRIMARY}10`, color: NK_PRIMARY }}
+                            style={{ background: "rgb(var(--wr-navy-soft))", color: NK_PRIMARY }}
                             title="등록안내문 보기"
                           >
                             <FileText className="h-3 w-3" />
@@ -607,7 +607,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                               }
                             }}
                             className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap"
-                            style={{ background: `${NK_GOLD}15`, color: "#92400E" }}
+                            style={{ background: "rgb(var(--wr-status-warn-soft))", color: "rgb(var(--wr-status-warn))" }}
                             title="성향분석 결과 보기"
                           >
                             <Sparkles className="h-3 w-3" />
@@ -617,7 +617,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                         {row.analysis_id && (
                           <button
                             onClick={() => window.open(`/analyses/${row.analysis_id}?view=teacher`, '_blank')}
-                            className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            className="h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap bg-nk-sunken text-nk-ink-sub hover:bg-nk-line"
                             title="강사용 A4 한 장 (직원 전용)"
                           >
                             <UserCog className="h-3 w-3" />
@@ -631,8 +631,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
                             }
                             className={`h-7 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all hover:shadow-sm whitespace-nowrap ${
                               isFirst14Due(row.registration_date)
-                                ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                ? "bg-nk-warn-soft text-nk-warn hover:bg-nk-warn-soft"
+                                : "bg-nk-sunken text-nk-ink-sub hover:bg-nk-line"
                             }`}
                             title={
                               isFirst14Due(row.registration_date)
@@ -643,20 +643,20 @@ export function OnboardingList({ registrations, analyses }: Props) {
                             <CalendarCheck className="h-3 w-3" />
                             14일 확인
                             {isFirst14Due(row.registration_date) && (
-                              <span className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-600" />
+                              <span className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-nk-warn" />
                             )}
                           </button>
                         )}
                         <Link
                           href={`/registrations/${row.id}`}
-                          className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                          className="h-7 w-7 rounded-md flex items-center justify-center text-nk-ink-hint hover:bg-nk-progress-soft hover:text-nk-progress transition-colors"
                           title="수정"
                         >
                           <PenLine className="h-3.5 w-3.5" />
                         </Link>
                         <button
                           onClick={() => setDeleteTarget(row.id)}
-                          className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          className="h-7 w-7 rounded-md flex items-center justify-center text-nk-ink-hint hover:bg-nk-late-soft hover:text-nk-late transition-colors"
                           title="삭제"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -679,8 +679,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
         if (!html) return null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setReportPopup(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden m-4" onClick={(e) => e.stopPropagation()}>
-              <div className="sticky top-0 z-10 px-6 py-3 border-b bg-white flex items-center justify-between" style={{ borderColor: "#E8ECF1" }}>
+            <div className="bg-nk-surface rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden m-4" onClick={(e) => e.stopPropagation()}>
+              <div className="sticky top-0 z-10 px-6 py-3 border-b bg-nk-surface flex items-center justify-between" style={{ borderColor: "rgb(var(--wr-line-soft))" }}>
                 <div>
                   <h2 className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>{reg?.name} 등록안내문</h2>
                 </div>
@@ -704,7 +704,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                         pageUrl: `/report/${result.token}`,
                       });
                     }}
-                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-nk-warn-soft text-nk-warn hover:bg-nk-warn-soft"
                     title="카카오톡 공유"
                   >
                     <MessageCircle className="h-3 w-3" />
@@ -728,7 +728,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                         toast.error("링크 복사에 실패했습니다");
                       }
                     }}
-                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-nk-sunken text-nk-ink hover:bg-nk-sunken"
                     title="링크 복사"
                   >
                     <Link2 className="h-3 w-3" />
@@ -743,8 +743,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     <ExternalLink className="h-3 w-3" />
                     전체 보기
                   </a>
-                  <button onClick={() => setReportPopup(null)} className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
-                    <span className="text-slate-500 text-lg leading-none">&times;</span>
+                  <button onClick={() => setReportPopup(null)} className="w-7 h-7 rounded-lg bg-nk-sunken hover:bg-nk-line flex items-center justify-center">
+                    <span className="text-nk-ink-sub text-lg leading-none">&times;</span>
                   </button>
                 </div>
               </div>
@@ -767,8 +767,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
         if (!analysis?.report_html) return null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAnalysisPopup(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden m-4" onClick={(e) => e.stopPropagation()}>
-              <div className="sticky top-0 z-10 px-6 py-3 border-b bg-white flex items-center justify-between" style={{ borderColor: "#E8ECF1" }}>
+            <div className="bg-nk-surface rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden m-4" onClick={(e) => e.stopPropagation()}>
+              <div className="sticky top-0 z-10 px-6 py-3 border-b bg-nk-surface flex items-center justify-between" style={{ borderColor: "rgb(var(--wr-line-soft))" }}>
                 <div>
                   <h2 className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>{analysis.name} 성향분석 결과</h2>
                 </div>
@@ -792,7 +792,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                         pageUrl: `/report/${result.token}`,
                       });
                     }}
-                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-nk-warn-soft text-nk-warn hover:bg-nk-warn-soft"
                     title="카카오톡 공유"
                   >
                     <MessageCircle className="h-3 w-3" />
@@ -816,7 +816,7 @@ export function OnboardingList({ registrations, analyses }: Props) {
                         toast.error("링크 복사에 실패했습니다");
                       }
                     }}
-                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all hover:shadow-sm bg-nk-sunken text-nk-ink hover:bg-nk-sunken"
                     title="링크 복사"
                   >
                     <Link2 className="h-3 w-3" />
@@ -831,8 +831,8 @@ export function OnboardingList({ registrations, analyses }: Props) {
                     <ExternalLink className="h-3 w-3" />
                     전체 보기
                   </a>
-                  <button onClick={() => setAnalysisPopup(null)} className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
-                    <span className="text-slate-500 text-lg leading-none">&times;</span>
+                  <button onClick={() => setAnalysisPopup(null)} className="w-7 h-7 rounded-lg bg-nk-sunken hover:bg-nk-line flex items-center justify-center">
+                    <span className="text-nk-ink-sub text-lg leading-none">&times;</span>
                   </button>
                 </div>
               </div>
@@ -852,22 +852,22 @@ export function OnboardingList({ registrations, analyses }: Props) {
       {/* 삭제 확인 다이얼로그 */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTarget(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-slate-900 mb-2">등록 안내 삭제</h3>
-            <p className="text-sm text-slate-500 mb-5">
+          <div className="bg-nk-surface rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-nk-ink mb-2">등록 안내 삭제</h3>
+            <p className="text-sm text-nk-ink-sub mb-5">
               &quot;{registrations.find((r) => r.id === deleteTarget)?.name}&quot; 등록 안내를 삭제하시겠습니까?
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="h-9 px-4 rounded-lg text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                className="h-9 px-4 rounded-lg text-sm font-medium bg-nk-sunken text-nk-ink-sub hover:bg-nk-line transition-colors"
               >
                 취소
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="h-9 px-4 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                className="h-9 px-4 rounded-lg text-sm font-medium bg-nk-late text-nk-navy-ink hover:bg-nk-late transition-colors disabled:opacity-50"
               >
                 {isDeleting ? "삭제 중..." : "삭제"}
               </button>

@@ -67,13 +67,7 @@ export function Header({ currentTeacher }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b px-4 md:px-7 print:hidden"
-      style={{
-        background: "rgba(255,251,249,0.88)",
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
-        borderColor: "#F0E4DD",
-      }}
+      className="sticky top-0 z-10 flex h-[64px] flex-shrink-0 items-center justify-between border-b border-nk-line bg-nk-surface px-4 md:px-7 print:hidden"
     >
       <div className="flex min-w-0 items-center gap-3">
         <Sheet>
@@ -88,17 +82,14 @@ export function Header({ currentTeacher }: HeaderProps) {
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-sm" style={{ borderColor: "#F0E4DD" }}>
-            <TitleIcon className="h-4.5 w-4.5" style={{ color: "#C7521F" }} />
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-nk-navy-soft text-nk-navy">
+            <TitleIcon className="h-4.5 w-4.5" />
           </span>
           <div>
-            <h2
-              className="text-[17px] font-black"
-              style={{ color: "#3A342F", letterSpacing: "-0.025em" }}
-            >
+            <h2 className="text-[17px] font-bold text-nk-ink" style={{ letterSpacing: "-0.025em" }}>
               {title}
             </h2>
-            <p className="text-[11px] font-semibold" style={{ color: "#A59A90" }}>NK Academy Operations</p>
+            <p className="text-[11px] font-semibold text-nk-ink-hint">NK Academy Operations</p>
           </div>
         </div>
       </div>
@@ -110,7 +101,9 @@ export function Header({ currentTeacher }: HeaderProps) {
           className="mx-3 flex min-w-0 flex-1 justify-center overflow-x-auto"
           style={{ scrollbarWidth: "none" }}
         >
-          <div className="flex flex-shrink-0 items-center gap-1 rounded-full p-1" style={{ background: "#FFF3ED" }}>
+          {/* 지금 보고 있는 카테고리는 네이비로 채워 뒤집는다 — 글자 굵기 차이만으로는
+              옅은 바탕 위에서 활성/비활성이 둘 다 묻힌다. */}
+          <div className="flex flex-shrink-0 items-center gap-1 rounded-lg bg-nk-sunken p-1">
             {sectors.map((sector) => {
               const active = sector.name === activeSectorName;
               return (
@@ -119,16 +112,12 @@ export function Header({ currentTeacher }: HeaderProps) {
                   type="button"
                   onClick={() => router.push(sector.items[0].href)}
                   aria-current={active ? "page" : undefined}
-                  className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 transition-all duration-200 ${
-                    active ? "" : "hover:-translate-y-px"
+                  className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 transition-colors ${
+                    active
+                      ? "bg-nk-navy text-nk-navy-ink"
+                      : "text-nk-ink-sub hover:bg-nk-navy-soft hover:text-nk-navy"
                   }`}
-                  style={{
-                    fontSize: "12.5px",
-                    fontWeight: 800,
-                    background: active ? "#F0653A" : "transparent",
-                    color: active ? "#FFFFFF" : "#8B8078",
-                    boxShadow: active ? "0 4px 12px rgba(240,101,58,0.28)" : "none",
-                  }}
+                  style={{ fontSize: "12.5px", fontWeight: 700 }}
                 >
                   <sector.icon className="h-[14px] w-[14px] flex-shrink-0" />
                   {sector.name}
@@ -142,32 +131,19 @@ export function Header({ currentTeacher }: HeaderProps) {
       <div className="flex flex-shrink-0 items-center gap-3">
         {/* Search */}
         <div className="relative hidden sm:block">
-          <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4"
-            style={{ color: "#A59A90" }}
-          />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-nk-ink-hint" />
           <input
             type="text"
             placeholder="검색..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="rounded-full py-2 pl-9 pr-4 text-xs font-medium shadow-sm transition-all duration-200 focus:w-[300px] focus:border-[#F0653A] focus:ring-2 focus:ring-[#F0653A]/12"
-            style={{
-              width: "240px",
-              background: "#FFFFFF",
-              border: "1px solid #E4D3C8",
-              color: "#3A342F",
-              outline: "none",
-            }}
+            className="w-[240px] rounded-md border border-nk-line bg-nk-surface py-2 pl-9 pr-4 text-xs font-medium text-nk-ink outline-none transition-all duration-200 focus:w-[300px] focus:border-nk-navy focus:ring-2 focus:ring-nk-navy/25"
           />
         </div>
         {/* Bell */}
-        <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border bg-white shadow-sm" style={{ color: "#8B8078", borderColor: "#F0E4DD" }}>
+        <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-nk-line bg-nk-surface text-nk-ink-sub">
           <Bell className="h-[18px] w-[18px]" />
-          <div
-            className="absolute right-2 top-2 h-2 w-2 rounded-full"
-            style={{ background: "#F0653A", border: "2px solid #FFFFFF" }}
-          />
+          <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-nk-late ring-2 ring-nk-surface" />
         </div>
       </div>
     </header>

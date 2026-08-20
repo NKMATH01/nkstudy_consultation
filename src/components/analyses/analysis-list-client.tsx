@@ -34,10 +34,10 @@ function MiniScore({ value }: { value: number | null }) {
   const v = value ?? 0;
   const color =
     v >= 4
-      ? "text-emerald-600 bg-emerald-50"
+      ? "text-nk-done bg-nk-done-soft"
       : v >= 3
-        ? "text-amber-600 bg-amber-50"
-        : "text-red-600 bg-red-50";
+        ? "text-nk-warn bg-nk-warn-soft"
+        : "text-nk-late bg-nk-late-soft";
   return (
     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${color}`}>
       {v.toFixed(1)}
@@ -47,14 +47,14 @@ function MiniScore({ value }: { value: number | null }) {
 
 function MiniV2Score({ value }: { value: number | null }) {
   const color = value === null
-    ? "text-slate-400 bg-slate-50"
+    ? "text-nk-ink-hint bg-nk-sunken"
     : value >= 75
-      ? "text-emerald-700 bg-emerald-50"
+      ? "text-nk-done bg-nk-done-soft"
       : value >= 60
-        ? "text-blue-700 bg-blue-50"
+        ? "text-nk-progress bg-nk-progress-soft"
         : value >= 40
-          ? "text-amber-700 bg-amber-50"
-          : "text-rose-700 bg-rose-50";
+          ? "text-nk-warn bg-nk-warn-soft"
+          : "text-nk-late bg-nk-late-soft";
   return (
     <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${color}`}>
       {value === null ? "-" : Math.round(value)}
@@ -92,10 +92,10 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
       {/* Section Header */}
       <div className="flex justify-between items-end mb-1">
         <div>
-          <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
+          <h1 className="text-xl font-extrabold" style={{ color: "rgb(var(--wr-ink))", letterSpacing: "-0.02em", marginBottom: "3px" }}>
             성향분석 결과
           </h1>
-          <p className="text-[12.5px]" style={{ color: "#64748B" }}>
+          <p className="text-[12.5px]" style={{ color: "rgb(var(--wr-ink-sub))" }}>
             {pagination.total}건
           </p>
         </div>
@@ -103,13 +103,13 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
 
       {/* Search */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-nk-ink-hint" />
         <Input
           placeholder="이름 검색..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          className="pl-9 rounded-xl border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className="pl-9 rounded-xl border-nk-line-soft focus:ring-2 focus:ring-nk-progress/20 focus:border-nk-progress"
         />
       </div>
 
@@ -121,21 +121,21 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
           description="설문 상세 페이지에서 성향분석을 실행해주세요"
         />
       ) : (
-        <div className="bg-white rounded-2xl border border-[#f1f5f9] overflow-hidden" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}>
+        <div className="bg-nk-surface rounded-2xl border border-[rgb(var(--wr-sunken))] overflow-hidden" style={{ boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.02)" }}>
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#f8fafc] hover:bg-[#f8fafc]">
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">분석일</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">이름</TableHead>
-                <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-slate-500">학교/학년</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold text-slate-500">학생 유형</TableHead>
-                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 text-center">학습 프로필</TableHead>
+              <TableRow className="bg-[rgb(var(--wr-sunken))] hover:bg-[rgb(var(--wr-sunken))]">
+                <TableHead className="px-4 py-3 text-xs font-semibold text-nk-ink-sub">분석일</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-semibold text-nk-ink-sub">이름</TableHead>
+                <TableHead className="hidden sm:table-cell px-4 py-3 text-xs font-semibold text-nk-ink-sub">학교/학년</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-semibold text-nk-ink-sub">학생 유형</TableHead>
+                <TableHead className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-nk-ink-sub text-center">학습 프로필</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((item) => (
-                <TableRow key={item.id} className="cursor-pointer hover:bg-[#F8FAFC] transition-colors">
-                  <TableCell className="text-xs text-slate-500">
+                <TableRow key={item.id} className="cursor-pointer hover:bg-[rgb(var(--wr-sunken))] transition-colors">
+                  <TableCell className="text-xs text-nk-ink-sub">
                     <Link href={`/analyses/${item.id}`} className="block py-1">
                       {new Date(item.created_at).toLocaleDateString("ko-KR")}
                     </Link>
@@ -143,17 +143,17 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
                   <TableCell>
                     <Link
                       href={`/analyses/${item.id}`}
-                      className="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition-colors block py-1"
+                      className="font-semibold text-sm text-nk-ink hover:text-nk-progress transition-colors block py-1"
                     >
                       <span className="inline-flex items-center gap-1.5">
                         {item.name}
                         {item.analysis_version === "v2" && (
-                          <span className="rounded border border-violet-200 bg-violet-50 px-1 py-0.5 text-[8px] font-black text-violet-700">V2</span>
+                          <span className="rounded border border-nk-cat-3 bg-nk-cat-3-soft px-1 py-0.5 text-[8px] font-black text-nk-cat-3">V2</span>
                         )}
                       </span>
                     </Link>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell text-sm text-slate-500">
+                  <TableCell className="hidden sm:table-cell text-sm text-nk-ink-sub">
                     <Link href={`/analyses/${item.id}`} className="block py-1">
                       {[item.school, item.grade].filter(Boolean).join(" ")}
                     </Link>
@@ -161,7 +161,7 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
                   <TableCell>
                     <Link href={`/analyses/${item.id}`} className="block py-1">
                       {item.student_type && (
-                        <Badge className="text-[10px] bg-indigo-100 text-indigo-700 hover:bg-indigo-100 border-0">
+                        <Badge className="text-[10px] bg-nk-progress-soft text-nk-progress hover:bg-nk-progress-soft border-0">
                           {item.student_type}
                         </Badge>
                       )}
@@ -201,7 +201,7 @@ export function AnalysisListClient({ initialData, initialPagination }: Props) {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium text-slate-500">
+          <span className="text-sm font-medium text-nk-ink-sub">
             {pagination.page} / {pagination.totalPages}
           </span>
           <Button

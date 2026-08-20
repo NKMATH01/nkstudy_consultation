@@ -14,14 +14,12 @@ export default async function DashboardLayout({
 
   return (
     <>
-      {/* 코럴 스킨 폰트: Pretendard를 (dashboard) 영역에만 로드(공개 설문·V2 결과지 영향 없음). */}
+      {/* 본문 폰트 Pretendard. 직원 화면에만 로드한다(공개 설문·V2 결과지 영향 없음).
+          색 토큰(nk-shared.css)은 로그인·포털도 써야 해서 루트 레이아웃으로 옮겼다. */}
       <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"
       />
-      {/* NK 공통 토큰·GNB. 업무보고 design-system/nk-shared.css 의 복제본이며 값이 바뀌면
-          그쪽을 먼저 고치고 옮긴다. 공개 설문·예약 페이지에는 실리지 않도록 여기서만 건다. */}
-      <link rel="stylesheet" href="/nk-shared.css" />
       {/* 대시보드에서 V2 결과지 PDF 저장 시 사이드바·헤더·overflow 클리핑을 제거한다(§13). */}
       <style
         dangerouslySetInnerHTML={{

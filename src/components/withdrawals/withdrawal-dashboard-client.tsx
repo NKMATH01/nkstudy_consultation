@@ -49,38 +49,34 @@ import {
 
 const NK_PRIMARY = "var(--primary)";
 const NK_GOLD = "var(--accent-warm)";
-const NK_PRIMARY_LIGHT = "#1A3F7A";
-const NK_BLUE_50 = "#EFF4FB";
+const NK_PRIMARY_LIGHT = "rgb(var(--wr-navy))";
+const NK_BLUE_50 = "rgb(var(--wr-sunken))";
 
 const SUBJECT_TABS = ["전체", "수학", "영어"] as const;
 type SubjectTab = (typeof SUBJECT_TABS)[number];
 
 const REASON_COLORS = [
-  "var(--primary)",
-  "var(--accent-warm)",
-  "#3B82F6",
-  "#EF4444",
-  "#10B981",
-  "#8B5CF6",
-  "#F97316",
-  "#EC4899",
-  "#06B6D4",
-  "#6366F1",
-  "#F43F5E",
+  // 퇴원 사유는 분류다. 상태색(완료 초록·지연 붉음)을 돌려 쓰면 사유마다 좋고 나쁨이
+  // 있는 것처럼 읽히므로 분류색 네 가지와 네이비만 돌린다.
+  "rgb(var(--wr-cat-1))",
+  "rgb(var(--wr-cat-2))",
+  "rgb(var(--wr-cat-3))",
+  "rgb(var(--wr-cat-4))",
+  "rgb(var(--wr-navy))",
 ];
 
 /** 사유가 비어 있는 건의 표시 라벨 */
 const MISSING_REASON = "미입력";
-const MISSING_REASON_COLOR = "#94A3B8";
+const MISSING_REASON_COLOR = "rgb(var(--wr-ink-hint))";
 
 const COMEBACK_ORDER = ["상", "중상", "중", "중하", "하"] as const;
 
 const COMEBACK_COLORS: Record<string, string> = {
-  "상": "#059669",
-  "중상": "#10B981",
-  "중": "#F59E0B",
-  "중하": "#F97316",
-  "하": "#EF4444",
+  "상": "rgb(var(--wr-status-done))",
+  "중상": "rgb(var(--wr-status-done))",
+  "중": "rgb(var(--wr-status-warn))",
+  "중하": "rgb(var(--wr-status-warn))",
+  "하": "rgb(var(--wr-status-late))",
 };
 
 const MONTH_LABELS = [
@@ -101,13 +97,13 @@ function matchesSubject(w: Withdrawal, tab: SubjectTab): boolean {
 }
 
 function getSubjectBadgeStyle(subject: string): { bg: string; color: string } {
-  if (subject.includes("수학")) return { bg: "#DBEAFE", color: "#1D4ED8" };
-  if (subject.includes("영어")) return { bg: "#F3E8FF", color: "#7C3AED" };
-  return { bg: "#F1F5F9", color: "#64748B" };
+  if (subject.includes("수학")) return { bg: "rgb(var(--wr-status-progress-soft))", color: "rgb(var(--wr-status-progress))" };
+  if (subject.includes("영어")) return { bg: "rgb(var(--wr-sunken))", color: "rgb(var(--wr-cat-3))" };
+  return { bg: "rgb(var(--wr-sunken))", color: "rgb(var(--wr-ink-sub))" };
 }
 
 function getComebackBadgeStyle(possibility: string): { bg: string; color: string } {
-  const color = COMEBACK_COLORS[possibility] || "#94A3B8";
+  const color = COMEBACK_COLORS[possibility] || "rgb(var(--wr-ink-hint))";
   return { bg: `${color}15`, color };
 }
 
@@ -156,7 +152,7 @@ function CustomTooltipContent({
   return (
     <div
       className="rounded-lg px-3 py-2 text-xs shadow-lg border"
-      style={{ background: "white", borderColor: "#E2E8F0" }}
+      style={{ background: "white", borderColor: "rgb(var(--wr-line))" }}
     >
       {label && (
         <div className="font-semibold mb-1" style={{ color: NK_PRIMARY }}>
@@ -169,8 +165,8 @@ function CustomTooltipContent({
             className="w-2 h-2 rounded-full inline-block"
             style={{ background: p.color }}
           />
-          <span className="text-slate-600">
-            {p.name}: <span className="font-bold text-slate-800">{p.value}</span>
+          <span className="text-nk-ink-sub">
+            {p.name}: <span className="font-bold text-nk-ink">{p.value}</span>
           </span>
         </div>
       ))}
@@ -195,10 +191,10 @@ function DashboardCard({
 }) {
   return (
     <div
-      className={`bg-white rounded-2xl p-6 ${className}`}
+      className={`bg-nk-surface rounded-2xl p-6 ${className}`}
       style={{
-        border: "1px solid #E8ECF1",
-        boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+        border: "1px solid rgb(var(--wr-line-soft))",
+        boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
       }}
     >
       <div className="mb-5">
@@ -208,7 +204,7 @@ function DashboardCard({
             {title}
           </h3>
         </div>
-        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-nk-ink-hint mt-0.5">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -318,20 +314,20 @@ function ProblemAnalysisSection({
   }
 
   const severityColor = (s: "높음" | "중간" | "낮음") => {
-    if (s === "높음") return "#DC2626";
-    if (s === "중간") return "#F59E0B";
-    return "#10B981";
+    if (s === "높음") return "rgb(var(--wr-status-late))";
+    if (s === "중간") return "rgb(var(--wr-status-warn))";
+    return "rgb(var(--wr-status-done))";
   };
 
   const severityBg = (s: "높음" | "중간" | "낮음") => {
-    if (s === "높음") return "#FEF2F2";
-    if (s === "중간") return "#FFFBEB";
-    return "#ECFDF5";
+    if (s === "높음") return "rgb(var(--wr-status-late-soft))";
+    if (s === "중간") return "rgb(var(--wr-status-warn-soft))";
+    return "rgb(var(--wr-status-done-soft))";
   };
 
   if (problems.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-8 text-sm text-nk-ink-hint">
         현재 필터 조건에서 특이 문제점이 감지되지 않았습니다.
       </div>
     );
@@ -345,10 +341,10 @@ function ProblemAnalysisSection({
         return (
           <div
             key={idx}
-            className="bg-white rounded-lg p-4"
+            className="bg-nk-surface rounded-lg p-4"
             style={{
               borderLeft: `4px solid ${borderColor}`,
-              border: `1px solid #E8ECF1`,
+              border: `1px solid rgb(var(--wr-line-soft))`,
               borderLeftWidth: "4px",
               borderLeftColor: borderColor,
             }}
@@ -372,7 +368,7 @@ function ProblemAnalysisSection({
                     {problem.severity}
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
+                <p className="text-xs text-nk-ink-sub leading-relaxed">
                   {problem.description}
                 </p>
               </div>
@@ -393,7 +389,7 @@ function SortableHeader({ label, sortField, currentSort, currentDir, onSort }: {
   const isActive = currentSort === sortField;
   return (
     <th
-      className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors select-none"
+      className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-nk-sunken transition-colors select-none"
       style={{ color: isActive ? NK_GOLD : NK_PRIMARY }}
       onClick={() => onSort(sortField)}
     >
@@ -795,7 +791,7 @@ export function WithdrawalDashboard({
       .map((name) => ({
         name,
         value: byCb[name],
-        color: COMEBACK_COLORS[name] || "#94A3B8",
+        color: COMEBACK_COLORS[name] || "rgb(var(--wr-ink-hint))",
         pct: filtered.length > 0 ? ((byCb[name] / filtered.length) * 100).toFixed(1) : "0",
       }));
   }, [filtered]);
@@ -844,16 +840,16 @@ export function WithdrawalDashboard({
             onClick={() => setActiveMonth(null)}
             className="px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200"
             style={{
-              background: activeMonth === null ? NK_PRIMARY : "#F1F5F9",
-              color: activeMonth === null ? "white" : "#64748B",
+              background: activeMonth === null ? NK_PRIMARY : "rgb(var(--wr-sunken))",
+              color: activeMonth === null ? "white" : "rgb(var(--wr-ink-sub))",
               boxShadow:
-                activeMonth === null ? "0 2px 8px rgba(15,43,91,0.25)" : "none",
+                activeMonth === null ? "0 2px 8px rgb(var(--wr-navy-strong) / 0.25)" : "none",
             }}
           >
             전체
             <span
               className="ml-1.5 text-xs font-bold"
-              style={{ color: activeMonth === null ? NK_GOLD : "#94A3B8" }}
+              style={{ color: activeMonth === null ? NK_GOLD : "rgb(var(--wr-ink-hint))" }}
             >
               {withdrawals.filter((w) => matchesSubject(w, activeSubject)).length}
             </span>
@@ -869,15 +865,15 @@ export function WithdrawalDashboard({
                 onClick={() => setActiveMonth(isActive ? null : m)}
                 className="px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200"
                 style={{
-                  background: isActive ? NK_PRIMARY : "#F1F5F9",
-                  color: isActive ? "white" : "#64748B",
-                  boxShadow: isActive ? "0 2px 8px rgba(15,43,91,0.25)" : "none",
+                  background: isActive ? NK_PRIMARY : "rgb(var(--wr-sunken))",
+                  color: isActive ? "white" : "rgb(var(--wr-ink-sub))",
+                  boxShadow: isActive ? "0 2px 8px rgb(var(--wr-navy-strong) / 0.25)" : "none",
                 }}
               >
                 {m}월
                 <span
                   className="ml-1.5 text-xs font-bold"
-                  style={{ color: isActive ? NK_GOLD : "#94A3B8" }}
+                  style={{ color: isActive ? NK_GOLD : "rgb(var(--wr-ink-hint))" }}
                 >
                   {monthCount}
                 </span>
@@ -887,7 +883,7 @@ export function WithdrawalDashboard({
         </div>
 
         {/* ── 2. Subject Filter Tabs ─────────────────────────────────── */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-fit">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-nk-sunken w-fit">
           {SUBJECT_TABS.map((tab) => {
             const isActive = activeSubject === tab;
             const count =
@@ -906,14 +902,14 @@ export function WithdrawalDashboard({
                 className="relative px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
                 style={{
                   background: isActive ? NK_PRIMARY : "transparent",
-                  color: isActive ? "white" : "#64748B",
-                  boxShadow: isActive ? "0 2px 8px rgba(15,43,91,0.25)" : "none",
+                  color: isActive ? "white" : "rgb(var(--wr-ink-sub))",
+                  boxShadow: isActive ? "0 2px 8px rgb(var(--wr-navy-strong) / 0.25)" : "none",
                 }}
               >
                 {tab}
                 <span
                   className="ml-1.5 text-xs font-bold"
-                  style={{ color: isActive ? NK_GOLD : "#94A3B8" }}
+                  style={{ color: isActive ? NK_GOLD : "rgb(var(--wr-ink-hint))" }}
                 >
                   {count}
                 </span>
@@ -947,25 +943,25 @@ export function WithdrawalDashboard({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* 3-1. 전체 퇴원율 */}
         <div
-          className="relative overflow-hidden rounded-2xl p-5 bg-white cursor-pointer hover:shadow-md transition-shadow"
+          className="relative overflow-hidden rounded-2xl p-5 bg-nk-surface cursor-pointer hover:shadow-md transition-shadow"
           style={{
-            border: `1px solid ${insightData.withdrawalRate > 15 ? "#FCA5A5" : "#E8ECF1"}`,
+            border: `1px solid ${insightData.withdrawalRate > 15 ? "rgb(var(--wr-status-late-soft))" : "rgb(var(--wr-line-soft))"}`,
             boxShadow:
               insightData.withdrawalRate > 15
-                ? "0 1px 3px rgba(239,68,68,0.08), 0 4px 12px rgba(239,68,68,0.06)"
-                : "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+                ? "0 1px 3px rgb(var(--wr-status-late) / 0.08), 0 4px 12px rgb(var(--wr-status-late) / 0.06)"
+                : "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
           }}
           onClick={() => setInsightPopup('rate')}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
+              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-nk-ink-hint">
                 전체 퇴원율
               </div>
               <div
                 className="text-3xl font-extrabold leading-tight tracking-tight"
                 style={{
-                  color: insightData.withdrawalRate > 15 ? "#EF4444" : NK_PRIMARY,
+                  color: insightData.withdrawalRate > 15 ? "rgb(var(--wr-status-late))" : NK_PRIMARY,
                 }}
               >
                 {insightData.total > 0
@@ -973,17 +969,17 @@ export function WithdrawalDashboard({
                   : "0.0"}
                 %
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
+              <div className="text-[11px] text-nk-ink-hint mt-1">
                 {insightData.count}명 / {insightData.total}명
                 {activeMonth !== null && <span className="block text-[10px]">({activeMonth > 1 ? `${activeMonth - 1}` : "12"}월 말 기준)</span>}
               </div>
             </div>
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-nk-navy-ink flex-shrink-0"
               style={{
                 background:
                   insightData.withdrawalRate > 15
-                    ? "linear-gradient(135deg, #DC2626, #EF4444)"
+                    ? "linear-gradient(135deg, rgb(var(--wr-status-late)), rgb(var(--wr-status-late)))"
                     : `linear-gradient(135deg, ${NK_PRIMARY}, ${NK_PRIMARY_LIGHT})`,
               }}
             >
@@ -994,45 +990,45 @@ export function WithdrawalDashboard({
 
         {/* 3-2. 조기 퇴원 경고 */}
         <div
-          className="relative overflow-hidden rounded-2xl p-5 bg-white cursor-pointer hover:shadow-md transition-shadow"
+          className="relative overflow-hidden rounded-2xl p-5 bg-nk-surface cursor-pointer hover:shadow-md transition-shadow"
           style={{
-            border: `1px solid ${insightData.earlyCount > 0 ? "#FCA5A5" : "#E8ECF1"}`,
-            background: insightData.earlyCount > 0 ? "#FEF2F2" : "white",
+            border: `1px solid ${insightData.earlyCount > 0 ? "rgb(var(--wr-status-late-soft))" : "rgb(var(--wr-line-soft))"}`,
+            background: insightData.earlyCount > 0 ? "rgb(var(--wr-status-late-soft))" : "white",
             boxShadow:
               insightData.earlyCount > 0
-                ? "0 1px 3px rgba(239,68,68,0.08), 0 4px 12px rgba(239,68,68,0.06)"
-                : "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+                ? "0 1px 3px rgb(var(--wr-status-late) / 0.08), 0 4px 12px rgb(var(--wr-status-late) / 0.06)"
+                : "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
           }}
           onClick={() => setInsightPopup('early')}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
+              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-nk-ink-hint">
                 조기 퇴원 경고
               </div>
               <div
                 className="text-3xl font-extrabold leading-tight tracking-tight"
-                style={{ color: insightData.earlyCount > 0 ? "#DC2626" : NK_PRIMARY }}
+                style={{ color: insightData.earlyCount > 0 ? "rgb(var(--wr-status-late))" : NK_PRIMARY }}
               >
                 {insightData.earlyCount}명
               </div>
               {/* [봉인] 강사 실명 뱃지는 표시하지 않는다. 상세는 클릭 시 학생 목록으로 확인한다. */}
               {insightData.earlyCount > 0 && (
-                <div className="text-[11px] text-slate-500 mt-1.5">재원 2개월 이하 퇴원</div>
+                <div className="text-[11px] text-nk-ink-sub mt-1.5">재원 2개월 이하 퇴원</div>
               )}
               {insightData.earlyCount === 0 && (
-                <div className="text-[11px] text-slate-400 mt-1">
+                <div className="text-[11px] text-nk-ink-hint mt-1">
                   재원 2개월 이하 퇴원 없음
                 </div>
               )}
             </div>
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-nk-navy-ink flex-shrink-0"
               style={{
                 background:
                   insightData.earlyCount > 0
-                    ? "linear-gradient(135deg, #DC2626, #EF4444)"
-                    : "linear-gradient(135deg, #94A3B8, #CBD5E1)",
+                    ? "linear-gradient(135deg, rgb(var(--wr-status-late)), rgb(var(--wr-status-late)))"
+                    : "linear-gradient(135deg, rgb(var(--wr-ink-hint)), rgb(var(--wr-line)))",
               }}
             >
               <AlertTriangle className="h-[18px] w-[18px]" />
@@ -1042,16 +1038,16 @@ export function WithdrawalDashboard({
 
         {/* 3-3. 최다 퇴원 사유 */}
         <div
-          className="relative overflow-hidden rounded-2xl p-5 bg-white cursor-pointer hover:shadow-md transition-shadow"
+          className="relative overflow-hidden rounded-2xl p-5 bg-nk-surface cursor-pointer hover:shadow-md transition-shadow"
           style={{
-            border: "1px solid #E8ECF1",
-            boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+            border: "1px solid rgb(var(--wr-line-soft))",
+            boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
           }}
           onClick={() => setInsightPopup('reason')}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
+              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-nk-ink-hint">
                 최다 퇴원 사유
               </div>
               <div
@@ -1064,13 +1060,13 @@ export function WithdrawalDashboard({
                 <span className="font-bold" style={{ color: NK_GOLD }}>
                   {insightData.topReasonPct}%
                 </span>
-                <span className="text-slate-400 ml-1">
+                <span className="text-nk-ink-hint ml-1">
                   ({insightData.topReasonCount}명)
                 </span>
               </div>
             </div>
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-nk-navy-ink flex-shrink-0"
               style={{
                 background: `linear-gradient(135deg, ${NK_PRIMARY}, ${NK_PRIMARY_LIGHT})`,
               }}
@@ -1082,31 +1078,31 @@ export function WithdrawalDashboard({
 
         {/* 3-4. 복귀 유망 */}
         <div
-          className="relative overflow-hidden rounded-2xl p-5 bg-white cursor-pointer hover:shadow-md transition-shadow"
+          className="relative overflow-hidden rounded-2xl p-5 bg-nk-surface cursor-pointer hover:shadow-md transition-shadow"
           style={{
-            border: "1px solid #E8ECF1",
-            boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+            border: "1px solid rgb(var(--wr-line-soft))",
+            boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
           }}
           onClick={() => setInsightPopup('comeback')}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
+              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-nk-ink-hint">
                 복귀 유망
               </div>
               <div
-                className="text-3xl font-extrabold leading-tight tracking-tight text-emerald-600"
+                className="text-3xl font-extrabold leading-tight tracking-tight text-nk-done"
               >
                 {insightData.comebackPromising}명
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
+              <div className="text-[11px] text-nk-ink-hint mt-1">
                 복귀 가능성 상/중상
               </div>
             </div>
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-nk-navy-ink flex-shrink-0"
               style={{
-                background: "linear-gradient(135deg, #047857, #10B981)",
+                background: "linear-gradient(135deg, rgb(var(--wr-status-done)), rgb(var(--wr-status-done)))",
               }}
             >
               <RotateCcw className="h-[18px] w-[18px]" />
@@ -1116,17 +1112,17 @@ export function WithdrawalDashboard({
 
         {/* 3-5. 퇴원 건수 최다 담당 (건수 사실만) */}
         <div
-          className="relative overflow-hidden rounded-2xl p-5 bg-white cursor-pointer hover:shadow-md transition-shadow"
+          className="relative overflow-hidden rounded-2xl p-5 bg-nk-surface cursor-pointer hover:shadow-md transition-shadow"
           style={{
-            border: "1px solid #E8ECF1",
-            boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+            border: "1px solid rgb(var(--wr-line-soft))",
+            boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
           }}
           onClick={() => setInsightPopup('teacher')}
         >
           <div className="flex justify-between items-start">
             {/* 등급·퇴원율 없이 건수 사실만 표기한다(강사 결과지표 봉인). */}
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
+              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-nk-ink-hint">
                 퇴원 건수 최다 담당
               </div>
               <div
@@ -1135,12 +1131,12 @@ export function WithdrawalDashboard({
               >
                 {insightData.topTeacherName} T
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
+              <div className="text-[11px] text-nk-ink-hint mt-1">
                 {insightData.topTeacherCount}명 퇴원 (건수 기준)
               </div>
             </div>
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-nk-navy-ink flex-shrink-0"
               style={{ background: NK_PRIMARY }}
             >
               <UserCheck className="h-[18px] w-[18px]" />
@@ -1150,35 +1146,35 @@ export function WithdrawalDashboard({
 
         {/* 3-6. 회고 작성률 */}
         <div
-          className="relative overflow-hidden rounded-2xl p-5 bg-white"
+          className="relative overflow-hidden rounded-2xl p-5 bg-nk-surface"
           style={{
-            border: `1px solid ${retrospectiveRate.total > retrospectiveRate.completed ? "#FCD34D" : "#E8ECF1"}`,
-            boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+            border: `1px solid ${retrospectiveRate.total > retrospectiveRate.completed ? "rgb(var(--wr-status-warn-soft))" : "rgb(var(--wr-line-soft))"}`,
+            boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
           }}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-slate-400">
+              <div className="text-[11px] font-semibold mb-2 uppercase tracking-wider text-nk-ink-hint">
                 회고 작성률
               </div>
               <div
                 className="text-3xl font-extrabold leading-tight tracking-tight"
                 style={{
-                  color: retrospectiveRate.total > retrospectiveRate.completed ? "#B45309" : NK_PRIMARY,
+                  color: retrospectiveRate.total > retrospectiveRate.completed ? "rgb(var(--wr-status-warn))" : NK_PRIMARY,
                 }}
               >
                 {retrospectiveRate.rate}%
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">
+              <div className="text-[11px] text-nk-ink-hint mt-1">
                 {retrospectiveRate.completed}건 / {retrospectiveRate.total}건 (전체 기준)
               </div>
             </div>
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-nk-navy-ink flex-shrink-0"
               style={{
                 background:
                   retrospectiveRate.total > retrospectiveRate.completed
-                    ? "linear-gradient(135deg, #B45309, #F59E0B)"
+                    ? "linear-gradient(135deg, rgb(var(--wr-status-warn)), rgb(var(--wr-status-warn)))"
                     : `linear-gradient(135deg, ${NK_PRIMARY}, ${NK_PRIMARY_LIGHT})`,
               }}
             >
@@ -1220,13 +1216,13 @@ export function WithdrawalDashboard({
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="#E8ECF1"
+                    stroke="rgb(var(--wr-line-soft))"
                     horizontal={false}
                   />
                   <XAxis
                     type="number"
                     fontSize={11}
-                    stroke="#94A3B8"
+                    stroke="rgb(var(--wr-ink-hint))"
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
@@ -1235,7 +1231,7 @@ export function WithdrawalDashboard({
                     type="category"
                     dataKey="name"
                     fontSize={11}
-                    stroke="#64748B"
+                    stroke="rgb(var(--wr-ink-sub))"
                     tickLine={false}
                     axisLine={false}
                     width={120}
@@ -1246,13 +1242,13 @@ export function WithdrawalDashboard({
                       const data = payload[0].payload as (typeof reasonAnalysis)[number];
                       return (
                         <div
-                          className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
-                          style={{ borderColor: "#E2E8F0" }}
+                          className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-nk-surface"
+                          style={{ borderColor: "rgb(var(--wr-line))" }}
                         >
                           <div className="font-semibold" style={{ color: NK_PRIMARY }}>
                             {data.name}
                           </div>
-                          <div className="text-slate-600 mt-0.5">
+                          <div className="text-nk-ink-sub mt-0.5">
                             {data.value}명 ({data.pct}%)
                           </div>
                         </div>
@@ -1275,7 +1271,7 @@ export function WithdrawalDashboard({
               </ResponsiveContainer>
             </>
           ) : (
-            <div className="h-40 flex items-center justify-center text-sm text-slate-400">
+            <div className="h-40 flex items-center justify-center text-sm text-nk-ink-hint">
               데이터가 없습니다
             </div>
           )}
@@ -1300,13 +1296,13 @@ export function WithdrawalDashboard({
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="#E8ECF1"
+                    stroke="rgb(var(--wr-line-soft))"
                     horizontal={false}
                   />
                   <XAxis
                     type="number"
                     fontSize={11}
-                    stroke="#94A3B8"
+                    stroke="rgb(var(--wr-ink-hint))"
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
@@ -1315,7 +1311,7 @@ export function WithdrawalDashboard({
                     type="category"
                     dataKey="name"
                     fontSize={12}
-                    stroke="#64748B"
+                    stroke="rgb(var(--wr-ink-sub))"
                     tickLine={false}
                     axisLine={false}
                     width={40}
@@ -1326,13 +1322,13 @@ export function WithdrawalDashboard({
                       const data = payload[0].payload as (typeof comebackData)[number];
                       return (
                         <div
-                          className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white"
-                          style={{ borderColor: "#E2E8F0" }}
+                          className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-nk-surface"
+                          style={{ borderColor: "rgb(var(--wr-line))" }}
                         >
                           <div className="font-semibold" style={{ color: NK_PRIMARY }}>
                             복귀 가능성: {data.name}
                           </div>
-                          <div className="text-slate-600 mt-0.5">
+                          <div className="text-nk-ink-sub mt-0.5">
                             {data.value}명 ({data.pct}%)
                           </div>
                         </div>
@@ -1367,7 +1363,7 @@ export function WithdrawalDashboard({
                       <span className="text-[11px] font-bold" style={{ color: c.color }}>
                         {c.name}
                       </span>
-                      <span className="text-[10px] text-slate-500 ml-1">
+                      <span className="text-[10px] text-nk-ink-sub ml-1">
                         {c.value}명 ({c.pct}%)
                       </span>
                     </div>
@@ -1376,7 +1372,7 @@ export function WithdrawalDashboard({
               </div>
             </>
           ) : (
-            <div className="h-40 flex items-center justify-center text-sm text-slate-400">
+            <div className="h-40 flex items-center justify-center text-sm text-nk-ink-hint">
               데이터가 없습니다
             </div>
           )}
@@ -1413,8 +1409,8 @@ export function WithdrawalDashboard({
                   return (
                     <Fragment key={teacher.name}>
                       <tr
-                        className="border-t transition-colors hover:bg-slate-50/50 cursor-pointer"
-                        style={{ borderColor: "#F1F5F9" }}
+                        className="border-t transition-colors hover:bg-nk-sunken/50 cursor-pointer"
+                        style={{ borderColor: "rgb(var(--wr-sunken))" }}
                         onClick={() =>
                           setExpandedTeacherRow(isExpanded ? null : teacher.name)
                         }
@@ -1427,18 +1423,18 @@ export function WithdrawalDashboard({
                             {teacher.name} T
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">
+                        <td className="px-4 py-3 text-sm text-nk-ink-sub">
                           {teacher.totalStudents > 0 ? `${teacher.totalStudents}명` : "-"}
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold text-white"
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold text-nk-navy-ink"
                             style={{ background: NK_PRIMARY }}
                           >
                             {teacher.withdrawalCount}명
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-500">
+                        <td className="px-4 py-3 text-xs text-nk-ink-sub">
                           {teacher.avgDuration > 0 ? `${teacher.avgDuration}개월` : "-"}
                         </td>
                         <td className="px-4 py-3">
@@ -1447,20 +1443,20 @@ export function WithdrawalDashboard({
                               <div className="relative">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setExpandedEarlyTeacher(expandedEarlyTeacher === teacher.name ? null : teacher.name); }}
-                                  className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-200"
+                                  className="inline-flex items-center gap-1 rounded-md bg-nk-sunken px-2 py-0.5 text-[10px] font-semibold text-nk-ink-sub transition-colors hover:bg-nk-line"
                                 >
                                   조기 퇴원 {teacher.earlyWithdrawalTeachers.length}명
                                 </button>
                                 {expandedEarlyTeacher === teacher.name && (
-                                  <div className="absolute z-10 left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-slate-200 p-3 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
-                                    <div className="text-[11px] font-bold text-slate-500 mb-2">조기 퇴원 학생 ({teacher.earlyWithdrawalTeachers.length}명)</div>
+                                  <div className="absolute z-10 left-0 top-full mt-1 bg-nk-surface rounded-lg shadow-lg border border-nk-line-soft p-3 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
+                                    <div className="text-[11px] font-bold text-nk-ink-sub mb-2">조기 퇴원 학생 ({teacher.earlyWithdrawalTeachers.length}명)</div>
                                     <div className="space-y-1.5">
                                       {teacher.earlyWithdrawalTeachers.map((studentName, idx) => {
                                         const studentData = filtered.find(w => w.name === studentName && w.teacher === teacher.name);
                                         return (
                                           <div key={idx} className="flex items-center justify-between text-xs">
-                                            <span className="font-medium text-slate-700">{studentName}</span>
-                                            <span className="text-slate-400">{studentData?.duration_months ? `${studentData.duration_months}개월` : '-'}</span>
+                                            <span className="font-medium text-nk-ink">{studentName}</span>
+                                            <span className="text-nk-ink-hint">{studentData?.duration_months ? `${studentData.duration_months}개월` : '-'}</span>
                                           </div>
                                         );
                                       })}
@@ -1473,9 +1469,9 @@ export function WithdrawalDashboard({
                         </td>
                         <td className="px-4 py-3">
                           {isExpanded ? (
-                            <ChevronUp className="w-4 h-4 text-slate-400" />
+                            <ChevronUp className="w-4 h-4 text-nk-ink-hint" />
                           ) : (
-                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                            <ChevronDown className="w-4 h-4 text-nk-ink-hint" />
                           )}
                         </td>
                       </tr>
@@ -1486,16 +1482,16 @@ export function WithdrawalDashboard({
                               className="rounded-xl p-4 mt-1"
                               style={{
                                 background: NK_BLUE_50,
-                                border: `1px solid ${NK_PRIMARY}15`,
+                                border: "1px solid rgb(var(--wr-line))",
                               }}
                             >
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {/* Withdrawal students */}
                                 <div
-                                  className="bg-white rounded-xl p-4"
-                                  style={{ border: "1px solid #E8ECF1" }}
+                                  className="bg-nk-surface rounded-xl p-4"
+                                  style={{ border: "1px solid rgb(var(--wr-line-soft))" }}
                                 >
-                                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                  <div className="text-[11px] font-semibold text-nk-ink-hint uppercase tracking-wider mb-2">
                                     퇴원 학생
                                   </div>
                                   <div className="flex flex-wrap gap-1.5">
@@ -1516,10 +1512,10 @@ export function WithdrawalDashboard({
 
                                 {/* Reasons breakdown */}
                                 <div
-                                  className="bg-white rounded-xl p-4"
-                                  style={{ border: "1px solid #E8ECF1" }}
+                                  className="bg-nk-surface rounded-xl p-4"
+                                  style={{ border: "1px solid rgb(var(--wr-line-soft))" }}
                                 >
-                                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                  <div className="text-[11px] font-semibold text-nk-ink-hint uppercase tracking-wider mb-2">
                                     퇴원 사유
                                   </div>
                                   <div className="space-y-2">
@@ -1530,7 +1526,7 @@ export function WithdrawalDashboard({
                                         <div key={reason} className="flex items-center gap-2">
                                           <div className="flex-1">
                                             <div className="flex items-center justify-between mb-1">
-                                              <span className="text-xs text-slate-700 font-medium">
+                                              <span className="text-xs text-nk-ink font-medium">
                                                 {reason}
                                               </span>
                                               <span
@@ -1540,7 +1536,7 @@ export function WithdrawalDashboard({
                                                 {count}명
                                               </span>
                                             </div>
-                                            <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                            <div className="w-full h-1.5 rounded-full bg-nk-sunken overflow-hidden">
                                               <div
                                                 className="h-full rounded-full"
                                                 style={{
@@ -1587,19 +1583,19 @@ export function WithdrawalDashboard({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#E8ECF1"
+                stroke="rgb(var(--wr-line-soft))"
                 vertical={false}
               />
               <XAxis
                 dataKey="month"
                 fontSize={12}
-                stroke="#94A3B8"
+                stroke="rgb(var(--wr-ink-hint))"
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
                 fontSize={11}
-                stroke="#94A3B8"
+                stroke="rgb(var(--wr-ink-hint))"
                 tickLine={false}
                 axisLine={false}
                 unit="%"
@@ -1609,11 +1605,11 @@ export function WithdrawalDashboard({
                   if (!active || !payload?.length) return null;
                   const data = payload[0].payload as { month: string; count: number; rate: number; base: number };
                   return (
-                    <div className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-white" style={{ borderColor: "#E2E8F0" }}>
+                    <div className="rounded-lg px-3 py-2 text-xs shadow-lg border bg-nk-surface" style={{ borderColor: "rgb(var(--wr-line))" }}>
                       <div className="font-semibold mb-1" style={{ color: NK_PRIMARY }}>{label}</div>
-                      <div className="text-slate-600">퇴원율: <span className="font-bold text-slate-800">{data.rate}%</span></div>
-                      <div className="text-slate-600">퇴원생: <span className="font-bold text-slate-800">{data.count}명</span></div>
-                      <div className="text-slate-400">전달 말일 기준: {data.base}명</div>
+                      <div className="text-nk-ink-sub">퇴원율: <span className="font-bold text-nk-ink">{data.rate}%</span></div>
+                      <div className="text-nk-ink-sub">퇴원생: <span className="font-bold text-nk-ink">{data.count}명</span></div>
+                      <div className="text-nk-ink-hint">전달 말일 기준: {data.base}명</div>
                     </div>
                   );
                 }}
@@ -1668,7 +1664,7 @@ export function WithdrawalDashboard({
                 <tr>
                   <td
                     colSpan={9}
-                    className="px-4 py-12 text-center text-sm text-slate-400"
+                    className="px-4 py-12 text-center text-sm text-nk-ink-hint"
                   >
                     해당 조건의 퇴원 데이터가 없습니다
                   </td>
@@ -1685,10 +1681,10 @@ export function WithdrawalDashboard({
                   return (
                     <tr
                       key={w.id}
-                      className="border-t transition-colors hover:bg-slate-50/50"
-                      style={{ borderColor: "#F1F5F9" }}
+                      className="border-t transition-colors hover:bg-nk-sunken/50"
+                      style={{ borderColor: "rgb(var(--wr-sunken))" }}
                     >
-                      <td className="px-4 py-3 text-xs text-slate-400 font-medium">
+                      <td className="px-4 py-3 text-xs text-nk-ink-hint font-medium">
                         {i + 1}
                       </td>
                       <td className="px-4 py-3">
@@ -1712,37 +1708,37 @@ export function WithdrawalDashboard({
                             {w.subject}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-300">-</span>
+                          <span className="text-xs text-nk-ink-hint">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-500">
+                      <td className="px-4 py-3 text-xs text-nk-ink-sub">
                         {w.withdrawal_date || "-"}
                       </td>
                       <td className="px-4 py-3">
                         {w.grade ? (
-                          <span className="flex items-center gap-1 text-xs text-slate-600">
+                          <span className="flex items-center gap-1 text-xs text-nk-ink-sub">
                             <GraduationCap className="w-3 h-3" />
                             {w.grade}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-300">-</span>
+                          <span className="text-xs text-nk-ink-hint">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-600 font-medium">
+                      <td className="px-4 py-3 text-xs text-nk-ink-sub font-medium">
                         {w.teacher ? `${w.teacher} T` : "-"}
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-500">
+                      <td className="px-4 py-3 text-xs text-nk-ink-sub">
                         {w.duration_months != null
                           ? `${w.duration_months}개월`
                           : "-"}
                       </td>
                       <td className="px-4 py-3">
                         {w.reason_category ? (
-                          <span className="text-xs text-slate-700 font-medium">
+                          <span className="text-xs text-nk-ink font-medium">
                             {w.reason_category}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-300">-</span>
+                          <span className="text-xs text-nk-ink-hint">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -1757,7 +1753,7 @@ export function WithdrawalDashboard({
                             {w.comeback_possibility}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-300">-</span>
+                          <span className="text-xs text-nk-ink-hint">-</span>
                         )}
                       </td>
                     </tr>
@@ -1772,14 +1768,14 @@ export function WithdrawalDashboard({
       {/* ── Student Detail Popup ──────────────────────────────────── */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSelectedStudent(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 z-10 px-6 py-4 border-b bg-white rounded-t-2xl flex items-center justify-between" style={{ borderColor: '#E8ECF1' }}>
+          <div className="bg-nk-surface rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 px-6 py-4 border-b bg-nk-surface rounded-t-2xl flex items-center justify-between" style={{ borderColor: 'rgb(var(--wr-line-soft))' }}>
               <div>
                 <h2 className="text-lg font-extrabold" style={{ color: NK_PRIMARY }}>{selectedStudent.name} 퇴원 보고서</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{selectedStudent.subject} · {selectedStudent.grade} · {selectedStudent.teacher} T</p>
+                <p className="text-xs text-nk-ink-hint mt-0.5">{selectedStudent.subject} · {selectedStudent.grade} · {selectedStudent.teacher} T</p>
               </div>
-              <button onClick={() => setSelectedStudent(null)} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-                <span className="text-slate-500 text-lg leading-none">&times;</span>
+              <button onClick={() => setSelectedStudent(null)} className="w-8 h-8 rounded-lg bg-nk-sunken hover:bg-nk-line flex items-center justify-center transition-colors">
+                <span className="text-nk-ink-sub text-lg leading-none">&times;</span>
               </button>
             </div>
             <div className="p-6 space-y-6">
@@ -1792,77 +1788,77 @@ export function WithdrawalDashboard({
                   { label: "복귀가능성", value: selectedStudent.comeback_possibility },
                 ].map((item) => (
                   <div key={item.label} className="rounded-xl p-3" style={{ background: NK_BLUE_50 }}>
-                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{item.label}</div>
+                    <div className="text-[10px] font-semibold text-nk-ink-hint uppercase tracking-wider">{item.label}</div>
                     <div className="text-sm font-bold mt-1" style={{ color: NK_PRIMARY }}>{item.value || "-"}</div>
                   </div>
                 ))}
               </div>
               {/* Enrollment Info */}
               <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">등원 정보</h3>
+                <h3 className="text-xs font-bold text-nk-ink-sub uppercase tracking-wider mb-3">등원 정보</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-slate-400 text-xs">학교:</span> <span className="font-medium text-slate-700">{selectedStudent.school || "-"}</span></div>
-                  <div><span className="text-slate-400 text-xs">반:</span> <span className="font-medium text-slate-700">{selectedStudent.class_name || "-"}</span></div>
-                  <div><span className="text-slate-400 text-xs">등원 시작:</span> <span className="font-medium text-slate-700">{selectedStudent.enrollment_start || "-"}</span></div>
-                  <div><span className="text-slate-400 text-xs">퇴원인지일:</span> <span className="font-medium text-slate-700">{selectedStudent.enrollment_end || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">학교:</span> <span className="font-medium text-nk-ink">{selectedStudent.school || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">반:</span> <span className="font-medium text-nk-ink">{selectedStudent.class_name || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">등원 시작:</span> <span className="font-medium text-nk-ink">{selectedStudent.enrollment_start || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">퇴원인지일:</span> <span className="font-medium text-nk-ink">{selectedStudent.enrollment_end || "-"}</span></div>
                 </div>
               </div>
               {/* Learning Status */}
               <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">학습 상태</h3>
+                <h3 className="text-xs font-bold text-nk-ink-sub uppercase tracking-wider mb-3">학습 상태</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-slate-400 text-xs">수업 태도:</span> <span className="font-medium text-slate-700">{selectedStudent.class_attitude || "-"}</span></div>
-                  <div><span className="text-slate-400 text-xs">숙제 제출:</span> <span className="font-medium text-slate-700">{selectedStudent.homework_submission || "-"}</span></div>
-                  <div><span className="text-slate-400 text-xs">출결 상태:</span> <span className="font-medium text-slate-700">{selectedStudent.attendance || "-"}</span></div>
-                  <div><span className="text-slate-400 text-xs">성적 변화:</span> <span className="font-medium text-slate-700">{selectedStudent.grade_change || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">수업 태도:</span> <span className="font-medium text-nk-ink">{selectedStudent.class_attitude || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">숙제 제출:</span> <span className="font-medium text-nk-ink">{selectedStudent.homework_submission || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">출결 상태:</span> <span className="font-medium text-nk-ink">{selectedStudent.attendance || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">성적 변화:</span> <span className="font-medium text-nk-ink">{selectedStudent.grade_change || "-"}</span></div>
                 </div>
               </div>
               {/* Opinions */}
               <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">퇴원 의견</h3>
+                <h3 className="text-xs font-bold text-nk-ink-sub uppercase tracking-wider mb-3">퇴원 의견</h3>
                 <div className="space-y-3">
                   {selectedStudent.student_opinion && (
-                    <div className="rounded-lg p-3 bg-blue-50/50 border border-blue-100">
-                      <div className="text-[10px] font-semibold text-blue-600 mb-1">학생 의견</div>
-                      <p className="text-sm text-slate-700">{selectedStudent.student_opinion}</p>
+                    <div className="rounded-lg p-3 bg-nk-progress-soft/50 border border-nk-progress">
+                      <div className="text-[10px] font-semibold text-nk-progress mb-1">학생 의견</div>
+                      <p className="text-sm text-nk-ink">{selectedStudent.student_opinion}</p>
                     </div>
                   )}
                   {selectedStudent.parent_opinion && (
-                    <div className="rounded-lg p-3 bg-amber-50/50 border border-amber-100">
-                      <div className="text-[10px] font-semibold text-amber-600 mb-1">학부모 의견</div>
-                      <p className="text-sm text-slate-700">{selectedStudent.parent_opinion}</p>
+                    <div className="rounded-lg p-3 bg-nk-warn-soft/50 border border-nk-warn">
+                      <div className="text-[10px] font-semibold text-nk-warn mb-1">학부모 의견</div>
+                      <p className="text-sm text-nk-ink">{selectedStudent.parent_opinion}</p>
                     </div>
                   )}
                   {selectedStudent.teacher_opinion && (
-                    <div className="rounded-lg p-3 bg-emerald-50/50 border border-emerald-100">
-                      <div className="text-[10px] font-semibold text-emerald-600 mb-1">선생님 의견</div>
-                      <p className="text-sm text-slate-700">{selectedStudent.teacher_opinion}</p>
+                    <div className="rounded-lg p-3 bg-nk-done-soft/50 border border-nk-done">
+                      <div className="text-[10px] font-semibold text-nk-done mb-1">선생님 의견</div>
+                      <p className="text-sm text-nk-ink">{selectedStudent.teacher_opinion}</p>
                     </div>
                   )}
                   {!selectedStudent.student_opinion && !selectedStudent.parent_opinion && !selectedStudent.teacher_opinion && (
-                    <p className="text-xs text-slate-400">기록된 의견 없음</p>
+                    <p className="text-xs text-nk-ink-hint">기록된 의견 없음</p>
                   )}
                 </div>
               </div>
               {/* Consultation */}
               <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">최종 상담</h3>
+                <h3 className="text-xs font-bold text-nk-ink-sub uppercase tracking-wider mb-3">최종 상담</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-slate-400 text-xs">상담일:</span> <span className="font-medium text-slate-700">{selectedStudent.final_consult_date || "-"}</span></div>
-                  <div><span className="text-slate-400 text-xs">상담사:</span> <span className="font-medium text-slate-700">{selectedStudent.final_counselor || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">상담일:</span> <span className="font-medium text-nk-ink">{selectedStudent.final_consult_date || "-"}</span></div>
+                  <div><span className="text-nk-ink-hint text-xs">상담사:</span> <span className="font-medium text-nk-ink">{selectedStudent.final_counselor || "-"}</span></div>
                 </div>
                 {selectedStudent.final_consult_summary && (
-                  <div className="mt-2 rounded-lg p-3 bg-slate-50 border border-slate-100">
-                    <div className="text-[10px] font-semibold text-slate-500 mb-1">상담 요약</div>
-                    <p className="text-sm text-slate-700">{selectedStudent.final_consult_summary}</p>
+                  <div className="mt-2 rounded-lg p-3 bg-nk-sunken border border-nk-line-soft">
+                    <div className="text-[10px] font-semibold text-nk-ink-sub mb-1">상담 요약</div>
+                    <p className="text-sm text-nk-ink">{selectedStudent.final_consult_summary}</p>
                   </div>
                 )}
               </div>
               {/* Special notes */}
               {selectedStudent.special_notes && selectedStudent.special_notes !== "-" && (
                 <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">특이사항</h3>
-                  <p className="text-sm text-slate-700">{selectedStudent.special_notes}</p>
+                  <h3 className="text-xs font-bold text-nk-ink-sub uppercase tracking-wider mb-3">특이사항</h3>
+                  <p className="text-sm text-nk-ink">{selectedStudent.special_notes}</p>
                 </div>
               )}
             </div>
@@ -1873,23 +1869,23 @@ export function WithdrawalDashboard({
       {/* ── Reason Chart Popup ────────────────────────────────────── */}
       {selectedReason && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSelectedReason(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[70vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 z-10 px-5 py-3.5 border-b bg-white rounded-t-2xl flex items-center justify-between" style={{ borderColor: '#E8ECF1' }}>
+          <div className="bg-nk-surface rounded-2xl shadow-2xl w-full max-w-md max-h-[70vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 px-5 py-3.5 border-b bg-nk-surface rounded-t-2xl flex items-center justify-between" style={{ borderColor: 'rgb(var(--wr-line-soft))' }}>
               <div>
                 <h2 className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>{selectedReason}</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{filtered.filter(w => (w.reason_category || '기타') === selectedReason).length}명</p>
+                <p className="text-xs text-nk-ink-hint mt-0.5">{filtered.filter(w => (w.reason_category || '기타') === selectedReason).length}명</p>
               </div>
-              <button onClick={() => setSelectedReason(null)} className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-                <span className="text-slate-500 text-base leading-none">&times;</span>
+              <button onClick={() => setSelectedReason(null)} className="w-7 h-7 rounded-lg bg-nk-sunken hover:bg-nk-line flex items-center justify-center transition-colors">
+                <span className="text-nk-ink-sub text-base leading-none">&times;</span>
               </button>
             </div>
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-nk-line-soft">
               {filtered.filter(w => (w.reason_category || '기타') === selectedReason).map((w, i) => (
-                <div key={i} className="px-5 py-3 flex items-center gap-4 text-sm hover:bg-slate-50 transition-colors">
+                <div key={i} className="px-5 py-3 flex items-center gap-4 text-sm hover:bg-nk-sunken transition-colors">
                   <span className="font-bold min-w-[52px]" style={{ color: NK_PRIMARY }}>{w.name}</span>
-                  <span className="text-slate-500 min-w-[40px]">{w.grade || '-'}</span>
-                  <span className="text-slate-500 min-w-[48px]">{w.teacher ? `${w.teacher} T` : '-'}</span>
-                  <span className="text-slate-400 text-xs ml-auto">{w.duration_months ? `${w.duration_months}개월` : ''}</span>
+                  <span className="text-nk-ink-sub min-w-[40px]">{w.grade || '-'}</span>
+                  <span className="text-nk-ink-sub min-w-[48px]">{w.teacher ? `${w.teacher} T` : '-'}</span>
+                  <span className="text-nk-ink-hint text-xs ml-auto">{w.duration_months ? `${w.duration_months}개월` : ''}</span>
                 </div>
               ))}
             </div>
@@ -1900,8 +1896,8 @@ export function WithdrawalDashboard({
       {/* ── Insight Cards Popup ───────────────────────────────────── */}
       {insightPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setInsightPopup(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[75vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 z-10 px-5 py-3.5 border-b bg-white rounded-t-2xl flex items-center justify-between" style={{ borderColor: '#E8ECF1' }}>
+          <div className="bg-nk-surface rounded-2xl shadow-2xl w-full max-w-lg max-h-[75vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 px-5 py-3.5 border-b bg-nk-surface rounded-t-2xl flex items-center justify-between" style={{ borderColor: 'rgb(var(--wr-line-soft))' }}>
               <h2 className="text-sm font-extrabold" style={{ color: NK_PRIMARY }}>
                 {insightPopup === 'rate' && '전체 퇴원율 상세'}
                 {insightPopup === 'early' && '조기 퇴원 학생'}
@@ -1909,47 +1905,47 @@ export function WithdrawalDashboard({
                 {insightPopup === 'comeback' && '복귀 유망 학생'}
                 {insightPopup === 'teacher' && `${insightData.topTeacherName} T 퇴원 학생`}
               </h2>
-              <button onClick={() => setInsightPopup(null)} className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
-                <span className="text-slate-500 text-base leading-none">&times;</span>
+              <button onClick={() => setInsightPopup(null)} className="w-7 h-7 rounded-lg bg-nk-sunken hover:bg-nk-line flex items-center justify-center">
+                <span className="text-nk-ink-sub text-base leading-none">&times;</span>
               </button>
             </div>
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-nk-line-soft">
               {insightPopup === 'rate' && filtered.map((w, i) => (
                 <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
                   <span className="font-bold min-w-[52px]" style={{ color: NK_PRIMARY }}>{w.name}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: NK_BLUE_50, color: NK_PRIMARY }}>{w.subject || '-'}</span>
-                  <span className="text-slate-500 text-xs">{w.teacher ? `${w.teacher} T` : '-'}</span>
-                  <span className="text-slate-400 text-xs ml-auto">{w.withdrawal_date}</span>
+                  <span className="text-nk-ink-sub text-xs">{w.teacher ? `${w.teacher} T` : '-'}</span>
+                  <span className="text-nk-ink-hint text-xs ml-auto">{w.withdrawal_date}</span>
                 </div>
               ))}
               {insightPopup === 'early' && filtered.filter(w => w.duration_months != null && w.duration_months <= 2).map((w, i) => (
                 <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
-                  <span className="font-bold min-w-[52px]" style={{ color: '#DC2626' }}>{w.name}</span>
-                  <span className="text-slate-500 text-xs">{w.teacher ? `${w.teacher} T` : '-'}</span>
-                  <span className="text-red-500 text-xs font-semibold">{w.duration_months}개월</span>
-                  <span className="text-slate-400 text-xs ml-auto">{w.reason_category || '-'}</span>
+                  <span className="font-bold min-w-[52px]" style={{ color: 'rgb(var(--wr-status-late))' }}>{w.name}</span>
+                  <span className="text-nk-ink-sub text-xs">{w.teacher ? `${w.teacher} T` : '-'}</span>
+                  <span className="text-nk-late text-xs font-semibold">{w.duration_months}개월</span>
+                  <span className="text-nk-ink-hint text-xs ml-auto">{w.reason_category || '-'}</span>
                 </div>
               ))}
               {insightPopup === 'reason' && filtered.filter(w => w.reason_category === insightData.topReasonName).map((w, i) => (
                 <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
                   <span className="font-bold min-w-[52px]" style={{ color: NK_PRIMARY }}>{w.name}</span>
-                  <span className="text-slate-500 text-xs">{w.grade || '-'}</span>
-                  <span className="text-slate-500 text-xs">{w.teacher ? `${w.teacher} T` : '-'}</span>
+                  <span className="text-nk-ink-sub text-xs">{w.grade || '-'}</span>
+                  <span className="text-nk-ink-sub text-xs">{w.teacher ? `${w.teacher} T` : '-'}</span>
                 </div>
               ))}
               {insightPopup === 'comeback' && filtered.filter(w => w.comeback_possibility === '상' || w.comeback_possibility === '중상').map((w, i) => (
                 <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
-                  <span className="font-bold min-w-[52px]" style={{ color: '#059669' }}>{w.name}</span>
+                  <span className="font-bold min-w-[52px]" style={{ color: 'rgb(var(--wr-status-done))' }}>{w.name}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: NK_BLUE_50, color: NK_PRIMARY }}>{w.subject || '-'}</span>
-                  <span className="text-emerald-600 text-xs font-semibold">{w.comeback_possibility}</span>
-                  <span className="text-slate-400 text-xs ml-auto">{w.teacher ? `${w.teacher} T` : '-'}</span>
+                  <span className="text-nk-done text-xs font-semibold">{w.comeback_possibility}</span>
+                  <span className="text-nk-ink-hint text-xs ml-auto">{w.teacher ? `${w.teacher} T` : '-'}</span>
                 </div>
               ))}
               {insightPopup === 'teacher' && filtered.filter(w => w.teacher === insightData.topTeacherName).map((w, i) => (
                 <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-sm">
                   <span className="font-bold min-w-[52px]" style={{ color: NK_PRIMARY }}>{w.name}</span>
-                  <span className="text-slate-500 text-xs">{w.reason_category || '-'}</span>
-                  <span className="text-slate-400 text-xs ml-auto">{w.duration_months ? `${w.duration_months}개월` : '-'}</span>
+                  <span className="text-nk-ink-sub text-xs">{w.reason_category || '-'}</span>
+                  <span className="text-nk-ink-hint text-xs ml-auto">{w.duration_months ? `${w.duration_months}개월` : '-'}</span>
                 </div>
               ))}
             </div>

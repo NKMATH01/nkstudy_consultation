@@ -11,13 +11,13 @@ import type {
 type AdoptHandler = (actionText: string, diagnosisType: DiagnosisType, title: string) => void;
 
 const NK_PRIMARY = "var(--primary)";
-const CARD_BORDER = "#E8ECF1";
-const ROW_BG = "#FAFBFD";
+const CARD_BORDER = "rgb(var(--wr-line-soft))";
+const ROW_BG = "rgb(var(--wr-sunken))";
 
 const SEVERITY_COLOR: Record<Diagnosis["severity"], string> = {
-  "심각": "#DC2626",
-  "주의": "#F59E0B",
-  "관찰": "#64748B",
+  "심각": "rgb(var(--wr-status-late))",
+  "주의": "rgb(var(--wr-status-warn))",
+  "관찰": "rgb(var(--wr-ink-sub))",
 };
 
 function DiagnosisRow({
@@ -52,13 +52,13 @@ function DiagnosisRow({
       >
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <span
-            className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[11px] font-extrabold text-white"
+            className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[11px] font-extrabold text-nk-navy-ink"
             style={{ background: NK_PRIMARY }}
           >
             {rank}
           </span>
           <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white"
+            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-nk-navy-ink"
             style={{ background: accent }}
           >
             {diagnosis.severity}
@@ -70,17 +70,17 @@ function DiagnosisRow({
         <div className="flex items-baseline gap-1">
           <span
             className="font-extrabold leading-none tracking-tight"
-            style={{ fontSize: isTop ? 28 : 22, color: "#0F172A" }}
+            style={{ fontSize: isTop ? 28 : 22, color: "rgb(var(--wr-ink))" }}
           >
             {diagnosis.metric}
           </span>
-          <span className="text-sm font-bold text-slate-400">{diagnosis.metricUnit}</span>
+          <span className="text-sm font-bold text-nk-ink-hint">{diagnosis.metricUnit}</span>
         </div>
-        <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{diagnosis.evidence}</p>
+        <p className="text-xs text-nk-ink-sub mt-1.5 leading-relaxed">{diagnosis.evidence}</p>
       </div>
 
       <div className="flex-1 p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-nk-ink-hint mb-2">
           개선 액션
         </div>
         {actions.length > 0 ? (
@@ -97,17 +97,17 @@ function DiagnosisRow({
                     className="w-3.5 h-3.5 mt-0.5 flex-shrink-0"
                     style={{ color: "var(--accent-warm-foreground)" }}
                   />
-                  <span className="text-xs text-slate-700 leading-relaxed flex-1">{action}</span>
+                  <span className="text-xs text-nk-ink leading-relaxed flex-1">{action}</span>
                   {onAdoptAction &&
                     (adopted ? (
-                      <span className="text-[10px] font-semibold text-emerald-600 whitespace-nowrap mt-0.5">
+                      <span className="text-[10px] font-semibold text-nk-done whitespace-nowrap mt-0.5">
                         채택됨 ✓
                       </span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => onAdoptAction(action, diagnosis.type, diagnosis.title)}
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap transition-colors hover:bg-slate-100 mt-0.5"
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap transition-colors hover:bg-nk-sunken mt-0.5"
                         style={{ color: NK_PRIMARY, border: `1px solid ${CARD_BORDER}` }}
                       >
                         + 이달 실행
@@ -118,7 +118,7 @@ function DiagnosisRow({
             })}
           </ul>
         ) : (
-          <p className="text-xs text-slate-400">근거 상세는 아래 섹션 참고</p>
+          <p className="text-xs text-nk-ink-hint">근거 상세는 아래 섹션 참고</p>
         )}
       </div>
     </div>
@@ -145,10 +145,10 @@ export function DiagnosisSection({
 
   return (
     <div
-      className="bg-white rounded-2xl p-6"
+      className="bg-nk-surface rounded-2xl p-6"
       style={{
         border: `1px solid ${CARD_BORDER}`,
-        boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+        boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
       }}
     >
       <div className="mb-5">
@@ -158,7 +158,7 @@ export function DiagnosisSection({
             핵심 진단 &amp; 개선 액션
           </h3>
         </div>
-        <p className="text-xs text-slate-400 mt-0.5">
+        <p className="text-xs text-nk-ink-hint mt-0.5">
           {periodLabel} · 가장 시급한 문제와 바로 실행할 항목
         </p>
       </div>
@@ -179,23 +179,23 @@ export function DiagnosisSection({
       ) : (
         <div
           className="flex items-center gap-2.5 rounded-xl px-4 py-3"
-          style={{ background: "#ECFDF5", border: "1px solid #A7F3D0" }}
+          style={{ background: "rgb(var(--wr-status-done-soft))", border: "1px solid rgb(var(--wr-status-done-soft))" }}
         >
-          <CircleCheck className="w-4 h-4 flex-shrink-0" style={{ color: "#059669" }} />
-          <span className="text-[13px] font-semibold text-emerald-700">
+          <CircleCheck className="w-4 h-4 flex-shrink-0" style={{ color: "rgb(var(--wr-status-done))" }} />
+          <span className="text-[13px] font-semibold text-nk-done">
             이번 기간 특이 문제가 감지되지 않았습니다
           </span>
-          <span className="text-xs text-emerald-600/70">총 퇴원 {dataQuality.total}건</span>
+          <span className="text-xs text-nk-done/70">총 퇴원 {dataQuality.total}건</span>
         </div>
       )}
 
       {showQualityStrip && (
         <div
           className="mt-3 flex items-center gap-2 rounded-xl px-4 py-2.5"
-          style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}
+          style={{ background: "rgb(var(--wr-status-warn-soft))", border: "1px solid rgb(var(--wr-status-warn-soft))" }}
         >
-          <TriangleAlert className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#B45309" }} />
-          <span className="text-xs font-semibold text-amber-700">
+          <TriangleAlert className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "rgb(var(--wr-status-warn))" }} />
+          <span className="text-xs font-semibold text-nk-warn">
             사유 미입력 {dataQuality.missingReasonCount}건 ({dataQuality.missingReasonPct}%) — 진단
             정확도에 영향을 줍니다
           </span>

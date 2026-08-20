@@ -316,10 +316,10 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em", marginBottom: "3px" }}>
+        <h1 className="text-xl font-extrabold" style={{ color: "rgb(var(--wr-ink))", letterSpacing: "-0.02em", marginBottom: "3px" }}>
           예약 현황판
         </h1>
-        <p className="text-[12.5px]" style={{ color: "#64748B" }}>
+        <p className="text-[12.5px]" style={{ color: "rgb(var(--wr-ink-sub))" }}>
           진행 {stats.total}건 (확정 {stats.paid} / 대기 {stats.unpaid}) · 취소 {stats.cancelled}건
         </p>
       </div>
@@ -327,33 +327,33 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "진행", val: stats.total, color: "#6366f1", bg: "rgba(99,102,241,0.06)" },
-          { label: "확정", val: stats.paid, color: "#059669", bg: "rgba(5,150,105,0.06)" },
-          { label: "대기", val: stats.unpaid, color: "#dc2626", bg: "rgba(220,38,38,0.05)" },
-          { label: "취소", val: stats.cancelled, color: "#64748b", bg: "rgba(100,116,139,0.06)" },
+          { label: "진행", val: stats.total, color: "rgb(var(--wr-cat-3))", bg: "rgb(var(--wr-cat-3) / 0.06)" },
+          { label: "확정", val: stats.paid, color: "rgb(var(--wr-status-done))", bg: "rgb(var(--wr-status-done) / 0.06)" },
+          { label: "대기", val: stats.unpaid, color: "rgb(var(--wr-status-late))", bg: "rgb(var(--wr-status-late) / 0.05)" },
+          { label: "취소", val: stats.cancelled, color: "rgb(var(--wr-ink-sub))", bg: "rgb(var(--wr-ink-sub) / 0.06)" },
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-center"
+            className="bg-nk-surface rounded-xl border border-nk-line-soft shadow-sm p-4 text-center"
           >
-            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{s.label}</div>
+            <div className="text-[10px] font-semibold text-nk-ink-hint uppercase tracking-wide mb-1">{s.label}</div>
             <div className="text-2xl font-extrabold" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
       </div>
 
       {/* 주간 현황 캘린더 */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+      <div className="bg-nk-surface rounded-2xl border border-nk-line-soft shadow-sm p-5">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold text-slate-800">
+          <h3 className="text-sm font-bold text-nk-ink">
             주간 현황
-            <span className="text-[10px] text-slate-400 font-normal ml-2">클릭 = 시간 차단/해제</span>
+            <span className="text-[10px] text-nk-ink-hint font-normal ml-2">클릭 = 시간 차단/해제</span>
           </h3>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="sm" className="rounded-lg h-7 px-2" onClick={() => handleWeekChange(weekOffset - 1)}>
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
-            <span className="text-xs font-semibold text-slate-600 min-w-[140px] text-center">
+            <span className="text-xs font-semibold text-nk-ink-sub min-w-[140px] text-center">
               {fmtKR(dates[0])} ~ {fmtKR(dates[5])}
             </span>
             <Button variant="outline" size="sm" className="rounded-lg h-7 px-2" onClick={() => handleWeekChange(weekOffset + 1)}>
@@ -383,7 +383,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                   <div key={ds} className="text-center py-0.5">
                     <div
                       className="text-[10px] font-semibold"
-                      style={{ color: d.getDay() === 6 ? "#6366f1" : "#94a3b8" }}
+                      style={{ color: d.getDay() === 6 ? "rgb(var(--wr-cat-3))" : "rgb(var(--wr-ink-hint))" }}
                     >
                       {fmtKR(d)}
                     </div>
@@ -392,9 +392,9 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                       disabled={isPending}
                       className="text-[8px] font-bold px-1.5 py-0.5 rounded transition-all mt-0.5"
                       style={{
-                        background: allBlockedForDate ? "rgba(220,38,38,0.1)" : "rgba(100,116,139,0.06)",
-                        color: allBlockedForDate ? "#dc2626" : "#94a3b8",
-                        border: `1px solid ${allBlockedForDate ? "rgba(220,38,38,0.2)" : "transparent"}`,
+                        background: allBlockedForDate ? "rgb(var(--wr-status-late) / 0.1)" : "rgb(var(--wr-ink-sub) / 0.06)",
+                        color: allBlockedForDate ? "rgb(var(--wr-status-late))" : "rgb(var(--wr-ink-hint))",
+                        border: `1px solid ${allBlockedForDate ? "rgb(var(--wr-status-late) / 0.2)" : "transparent"}`,
                       }}
                       title={allBlockedForDate ? "날짜 전체 차단 해제" : "날짜 전체 차단"}
                     >
@@ -405,7 +405,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               })}
               {ALL_SLOT_CODES.map((h) => (
                 <Fragment key={`${br.id}-${h}`}>
-                  <div className="text-[10px] font-semibold text-slate-400 flex items-center justify-end pr-1">
+                  <div className="text-[10px] font-semibold text-nk-ink-hint flex items-center justify-end pr-1">
                     {formatHourLabel(h)}
                   </div>
                   {dates.map((d) => {
@@ -434,12 +434,12 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                           background: !isValid
                             ? "transparent"
                             : bk
-                              ? bk.paid ? "rgba(5,150,105,0.1)" : "rgba(79,70,229,0.1)"
-                              : bl ? "rgba(220,38,38,0.06)" : past ? "#f8fafc" : "#fff",
+                              ? bk.paid ? "rgb(var(--wr-status-done) / 0.1)" : "rgb(var(--wr-cat-3) / 0.1)"
+                              : bl ? "rgb(var(--wr-status-late) / 0.06)" : past ? "rgb(var(--wr-sunken))" : "rgb(var(--wr-surface))",
                           border: !isValid
                             ? "1px solid transparent"
-                            : `1px solid ${bk ? (bk.paid ? "rgba(5,150,105,0.2)" : "rgba(79,70,229,0.2)") : bl ? "rgba(220,38,38,0.15)" : "#e2e8f0"}`,
-                          color: bk ? (bk.paid ? "#059669" : "#6366f1") : bl ? "#dc2626" : "#94a3b8",
+                            : `1px solid ${bk ? (bk.paid ? "rgb(var(--wr-status-done) / 0.2)" : "rgb(var(--wr-cat-3) / 0.2)") : bl ? "rgb(var(--wr-status-late) / 0.15)" : "rgb(var(--wr-line))"}`,
+                          color: bk ? (bk.paid ? "rgb(var(--wr-status-done))" : "rgb(var(--wr-cat-3))") : bl ? "rgb(var(--wr-status-late))" : "rgb(var(--wr-ink-hint))",
                         }}
                       >
                         {!isValid ? "" : bk ? (bk.paid ? "✓" : "●") : bl ? "✕" : ""}
@@ -451,19 +451,19 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
             </div>
           </div>
         ))}
-        <div className="flex gap-4 mt-2 text-[10px] text-slate-400">
-          <span><span className="text-indigo-500">●</span> 대기</span>
-          <span><span className="text-emerald-600">✓</span> 확정</span>
-          <span><span className="text-red-500">✕</span> 차단</span>
+        <div className="flex gap-4 mt-2 text-[10px] text-nk-ink-hint">
+          <span><span className="text-nk-progress">●</span> 대기</span>
+          <span><span className="text-nk-done">✓</span> 확정</span>
+          <span><span className="text-nk-late">✕</span> 차단</span>
         </div>
       </div>
 
       {/* 예약 목록 */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+      <div className="bg-nk-surface rounded-2xl border border-nk-line-soft shadow-sm p-5">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold text-slate-800">예약 목록</h3>
+          <h3 className="text-sm font-bold text-nk-ink">예약 목록</h3>
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-nk-ink-sub">
               <input
                 type="checkbox"
                 checked={showCancelled}
@@ -482,8 +482,8 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                 onClick={() => setFilter(f.id)}
                 className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all"
                 style={{
-                  background: filter === f.id ? "#4f46e5" : "#f1f5f9",
-                  color: filter === f.id ? "#fff" : "#94a3b8",
+                  background: filter === f.id ? "rgb(var(--wr-cat-3))" : "rgb(var(--wr-sunken))",
+                  color: filter === f.id ? "rgb(var(--wr-surface))" : "rgb(var(--wr-ink-hint))",
                 }}
               >
                 {f.label}
@@ -507,14 +507,14 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               return (
                 <div
                   key={b.id}
-                  className={`flex items-center justify-between flex-wrap gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors ${
+                  className={`flex items-center justify-between flex-wrap gap-2 p-3 rounded-xl bg-nk-sunken border border-nk-line-soft cursor-pointer hover:bg-nk-sunken transition-colors ${
                     b.status === "cancelled" ? "opacity-55 line-through" : ""
                   }`}
                   onClick={() => setSelectedBooking(b)}
                 >
                   <div className="flex items-center gap-2 flex-wrap flex-1">
-                    <span className="font-bold text-sm text-slate-800">{b.student_name}</span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="font-bold text-sm text-nk-ink">{b.student_name}</span>
+                    <span className="text-[11px] text-nk-ink-hint">
                       {b.school} {b.grade} &middot; {subjectLabel}
                     </span>
                     {br && (
@@ -528,22 +528,22 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                     <span
                       className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold"
                       style={{
-                        background: b.consult_type === "inperson" ? "rgba(217,119,6,0.06)" : "rgba(5,150,105,0.06)",
-                        color: b.consult_type === "inperson" ? "#d97706" : "#059669",
+                        background: b.consult_type === "inperson" ? "rgb(var(--wr-status-warn) / 0.06)" : "rgb(var(--wr-status-done) / 0.06)",
+                        color: b.consult_type === "inperson" ? "rgb(var(--wr-status-warn))" : "rgb(var(--wr-status-done))",
                       }}
                     >
                       {b.consult_type === "inperson" ? "대면" : "유선"}
                     </span>
                     {b.status === "cancelled" ? (
-                      <span className="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 no-underline">
+                      <span className="rounded bg-nk-line px-2 py-0.5 text-[10px] font-bold text-nk-ink-sub no-underline">
                         취소됨
                       </span>
                     ) : b.rescheduled_at ? (
-                      <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 no-underline">
+                      <span className="rounded bg-nk-warn-soft px-2 py-0.5 text-[10px] font-bold text-nk-warn no-underline">
                         {RESCHEDULED_LABEL}
                       </span>
                     ) : null}
-                    <span className="text-[11px] text-slate-400">{b.booking_date} {SATURDAY_LABELS[b.booking_hour] ? SATURDAY_LABELS[b.booking_hour] : `${b.booking_hour}:00`}</span>
+                    <span className="text-[11px] text-nk-ink-hint">{b.booking_date} {SATURDAY_LABELS[b.booking_hour] ? SATURDAY_LABELS[b.booking_hour] : `${b.booking_hour}:00`}</span>
                   </div>
                   <div className="flex gap-1.5 items-center">
                     <Button
@@ -559,8 +559,8 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                       disabled={isPending || b.status === "cancelled"}
                       className="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
                       style={{
-                        background: b.paid ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)",
-                        color: b.paid ? "#059669" : "#dc2626",
+                        background: b.paid ? "rgb(var(--wr-status-done) / 0.12)" : "rgb(var(--wr-status-late) / 0.12)",
+                        color: b.paid ? "rgb(var(--wr-status-done))" : "rgb(var(--wr-status-late))",
                       }}
                     >
                       {b.paid ? "✓ 확정" : "대기(미입금)"}
@@ -586,12 +586,12 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               <div className="space-y-4">
                 <div className="flex gap-2">
                   {b.status === "cancelled" && (
-                    <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">
+                    <span className="rounded-full bg-nk-line px-3 py-1 text-xs font-bold text-nk-ink-sub">
                       취소됨
                     </span>
                   )}
                   {b.status !== "cancelled" && b.rescheduled_at && (
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                    <span className="rounded-full bg-nk-warn-soft px-3 py-1 text-xs font-bold text-nk-warn">
                       {RESCHEDULED_LABEL}
                     </span>
                   )}
@@ -611,8 +611,8 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                     { l: "상태", v: b.paid ? "✓ 예약 확정" : "⏳ 대기 (미입금)" },
                   ].map((item) => (
                     <div key={item.l}>
-                      <div className="text-xs text-slate-400 mb-0.5">{item.l}</div>
-                      <div className="font-semibold text-slate-700">{item.v}</div>
+                      <div className="text-xs text-nk-ink-hint mb-0.5">{item.l}</div>
+                      <div className="font-semibold text-nk-ink">{item.v}</div>
                     </div>
                   ))}
                 </div>
@@ -631,7 +631,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                       <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-xl text-amber-700"
+                        className="rounded-xl text-nk-warn"
                         onClick={() => {
                           setShowReschedule(b);
                           setRescheduleDate(b.booking_date);
@@ -645,7 +645,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                       <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-xl text-slate-700"
+                        className="rounded-xl text-nk-ink"
                         onClick={() => {
                           setShowCancel(b);
                           setCancelReason("");
@@ -660,7 +660,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="rounded-xl text-red-500"
+                    className="rounded-xl text-nk-late"
                     onClick={() => { setShowDelete(b); setSelectedBooking(null); }}
                   >
                     <Trash2 className="h-4 w-4 mr-1.5" />
@@ -690,16 +690,16 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               : "별도 안내";
             return (
               <div className="space-y-4">
-                <div className="bg-slate-50 rounded-xl p-5 text-sm leading-relaxed space-y-3">
+                <div className="bg-nk-sunken rounded-xl p-5 text-sm leading-relaxed space-y-3">
                   <div className="text-center">
-                    <p className="text-lg font-extrabold text-slate-800">NK Academy</p>
-                    <p className="text-xs text-slate-400">상담 안내문</p>
-                    <div className="w-10 h-0.5 bg-indigo-500 mx-auto mt-2 rounded" />
+                    <p className="text-lg font-extrabold text-nk-ink">NK Academy</p>
+                    <p className="text-xs text-nk-ink-hint">상담 안내문</p>
+                    <div className="w-10 h-0.5 bg-nk-progress mx-auto mt-2 rounded" />
                   </div>
                   <p>안녕하세요, <strong>{b.parent_name}</strong> 학부모님.</p>
                   <p>NK Academy에 관심을 가져주셔서 감사합니다.</p>
-                  <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
-                    <p className="font-bold text-indigo-700 text-xs mb-1">학생 정보</p>
+                  <div className="bg-nk-progress-soft rounded-lg p-3 border border-nk-progress">
+                    <p className="font-bold text-nk-progress text-xs mb-1">학생 정보</p>
                     <p className="text-xs leading-loose">
                       학생명: <strong>{b.student_name}</strong><br />
                       학교/학년: <strong>{b.school} {b.grade}</strong><br />
@@ -707,26 +707,26 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                       현재 진도: <strong>{b.progress || "-"}</strong>
                     </p>
                   </div>
-                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
-                    <p className="font-bold text-emerald-700 text-xs mb-1">테스트 & 상담</p>
+                  <div className="bg-nk-done-soft rounded-lg p-3 border border-nk-done">
+                    <p className="font-bold text-nk-done text-xs mb-1">테스트 & 상담</p>
                     <p className="text-xs leading-loose">
                       일시: <strong>{b.booking_date} {SATURDAY_LABELS[b.booking_hour] || `${b.booking_hour}:00~${b.booking_hour + 1}:00`}</strong><br />
                       장소: <strong>NK Academy {br?.label}</strong><br />
                       상담: <strong>{consultLabel} ({consultTime})</strong>
                     </p>
                   </div>
-                  <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
-                    <p className="font-bold text-amber-700 text-xs mb-1">입금 안내</p>
+                  <div className="bg-nk-warn-soft rounded-lg p-3 border border-nk-warn">
+                    <p className="font-bold text-nk-warn text-xs mb-1">입금 안내</p>
                     <p className="text-xs">
-                      테스트 비용 <strong className="text-amber-600">10,000원</strong>을 입금해주세요.<br />
+                      테스트 비용 <strong className="text-nk-warn">10,000원</strong>을 입금해주세요.<br />
                       입금자명에 <strong>학생 이름</strong>을 기재해주세요.
                     </p>
                   </div>
                 </div>
                 <Button
                   onClick={() => handleCopyNotice(b)}
-                  className="w-full rounded-xl text-white"
-                  style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
+                  className="w-full rounded-xl text-nk-navy-ink"
+                  style={{ background: "linear-gradient(135deg, rgb(var(--wr-cat-3)), rgb(var(--wr-cat-3)))" }}
                 >
                   {copied ? (
                     <><Check className="h-4 w-4 mr-1.5" /> 복사됨!</>
@@ -806,8 +806,8 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
                   onClick={() => setRescheduleHour(code)}
                   className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
                     rescheduleHour === code
-                      ? "border-amber-500 bg-amber-50 text-amber-700"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      ? "border-nk-warn bg-nk-warn-soft text-nk-warn"
+                      : "border-nk-line-soft text-nk-ink-sub hover:bg-nk-sunken"
                   }`}
                 >
                   {getSlotLabel(code)}
@@ -815,7 +815,7 @@ export function BookingDashboardClient({ initialBookings, initialBlocked, initia
               ))}
             </div>
             {rescheduleDate && rescheduleSlots.length === 0 && (
-              <p className="text-xs font-semibold text-red-500">
+              <p className="text-xs font-semibold text-nk-late">
                 선택한 날짜에는 예약 가능한 슬롯이 없습니다.
               </p>
             )}

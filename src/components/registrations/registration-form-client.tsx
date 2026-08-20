@@ -41,7 +41,7 @@ const TIME_OPTIONS = [
   "21:00", "21:30", "22:00", "22:30",
 ];
 
-const sel = "w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400";
+const sel = "w-full h-9 rounded-md border border-nk-line-soft bg-nk-surface px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress/40 focus:border-nk-progress";
 
 const DEFAULT_CHECKLIST: { text: string; checked: boolean }[] = [
   { text: "매쓰플랫 학생 자료 입력 완료", checked: true },
@@ -89,28 +89,28 @@ function ChecklistEditor({ onChange }: { onChange: (v: string) => void }) {
   };
 
   return (
-    <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+    <div className="space-y-1.5 rounded-lg border border-nk-line-soft bg-nk-sunken/50 p-3">
       {items.map((item, idx) => (
-        <label key={idx} className="flex items-center gap-2.5 cursor-pointer group py-1 px-1 rounded hover:bg-white transition-colors">
+        <label key={idx} className="flex items-center gap-2.5 cursor-pointer group py-1 px-1 rounded hover:bg-nk-surface transition-colors">
           <input
             type="checkbox"
             checked={item.checked}
             onChange={() => toggle(idx)}
-            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/40 cursor-pointer"
+            className="h-4 w-4 rounded border-nk-line text-nk-progress focus:ring-nk-progress/40 cursor-pointer"
           />
-          <span className={`text-sm flex-1 ${item.checked ? "text-slate-700" : "text-slate-400 line-through"}`}>
+          <span className={`text-sm flex-1 ${item.checked ? "text-nk-ink" : "text-nk-ink-hint line-through"}`}>
             {item.text}
           </span>
           <button
             type="button"
             onClick={() => remove(idx)}
-            className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 text-nk-ink-hint hover:text-nk-late transition-opacity"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </label>
       ))}
-      <div className="flex gap-2 pt-2 border-t border-slate-200">
+      <div className="flex gap-2 pt-2 border-t border-nk-line-soft">
         <input
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
@@ -121,12 +121,12 @@ function ChecklistEditor({ onChange }: { onChange: (v: string) => void }) {
             }
           }}
           placeholder="새 항목 추가..."
-          className="flex-1 h-8 rounded-md border border-dashed border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          className="flex-1 h-8 rounded-md border border-dashed border-nk-line bg-nk-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress/40"
         />
         <button
           type="button"
           onClick={add}
-          className="h-8 px-3 rounded-md bg-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-300 transition-colors flex items-center gap-1"
+          className="h-8 px-3 rounded-md bg-nk-line text-xs font-semibold text-nk-ink-sub hover:bg-nk-line transition-colors flex items-center gap-1"
         >
           <Plus className="h-3 w-3" />
           추가
@@ -167,13 +167,13 @@ function TimeRangeSelect({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label} *</label>
+      <label className="block text-sm font-medium text-nk-ink mb-1.5">{label} *</label>
       <div className="flex items-center gap-2">
         <select value={startTime} onChange={(e) => handleChange("start", e.target.value)} className={sel}>
           <option value="">시작</option>
           {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <span className="text-slate-400 font-bold">~</span>
+        <span className="text-nk-ink-hint font-bold">~</span>
         <select value={endTime} onChange={(e) => handleChange("end", e.target.value)} className={sel}>
           <option value="">종료</option>
           {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -204,12 +204,12 @@ function DayCheckboxes({
     onChange(sorted.join(""));
   };
 
-  const bg = color === "purple" ? "bg-purple-500 border-purple-500" : "bg-blue-500 border-blue-500";
-  const hover = color === "purple" ? "hover:border-purple-300" : "hover:border-blue-300";
+  const bg = color === "purple" ? "bg-nk-cat-3 border-nk-cat-3" : "bg-nk-progress border-nk-progress";
+  const hover = color === "purple" ? "hover:border-nk-cat-3" : "hover:border-nk-progress";
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label} *</label>
+      <label className="block text-sm font-medium text-nk-ink mb-1.5">{label} *</label>
       <div className="flex gap-1.5">
         {WEEKDAYS.map((day) => (
           <button
@@ -218,8 +218,8 @@ function DayCheckboxes({
             onClick={() => toggle(day)}
             className={`w-9 h-9 rounded-md text-sm font-semibold border transition-colors ${
               selected.includes(day)
-                ? `${bg} text-white`
-                : `bg-white text-slate-500 border-slate-200 ${hover}`
+                ? `${bg} text-nk-navy-ink`
+                : `bg-nk-surface text-nk-ink-sub border-nk-line-soft ${hover}`
             }`}
           >
             {day}
@@ -562,7 +562,7 @@ export function RegistrationForm({
                       {manualFee ? (
                         <button
                           type="button"
-                          className="text-[10px] text-blue-500 underline"
+                          className="text-[10px] text-nk-progress underline"
                           onClick={() => {
                             setManualFee(false);
                             autoCalcFee(selectedGrade || "", selectedSubject || "");
@@ -571,7 +571,7 @@ export function RegistrationForm({
                           자동계산
                         </button>
                       ) : (
-                        <span className="text-[10px] text-slate-400 font-normal">자동</span>
+                        <span className="text-[10px] text-nk-ink-hint font-normal">자동</span>
                       )}
                     </FormLabel>
                     <FormControl>
@@ -637,8 +637,8 @@ export function RegistrationForm({
             {/* 수학 배정반 + 담임 + 요일 */}
             {hasMath && (
               <>
-                <div className="border-t border-slate-100 pt-3">
-                  <p className="text-xs font-bold text-blue-600 mb-3">수학</p>
+                <div className="border-t border-nk-line-soft pt-3">
+                  <p className="text-xs font-bold text-nk-progress mb-3">수학</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -650,7 +650,7 @@ export function RegistrationForm({
                           <FormLabel className="flex items-center gap-1.5">
                             {mathLabel} *
                             {classGradeOverride && (
-                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600">
+                              <span className="rounded bg-nk-progress-soft px-1.5 py-0.5 text-[10px] font-bold text-nk-progress">
                                 {classGradeOverride} 반 목록
                               </span>
                             )}
@@ -662,7 +662,7 @@ export function RegistrationForm({
                                 setClassGradeOverride(null);
                                 form.setValue("assigned_class", "");
                               }}
-                              className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
+                              className="text-[10px] font-semibold text-nk-ink-hint hover:text-nk-ink-sub"
                             >
                               원래 학년으로
                             </button>
@@ -673,7 +673,7 @@ export function RegistrationForm({
                                 setClassGradeOverride(selectedGrade || GRADES[0]);
                                 form.setValue("assigned_class", "");
                               }}
-                              className="text-[10px] font-semibold text-blue-500 hover:text-blue-700"
+                              className="text-[10px] font-semibold text-nk-progress hover:text-nk-progress"
                             >
                               다른 학년 반
                             </button>
@@ -772,24 +772,24 @@ export function RegistrationForm({
                 </div>
                 {/* 멀티셋 스케줄 안내 (요일별 다른 시간) */}
                 {(mathMultiSet.classDisplay || mathMultiSet.clinicDisplay) && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs font-bold text-blue-700 mb-1.5">요일별 시간 (자동 반영)</p>
+                  <div className="bg-nk-progress-soft border border-nk-progress rounded-lg p-3">
+                    <p className="text-xs font-bold text-nk-progress mb-1.5">요일별 시간 (자동 반영)</p>
                     {mathMultiSet.classDisplay && (
-                      <div className="text-sm text-blue-900"><span className="font-semibold">수업:</span> {mathMultiSet.classDisplay}</div>
+                      <div className="text-sm text-nk-progress"><span className="font-semibold">수업:</span> {mathMultiSet.classDisplay}</div>
                     )}
                     {mathMultiSet.clinicDisplay && (
-                      <div className="text-sm text-blue-900 mt-0.5"><span className="font-semibold">클리닉:</span> {mathMultiSet.clinicDisplay}</div>
+                      <div className="text-sm text-nk-progress mt-0.5"><span className="font-semibold">클리닉:</span> {mathMultiSet.clinicDisplay}</div>
                     )}
-                    <p className="text-[10px] text-blue-500 mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
+                    <p className="text-[10px] text-nk-progress mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
                   </div>
                 )}
                 {/* 주간테스트 (자동입력, 있을때만 표시) */}
                 {(form.watch("math_test_days") || form.watch("math_test_time")) && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <p className="text-xs font-bold text-amber-700 mb-1.5">주간 테스트</p>
-                    <div className="flex items-center gap-3 text-sm text-amber-900">
+                  <div className="bg-nk-warn-soft border border-nk-warn rounded-lg p-3">
+                    <p className="text-xs font-bold text-nk-warn mb-1.5">주간 테스트</p>
+                    <div className="flex items-center gap-3 text-sm text-nk-warn">
                       <span className="font-semibold">{form.watch("math_test_days") || "-"}</span>
-                      <span className="text-amber-400">|</span>
+                      <span className="text-nk-warn">|</span>
                       <span>{form.watch("math_test_time") || "-"}</span>
                     </div>
                   </div>
@@ -804,15 +804,15 @@ export function RegistrationForm({
                   <button
                     type="button"
                     onClick={() => setShowMath2(true)}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors py-1"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-nk-progress hover:text-nk-progress transition-colors py-1"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     수학 2반 추가 (고2/고3 복수 배정)
                   </button>
                 ) : (
                   <>
-                    <div className="border-t border-blue-100 pt-3 flex items-center justify-between">
-                      <p className="text-xs font-bold text-blue-500 mb-3">수학 2반</p>
+                    <div className="border-t border-nk-progress pt-3 flex items-center justify-between">
+                      <p className="text-xs font-bold text-nk-progress mb-3">수학 2반</p>
                       <button
                         type="button"
                         onClick={() => {
@@ -826,7 +826,7 @@ export function RegistrationForm({
                           form.setValue("math2_test_time", "");
                           setMath2MultiSet({ classDisplay: "", clinicDisplay: "" });
                         }}
-                        className="text-xs text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                        className="text-xs text-nk-ink-hint hover:text-nk-late transition-colors flex items-center gap-1"
                       >
                         <X className="h-3 w-3" />
                         삭제
@@ -917,23 +917,23 @@ export function RegistrationForm({
                       />
                     </div>
                     {(math2MultiSet.classDisplay || math2MultiSet.clinicDisplay) && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-xs font-bold text-blue-700 mb-1.5">요일별 시간 (자동 반영)</p>
+                      <div className="bg-nk-progress-soft border border-nk-progress rounded-lg p-3">
+                        <p className="text-xs font-bold text-nk-progress mb-1.5">요일별 시간 (자동 반영)</p>
                         {math2MultiSet.classDisplay && (
-                          <div className="text-sm text-blue-900"><span className="font-semibold">수업:</span> {math2MultiSet.classDisplay}</div>
+                          <div className="text-sm text-nk-progress"><span className="font-semibold">수업:</span> {math2MultiSet.classDisplay}</div>
                         )}
                         {math2MultiSet.clinicDisplay && (
-                          <div className="text-sm text-blue-900 mt-0.5"><span className="font-semibold">클리닉:</span> {math2MultiSet.clinicDisplay}</div>
+                          <div className="text-sm text-nk-progress mt-0.5"><span className="font-semibold">클리닉:</span> {math2MultiSet.clinicDisplay}</div>
                         )}
-                        <p className="text-[10px] text-blue-500 mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
+                        <p className="text-[10px] text-nk-progress mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
                       </div>
                     )}
                     {(form.watch("math2_test_days") || form.watch("math2_test_time")) && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        <p className="text-xs font-bold text-amber-700 mb-1.5">주간 테스트</p>
-                        <div className="flex items-center gap-3 text-sm text-amber-900">
+                      <div className="bg-nk-warn-soft border border-nk-warn rounded-lg p-3">
+                        <p className="text-xs font-bold text-nk-warn mb-1.5">주간 테스트</p>
+                        <div className="flex items-center gap-3 text-sm text-nk-warn">
                           <span className="font-semibold">{form.watch("math2_test_days") || "-"}</span>
-                          <span className="text-amber-400">|</span>
+                          <span className="text-nk-warn">|</span>
                           <span>{form.watch("math2_test_time") || "-"}</span>
                         </div>
                       </div>
@@ -946,8 +946,8 @@ export function RegistrationForm({
             {/* 영어 배정반 + 담임 + 요일 */}
             {hasEnglish && (
               <>
-                <div className="border-t border-slate-100 pt-3">
-                  <p className="text-xs font-bold text-purple-600 mb-3">영어</p>
+                <div className="border-t border-nk-line-soft pt-3">
+                  <p className="text-xs font-bold text-nk-cat-3 mb-3">영어</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -1067,24 +1067,24 @@ export function RegistrationForm({
                 </div>
                 {/* 영어 멀티셋 스케줄 안내 */}
                 {(engMultiSet.classDisplay || engMultiSet.clinicDisplay) && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                    <p className="text-xs font-bold text-purple-700 mb-1.5">요일별 시간 (자동 반영)</p>
+                  <div className="bg-nk-cat-3-soft border border-nk-cat-3 rounded-lg p-3">
+                    <p className="text-xs font-bold text-nk-cat-3 mb-1.5">요일별 시간 (자동 반영)</p>
                     {engMultiSet.classDisplay && (
-                      <div className="text-sm text-purple-900"><span className="font-semibold">수업:</span> {engMultiSet.classDisplay}</div>
+                      <div className="text-sm text-nk-cat-3"><span className="font-semibold">수업:</span> {engMultiSet.classDisplay}</div>
                     )}
                     {engMultiSet.clinicDisplay && (
-                      <div className="text-sm text-purple-900 mt-0.5"><span className="font-semibold">클리닉:</span> {engMultiSet.clinicDisplay}</div>
+                      <div className="text-sm text-nk-cat-3 mt-0.5"><span className="font-semibold">클리닉:</span> {engMultiSet.clinicDisplay}</div>
                     )}
-                    <p className="text-[10px] text-purple-500 mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
+                    <p className="text-[10px] text-nk-cat-3 mt-1">안내문에 요일별 다른 시간이 자동 표시됩니다</p>
                   </div>
                 )}
                 {/* 영어 주간테스트 (자동입력, 있을때만 표시) */}
                 {(form.watch("eng_test_days") || form.watch("eng_test_time")) && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <p className="text-xs font-bold text-amber-700 mb-1.5">주간 테스트</p>
-                    <div className="flex items-center gap-3 text-sm text-amber-900">
+                  <div className="bg-nk-warn-soft border border-nk-warn rounded-lg p-3">
+                    <p className="text-xs font-bold text-nk-warn mb-1.5">주간 테스트</p>
+                    <div className="flex items-center gap-3 text-sm text-nk-warn">
                       <span className="font-semibold">{form.watch("eng_test_days") || "-"}</span>
-                      <span className="text-amber-400">|</span>
+                      <span className="text-nk-warn">|</span>
                       <span>{form.watch("eng_test_time") || "-"}</span>
                     </div>
                   </div>
@@ -1103,7 +1103,7 @@ export function RegistrationForm({
             )}
 
             {/* 차량/장소 */}
-            <div className="border-t border-slate-100 pt-3">
+            <div className="border-t border-nk-line-soft pt-3">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -1251,7 +1251,7 @@ export function RegistrationForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>담당 선생님 필수 점검 체크리스트</FormLabel>
-                  <p className="text-[11px] text-slate-400 -mt-1">체크한 항목만 안내문에 포함됩니다</p>
+                  <p className="text-[11px] text-nk-ink-hint -mt-1">체크한 항목만 안내문에 포함됩니다</p>
                   <ChecklistEditor onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>

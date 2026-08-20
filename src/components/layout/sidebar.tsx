@@ -1,6 +1,6 @@
 "use client";
 
-// 코럴 라이트 스킨. 카테고리(상담 관리/학생 분석/퇴원생 관리/학생 관리) 탭은 헤더 중앙으로 옮겼고,
+// NK 네이비·브라스 체계. 카테고리(상담 관리/학생 분석/퇴원생 관리/학생 관리) 탭은 헤더 중앙으로 옮겼고,
 // 사이드바는 현재 경로가 속한 카테고리의 세부 메뉴만 보여준다.
 // 메뉴 정의·권한 로직은 src/lib/menu-sectors.ts를 헤더와 공유한다(구성·이름·순서·링크 불변).
 
@@ -113,24 +113,21 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           href={item.href}
           {...(item.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           title={item.label}
-          className={`sidebar-item group relative mb-1 flex w-full items-center overflow-hidden rounded-xl transition-all duration-200 ${
+          className={`sidebar-item group relative mb-1 flex w-full items-center overflow-hidden rounded-lg ${
             isCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3.5 py-2.5"
-          } ${isActive ? "is-active" : "hover:translate-x-0.5"}`}
-          style={{
-            fontSize: "13px",
-            fontWeight: isActive ? 800 : 600,
-            background: isActive ? "#FFF3ED" : undefined,
-            color: isActive ? "#C7521F" : "#8B8078",
-            boxShadow: isActive && !isCollapsed ? "inset 3px 0 0 #F0653A" : "none",
-          }}
+          } ${
+            isActive
+              ? "is-active bg-nk-navy-soft text-nk-navy shadow-[inset_3px_0_0_rgb(var(--wr-navy))]"
+              : "text-nk-ink-sub"
+          }`}
+          style={{ fontSize: "13px", fontWeight: isActive ? 700 : 600 }}
         >
           <span
-            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
+            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${
               isActive
-                ? "text-white"
-                : "text-[#8B8078] group-hover:scale-105 group-hover:bg-[#FFF3ED] group-hover:text-[#C7521F]"
+                ? "bg-nk-navy text-nk-navy-ink"
+                : "bg-nk-sunken text-nk-ink-hint group-hover:bg-nk-navy-soft group-hover:text-nk-navy"
             }`}
-            style={{ background: isActive ? "#F0653A" : "#F8EEE8" }}
           >
             <item.icon className="h-[15px] w-[15px]" />
           </span>
@@ -141,12 +138,15 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       );
     });
 
-  const divider = <div className="mx-3 my-2.5 h-px" style={{ background: "#F0E4DD" }} />;
+  const divider = <div className="mx-3 my-2.5 h-px bg-nk-line-soft" />;
 
   const sectionLabel = (label: string) => (
     <div className="mb-2 flex items-center gap-1.5 px-3.5">
-      <span className="h-1 w-1 rounded-full" style={{ background: "#F0653A" }} />
-      <span className="uppercase" style={{ fontSize: "10px", fontWeight: 800, color: "#A59A90", letterSpacing: "0.14em" }}>
+      <span className="h-1 w-1 rounded-full bg-nk-navy" />
+      <span
+        className="uppercase text-nk-ink-hint"
+        style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em" }}
+      >
         {label}
       </span>
     </div>
@@ -161,12 +161,11 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
     <aside
       className={
         inSheet
-          ? "flex h-full w-full flex-shrink-0 flex-col border-r print:hidden"
-          : `hidden h-full flex-shrink-0 flex-col border-r transition-[width] duration-200 md:flex print:hidden ${
+          ? "flex h-full w-full flex-shrink-0 flex-col border-r border-nk-line bg-nk-surface print:hidden"
+          : `hidden h-full flex-shrink-0 flex-col border-r border-nk-line bg-nk-surface transition-[width] duration-200 md:flex print:hidden ${
               isCollapsed ? "w-[64px]" : "w-[246px]"
             }`
       }
-      style={{ background: "#FFFFFF", borderColor: "#F0E4DD" }}
     >
       {/* 상단 — 접기 토글.
           업무보고 복귀 링크는 공통 GNB 의 프로그램 전환 줄로 옮겼다(같은 링크를 두 곳에 두지 않는다). */}
@@ -178,8 +177,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             title={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
             aria-label={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
             aria-expanded={!isCollapsed}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
-            style={{ color: "#A59A90" }}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-nk-ink-hint transition-colors hover:bg-nk-navy-soft hover:text-nk-navy"
           >
             {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
           </button>
@@ -189,7 +187,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       {/* Navigation — 현재 카테고리의 세부 메뉴. 길어지면 이 영역만 스크롤 */}
       <nav
         className={`min-h-0 flex-1 overflow-y-auto pb-2 ${isCollapsed ? "px-2" : "px-3"} ${inSheet ? "pt-3" : ""}`}
-        style={{ scrollbarWidth: "thin", scrollbarColor: "#F0E4DD transparent" }}
+        style={{ scrollbarWidth: "thin" }}
       >
         {activeItems.length > 0 && (
           <>
@@ -200,27 +198,21 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
 
         {divider}
 
-        {/* 진도 현황 — 권한 무관 항상 표시(같은 탭 이동). 코럴 CTA 스타일 */}
+        {/* 진도 현황 — 권한 무관 항상 표시(같은 탭 이동). 사이드바의 유일한 주 액션이라
+            네이비 단색으로 채운다. 지금 보고 있을 때는 안쪽 테두리로 표시한다. */}
         <Link
           href="/progress"
           title="진도 현황"
-          className={`group relative mb-1 flex w-full items-center overflow-hidden rounded-xl transition-all duration-200 ${
+          className={`group relative mb-1 flex w-full items-center overflow-hidden rounded-lg bg-nk-navy text-nk-navy-ink transition-colors ${
             isCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3.5 py-3.5"
-          } ${progressActive ? "" : "hover:-translate-y-px hover:brightness-105"}`}
-          style={{
-            fontSize: "14px",
-            fontWeight: 800,
-            background: progressActive ? "#C7521F" : "#F0653A",
-            color: "#FFFFFF",
-            boxShadow: progressActive
-              ? "inset 0 0 0 1.5px rgba(255,255,255,0.35), 0 8px 20px rgba(199,82,31,0.3)"
-              : "0 8px 20px rgba(240,101,58,0.28)",
-          }}
+          } ${
+            progressActive
+              ? "shadow-[inset_0_0_0_2px_rgb(var(--wr-navy-ink)_/_0.55)]"
+              : "hover:bg-nk-navy-strong"
+          }`}
+          style={{ fontSize: "14px", fontWeight: 700 }}
         >
-          <span
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
-            style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
-          >
+          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-nk-navy-ink/20 text-nk-navy-ink">
             <BookOpenCheck className="h-[18px] w-[18px]" />
           </span>
           {!isCollapsed && <span className="truncate">진도 현황</span>}
@@ -229,20 +221,22 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
 
       {/* Footer - 공개 링크 (접힘에서는 숨김) */}
       {!isCollapsed && (
-        <div className="mx-3 grid grid-cols-3 gap-1.5 pb-3 pt-3" style={{ borderTop: "1px solid #F0E4DD" }}>
+        <div className="mx-3 grid grid-cols-3 gap-1.5 border-t border-nk-line-soft pb-3 pt-3">
+          {/* 학부모가 보는 세 화면. 새 탭으로 열리는 바깥 링크라 사이드바 메뉴와 달리
+              테두리만 있는 중립 칩으로 두어 '지금 있는 자리'와 헷갈리지 않게 한다. */}
           <Link
             href="/survey"
             target="_blank"
-            className="flex items-center justify-center rounded-full px-2 py-2 transition-all hover:-translate-y-px"
-            style={{ fontSize: "10.5px", fontWeight: 800, background: "#FFF3ED", color: "#C7521F" }}
+            className="flex items-center justify-center rounded-md border border-nk-line bg-nk-sunken px-2 py-2 text-nk-ink-sub transition-colors hover:border-nk-navy hover:text-nk-navy"
+            style={{ fontSize: "10.5px", fontWeight: 700 }}
           >
             공개 설문
           </Link>
           <Link
             href="/booking"
             target="_blank"
-            className="flex items-center justify-center rounded-full px-2 py-2 transition-all hover:-translate-y-px"
-            style={{ fontSize: "10.5px", fontWeight: 800, background: "#E7F1F1", color: "#2D6A6A" }}
+            className="flex items-center justify-center rounded-md border border-nk-line bg-nk-sunken px-2 py-2 text-nk-ink-sub transition-colors hover:border-nk-navy hover:text-nk-navy"
+            style={{ fontSize: "10.5px", fontWeight: 700 }}
           >
             공개 예약
           </Link>
@@ -250,8 +244,8 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
             href="https://nk-guide.vercel.app/t"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center rounded-full px-2 py-2 transition-all hover:-translate-y-px"
-            style={{ fontSize: "10.5px", fontWeight: 800, background: "#E9EFF3", color: "#355D79" }}
+            className="flex items-center justify-center rounded-md border border-nk-line bg-nk-sunken px-2 py-2 text-nk-ink-sub transition-colors hover:border-nk-navy hover:text-nk-navy"
+            style={{ fontSize: "10.5px", fontWeight: 700 }}
           >
             학부모 안내
           </a>
@@ -260,51 +254,38 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
 
       {/* User Info — 최하단. 접힘에서는 로그아웃 아이콘만 남긴다. */}
       {isCollapsed ? (
-        <div className="mb-2 flex justify-center px-2 pt-2" style={{ borderTop: "1px solid #F0E4DD" }}>
+        <div className="mb-2 flex justify-center border-t border-nk-line-soft px-2 pt-2">
           <button
             onClick={handleLogout}
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
-            style={{ color: "#A59A90" }}
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-nk-ink-hint transition-colors hover:bg-nk-navy-soft hover:text-nk-navy"
             title={`로그아웃 (${displayName})`}
           >
             <LogOut className="h-4 w-4" />
           </button>
         </div>
       ) : (
-        <div className="mx-3 mb-2 rounded-2xl px-3 py-2" style={{ background: "#FFFBF9", boxShadow: "inset 0 0 0 1px #F0E4DD" }}>
-          <div className="mb-1.5 flex items-center gap-2 border-b pb-1.5" style={{ borderColor: "#F0E4DD" }}>
-            <div
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white"
-              style={{ background: "#F0653A", boxShadow: "0 4px 10px rgba(240,101,58,0.24)" }}
-            >
+        <div className="mx-3 mb-2 rounded-lg border border-nk-line bg-nk-sunken px-3 py-2">
+          <div className="mb-1.5 flex items-center gap-2 border-b border-nk-line-soft pb-1.5">
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-nk-navy text-[10px] font-bold text-nk-navy-ink">
               NK
             </div>
-            <span className="truncate text-[11px] font-black" style={{ color: "#3A342F", letterSpacing: "-0.01em" }}>
+            <span className="truncate text-[11px] font-bold text-nk-ink" style={{ letterSpacing: "-0.01em" }}>
               NK Academy
             </span>
           </div>
           <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black"
-                style={{ background: "#FFF3ED", color: "#C7521F", boxShadow: "inset 0 0 0 1px #F6D9C8" }}
-              >
-                {avatarInitial}
-              </div>
-              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 0 2px #FFFFFF" }} />
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-md bg-nk-navy-soft text-xs font-bold text-nk-navy"
+            >
+              {avatarInitial}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="truncate text-xs font-bold" style={{ color: "#3A342F" }}>
-                {displayName}
-              </div>
-              <div className="text-[10px] font-semibold" style={{ color: "#8B8078" }}>
-                {displayRole}
-              </div>
+              <div className="truncate text-xs font-bold text-nk-ink">{displayName}</div>
+              <div className="text-[10px] font-semibold text-nk-ink-sub">{displayRole}</div>
             </div>
             <button
               onClick={handleLogout}
-              className="flex cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-[#FFF3ED] hover:text-[#C7521F]"
-              style={{ color: "#A59A90" }}
+              className="flex cursor-pointer rounded-md p-1.5 text-nk-ink-hint transition-colors hover:bg-nk-navy-soft hover:text-nk-navy"
               title="로그아웃"
             >
               <LogOut className="h-4 w-4" />

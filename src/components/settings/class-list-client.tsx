@@ -66,32 +66,32 @@ function StudentCountBadge({ className, students }: { className: string; student
   );
 
   if (matched.length === 0) {
-    return <span className="inline-flex min-w-12 justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-400">0명</span>;
+    return <span className="inline-flex min-w-12 justify-center rounded-md border border-nk-line-soft bg-nk-sunken px-2 py-0.5 text-xs font-semibold text-nk-ink-hint">0명</span>;
   }
 
   return (
     <span className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setShowNames(!showNames); }}
-        className="inline-flex min-w-12 justify-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 shadow-sm transition hover:-translate-y-px hover:border-blue-300 hover:bg-blue-100"
+        className="inline-flex min-w-12 justify-center rounded-md border border-nk-progress bg-nk-progress-soft px-2 py-0.5 text-xs font-bold text-nk-progress shadow-sm transition hover:-translate-y-px hover:border-nk-progress hover:bg-nk-progress-soft"
       >
         {matched.length}명
       </button>
       {showNames && (
         <div
-          className="absolute left-0 top-7 z-50 max-h-[220px] min-w-[180px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 shadow-[0_18px_48px_rgba(15,23,42,0.16)]"
+          className="absolute left-0 top-7 z-50 max-h-[220px] min-w-[180px] overflow-y-auto rounded-lg border border-nk-line-soft bg-nk-surface p-3 shadow-[0_18px_48px_rgb(var(--wr-navy-strong)_/_0.16)]"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="mb-2 border-b border-slate-100 pb-1.5 text-xs font-bold text-slate-600">{className} 학생 목록</p>
+          <p className="mb-2 border-b border-nk-line-soft pb-1.5 text-xs font-bold text-nk-ink-sub">{className} 학생 목록</p>
           {matched.map((s) => (
-            <div key={s.id} className="rounded-md px-1 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <div key={s.id} className="rounded-md px-1 py-1 text-sm font-medium text-nk-ink hover:bg-nk-sunken">
               {s.name}
-              {s.school ? <span className="text-xs text-slate-400 ml-1">({s.school})</span> : null}
+              {s.school ? <span className="text-xs text-nk-ink-hint ml-1">({s.school})</span> : null}
             </div>
           ))}
           <button
             onClick={() => setShowNames(false)}
-            className="mt-2 rounded-md px-1.5 py-1 text-xs font-semibold text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+            className="mt-2 rounded-md px-1.5 py-1 text-xs font-semibold text-nk-ink-hint transition hover:bg-nk-sunken hover:text-nk-ink-sub"
           >
             닫기
           </button>
@@ -182,17 +182,17 @@ export function ClassList({ classes, teachers, students }: Props) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_48px_rgba(15,23,42,0.06)]">
-        <div className="flex items-center justify-between border-b border-slate-200/70 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-4">
-          <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-800">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-nk-line-soft/80 bg-nk-surface shadow-[0_1px_2px_rgb(var(--wr-navy-strong)_/_0.04),0_18px_48px_rgb(var(--wr-navy-strong)_/_0.06)]">
+        <div className="flex items-center justify-between border-b border-nk-line-soft/70 bg-gradient-to-r from-nk-sunken via-nk-surface to-nk-sunken px-6 py-4">
+          <h3 className="flex items-center gap-2 text-sm font-extrabold text-nk-ink">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-nk-line-soft bg-nk-surface shadow-sm">
               <BookOpen className="h-4 w-4 text-[var(--primary)]" />
             </span>
             반 정보 관리
           </h3>
           <button
             onClick={handleAdd}
-            className="flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
+            className="flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-nk-navy-ink shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
             style={{ background: "var(--primary)" }}
           >
             <Plus className="h-3 w-3" />
@@ -201,12 +201,12 @@ export function ClassList({ classes, teachers, students }: Props) {
         </div>
 
         {/* 과목 필터 */}
-        <div className="flex items-center gap-2 border-b border-slate-100 bg-[#FBFCFE] px-6 py-3">
-          <span className="mr-0.5 text-[11px] font-bold text-slate-400">과목</span>
+        <div className="flex items-center gap-2 border-b border-nk-line-soft bg-[rgb(var(--wr-sunken))] px-6 py-3">
+          <span className="mr-0.5 text-[11px] font-bold text-nk-ink-hint">과목</span>
           <button
             onClick={() => setSubjectFilter("")}
             className={`rounded-md border px-2.5 py-1 text-[11px] font-bold shadow-sm transition-all ${
-              !subjectFilter ? "border-slate-700 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+              !subjectFilter ? "border-nk-line bg-nk-ink-sub text-nk-navy-ink" : "border-nk-line-soft bg-nk-surface text-nk-ink-sub hover:bg-nk-sunken"
             }`}
           >
             전체 <span className="text-[10px] opacity-80">{classes.length}</span>
@@ -214,7 +214,7 @@ export function ClassList({ classes, teachers, students }: Props) {
           <button
             onClick={() => setSubjectFilter("수학")}
             className={`rounded-md border px-2.5 py-1 text-[11px] font-bold shadow-sm transition-all ${
-              subjectFilter === "수학" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-500 hover:bg-blue-50 hover:text-blue-700"
+              subjectFilter === "수학" ? "border-nk-progress bg-nk-progress text-nk-navy-ink" : "border-nk-line-soft bg-nk-surface text-nk-ink-sub hover:bg-nk-progress-soft hover:text-nk-progress"
             }`}
           >
             수학 <span className="text-[10px] opacity-80">{subjectCounts.math}</span>
@@ -222,7 +222,7 @@ export function ClassList({ classes, teachers, students }: Props) {
           <button
             onClick={() => setSubjectFilter("영어")}
             className={`rounded-md border px-2.5 py-1 text-[11px] font-bold shadow-sm transition-all ${
-              subjectFilter === "영어" ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+              subjectFilter === "영어" ? "border-nk-done bg-nk-done text-nk-navy-ink" : "border-nk-line-soft bg-nk-surface text-nk-ink-sub hover:bg-nk-done-soft hover:text-nk-done"
             }`}
           >
             영어 <span className="text-[10px] opacity-80">{subjectCounts.eng}</span>
@@ -236,7 +236,7 @@ export function ClassList({ classes, teachers, students }: Props) {
               title="등록된 반이 없습니다"
               description="새로운 반을 추가해보세요"
               action={
-                <Button size="sm" onClick={handleAdd} className="rounded-lg text-white text-xs" style={{ background: "var(--primary)" }}>
+                <Button size="sm" onClick={handleAdd} className="rounded-lg text-nk-navy-ink text-xs" style={{ background: "var(--primary)" }}>
                   <Plus className="h-3 w-3 mr-1" />
                   반 추가
                 </Button>
@@ -249,20 +249,20 @@ export function ClassList({ classes, teachers, students }: Props) {
               const isCollapsed = !(expanded[grade] ?? false);
               const totalStudents = gradeStudentCount[grade] || 0;
               return (
-                <div key={grade} className="border-b border-slate-100 last:border-b-0">
+                <div key={grade} className="border-b border-nk-line-soft last:border-b-0">
                   {/* 학년 헤더 */}
                   <button
                     onClick={() => toggleExpand(grade)}
-                    className="flex w-full items-center gap-2 bg-slate-50/80 px-6 py-3 text-left transition-colors hover:bg-slate-100/80"
+                    className="flex w-full items-center gap-2 bg-nk-sunken/80 px-6 py-3 text-left transition-colors hover:bg-nk-sunken/80"
                   >
                     {isCollapsed ? (
-                      <ChevronRight className="h-4 w-4 rounded-md text-slate-400" />
+                      <ChevronRight className="h-4 w-4 rounded-md text-nk-ink-hint" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 rounded-md text-slate-400" />
+                      <ChevronDown className="h-4 w-4 rounded-md text-nk-ink-hint" />
                     )}
-                    <span className="text-sm font-extrabold text-slate-800">{grade}</span>
-                    <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-500 shadow-sm">{items.length}개 반</span>
-                    <span className="ml-1 flex items-center gap-1 rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-600">
+                    <span className="text-sm font-extrabold text-nk-ink">{grade}</span>
+                    <span className="rounded-md border border-nk-line-soft bg-nk-surface px-2 py-0.5 text-xs font-semibold text-nk-ink-sub shadow-sm">{items.length}개 반</span>
+                    <span className="ml-1 flex items-center gap-1 rounded-md border border-nk-progress bg-nk-progress-soft px-2 py-0.5 text-xs font-bold text-nk-progress">
                       <Users className="h-3 w-3" />
                       {totalStudents}명
                     </span>
@@ -274,12 +274,12 @@ export function ClassList({ classes, teachers, students }: Props) {
                       {items.map((cls) => (
                         <div
                           key={cls.id}
-                          className="flex items-center gap-4 border-t border-slate-100 px-6 py-3.5 transition-colors hover:bg-slate-50/70"
+                          className="flex items-center gap-4 border-t border-nk-line-soft px-6 py-3.5 transition-colors hover:bg-nk-sunken/70"
                         >
-                          <span className="min-w-[120px] text-sm font-bold text-slate-800">{cls.name}</span>
-                          <span className="min-w-[80px] rounded-md border border-slate-200 bg-white px-2 py-0.5 text-sm font-medium text-slate-600 shadow-sm">{cls.teacher || "-"}</span>
+                          <span className="min-w-[120px] text-sm font-bold text-nk-ink">{cls.name}</span>
+                          <span className="min-w-[80px] rounded-md border border-nk-line-soft bg-nk-surface px-2 py-0.5 text-sm font-medium text-nk-ink-sub shadow-sm">{cls.teacher || "-"}</span>
                           <StudentCountBadge className={cls.name} students={students} />
-                          <span className="hidden flex-1 text-sm text-slate-500 md:block">{cls.class_days || "-"}</span>
+                          <span className="hidden flex-1 text-sm text-nk-ink-sub md:block">{cls.class_days || "-"}</span>
                           <div className="flex gap-1 ml-auto">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(cls)}>
                               <Pencil className="h-3.5 w-3.5" />

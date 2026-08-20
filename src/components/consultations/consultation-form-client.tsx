@@ -35,8 +35,8 @@ import type { Consultation } from "@/types";
 const ADVANCE_LEVELS = ["없음", "1개월", "3개월", "6개월", "1년", "2년 이상"] as const;
 const STUDY_GOALS = ["내신 향상", "선행 학습", "기초 보강", "상위권 유지", "수능 대비", "기타"] as const;
 
-const sel = "w-full h-9 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
-const inp = "rounded-lg border-slate-200 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-colors";
+const sel = "w-full h-9 rounded-lg border border-nk-line-soft bg-nk-surface px-3 py-1 text-sm text-nk-ink focus:outline-none focus:ring-2 focus:ring-nk-progress/40 focus:border-nk-progress transition-colors";
+const inp = "rounded-lg border-nk-line-soft focus:ring-2 focus:ring-nk-progress/40 focus:border-nk-progress transition-colors";
 
 function withCurrentOption(options: readonly string[], current?: string | null) {
   if (!current) return [...options];
@@ -159,8 +159,8 @@ export function ConsultationFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-        <DialogHeader className="sticky top-0 z-10 bg-white px-6 pt-5 pb-4 border-b border-slate-100">
-          <DialogTitle className="text-lg font-bold text-slate-800">
+        <DialogHeader className="sticky top-0 z-10 bg-nk-surface px-6 pt-5 pb-4 border-b border-nk-line-soft">
+          <DialogTitle className="text-lg font-bold text-nk-ink">
             {isEdit ? "상담 수정" : "새 상담 등록"}
           </DialogTitle>
         </DialogHeader>
@@ -169,28 +169,28 @@ export function ConsultationFormDialog({
           <form onSubmit={form.handleSubmit(onSubmit)} className="px-6 py-5 space-y-6">
 
             {/* ── 기본 정보 ── */}
-            <section className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+            <section className="rounded-xl border border-nk-line-soft bg-nk-sunken/50 p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <User className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-bold text-slate-700">기본 정보</span>
+                <User className="h-4 w-4 text-nk-progress" />
+                <span className="text-sm font-bold text-nk-ink">기본 정보</span>
               </div>
               <div className="grid grid-cols-4 gap-3">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">이름 *</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">이름 *</FormLabel>
                     <FormControl><Input className={inp} placeholder="학생 이름" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="school" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">학교</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">학교</FormLabel>
                     <FormControl><Input className={inp} placeholder="학교명" {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="grade" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">학년</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">학년</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
@@ -201,7 +201,7 @@ export function ConsultationFormDialog({
                 )} />
                 <FormField control={form.control} name="parent_phone" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">학부모 연락처</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">학부모 연락처</FormLabel>
                     <FormControl><Input className={inp} placeholder="010-0000-0000" {...field} /></FormControl>
                   </FormItem>
                 )} />
@@ -209,27 +209,27 @@ export function ConsultationFormDialog({
             </section>
 
             {/* ── 상담 일정 ── */}
-            <section className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 space-y-3">
+            <section className="rounded-xl border border-nk-progress bg-nk-progress-soft/30 p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <CalendarDays className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-bold text-slate-700">상담 일정</span>
+                <CalendarDays className="h-4 w-4 text-nk-progress" />
+                <span className="text-sm font-bold text-nk-ink">상담 일정</span>
               </div>
               <div className="grid grid-cols-4 gap-3">
                 <FormField control={form.control} name="consult_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">날짜</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">날짜</FormLabel>
                     <FormControl><Input type="date" className={inp} {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="consult_time" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">시간</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">시간</FormLabel>
                     <FormControl><TimeField10 className={inp} {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="consult_type" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">상담방식</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">상담방식</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={(e) => { field.onChange(e); if (e.target.value !== "대면 상담") setMeetingTime(""); }} className={sel}>
                         <option value="유선 상담">유선 상담</option>
@@ -243,7 +243,7 @@ export function ConsultationFormDialog({
                 )} />
                 <FormField control={form.control} name="location" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">장소</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">장소</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
@@ -256,7 +256,7 @@ export function ConsultationFormDialog({
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="subject" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">테스트 과목</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">테스트 과목</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
@@ -269,7 +269,7 @@ export function ConsultationFormDialog({
                 )} />
                 <FormField control={form.control} name="memo" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">메모</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">메모</FormLabel>
                     <FormControl><Input className={inp} placeholder="간단 메모" {...field} /></FormControl>
                   </FormItem>
                 )} />
@@ -288,27 +288,27 @@ export function ConsultationFormDialog({
                       form.setValue("parent_location", "");
                     }
                   }}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-nk-line text-nk-progress focus:ring-nk-progress"
                 />
-                <span className="text-xs font-medium text-slate-600">학부모 상담 별도 설정</span>
+                <span className="text-xs font-medium text-nk-ink-sub">학부모 상담 별도 설정</span>
               </label>
               {separateParent && (
-                <div className="grid grid-cols-3 gap-3 pt-1 border-t border-blue-100">
+                <div className="grid grid-cols-3 gap-3 pt-1 border-t border-nk-progress">
                   <FormField control={form.control} name="parent_consult_date" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs text-slate-500">학부모 상담일</FormLabel>
+                      <FormLabel className="text-xs text-nk-ink-sub">학부모 상담일</FormLabel>
                       <FormControl><Input type="date" className={inp} {...field} /></FormControl>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="parent_consult_time" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs text-slate-500">학부모 시간</FormLabel>
+                      <FormLabel className="text-xs text-nk-ink-sub">학부모 시간</FormLabel>
                       <FormControl><TimeField10 className={inp} {...field} /></FormControl>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="parent_location" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs text-slate-500">학부모 장소</FormLabel>
+                      <FormLabel className="text-xs text-nk-ink-sub">학부모 장소</FormLabel>
                       <FormControl>
                         <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                           <option value="">선택</option>
@@ -322,22 +322,22 @@ export function ConsultationFormDialog({
             </section>
 
             {/* ── 상담 기록지 ── */}
-            <section className="rounded-xl border border-amber-100 bg-amber-50/30 p-4 space-y-3">
+            <section className="rounded-xl border border-nk-warn bg-nk-warn-soft/30 p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <ClipboardList className="h-4 w-4 text-amber-600" />
-                <span className="text-sm font-bold text-slate-700">상담 기록지</span>
+                <ClipboardList className="h-4 w-4 text-nk-warn" />
+                <span className="text-sm font-bold text-nk-ink">상담 기록지</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="prev_academy" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">기존 학원</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">기존 학원</FormLabel>
                     <FormControl><Input className={inp} placeholder="이전 학원명" {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="prev_complaint" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">불만사항</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">불만사항</FormLabel>
                     <FormControl><Input className={inp} placeholder="기존 학원 불만" {...field} /></FormControl>
                   </FormItem>
                 )} />
@@ -346,19 +346,19 @@ export function ConsultationFormDialog({
               <div className="grid grid-cols-3 gap-3">
                 <FormField control={form.control} name="school_score" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">내신 점수</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">내신 점수</FormLabel>
                     <FormControl><Input className={inp} placeholder="85점 / 3등급" {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="test_score" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">테스트 점수</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">테스트 점수</FormLabel>
                     <FormControl><Input className={inp} placeholder="테스트 결과" {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="advance_level" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">선행 정도</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">선행 정도</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
@@ -372,7 +372,7 @@ export function ConsultationFormDialog({
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="study_goal" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">학습 목표</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">학습 목표</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
@@ -383,7 +383,7 @@ export function ConsultationFormDialog({
                 )} />
                 <FormField control={form.control} name="prefer_days" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">희망 요일</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">희망 요일</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
@@ -397,13 +397,13 @@ export function ConsultationFormDialog({
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="plan_date" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">등록 예정일</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">등록 예정일</FormLabel>
                     <FormControl><Input type="date" className={inp} {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="plan_class" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-slate-500">등록 예정반</FormLabel>
+                    <FormLabel className="text-xs text-nk-ink-sub">등록 예정반</FormLabel>
                     <FormControl>
                       <select value={field.value ?? ""} onChange={field.onChange} className={sel}>
                         <option value="">선택</option>
@@ -416,14 +416,14 @@ export function ConsultationFormDialog({
             </section>
 
             {/* ── 특이사항 ── */}
-            <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <section className="rounded-xl border border-nk-line-soft bg-nk-surface p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <MessageSquare className="h-4 w-4 text-slate-500" />
-                <span className="text-sm font-bold text-slate-700">상세 메모</span>
+                <MessageSquare className="h-4 w-4 text-nk-ink-sub" />
+                <span className="text-sm font-bold text-nk-ink">상세 메모</span>
               </div>
               <FormField control={form.control} name="requests" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs text-slate-500">학원에 바라는 점</FormLabel>
+                  <FormLabel className="text-xs text-nk-ink-sub">학원에 바라는 점</FormLabel>
                   <FormControl>
                     <Textarea className={`resize-none ${inp}`} rows={2} placeholder="학부모님이 학원에 바라는 점" {...field} />
                   </FormControl>
@@ -431,7 +431,7 @@ export function ConsultationFormDialog({
               )} />
               <FormField control={form.control} name="student_consult_note" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs text-slate-500">특이사항</FormLabel>
+                  <FormLabel className="text-xs text-nk-ink-sub">특이사항</FormLabel>
                   <FormControl>
                     <Textarea className={`resize-none ${inp}`} rows={2} placeholder="학생 관련 특이사항" {...field} />
                   </FormControl>
@@ -439,7 +439,7 @@ export function ConsultationFormDialog({
               )} />
               <FormField control={form.control} name="parent_consult_note" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs text-slate-500">학부모 상담 메모</FormLabel>
+                  <FormLabel className="text-xs text-nk-ink-sub">학부모 상담 메모</FormLabel>
                   <FormControl>
                     <Textarea className={`resize-none ${inp}`} rows={2} placeholder="학부모 상담 내용" {...field} />
                   </FormControl>
@@ -448,7 +448,7 @@ export function ConsultationFormDialog({
             </section>
 
             {/* ── 버튼 ── */}
-            <div className="sticky bottom-0 bg-white border-t border-slate-100 -mx-6 px-6 py-4 flex justify-end gap-2">
+            <div className="sticky bottom-0 bg-nk-surface border-t border-nk-line-soft -mx-6 px-6 py-4 flex justify-end gap-2">
               <Button type="button" variant="outline" className="rounded-lg" onClick={() => onOpenChange(false)}>
                 취소
               </Button>

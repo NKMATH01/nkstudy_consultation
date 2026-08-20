@@ -83,11 +83,11 @@ function formatPhone(phone: string | null): string {
 }
 
 function FactorScore({ score }: { score: SurveyManagementFactorScore }) {
-  if (score.value == null) return <span className="text-[10px] text-slate-200">-</span>;
+  if (score.value == null) return <span className="text-[10px] text-nk-line">-</span>;
   const normalized = score.scale === 100 ? score.value / 20 : score.value;
-  const GOOD = "bg-teal-50 text-teal-700 border-teal-100";
-  const MID = "bg-amber-50 text-amber-700 border-amber-100";
-  const BAD = "bg-rose-50 text-rose-700 border-rose-100";
+  const GOOD = "bg-nk-done-soft text-nk-done border-nk-done";
+  const MID = "bg-nk-warn-soft text-nk-warn border-nk-warn";
+  const BAD = "bg-nk-late-soft text-nk-late border-nk-late";
   // 관리 필요도처럼 높을수록 손이 가는 지표는 색을 뒤집는다.
   const high = score.highIsRisk ? BAD : GOOD;
   const low = score.highIsRisk ? GOOD : BAD;
@@ -104,31 +104,31 @@ function FactorScore({ score }: { score: SurveyManagementFactorScore }) {
 }
 
 function getRowTone(status: ResultStatus): string {
-  if (status === "registered") return "bg-teal-50/45 hover:bg-teal-50/80";
-  if (status === "hold") return "bg-amber-50/45 hover:bg-amber-50/80";
-  if (status === "other") return "bg-slate-100/55 hover:bg-slate-100/85";
-  return "hover:bg-slate-50/90";
+  if (status === "registered") return "bg-nk-done-soft/45 hover:bg-nk-done-soft/80";
+  if (status === "hold") return "bg-nk-warn-soft/45 hover:bg-nk-warn-soft/80";
+  if (status === "other") return "bg-nk-sunken/55 hover:bg-nk-sunken/85";
+  return "hover:bg-nk-sunken/90";
 }
 
 function getRowStripe(status: ResultStatus): string {
-  if (status === "registered") return "bg-teal-600";
-  if (status === "hold") return "bg-accent-warm";
-  if (status === "other") return "bg-slate-500";
-  return "bg-slate-200";
+  if (status === "registered") return "bg-nk-done";
+  if (status === "hold") return "bg-nk-warn";
+  if (status === "other") return "bg-nk-ink-hint";
+  return "bg-nk-line";
 }
 
 function getSubjectBadgeClass(subject?: string): string {
   const normalized = subject ?? "";
   if (normalized.includes("영어수학") || normalized.includes("영수")) {
-    return "border-violet-200 bg-violet-50 text-violet-700";
+    return "border-nk-cat-3 bg-nk-cat-3-soft text-nk-cat-3";
   }
   if (normalized.includes("영어")) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    return "border-nk-done bg-nk-done-soft text-nk-done";
   }
   if (normalized.includes("수학")) {
-    return "border-blue-200 bg-blue-50 text-blue-700";
+    return "border-nk-progress bg-nk-progress-soft text-nk-progress";
   }
-  return "border-slate-200 bg-slate-50 text-slate-500";
+  return "border-nk-line-soft bg-nk-sunken text-nk-ink-sub";
 }
 
 export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations, ambiguousSurveyNames, classes, teachers }: Props) {
@@ -465,10 +465,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
   return (
     <div className="space-y-5">
       {/* Section Header */}
-      <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(94,147,172,0.08)]">
+      <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgb(var(--wr-navy-ink)_/_0.8)_inset,0_18px_48px_rgb(var(--wr-navy)_/_0.08)]">
         <div className="flex flex-col gap-4 bg-primary px-6 py-5 text-primary-foreground md:flex-row md:items-end md:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-white/20 bg-white/15 px-2.5 py-1 text-[11px] font-bold text-primary-foreground">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-nk-surface/20 bg-nk-surface/15 px-2.5 py-1 text-[11px] font-bold text-primary-foreground">
             <ClipboardList className="h-3.5 w-3.5" />
             Survey Analysis
           </div>
@@ -483,20 +483,20 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           href="/survey"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-accent-warm px-3.5 py-2 text-[12.5px] font-black text-accent-warm-foreground shadow-[0_12px_28px_rgba(245,197,126,0.25)] transition-all hover:-translate-y-px"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-nk-navy px-3.5 py-2 text-[12.5px] font-black text-nk-navy-ink transition-all hover:-translate-y-px"
         >
           <Plus className="h-3.5 w-3.5" />
           V2 설문 열기
         </Link>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-slate-100 bg-white">
+        <div className="grid grid-cols-3 divide-x divide-nk-line-soft bg-nk-surface">
           {[
-            { label: "분석완료", value: summary.analyzed, color: "text-teal-700" },
-            { label: "등록", value: summary.registered, color: "text-accent-warm-foreground" },
-            { label: "분석대기", value: summary.waiting, color: "text-slate-700" },
+            { label: "분석완료", value: summary.analyzed, color: "text-nk-done" },
+            { label: "등록", value: summary.registered, color: "text-nk-done" },
+            { label: "분석대기", value: summary.waiting, color: "text-nk-ink" },
           ].map((item) => (
             <div key={item.label} className="px-5 py-3">
-              <p className="text-[11px] font-bold text-slate-400">{item.label}</p>
+              <p className="text-[11px] font-bold text-nk-ink-hint">{item.label}</p>
               <p className={`mt-1 text-xl font-black ${item.color}`}>{item.value}</p>
             </div>
           ))}
@@ -504,8 +504,8 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md rounded-[14px] border border-slate-200/90 bg-white p-2 shadow-sm">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      <div className="relative max-w-md rounded-[14px] border border-nk-line-soft/90 bg-nk-surface p-2 shadow-sm">
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-nk-ink-hint" />
         <Input
           placeholder="이름, 학교 검색..."
           value={searchValue}
@@ -526,7 +526,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               href="/survey"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-warm px-3.5 py-2 text-[12.5px] font-black text-accent-warm-foreground shadow-[0_12px_28px_rgba(245,197,126,0.25)]"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-nk-navy px-3.5 py-2 text-[12.5px] font-black text-nk-navy-ink"
             >
               <Plus className="h-4 w-4" />
               V2 설문 열기
@@ -535,11 +535,11 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_48px_rgba(94,147,172,0.08)]">
+          <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgb(var(--wr-navy-ink)_/_0.8)_inset,0_18px_48px_rgb(var(--wr-navy)_/_0.08)]">
             <div className="overflow-x-auto">
               <table data-testid="survey-management-table" className="w-full text-sm" style={{ minWidth: "1250px" }}>
                 <thead>
-                  <tr className="border-y border-slate-200 bg-gradient-to-b from-slate-50 to-slate-100">
+                  <tr className="border-y border-nk-line-soft bg-gradient-to-b from-nk-sunken to-nk-sunken">
                     <th className="w-1 p-0" />
                     {[
                       { label: "날짜", align: "left" },
@@ -556,7 +556,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                     ].map((col, i, arr) => (
                       <th
                         key={i}
-                        className={`px-2 py-3 text-[10.5px] font-black uppercase text-slate-500 whitespace-nowrap ${i < arr.length - 1 ? "border-r border-slate-200/80" : ""} ${col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left"}`}
+                        className={`px-2 py-3 text-[10.5px] font-black uppercase text-nk-ink-sub whitespace-nowrap ${i < arr.length - 1 ? "border-r border-nk-line-soft/80" : ""} ${col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left"}`}
                       >
                         {col.label}
                       </th>
@@ -581,28 +581,28 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                       ? SUBJECT_LABEL_V2[getSurveyV2Subject(item)]
                       : matchedConsultation?.subject || "";
                     const factorScores = getSurveyManagementFactorScores(item);
-                    const vb = "border-r border-slate-100";
+                    const vb = "border-r border-nk-line-soft";
 
                     return (
                       <tr
                         key={item.id}
-                        className={`relative border-t border-slate-100 transition-colors ${getRowTone(consultStatus)} ${isPending ? "opacity-50" : ""}`}
+                        className={`relative border-t border-nk-line-soft transition-colors ${getRowTone(consultStatus)} ${isPending ? "opacity-50" : ""}`}
                       >
                         <td className="w-1 p-0">
                           <div className={`h-9 w-1 rounded-r-full ${getRowStripe(consultStatus)}`} />
                         </td>
-                        <td className={`px-2 py-2.5 text-[10px] font-semibold text-slate-400 whitespace-nowrap ${vb}`}>
+                        <td className={`px-2 py-2.5 text-[10px] font-semibold text-nk-ink-hint whitespace-nowrap ${vb}`}>
                           {format(new Date(item.created_at), "MM-dd")}
                         </td>
                         <td className={`px-2 py-2.5 whitespace-nowrap ${vb}`}>
                           <div className="flex items-center gap-1.5">
-                            <Link href={nameHref} className="text-[12px] font-black text-slate-800 hover:text-primary hover:underline">{item.name}</Link>
+                            <Link href={nameHref} className="text-[12px] font-black text-nk-ink hover:text-primary hover:underline">{item.name}</Link>
                             {item.instrument_version === "v2" && (
-                              <span className="rounded border border-violet-200 bg-violet-50 px-1 py-0.5 text-[8px] font-black text-violet-700" title="V2 학습 프로필 설문">V2</span>
+                              <span className="rounded border border-nk-cat-3 bg-nk-cat-3-soft px-1 py-0.5 text-[8px] font-black text-nk-cat-3" title="V2 학습 프로필 설문">V2</span>
                             )}
                             {fallbackIds.has(item.id) && (
                               <span
-                                className="rounded border border-amber-200 bg-amber-50 px-1 py-0.5 text-[8px] font-black text-amber-700"
+                                className="rounded border border-nk-warn bg-nk-warn-soft px-1 py-0.5 text-[8px] font-black text-nk-warn"
                                 title="AI 분석 실패 — 규칙 기반 요약입니다. 재분석을 권장합니다"
                               >
                                 규칙기반
@@ -610,22 +610,22 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             )}
                           </div>
                         </td>
-                        <td className={`px-2 py-2.5 text-[10px] font-medium text-slate-500 whitespace-nowrap truncate ${vb}`}>
+                        <td className={`px-2 py-2.5 text-[10px] font-medium text-nk-ink-sub whitespace-nowrap truncate ${vb}`}>
                           {[item.school, item.grade].filter(Boolean).join(" ") || "-"}
                         </td>
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           {subject ? (
                             <span className={`rounded-md border px-1.5 py-0.5 text-[9px] font-black ${getSubjectBadgeClass(subject)}`}>{subject}</span>
-                          ) : <span className="text-[9px] text-slate-200">-</span>}
+                          ) : <span className="text-[9px] text-nk-line">-</span>}
                         </td>
-                        <td className={`px-2 py-2.5 text-[10px] font-medium text-slate-600 whitespace-nowrap ${vb}`}>
-                          {formatPhone(item.student_phone) || <span className="text-slate-200">-</span>}
+                        <td className={`px-2 py-2.5 text-[10px] font-medium text-nk-ink-sub whitespace-nowrap ${vb}`}>
+                          {formatPhone(item.student_phone) || <span className="text-nk-line">-</span>}
                         </td>
-                        <td className={`px-2 py-2.5 text-[10px] font-black text-slate-700 whitespace-nowrap ${vb}`}>
-                          {formatPhone(item.parent_phone) || <span className="text-slate-200">-</span>}
+                        <td className={`px-2 py-2.5 text-[10px] font-black text-nk-ink whitespace-nowrap ${vb}`}>
+                          {formatPhone(item.parent_phone) || <span className="text-nk-line">-</span>}
                         </td>
-                        <td className={`px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 whitespace-nowrap ${vb}`}>
-                          {matchedConsultation?.test_score || <span className="text-slate-200">-</span>}
+                        <td className={`px-2 py-2.5 text-center text-[10px] font-bold text-nk-ink-sub whitespace-nowrap ${vb}`}>
+                          {matchedConsultation?.test_score || <span className="text-nk-line">-</span>}
                         </td>
                         {factorScores.map((score) => (
                           <td
@@ -638,9 +638,9 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                         ))}
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
                           {hasAnalysis ? (
-                            <span className="rounded-md border border-teal-100 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-700">완료</span>
+                            <span className="rounded-md border border-nk-done bg-nk-done-soft px-1.5 py-0.5 text-[9px] font-black text-nk-done">완료</span>
                           ) : (
-                            <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-400">대기</span>
+                            <span className="rounded-md border border-nk-line-soft bg-nk-sunken px-1.5 py-0.5 text-[9px] font-bold text-nk-ink-hint">대기</span>
                           )}
                         </td>
                         <td className={`px-2 py-2.5 text-center whitespace-nowrap ${vb}`}>
@@ -650,10 +650,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             disabled={!matchedConsultation}
                             title={matchedConsultation ? "상담 상태 변경" : "연결된 상담을 안전하게 식별할 수 없습니다"}
                             className={`cursor-pointer rounded-md border-0 px-1.5 py-0.5 text-[9px] font-black outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                              consultStatus === "registered" ? "bg-teal-600 text-white" :
-                              consultStatus === "hold" ? "bg-accent-warm text-accent-warm-foreground" :
-                              consultStatus === "other" ? "bg-slate-600 text-white" :
-                              "bg-slate-100 text-slate-400"
+                              consultStatus === "registered" ? "bg-nk-done text-nk-navy-ink" :
+                              consultStatus === "hold" ? "bg-nk-warn-soft text-nk-warn" :
+                              consultStatus === "other" ? "bg-nk-ink-sub text-nk-navy-ink" :
+                              "bg-nk-sunken text-nk-ink-hint"
                             }`}
                           >
                             <option value="none">-</option>
@@ -673,7 +673,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                                   })
                                 }
                                 title={`상담 ${matchedConsultations.length}건 — 날짜로 선택`}
-                                className="mt-1 block w-full cursor-pointer rounded-md border border-slate-200 bg-white px-1 py-0.5 text-center text-[9px] font-bold text-slate-500 outline-none"
+                                className="mt-1 block w-full cursor-pointer rounded-md border border-nk-line-soft bg-nk-surface px-1 py-0.5 text-center text-[9px] font-bold text-nk-ink-sub outline-none"
                               >
                                 {matchedConsultations.map((c) => (
                                   <option key={c.id} value={c.id}>
@@ -684,7 +684,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             ) : (
                               <span
                                 title="연동된 상담 날짜"
-                                className="mt-1 block rounded-md bg-slate-50 px-1 py-0.5 text-[9px] font-bold text-slate-400"
+                                className="mt-1 block rounded-md bg-nk-sunken px-1 py-0.5 text-[9px] font-bold text-nk-ink-hint"
                               >
                                 {formatConsultDate(matchedConsultation.consult_date)} 상담
                               </span>
@@ -710,28 +710,28 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                                     }
                                   }
                                 }}
-                                className={`rounded-md px-2 py-1 text-[9px] font-black transition-colors ${regId ? "bg-teal-600 text-white hover:bg-teal-700" : "bg-teal-50 text-teal-700 hover:bg-teal-100"}`}
+                                className={`rounded-md px-2 py-1 text-[9px] font-black transition-colors ${regId ? "bg-nk-done text-nk-navy-ink hover:bg-nk-done" : "bg-nk-done-soft text-nk-done hover:bg-nk-done-soft"}`}
                                 title={regId ? "안내문 보기" : "안내문 생성"}
                               >안내문</button>
                             )}
-                            <button data-testid={`survey-record-${item.id}`} onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="p-1 rounded text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50" title="상담기록">
+                            <button data-testid={`survey-record-${item.id}`} onClick={() => handleOpenRecord(item)} disabled={recordLoading === item.id} className="p-1 rounded text-nk-warn hover:bg-nk-warn-soft transition-colors disabled:opacity-50" title="상담기록">
                               {recordLoading === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileEdit className="h-3 w-3" />}
                             </button>
-                            <button data-testid={`survey-preview-${item.id}`} onClick={() => handleOpenPreview(item)} disabled={previewLoading === item.id} className="p-1 rounded text-slate-400 hover:bg-slate-100 transition-colors disabled:opacity-50" title="설문지 전체 응답">
+                            <button data-testid={`survey-preview-${item.id}`} onClick={() => handleOpenPreview(item)} disabled={previewLoading === item.id} className="p-1 rounded text-nk-ink-hint hover:bg-nk-sunken transition-colors disabled:opacity-50" title="설문지 전체 응답">
                               {previewLoading === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ClipboardList className="h-3 w-3" />}
                             </button>
-                            <button onClick={() => handleViewReport(item)} disabled={item.instrument_version === "v2" ? !analysisId : !analysis?.has_report} className="p-1 rounded text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
+                            <button onClick={() => handleViewReport(item)} disabled={item.instrument_version === "v2" ? !analysisId : !analysis?.has_report} className="p-1 rounded text-nk-cat-3 hover:bg-nk-cat-3-soft transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="결과지">
                               <Sparkles className="h-3 w-3" />
                             </button>
-                            <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="p-1 rounded text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "분석"}>
+                            <button onClick={() => handleAnalyze(item)} disabled={isAnalyzing} className="p-1 rounded text-nk-progress hover:bg-nk-progress-soft transition-colors disabled:opacity-50" title={hasAnalysis ? "재분석" : "분석"}>
                               {isAnalyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
                             </button>
                             {isAnalyzing && (
-                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">
+                              <span className="rounded bg-nk-progress-soft px-1.5 py-0.5 text-[9px] font-bold text-nk-progress">
                                 분석 중입니다 (최대 60초 소요)
                               </span>
                             )}
-                            <button onClick={() => setDeleteTarget(item)} className="p-1 rounded text-red-400 hover:bg-red-50 transition-colors" title="삭제">
+                            <button onClick={() => setDeleteTarget(item)} className="p-1 rounded text-nk-late hover:bg-nk-late-soft transition-colors" title="삭제">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           </div>
@@ -756,7 +756,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
               >
                 이전
               </Button>
-              <span className="text-sm font-medium text-slate-500">
+              <span className="text-sm font-medium text-nk-ink-sub">
                 {initialPagination.page} / {initialPagination.totalPages}
               </span>
               <Button
@@ -844,21 +844,21 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">등록 예정일</label>
+              <label className="text-xs font-medium text-nk-ink-sub block mb-1">등록 예정일</label>
               <Input
                 type="date"
                 value={regForm.plan_date}
                 onChange={(e) => setRegForm((p) => ({ ...p, plan_date: e.target.value }))}
-                className="rounded-lg border-slate-200"
+                className="rounded-lg border-nk-line-soft"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">등록 예정반</label>
+              <label className="text-xs font-medium text-nk-ink-sub block mb-1">등록 예정반</label>
               <Input
                 placeholder="예: 초5-A반"
                 value={regForm.plan_class}
                 onChange={(e) => setRegForm((p) => ({ ...p, plan_class: e.target.value }))}
-                className="rounded-lg border-slate-200"
+                className="rounded-lg border-nk-line-soft"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -867,9 +867,9 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                 id="reg-deposit"
                 checked={regForm.deposit}
                 onChange={(e) => setRegForm((p) => ({ ...p, deposit: e.target.checked }))}
-                className="rounded border-slate-300"
+                className="rounded border-nk-line"
               />
-              <label htmlFor="reg-deposit" className="text-sm text-slate-700">결제 완료</label>
+              <label htmlFor="reg-deposit" className="text-sm text-nk-ink">결제 완료</label>
             </div>
           </div>
           <DialogFooter>

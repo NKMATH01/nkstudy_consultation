@@ -44,9 +44,9 @@ interface Props {
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <div className="flex justify-between items-center py-2.5" style={{ borderBottom: "1px solid #F1F5F9" }}>
-      <span className="text-[12.5px] font-medium" style={{ color: "#94A3B8" }}>{label}</span>
-      <span className="text-[13px] font-semibold" style={{ color: value ? "#1E293B" : "#CBD5E1" }}>
+    <div className="flex justify-between items-center py-2.5" style={{ borderBottom: "1px solid rgb(var(--wr-sunken))" }}>
+      <span className="text-[12.5px] font-medium" style={{ color: "rgb(var(--wr-ink-hint))" }}>{label}</span>
+      <span className="text-[13px] font-semibold" style={{ color: value ? "rgb(var(--wr-ink))" : "rgb(var(--wr-line))" }}>
         {value || "-"}
       </span>
     </div>
@@ -177,7 +177,7 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-slate-100">
+          <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-nk-sunken">
             <Link href="/consultations">
               <ArrowLeft className="h-5 w-5" />
             </Link>
@@ -185,24 +185,24 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
           <div>
             <h1
               className="text-xl font-extrabold"
-              style={{ color: "#0F172A", letterSpacing: "-0.02em" }}
+              style={{ color: "rgb(var(--wr-ink))", letterSpacing: "-0.02em" }}
             >
               {consultation.name}
             </h1>
-            <p className="text-[12.5px]" style={{ color: "#64748B" }}>
+            <p className="text-[12.5px]" style={{ color: "rgb(var(--wr-ink-sub))" }}>
               {[consultation.school, consultation.grade].filter(Boolean).join(" ")}
               {consultation.consult_date &&
                 ` | ${format(new Date(consultation.consult_date), "yyyy-MM-dd")}`}
             </p>
             <div className="mt-1 flex gap-1.5">
               {consultation.status === "cancelled" && (
-                <span className="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                <span className="rounded bg-nk-line px-2 py-0.5 text-[10px] font-bold text-nk-ink-sub">
                   취소됨
                 </span>
               )}
               {consultation.status !== "cancelled" &&
                 consultation.rescheduled_at && (
-                  <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                  <span className="rounded bg-nk-warn-soft px-2 py-0.5 text-[10px] font-bold text-nk-warn">
                     시간변경
                   </span>
                 )}
@@ -214,9 +214,9 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
             onClick={() => setShowEdit(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all"
             style={{
-              border: "1.5px solid #E2E8F0",
-              color: "#475569",
-              background: "#FFFFFF",
+              border: "1.5px solid rgb(var(--wr-line))",
+              color: "rgb(var(--wr-ink-sub))",
+              background: "rgb(var(--wr-surface))",
             }}
           >
             <Edit className="h-3.5 w-3.5" />
@@ -226,9 +226,9 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
             onClick={() => setShowDelete(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[12.5px] font-semibold transition-all"
             style={{
-              border: "1.5px solid #FEE2E2",
-              color: "#E11D48",
-              background: "#FFF1F2",
+              border: "1.5px solid rgb(var(--wr-status-late-soft))",
+              color: "rgb(var(--wr-status-late))",
+              background: "rgb(var(--wr-status-late-soft))",
             }}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -241,17 +241,17 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
 
       {/* Quick Actions */}
       <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        className="bg-nk-surface rounded-2xl p-6"
+        style={{ border: "1px solid rgb(var(--wr-navy-strong) / 0.04)", boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.02)" }}
       >
-        <h3 className="text-[14.5px] font-bold mb-4 flex items-center gap-2" style={{ color: "#1E293B" }}>
+        <h3 className="text-[14.5px] font-bold mb-4 flex items-center gap-2" style={{ color: "rgb(var(--wr-ink))" }}>
           <div className="w-1 h-5 rounded-full" style={{ background: "var(--accent-warm)" }} />
           빠른 상태 변경
         </h3>
 
         <div className="space-y-3 mb-4">
           <div className="flex items-center gap-4">
-            <span className="text-[12.5px] font-medium w-14" style={{ color: "#94A3B8" }}>상태</span>
+            <span className="text-[12.5px] font-medium w-14" style={{ color: "rgb(var(--wr-ink-hint))" }}>상태</span>
             <Select
               value={consultation.status}
               onValueChange={handleStatusChange}
@@ -274,7 +274,7 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-[12.5px] font-medium w-14" style={{ color: "#94A3B8" }}>결과</span>
+            <span className="text-[12.5px] font-medium w-14" style={{ color: "rgb(var(--wr-ink-hint))" }}>결과</span>
             <Select
               value={consultation.result_status}
               onValueChange={handleResultChange}
@@ -297,7 +297,7 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
           </div>
         </div>
 
-        <div style={{ borderTop: "1px solid #F1F5F9", paddingTop: "14px" }}>
+        <div style={{ borderTop: "1px solid rgb(var(--wr-sunken))", paddingTop: "14px" }}>
           <div className="flex flex-wrap gap-2">
             {toggleItems.map(({ field, label, value }) => (
               <button
@@ -306,9 +306,9 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
                 onClick={() => handleToggle(field, value)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-semibold transition-all disabled:opacity-50"
                 style={{
-                  background: value ? "#ECFDF5" : "#F8FAFC",
-                  color: value ? "#059669" : "#94A3B8",
-                  border: value ? "1px solid #A7F3D0" : "1px solid #E2E8F0",
+                  background: value ? "rgb(var(--wr-status-done-soft))" : "rgb(var(--wr-sunken))",
+                  color: value ? "rgb(var(--wr-status-done))" : "rgb(var(--wr-ink-hint))",
+                  border: value ? "1px solid rgb(var(--wr-status-done-soft))" : "1px solid rgb(var(--wr-line))",
                 }}
               >
                 {value ? (
@@ -325,11 +325,11 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
 
       {/* Basic Info */}
       <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        className="bg-nk-surface rounded-2xl p-6"
+        style={{ border: "1px solid rgb(var(--wr-navy-strong) / 0.04)", boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.02)" }}
       >
-        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "#1E293B" }}>
-          <div className="w-1 h-5 bg-blue-500 rounded-full" />
+        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "rgb(var(--wr-ink))" }}>
+          <div className="w-1 h-5 bg-nk-progress rounded-full" />
           기본 정보
         </h3>
         <InfoRow label="이름" value={consultation.name} />
@@ -340,10 +340,10 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
 
       {/* Schedule */}
       <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        className="bg-nk-surface rounded-2xl p-6"
+        style={{ border: "1px solid rgb(var(--wr-navy-strong) / 0.04)", boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.02)" }}
       >
-        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "#1E293B" }}>
+        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "rgb(var(--wr-ink))" }}>
           <div className="w-1 h-5 rounded-full" style={{ background: "var(--accent-warm)" }} />
           상담 일정
         </h3>
@@ -364,11 +364,11 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
         {(consultation.parent_consult_date || consultation.parent_consult_time || consultation.parent_location) && (
           <>
             <div className="flex items-center gap-2 mt-4 mb-2">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+              <div className="flex-1 h-px bg-nk-line" />
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-nk-warn-soft text-nk-warn border border-nk-warn">
                 학부모 별도 일정
               </span>
-              <div className="flex-1 h-px bg-slate-200" />
+              <div className="flex-1 h-px bg-nk-line" />
             </div>
             <InfoRow
               label="학부모 날짜"
@@ -388,36 +388,36 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
       {/* SQL: ALTER TABLE consultations ADD COLUMN IF NOT EXISTS student_consult_note TEXT; */}
       {/* SQL: ALTER TABLE consultations ADD COLUMN IF NOT EXISTS parent_consult_note TEXT; */}
       <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        className="bg-nk-surface rounded-2xl p-6"
+        style={{ border: "1px solid rgb(var(--wr-navy-strong) / 0.04)", boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.02)" }}
       >
-        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "#1E293B" }}>
-          <div className="w-1 h-5 bg-purple-500 rounded-full" />
+        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "rgb(var(--wr-ink))" }}>
+          <div className="w-1 h-5 bg-nk-cat-3 rounded-full" />
           상담 내용
         </h3>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[12.5px] font-medium" style={{ color: "#94A3B8" }}>학생 상담 내용</label>
+            <label className="text-[12.5px] font-medium" style={{ color: "rgb(var(--wr-ink-hint))" }}>학생 상담 내용</label>
             <textarea
               ref={studentNoteRef}
               value={studentNote}
               onChange={(e) => setStudentNote(e.target.value)}
               onInput={(e) => autoResize(e.currentTarget)}
               placeholder="학생 상담 내용을 입력하세요..."
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all resize-none"
-              style={{ minHeight: "80px", color: "#1E293B" }}
+              className="w-full rounded-xl border border-nk-line-soft px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-nk-cat-3 focus:border-nk-cat-3 transition-all resize-none"
+              style={{ minHeight: "80px", color: "rgb(var(--wr-ink))" }}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12.5px] font-medium" style={{ color: "#94A3B8" }}>학부모 상담 내용</label>
+            <label className="text-[12.5px] font-medium" style={{ color: "rgb(var(--wr-ink-hint))" }}>학부모 상담 내용</label>
             <textarea
               ref={parentNoteRef}
               value={parentNote}
               onChange={(e) => setParentNote(e.target.value)}
               onInput={(e) => autoResize(e.currentTarget)}
               placeholder="학부모 상담 내용을 입력하세요..."
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all resize-none"
-              style={{ minHeight: "80px", color: "#1E293B" }}
+              className="w-full rounded-xl border border-nk-line-soft px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-nk-cat-3 focus:border-nk-cat-3 transition-all resize-none"
+              style={{ minHeight: "80px", color: "rgb(var(--wr-ink))" }}
             />
           </div>
           {notesChanged && (
@@ -427,9 +427,9 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
                 disabled={isSavingNotes}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12.5px] font-semibold transition-all disabled:opacity-50"
                 style={{
-                  background: "#8B5CF6",
-                  color: "#FFFFFF",
-                  boxShadow: "0 1px 3px rgba(139,92,246,0.3)",
+                  background: "rgb(var(--wr-cat-3))",
+                  color: "rgb(var(--wr-surface))",
+                  boxShadow: "0 1px 3px rgb(var(--wr-cat-3) / 0.3)",
                 }}
               >
                 {isSavingNotes ? "저장 중..." : "저장"}
@@ -441,11 +441,11 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
 
       {/* Details */}
       <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        className="bg-nk-surface rounded-2xl p-6"
+        style={{ border: "1px solid rgb(var(--wr-navy-strong) / 0.04)", boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.02)" }}
       >
-        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "#1E293B" }}>
-          <div className="w-1 h-5 bg-indigo-500 rounded-full" />
+        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "rgb(var(--wr-ink))" }}>
+          <div className="w-1 h-5 bg-nk-progress rounded-full" />
           상세 정보
         </h3>
         <InfoRow label="메모" value={consultation.memo} />
@@ -462,11 +462,11 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
 
       {/* Registration Info */}
       <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)" }}
+        className="bg-nk-surface rounded-2xl p-6"
+        style={{ border: "1px solid rgb(var(--wr-navy-strong) / 0.04)", boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.02)" }}
       >
-        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "#1E293B" }}>
-          <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+        <h3 className="text-[14.5px] font-bold mb-3 flex items-center gap-2" style={{ color: "rgb(var(--wr-ink))" }}>
+          <div className="w-1 h-5 bg-nk-done rounded-full" />
           등록 관련
         </h3>
         <InfoRow label="예정등록일" value={consultation.plan_date} />

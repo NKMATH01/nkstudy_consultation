@@ -123,12 +123,12 @@ export function AnalysisDetailV2Client({
         </Button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="flex items-center gap-2">
-            <span className="text-base font-extrabold text-slate-900">{analysis.name}</span>
-            <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-black text-violet-700">
+            <span className="text-base font-extrabold text-nk-ink">{analysis.name}</span>
+            <span className="rounded border border-nk-cat-3 bg-nk-cat-3-soft px-1.5 py-0.5 text-[10px] font-black text-nk-cat-3">
               V2 학습 프로필
             </span>
           </div>
-          <p className="text-[11px] text-slate-500">{schoolGrade}</p>
+          <p className="text-[11px] text-nk-ink-sub">{schoolGrade}</p>
         </div>
         {consultationId && (
           <Button variant="outline" size="sm" asChild className="rounded-xl text-xs">
@@ -160,7 +160,7 @@ export function AnalysisDetailV2Client({
         <Button
           size="sm"
           onClick={handleRegisterClick}
-          className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 text-xs"
+          className="rounded-xl bg-gradient-to-r from-nk-done to-nk-done text-xs"
         >
           {existingRegistrationId ? (
             <>
@@ -180,7 +180,7 @@ export function AnalysisDetailV2Client({
 
       {profile.source === "fallback" && (
         <div
-          className="rptv2-noprint mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800"
+          className="rptv2-noprint mb-3 rounded-lg border border-nk-warn bg-nk-warn-soft px-3 py-2 text-sm font-semibold text-nk-warn"
           role="status"
         >
           AI 분석 실패 — 규칙 기반 요약입니다. 재분석을 권장합니다.

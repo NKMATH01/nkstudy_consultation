@@ -23,7 +23,7 @@ import {
 } from "@/lib/improvement-actions";
 
 const NK_PRIMARY = "var(--primary)";
-const CARD_BORDER = "#E8ECF1";
+const CARD_BORDER = "rgb(var(--wr-line-soft))";
 
 function formatDoneAt(value: string | null): string {
   if (!value) return "";
@@ -52,7 +52,7 @@ function OwnerInput({
 
   return (
     <input
-      className="h-7 w-24 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="h-7 w-24 rounded-md border border-nk-line-soft bg-nk-surface px-2 text-[11px] text-nk-ink-sub focus:outline-none focus:ring-2 focus:ring-nk-progress"
       placeholder="담당자"
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -137,10 +137,10 @@ export function ImprovementActionsCard({
 
   return (
     <div
-      className="bg-white rounded-2xl p-6"
+      className="bg-nk-surface rounded-2xl p-6"
       style={{
         border: `1px solid ${CARD_BORDER}`,
-        boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)",
+        boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)",
       }}
     >
       <div className="mb-5 flex items-start justify-between gap-4 flex-wrap">
@@ -151,25 +151,25 @@ export function ImprovementActionsCard({
               이번 달 실행 항목 ({monthLabel})
             </h3>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-nk-ink-hint mt-0.5">
             진단에서 채택한 개선 액션의 이행 상황을 추적합니다
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-nk-ink-hint">
               이행률
             </div>
-            <div className="text-2xl font-extrabold leading-none" style={{ color: "#0F172A" }}>
+            <div className="text-2xl font-extrabold leading-none" style={{ color: "rgb(var(--wr-ink))" }}>
               {stats.rate}
-              <span className="text-sm font-bold text-slate-400">%</span>
+              <span className="text-sm font-bold text-nk-ink-hint">%</span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
+            <div className="text-[10px] text-nk-ink-hint mt-0.5">
               {stats.done}/{stats.done + stats.pending}건
             </div>
           </div>
           {prevStats.total > 0 && (
-            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+            <span className="inline-flex items-center rounded-full bg-nk-sunken px-2.5 py-1 text-[11px] font-semibold text-nk-ink-sub">
               전월 {prevStats.rate}%
             </span>
           )}
@@ -179,10 +179,10 @@ export function ImprovementActionsCard({
       {currentActions.length === 0 ? (
         <div
           className="rounded-xl px-4 py-6 text-center"
-          style={{ background: "#FAFBFD", border: `1px dashed ${CARD_BORDER}` }}
+          style={{ background: "rgb(var(--wr-sunken))", border: `1px dashed ${CARD_BORDER}` }}
         >
-          <p className="text-sm text-slate-500 font-medium">아직 채택된 실행 항목이 없습니다</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-sm text-nk-ink-sub font-medium">아직 채택된 실행 항목이 없습니다</p>
+          <p className="text-xs text-nk-ink-hint mt-1">
             위 진단 카드에서 [+ 이달 실행]으로 채택하세요
           </p>
         </div>
@@ -196,7 +196,7 @@ export function ImprovementActionsCard({
                 key={action.id}
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5"
                 style={{
-                  background: isDropped ? "#F8FAFC" : "#FAFBFD",
+                  background: isDropped ? "rgb(var(--wr-sunken))" : "rgb(var(--wr-sunken))",
                   border: `1px solid ${CARD_BORDER}`,
                   opacity: isDropped ? 0.65 : 1,
                 }}
@@ -208,17 +208,17 @@ export function ImprovementActionsCard({
                   aria-label={isDone ? "완료 취소" : "완료 처리"}
                   className="h-5 w-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors disabled:cursor-not-allowed"
                   style={{
-                    background: isDone ? "#059669" : "white",
-                    border: `1px solid ${isDone ? "#059669" : "#CBD5E1"}`,
+                    background: isDone ? "rgb(var(--wr-status-done))" : "white",
+                    border: `1px solid ${isDone ? "rgb(var(--wr-status-done))" : "rgb(var(--wr-line))"}`,
                   }}
                 >
-                  {isDone && <Check className="h-3 w-3 text-white" />}
+                  {isDone && <Check className="h-3 w-3 text-nk-navy-ink" />}
                 </button>
 
                 <div className="flex-1 min-w-0">
                   <p
                     className={`text-[13px] leading-snug ${
-                      isDone ? "line-through text-slate-400" : "text-slate-700"
+                      isDone ? "line-through text-nk-ink-hint" : "text-nk-ink"
                     }`}
                   >
                     {action.action_text}
@@ -228,24 +228,24 @@ export function ImprovementActionsCard({
                       className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold"
                       style={
                         action.source === "manual"
-                          ? { background: "#F1F5F9", color: "#64748B" }
+                          ? { background: "rgb(var(--wr-sunken))", color: "rgb(var(--wr-ink-sub))" }
                           : { background: NK_PRIMARY, color: "white" }
                       }
                     >
                       {action.source === "manual" ? "직접 추가" : "진단"}
                     </span>
                     {action.source_title && (
-                      <span className="text-[10px] text-slate-400 truncate">
+                      <span className="text-[10px] text-nk-ink-hint truncate">
                         {action.source_title}
                       </span>
                     )}
                     {isDone && action.done_at && (
-                      <span className="text-[10px] text-emerald-600 font-semibold">
+                      <span className="text-[10px] text-nk-done font-semibold">
                         {formatDoneAt(action.done_at)}
                       </span>
                     )}
                     {isDropped && (
-                      <span className="text-[10px] text-slate-400 font-semibold">보류됨</span>
+                      <span className="text-[10px] text-nk-ink-hint font-semibold">보류됨</span>
                     )}
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export function ImprovementActionsCard({
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+                      className="h-7 w-7 rounded-md flex items-center justify-center text-nk-ink-hint hover:bg-nk-sunken transition-colors"
                       aria-label="실행 항목 메뉴"
                     >
                       <MoreHorizontal className="h-4 w-4" />
@@ -268,7 +268,7 @@ export function ImprovementActionsCard({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => removeAction(action)}
-                      className="text-red-600 focus:text-red-600"
+                      className="text-nk-late focus:text-nk-late"
                     >
                       삭제
                     </DropdownMenuItem>
@@ -283,13 +283,13 @@ export function ImprovementActionsCard({
       {/* 수동 추가 */}
       <div className="mt-4 pt-4 border-t flex items-center gap-2 flex-wrap" style={{ borderColor: CARD_BORDER }}>
         <input
-          className="flex-1 min-w-[200px] h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 min-w-[200px] h-9 rounded-md border border-nk-line-soft bg-nk-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress"
           placeholder="직접 추가할 실행 항목"
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
         />
         <input
-          className="h-9 w-28 rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="h-9 w-28 rounded-md border border-nk-line-soft bg-nk-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress"
           placeholder="담당자"
           value={newOwner}
           onChange={(e) => setNewOwner(e.target.value)}
@@ -298,7 +298,7 @@ export function ImprovementActionsCard({
           type="button"
           onClick={handleAdd}
           disabled={isPending}
-          className="h-9 px-4 rounded-lg text-white text-xs font-bold flex items-center gap-1.5 transition-all hover:-translate-y-px disabled:opacity-60"
+          className="h-9 px-4 rounded-lg text-nk-navy-ink text-xs font-bold flex items-center gap-1.5 transition-all hover:-translate-y-px disabled:opacity-60"
           style={{ background: NK_PRIMARY }}
         >
           <Plus className="h-3.5 w-3.5" />

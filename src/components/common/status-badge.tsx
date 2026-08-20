@@ -4,17 +4,17 @@ import { STATUS_LABELS, RESULT_STATUS_LABELS } from "@/types";
 import { cn } from "@/lib/utils";
 
 const statusVariants: Record<ConsultationStatus, string> = {
-  active: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-  completed: "bg-green-100 text-green-700 hover:bg-green-100",
-  cancelled: "bg-red-100 text-red-700 hover:bg-red-100",
-  pending: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+  active: "bg-nk-progress-soft text-nk-progress hover:bg-nk-progress-soft",
+  completed: "bg-nk-done-soft text-nk-done hover:bg-nk-done-soft",
+  cancelled: "bg-nk-late-soft text-nk-late hover:bg-nk-late-soft",
+  pending: "bg-nk-warn-soft text-nk-warn hover:bg-nk-warn-soft",
 };
 
 const resultVariants: Record<ResultStatus, string> = {
-  none: "bg-gray-100 text-gray-500 hover:bg-gray-100",
-  registered: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
-  hold: "bg-orange-100 text-orange-700 hover:bg-orange-100",
-  other: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+  none: "bg-nk-sunken text-nk-ink-sub hover:bg-nk-sunken",
+  registered: "bg-nk-done-soft text-nk-done hover:bg-nk-done-soft",
+  hold: "bg-nk-warn-soft text-nk-warn hover:bg-nk-warn-soft",
+  other: "bg-nk-cat-3-soft text-nk-cat-3 hover:bg-nk-cat-3-soft",
 };
 
 export function StatusBadge({ status }: { status: ConsultationStatus }) {

@@ -33,16 +33,16 @@ const RESULT_ORDER: First14Result[] = ["matched", "differed", "unobserved"];
 
 const RESULT_STYLE: Record<First14Result, { on: string; off: string }> = {
   matched: {
-    on: "border-emerald-500 bg-emerald-500 text-white",
-    off: "border-slate-200 bg-white text-slate-600 hover:border-emerald-300",
+    on: "border-nk-done bg-nk-done text-nk-navy-ink",
+    off: "border-nk-line-soft bg-nk-surface text-nk-ink-sub hover:border-nk-done",
   },
   differed: {
-    on: "border-amber-500 bg-amber-500 text-white",
-    off: "border-slate-200 bg-white text-slate-600 hover:border-amber-300",
+    on: "border-nk-warn bg-nk-warn text-nk-navy-ink",
+    off: "border-nk-line-soft bg-nk-surface text-nk-ink-sub hover:border-nk-warn",
   },
   unobserved: {
-    on: "border-slate-400 bg-slate-400 text-white",
-    off: "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+    on: "border-nk-line bg-nk-ink-hint text-nk-navy-ink",
+    off: "border-nk-line-soft bg-nk-surface text-nk-ink-sub hover:border-nk-line",
   },
 };
 
@@ -123,7 +123,7 @@ export function First14Dialog({ analysisId, studentName, onOpenChange }: Props) 
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-nk-ink-sub">
             <Loader2 className="h-4 w-4 animate-spin" />
             불러오는 중...
           </div>
@@ -133,13 +133,13 @@ export function First14Dialog({ analysisId, studentName, onOpenChange }: Props) 
               const saved = checks[row.index];
               const busy = savingIndex === row.index;
               return (
-                <div key={row.index} className="rounded-xl border border-slate-200 p-3">
+                <div key={row.index} className="rounded-xl border border-nk-line-soft p-3">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[11px] font-black text-slate-400">{row.index}</span>
-                    <b className="text-[13px] font-bold text-slate-900">{row.title}</b>
+                    <span className="text-[11px] font-black text-nk-ink-hint">{row.index}</span>
+                    <b className="text-[13px] font-bold text-nk-ink">{row.title}</b>
                   </div>
                   {row.hint && (
-                    <p className="mt-1 pl-5 text-[11.5px] leading-snug text-slate-500">
+                    <p className="mt-1 pl-5 text-[11.5px] leading-snug text-nk-ink-sub">
                       {row.hint}
                     </p>
                   )}
@@ -169,11 +169,11 @@ export function First14Dialog({ analysisId, studentName, onOpenChange }: Props) 
                       setNotes((prev) => ({ ...prev, [row.index]: e.target.value }))
                     }
                     placeholder="메모 (선택) — 저장 버튼을 누를 때 함께 기록됩니다"
-                    className="mt-2 ml-5 w-[calc(100%-1.25rem)] rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12px] focus:border-slate-400 focus:outline-none"
+                    className="mt-2 ml-5 w-[calc(100%-1.25rem)] rounded-lg border border-nk-line-soft px-2.5 py-1.5 text-[12px] focus:border-nk-line focus:outline-none"
                   />
 
                   {saved && (
-                    <p className="mt-1.5 pl-5 text-[11px] text-slate-400">
+                    <p className="mt-1.5 pl-5 text-[11px] text-nk-ink-hint">
                       {saved.teacher} 기록 · {FIRST14_RESULT_LABEL[saved.result]}
                     </p>
                   )}

@@ -56,6 +56,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // css·폰트도 제외한다. 빠져 있으면 로그인하지 않은 상태에서 public/nk-shared.css 요청이
+    // /login 으로 307 되돌려져 색 토큰이 통째로 사라진다(로그인 화면이 흰 종이가 된다).
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|woff|woff2|ttf)$).*)",
   ],
 };

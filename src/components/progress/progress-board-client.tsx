@@ -200,10 +200,10 @@ function deadlineStatus(
 }
 
 const DEADLINE_TONES: Record<string, { bg: string; color: string }> = {
-  ok: { bg: "#ECFDF5", color: "#047857" },
-  warn: { bg: "#FEF2F2", color: "#B91C1C" },
-  over: { bg: "#7F1D1D", color: "#FECACA" },
-  info: { bg: "#EFF6FF", color: "#1D4ED8" },
+  ok: { bg: "rgb(var(--wr-status-done-soft))", color: "rgb(var(--wr-status-done))" },
+  warn: { bg: "rgb(var(--wr-status-late-soft))", color: "rgb(var(--wr-status-late))" },
+  over: { bg: "rgb(var(--wr-status-late))", color: "rgb(var(--wr-status-late-soft))" },
+  info: { bg: "rgb(var(--wr-status-progress-soft))", color: "rgb(var(--wr-status-progress))" },
 };
 
 function DeadlineBadge({ progress, weeklyProgress }: { progress: ProgressBoardRow["progress"]; weeklyProgress: number | null }) {
@@ -239,10 +239,10 @@ const TRAIT_LABELS: Array<{ key: "ability_level" | "study_intensity" | "homework
 ];
 
 const TRAIT_COLORS: Record<string, { bg: string; color: string }> = {
-  ability_level: { bg: "color-mix(in srgb, var(--accent-warm) 28%, white)", color: "var(--accent-warm-foreground)" },
+  ability_level: { bg: "color-mix(in srgb, rgb(var(--wr-cat-4)) 14%, rgb(var(--wr-surface)))", color: "rgb(var(--wr-cat-4))" },
   study_intensity: { bg: "color-mix(in srgb, var(--primary) 10%, white)", color: "var(--primary)" },
-  homework_volume: { bg: "#CCFBF1", color: "#0F766E" },
-  class_pace: { bg: "#EDE9FE", color: "#6D28D9" },
+  homework_volume: { bg: "rgb(var(--wr-status-done-soft))", color: "rgb(var(--wr-status-done))" },
+  class_pace: { bg: "rgb(var(--wr-sunken))", color: "rgb(var(--wr-cat-3))" },
 };
 
 function TraitBadges({ progress }: { progress: ProgressBoardRow["progress"] }) {
@@ -275,9 +275,9 @@ function dayGroupOf(classDays: string | null | undefined): DayGroup {
 }
 
 const DAY_GROUP_TONES: Record<DayGroup, { bg: string; color: string; border: string; accent: string }> = {
-  월수: { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE", accent: "#3B82F6" }, // 파랑
-  화목: { bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA", accent: "#F97316" }, // 주황
-  기타: { bg: "#F1F5F9", color: "#475569", border: "#E2E8F0", accent: "#94A3B8" }, // 슬레이트(현행 유지)
+  월수: { bg: "rgb(var(--wr-status-progress-soft))", color: "rgb(var(--wr-status-progress))", border: "rgb(var(--wr-status-progress-soft))", accent: "rgb(var(--wr-status-progress))" }, // 파랑
+  화목: { bg: "rgb(var(--wr-status-warn-soft))", color: "rgb(var(--wr-status-warn))", border: "rgb(var(--wr-status-warn-soft))", accent: "rgb(var(--wr-status-warn))" }, // 주황
+  기타: { bg: "rgb(var(--wr-sunken))", color: "rgb(var(--wr-ink-sub))", border: "rgb(var(--wr-line))", accent: "rgb(var(--wr-ink-hint))" }, // 슬레이트(현행 유지)
 };
 
 function ScheduleBadge({ row }: { row: ProgressBoardRow }) {
@@ -299,15 +299,15 @@ function ScheduleBadge({ row }: { row: ProgressBoardRow }) {
 }
 
 const CURRICULUM_TONES: Record<string, { bg: string; color: string }> = {
-  완료: { bg: "#ECFDF5", color: "#047857" },
-  진행중: { bg: "color-mix(in srgb, var(--accent-warm) 28%, white)", color: "var(--accent-warm-foreground)" },
+  완료: { bg: "rgb(var(--wr-status-done-soft))", color: "rgb(var(--wr-status-done))" },
+  진행중: { bg: "rgb(var(--wr-status-progress-soft))", color: "rgb(var(--wr-status-progress))" },
 };
 
 /** 합반(학년 2종 이상)일 때만 학년 구성 표시 */
 function GradeBreakdownText({ breakdown }: { breakdown: ProgressBoardRow["grade_breakdown"] }) {
   if (breakdown.length <= 1) return null;
   return (
-    <p className="mt-1 text-[12px] font-semibold text-slate-500">
+    <p className="mt-1 text-[12px] font-semibold text-nk-ink-sub">
       {breakdown.map((g) => `${g.grade} ${g.count}`).join(" · ")}
     </p>
   );
@@ -328,21 +328,21 @@ function SectionHeader({ grade, count }: { grade: string; count: number }) {
       className="flex items-center justify-between rounded-t-2xl px-5 py-3.5"
       style={{
         background:
-          "radial-gradient(circle at 12% 0%, rgba(233,196,106,0.18), transparent 38%), linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)",
+          "linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%)",
       }}
     >
       <div className="flex items-center gap-2.5">
         <span
           className="flex h-8 w-8 items-center justify-center rounded-lg"
-          style={{ background: "rgba(255,255,255,0.14)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)" }}
+          style={{ background: "rgb(var(--wr-navy-ink) / 0.14)", boxShadow: "inset 0 0 0 1px rgb(var(--wr-navy-ink) / 0.18)" }}
         >
-          <BookOpenCheck className="h-4 w-4 text-white" />
+          <BookOpenCheck className="h-4 w-4 text-nk-navy-ink" />
         </span>
-        <h2 className="text-[15px] font-black tracking-tight text-white">{grade}</h2>
+        <h2 className="text-[15px] font-black tracking-tight text-nk-navy-ink">{grade}</h2>
       </div>
       <span
         className="rounded-full px-2.5 py-1 text-[11px] font-black"
-        style={{ background: "rgba(233,196,106,0.22)", color: "#F8E7BD", boxShadow: "inset 0 0 0 1px rgba(233,196,106,0.28)" }}
+        style={{ background: "rgb(var(--wr-navy-ink) / 0.14)", color: "rgb(var(--wr-navy-ink))", boxShadow: "inset 0 0 0 1px rgb(var(--wr-navy-ink) / 0.24)" }}
       >
         {count}개 반
       </span>
@@ -352,25 +352,25 @@ function SectionHeader({ grade, count }: { grade: string; count: number }) {
 
 /** 진도율 구간별 색상: 초반(로즈) → 중반(골드) → 마무리(에메랄드) */
 function meterColors(percent: number): { bar: string; text: string } {
-  if (percent >= 80) return { bar: "linear-gradient(90deg, #34D399, #059669)", text: "#047857" };
-  if (percent >= 40) return { bar: "linear-gradient(90deg, var(--accent-warm), var(--chart-4))", text: "var(--accent-warm-foreground)" };
-  return { bar: "linear-gradient(90deg, #FDA4AF, #F43F5E)", text: "#BE123C" };
+  if (percent >= 80) return { bar: "linear-gradient(90deg, rgb(var(--wr-status-done)), rgb(var(--wr-status-done)))", text: "rgb(var(--wr-status-done))" };
+  if (percent >= 40) return { bar: "rgb(var(--wr-status-warn))", text: "rgb(var(--wr-status-warn))" };
+  return { bar: "linear-gradient(90deg, rgb(var(--wr-status-late-soft)), rgb(var(--wr-status-late)))", text: "rgb(var(--wr-status-late))" };
 }
 
 function ProgressMeter({ current, total }: { current: number | null | undefined; total: number | null | undefined }) {
   const percent = progressPercent(current, total);
   if (percent == null) {
-    return <span className="text-xs text-slate-400">페이지 미입력</span>;
+    return <span className="text-xs text-nk-ink-hint">페이지 미입력</span>;
   }
   const colors = meterColors(percent);
 
   return (
     <div className="flex min-w-[200px] items-center gap-2.5">
       <div className="flex-1 space-y-1">
-        <div className="text-[13px] font-bold text-slate-500">
-          {current}p <span className="font-medium text-slate-400">/ {total}p</span>
+        <div className="text-[13px] font-bold text-nk-ink-sub">
+          {current}p <span className="font-medium text-nk-ink-hint">/ {total}p</span>
         </div>
-        <div className="h-2.5 overflow-hidden rounded-full" style={{ background: "#EEF1F6", boxShadow: "inset 0 1px 2px rgba(15,23,42,0.06)" }}>
+        <div className="h-2.5 overflow-hidden rounded-full" style={{ background: "rgb(var(--wr-sunken))", boxShadow: "inset 0 1px 2px rgb(var(--wr-navy-strong) / 0.06)" }}>
           <div
             className="h-full rounded-full transition-all"
             style={{ width: `${percent}%`, background: colors.bar }}
@@ -411,11 +411,11 @@ function expectedPercent(row: ProgressBoardRow): number | null {
 type DiffTone = "delay" | "slightDelay" | "normal" | "aheadSlight" | "ahead";
 
 const DIFF_TONES: Record<DiffTone, { bg: string; color: string }> = {
-  delay: { bg: "#FEF2F2", color: "#B91C1C" },
-  slightDelay: { bg: "#FFF7ED", color: "#C2410C" },
-  normal: { bg: "#EFF6FF", color: "#1D4ED8" },
-  aheadSlight: { bg: "#F0FDF4", color: "#16A34A" },
-  ahead: { bg: "#ECFDF5", color: "#047857" },
+  delay: { bg: "rgb(var(--wr-status-late-soft))", color: "rgb(var(--wr-status-late))" },
+  slightDelay: { bg: "rgb(var(--wr-status-warn-soft))", color: "rgb(var(--wr-status-warn))" },
+  normal: { bg: "rgb(var(--wr-status-progress-soft))", color: "rgb(var(--wr-status-progress))" },
+  aheadSlight: { bg: "rgb(var(--wr-status-done-soft))", color: "rgb(var(--wr-status-done))" },
+  ahead: { bg: "rgb(var(--wr-status-done-soft))", color: "rgb(var(--wr-status-done))" },
 };
 
 /** 실제% − 예상% 차이 → 배지(퍼센트/문구/톤). 둘 중 하나라도 없으면 null. */
@@ -448,7 +448,7 @@ function ExpectedVsActualCell({ row }: { row: ProgressBoardRow }) {
   const actual = progressPercent(row.progress?.current_page, row.progress?.main_total_pages);
   const expected = expectedPercent(row);
   if (actual == null && expected == null) {
-    return <span className="text-xs text-slate-400">예상 정보 없음</span>;
+    return <span className="text-xs text-nk-ink-hint">예상 정보 없음</span>;
   }
   const badge = diffBadge(actual, expected);
   const actualColors = actual != null ? meterColors(actual) : null;
@@ -456,21 +456,21 @@ function ExpectedVsActualCell({ row }: { row: ProgressBoardRow }) {
     <div className="flex min-w-[220px] items-center gap-2.5">
       <div className="flex-1 space-y-1.5">
         <div className="flex items-center gap-2">
-          <span className="w-7 shrink-0 text-[11px] font-bold text-slate-400">예상</span>
-          <span className="w-9 shrink-0 text-[13px] font-black tabular-nums text-slate-500">{expected != null ? `${expected}%` : "-"}</span>
-          <div className="relative h-2 flex-1 rounded-full" style={{ background: "#E5E9F0" }}>
+          <span className="w-7 shrink-0 text-[11px] font-bold text-nk-ink-hint">예상</span>
+          <span className="w-9 shrink-0 text-[13px] font-black tabular-nums text-nk-ink-sub">{expected != null ? `${expected}%` : "-"}</span>
+          <div className="relative h-2 flex-1 rounded-full" style={{ background: "rgb(var(--wr-line-soft))" }}>
             {expected != null && (
               <>
-                <div className="h-full rounded-full" style={{ width: `${expected}%`, background: "#94A3B8" }} />
-                <span className="absolute -top-2 text-[8px] leading-none text-slate-400" style={{ left: `calc(${expected}% - 4px)` }}>▼</span>
+                <div className="h-full rounded-full" style={{ width: `${expected}%`, background: "rgb(var(--wr-ink-hint))" }} />
+                <span className="absolute -top-2 text-[8px] leading-none text-nk-ink-hint" style={{ left: `calc(${expected}% - 4px)` }}>▼</span>
               </>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-7 shrink-0 text-[11px] font-bold text-slate-400">실제</span>
-          <span className="w-9 shrink-0 text-[13px] font-black tabular-nums" style={{ color: actualColors?.text ?? "#94A3B8" }}>{actual != null ? `${actual}%` : "-"}</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "#E5E9F0" }}>
+          <span className="w-7 shrink-0 text-[11px] font-bold text-nk-ink-hint">실제</span>
+          <span className="w-9 shrink-0 text-[13px] font-black tabular-nums" style={{ color: actualColors?.text ?? "rgb(var(--wr-ink-hint))" }}>{actual != null ? `${actual}%` : "-"}</span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "rgb(var(--wr-line-soft))" }}>
             {actual != null && <div className="h-full rounded-full transition-all" style={{ width: `${actual}%`, background: actualColors?.bar }} />}
           </div>
         </div>
@@ -478,7 +478,7 @@ function ExpectedVsActualCell({ row }: { row: ProgressBoardRow }) {
       {badge ? (
         <DiffBadge badge={badge} />
       ) : expected == null ? (
-        <span className="shrink-0 text-center text-[10px] font-semibold leading-tight text-slate-400">예상<br />정보없음</span>
+        <span className="shrink-0 text-center text-[10px] font-semibold leading-tight text-nk-ink-hint">예상<br />정보없음</span>
       ) : null}
     </div>
   );
@@ -491,7 +491,7 @@ function WeeklyPageChip({ weekly }: { weekly: number | null }) {
   return (
     <span
       className="inline-flex w-fit items-center rounded-md px-1.5 py-0.5 text-[11px] font-black"
-      style={positive ? { background: "#ECFDF5", color: "#047857" } : { background: "#F1F5F9", color: "#94A3B8" }}
+      style={positive ? { background: "rgb(var(--wr-status-done-soft))", color: "rgb(var(--wr-status-done))" } : { background: "rgb(var(--wr-sunken))", color: "rgb(var(--wr-ink-hint))" }}
     >
       이번주 {positive ? `+${weekly}p` : "0p"}
     </span>
@@ -516,26 +516,26 @@ function SummaryCards({ rows }: { rows: ProgressBoardRow[] }) {
   }
   const pct = (n: number) => (classifiable > 0 ? Math.round((n / classifiable) * 100) : 0);
   const cards = [
-    { label: "지연 반 (예상 대비)", value: delay, percent: pct(delay), Icon: CircleAlert, bg: "#F43F5E" },
-    { label: "정상 반 (예상 ±5%p 이내)", value: normal, percent: pct(normal), Icon: CircleCheck, bg: "#10B981" },
-    { label: "앞섬 반 (예상 대비)", value: ahead, percent: pct(ahead), Icon: ArrowUpRight, bg: "#3B82F6" },
+    { label: "지연 반 (예상 대비)", value: delay, percent: pct(delay), Icon: CircleAlert, bg: "rgb(var(--wr-status-late))" },
+    { label: "정상 반 (예상 ±5%p 이내)", value: normal, percent: pct(normal), Icon: CircleCheck, bg: "rgb(var(--wr-status-done))" },
+    { label: "앞섬 반 (예상 대비)", value: ahead, percent: pct(ahead), Icon: ArrowUpRight, bg: "rgb(var(--wr-status-progress))" },
   ];
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {cards.map((c) => (
         <div
           key={c.label}
-          className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4"
-          style={{ boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)" }}
+          className="flex items-center gap-3 rounded-2xl border border-nk-line-soft bg-nk-surface px-5 py-4"
+          style={{ boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)" }}
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ background: c.bg }}>
-            <c.Icon className="h-5 w-5 text-white" />
+            <c.Icon className="h-5 w-5 text-nk-navy-ink" />
           </span>
           <div>
-            <p className="text-[12.5px] font-bold text-slate-500">{c.label}</p>
+            <p className="text-[12.5px] font-bold text-nk-ink-sub">{c.label}</p>
             <p className="mt-0.5">
-              <span className="text-xl font-black text-slate-900">{c.value}</span>
-              <span className="ml-1 text-[13px] font-bold text-slate-500">반 ({c.percent}%)</span>
+              <span className="text-xl font-black text-nk-ink">{c.value}</span>
+              <span className="ml-1 text-[13px] font-bold text-nk-ink-sub">반 ({c.percent}%)</span>
             </p>
           </div>
         </div>
@@ -707,44 +707,44 @@ function ProgressDialog({
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {/* 반 특성 — 신입생 배정 판단 기준 */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <p className="mb-2 text-xs font-extrabold text-slate-600">반 특성 (배정 기준)</p>
+          <div className="rounded-xl border border-nk-line-soft bg-nk-sunken/60 p-3">
+            <p className="mb-2 text-xs font-extrabold text-nk-ink-sub">반 특성 (배정 기준)</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-slate-500">학습능력</span>
+                <span className="text-xs font-bold text-nk-ink-sub">학습능력</span>
                 <select
                   {...form.register("ability_level")}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                  className="h-9 w-full rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm font-semibold"
                 >
                   <option value="">선택</option>
                   {CLASS_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-slate-500">학습강도</span>
+                <span className="text-xs font-bold text-nk-ink-sub">학습강도</span>
                 <select
                   {...form.register("study_intensity")}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                  className="h-9 w-full rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm font-semibold"
                 >
                   <option value="">선택</option>
                   {CLASS_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-slate-500">학습량(숙제)</span>
+                <span className="text-xs font-bold text-nk-ink-sub">학습량(숙제)</span>
                 <select
                   {...form.register("homework_volume")}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                  className="h-9 w-full rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm font-semibold"
                 >
                   <option value="">선택</option>
                   {CLASS_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
               <label className="space-y-1.5">
-                <span className="text-xs font-bold text-slate-500">진도속도</span>
+                <span className="text-xs font-bold text-nk-ink-sub">진도속도</span>
                 <select
                   {...form.register("class_pace")}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                  className="h-9 w-full rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm font-semibold"
                 >
                   <option value="">선택</option>
                   {CLASS_PACES.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -754,45 +754,45 @@ function ProgressDialog({
           </div>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-slate-500">메인교재</span>
+            <span className="text-xs font-bold text-nk-ink-sub">메인교재</span>
             <Input {...form.register("main_textbook")} />
           </label>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">전체 페이지</span>
+              <span className="text-xs font-bold text-nk-ink-sub">전체 페이지</span>
               <Input type="number" inputMode="numeric" {...form.register("main_total_pages", numberRegister)} />
               {form.formState.errors.main_total_pages && (
-                <span className="text-[11px] font-semibold text-red-500">{form.formState.errors.main_total_pages.message}</span>
+                <span className="text-[11px] font-semibold text-nk-late">{form.formState.errors.main_total_pages.message}</span>
               )}
             </label>
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">현재 페이지</span>
+              <span className="text-xs font-bold text-nk-ink-sub">현재 페이지</span>
               <Input type="number" inputMode="numeric" {...form.register("current_page", numberRegister)} />
               {form.formState.errors.current_page && (
-                <span className="text-[11px] font-semibold text-red-500">{form.formState.errors.current_page.message}</span>
+                <span className="text-[11px] font-semibold text-nk-late">{form.formState.errors.current_page.message}</span>
               )}
             </label>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">부교재</span>
+              <span className="text-xs font-bold text-nk-ink-sub">부교재</span>
               <Input {...form.register("sub_textbook")} />
             </label>
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">예정교재</span>
+              <span className="text-xs font-bold text-nk-ink-sub">예정교재</span>
               <Input {...form.register("next_textbook")} />
             </label>
           </div>
 
           <div className="flex flex-wrap items-end gap-4">
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">현재 교재 마감일</span>
+              <span className="text-xs font-bold text-nk-ink-sub">현재 교재 마감일</span>
               <Input type="date" {...form.register("target_end_date")} className="w-fit" />
             </label>
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">목표 진도율(%)</span>
+              <span className="text-xs font-bold text-nk-ink-sub">목표 진도율(%)</span>
               <Input
                 type="number"
                 inputMode="numeric"
@@ -803,15 +803,15 @@ function ProgressDialog({
                 className="h-9 w-24 text-center font-bold"
               />
               {form.formState.errors.target_percent && (
-                <span className="text-[11px] font-semibold text-red-500">{form.formState.errors.target_percent.message}</span>
+                <span className="text-[11px] font-semibold text-nk-late">{form.formState.errors.target_percent.message}</span>
               )}
             </label>
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">다음 교재 시작 예정일</span>
+              <span className="text-xs font-bold text-nk-ink-sub">다음 교재 시작 예정일</span>
               <Input type="date" {...form.register("next_start_date")} className="w-fit" />
             </label>
             <div className="space-y-1.5">
-              <span className="block text-xs font-bold text-slate-500">현재 교재 예상 기간</span>
+              <span className="block text-xs font-bold text-nk-ink-sub">현재 교재 예상 기간</span>
               <div className="flex items-center gap-1.5">
                 <Input
                   type="number"
@@ -820,7 +820,7 @@ function ProgressDialog({
                   {...form.register("expected_months", numberRegister)}
                   className="h-9 w-16 text-center font-bold"
                 />
-                <span className="text-sm font-semibold text-slate-500">개월</span>
+                <span className="text-sm font-semibold text-nk-ink-sub">개월</span>
                 <Input
                   type="number"
                   inputMode="numeric"
@@ -828,10 +828,10 @@ function ProgressDialog({
                   {...form.register("expected_weeks", numberRegister)}
                   className="h-9 w-16 text-center font-bold"
                 />
-                <span className="text-sm font-semibold text-slate-500">주</span>
+                <span className="text-sm font-semibold text-nk-ink-sub">주</span>
               </div>
               {(form.formState.errors.expected_months || form.formState.errors.expected_weeks) && (
-                <span className="text-[11px] font-semibold text-red-500">
+                <span className="text-[11px] font-semibold text-nk-late">
                   {form.formState.errors.expected_months?.message || form.formState.errors.expected_weeks?.message}
                 </span>
               )}
@@ -839,8 +839,8 @@ function ProgressDialog({
           </div>
 
           {/* 지난 교재 이력 — 계속 누적 */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+          <div className="rounded-xl border border-nk-line-soft bg-nk-sunken/60 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-nk-ink-sub">
               <History className="h-3.5 w-3.5" />
               지난 교재 ({history.length})
             </p>
@@ -849,14 +849,14 @@ function ProgressDialog({
                 {history.map((h) => (
                   <li
                     key={h.id}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-nk-line-soft bg-nk-surface px-2.5 py-1"
                   >
-                    <span className="text-sm font-semibold text-slate-700">{h.textbook}</span>
+                    <span className="text-sm font-semibold text-nk-ink">{h.textbook}</span>
                     <button
                       type="button"
                       onClick={() => handleDeleteHistory(h.id)}
                       disabled={historyPending}
-                      className="rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                      className="rounded p-0.5 text-nk-ink-hint transition hover:bg-nk-late-soft hover:text-nk-late"
                       title="이력 삭제"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -867,7 +867,7 @@ function ProgressDialog({
             )}
             <div className="flex items-end gap-2">
               <label className="flex-1 space-y-1">
-                <span className="text-[11px] font-bold text-slate-500">교재명</span>
+                <span className="text-[11px] font-bold text-nk-ink-sub">교재명</span>
                 <Input
                   value={newTextbook}
                   onChange={(e) => setNewTextbook(e.target.value)}
@@ -896,8 +896,8 @@ function ProgressDialog({
           </div>
 
           {/* 수업 진행 단원 — 단원 + 수준(기본/응용/심화) + 상태(진행중/완료) 누적 */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+          <div className="rounded-xl border border-nk-line-soft bg-nk-sunken/60 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold text-nk-ink-sub">
               <Layers className="h-3.5 w-3.5" />
               수업 진행 단원 ({curriculum.length})
             </p>
@@ -908,7 +908,7 @@ function ProgressDialog({
                   return (
                     <li
                       key={c.id}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white py-1 pl-2 pr-1"
+                      className="inline-flex items-center gap-1 rounded-lg border border-nk-line-soft bg-nk-surface py-1 pl-2 pr-1"
                     >
                       <button
                         type="button"
@@ -917,8 +917,8 @@ function ProgressDialog({
                         className="inline-flex items-center gap-1"
                         title="클릭 시 진행중 ↔ 완료"
                       >
-                        <span className="text-sm font-bold text-slate-700">{c.unit}</span>
-                        {c.level && <span className="text-[11px] font-semibold text-slate-400">{c.level}</span>}
+                        <span className="text-sm font-bold text-nk-ink">{c.unit}</span>
+                        {c.level && <span className="text-[11px] font-semibold text-nk-ink-hint">{c.level}</span>}
                         <span
                           className="rounded px-1 py-0.5 text-[10px] font-extrabold"
                           style={{ background: tone.bg, color: tone.color }}
@@ -930,7 +930,7 @@ function ProgressDialog({
                         type="button"
                         onClick={() => handleDeleteCurriculum(c.id)}
                         disabled={curriculumPending}
-                        className="rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                        className="rounded p-0.5 text-nk-ink-hint transition hover:bg-nk-late-soft hover:text-nk-late"
                         title="단원 삭제"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -942,11 +942,11 @@ function ProgressDialog({
             )}
             <div className="flex flex-wrap items-end gap-2">
               <label className="space-y-1">
-                <span className="block text-[11px] font-bold text-slate-500">단원</span>
+                <span className="block text-[11px] font-bold text-nk-ink-sub">단원</span>
                 <select
                   value={newUnit}
                   onChange={(e) => setNewUnit(e.target.value)}
-                  className="h-9 w-40 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                  className="h-9 w-40 rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm font-semibold"
                 >
                   <option value="">선택</option>
                   {CURRICULUM_UNIT_GROUPS.map((g) => (
@@ -959,11 +959,11 @@ function ProgressDialog({
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-[11px] font-bold text-slate-500">수준</span>
+                <span className="block text-[11px] font-bold text-nk-ink-sub">수준</span>
                 <select
                   value={newLevel}
                   onChange={(e) => setNewLevel(e.target.value)}
-                  className="h-9 w-24 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                  className="h-9 w-24 rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm font-semibold"
                 >
                   <option value="">선택</option>
                   {CURRICULUM_LEVELS.map((v) => (
@@ -972,11 +972,11 @@ function ProgressDialog({
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-[11px] font-bold text-slate-500">상태</span>
+                <span className="block text-[11px] font-bold text-nk-ink-sub">상태</span>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as "진행중" | "완료")}
-                  className="h-9 w-24 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold"
+                  className="h-9 w-24 rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm font-semibold"
                 >
                   {CURRICULUM_STATUS.map((v) => (
                     <option key={v} value={v}>{v}</option>
@@ -999,26 +999,26 @@ function ProgressDialog({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">진행 대단원</span>
+              <span className="text-xs font-bold text-nk-ink-sub">진행 대단원</span>
               <Input {...form.register("current_major_unit")} placeholder="예: 소인수분해" />
             </label>
             <label className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-500">진행 소단원</span>
+              <span className="text-xs font-bold text-nk-ink-sub">진행 소단원</span>
               <Input {...form.register("current_minor_unit")} placeholder="예: 최대공약수" />
             </label>
           </div>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-slate-500">진행 계획</span>
+            <span className="text-xs font-bold text-nk-ink-sub">진행 계획</span>
             <Textarea rows={3} {...form.register("current_plan")} />
           </label>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-slate-500">비고</span>
+            <span className="text-xs font-bold text-nk-ink-sub">비고</span>
             <Textarea rows={3} {...form.register("note")} />
           </label>
 
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="flex justify-end gap-2 border-t border-nk-line-soft pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               취소
             </Button>
@@ -1036,13 +1036,13 @@ function ProgressDialog({
 /** 학생 명단을 학년별로 묶어 이름까지 표시 — 누가 초5/초6인지 한눈에 */
 function StudentsByGrade({ row }: { row: ProgressBoardRow }) {
   if (row.student_names.length === 0) {
-    return <p className="text-xs text-slate-400">이 반으로 배정된 재원생이 없습니다</p>;
+    return <p className="text-xs text-nk-ink-hint">이 반으로 배정된 재원생이 없습니다</p>;
   }
   if (row.grade_groups.length === 0) {
     return (
       <ul className="flex flex-wrap gap-1.5">
         {row.student_names.map((name, idx) => (
-          <li key={`${name}-${idx}`} className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700">
+          <li key={`${name}-${idx}`} className="rounded-lg border border-nk-line-soft bg-nk-surface px-2 py-0.5 text-sm font-semibold text-nk-ink">
             {name}
           </li>
         ))}
@@ -1060,13 +1060,13 @@ function StudentsByGrade({ row }: { row: ProgressBoardRow }) {
             >
               {g.grade}
             </span>
-            <span className="text-slate-400">{g.names.length}명</span>
+            <span className="text-nk-ink-hint">{g.names.length}명</span>
           </p>
           <ul className="flex flex-wrap gap-1.5">
             {g.names.map((name, idx) => (
               <li
                 key={`${g.grade}-${name}-${idx}`}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700"
+                className="rounded-lg border border-nk-line-soft bg-nk-surface px-2 py-0.5 text-sm font-semibold text-nk-ink"
               >
                 {name}
               </li>
@@ -1081,7 +1081,7 @@ function StudentsByGrade({ row }: { row: ProgressBoardRow }) {
 /** 진행 단원을 완료/진행중으로 나눠 상세 표시 (예: 초3-1, 초3-2 완료) */
 function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) {
   if (curriculum.length === 0) {
-    return <p className="text-xs text-slate-400">기록된 진행 단원이 없습니다</p>;
+    return <p className="text-xs text-nk-ink-hint">기록된 진행 단원이 없습니다</p>;
   }
   const done = curriculum.filter((c) => c.status === "완료");
   const ongoing = curriculum.filter((c) => c.status !== "완료");
@@ -1089,7 +1089,7 @@ function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) 
   const renderGroup = (label: string, items: CurriculumProgress[]) =>
     items.length === 0 ? null : (
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="w-12 shrink-0 text-[11px] font-extrabold text-slate-400">{label}</span>
+        <span className="w-12 shrink-0 text-[11px] font-extrabold text-nk-ink-hint">{label}</span>
         {items.map((c) => {
           const tone = CURRICULUM_TONES[c.status] ?? CURRICULUM_TONES["진행중"];
           return (
@@ -1116,7 +1116,7 @@ function CurriculumDetail({ curriculum }: { curriculum: CurriculumProgress[] }) 
 
 /** 메인 표 "지난 교재" 컬럼 — 최신 3권까지 세로 나열, 4권 이상이면 "외 N권"(클릭 시 펼침, hover 전체 목록) */
 function PastTextbookCell({ history, onExpand }: { history: ProgressBoardRow["textbook_history"]; onExpand: () => void }) {
-  if (history.length === 0) return <span className="text-xs text-slate-400">-</span>;
+  if (history.length === 0) return <span className="text-xs text-nk-ink-hint">-</span>;
   const shown = history.slice(0, 3);
   const rest = history.length - shown.length;
   const allTitles = history.map((h) => h.textbook).join(", ");
@@ -1125,7 +1125,7 @@ function PastTextbookCell({ history, onExpand }: { history: ProgressBoardRow["te
       {shown.map((h) => (
         <span
           key={h.id}
-          className="block max-w-[150px] truncate rounded bg-slate-100 px-1.5 py-0.5 text-[12px] font-semibold text-slate-600"
+          className="block max-w-[150px] truncate rounded bg-nk-sunken px-1.5 py-0.5 text-[12px] font-semibold text-nk-ink-sub"
           title={allTitles}
         >
           {h.textbook}
@@ -1135,7 +1135,7 @@ function PastTextbookCell({ history, onExpand }: { history: ProgressBoardRow["te
         <button
           type="button"
           onClick={onExpand}
-          className="text-[11px] font-bold text-slate-400 transition hover:text-slate-600"
+          className="text-[11px] font-bold text-nk-ink-hint transition hover:text-nk-ink-sub"
           title={allTitles}
         >
           외 {rest}권
@@ -1154,20 +1154,20 @@ function NextPlanCell({ progress, onExpand }: { progress: ProgressBoardRow["prog
   if (duration) rows.push({ label: "기간", value: duration });
   if (progress?.next_start_date) rows.push({ label: "시작", value: progress.next_start_date.slice(5).replace("-", "/") });
   const hasPlan = Boolean(progress?.current_plan);
-  if (rows.length === 0 && !hasPlan) return <span className="text-xs text-slate-400">-</span>;
+  if (rows.length === 0 && !hasPlan) return <span className="text-xs text-nk-ink-hint">-</span>;
   return (
     <div className="space-y-1">
       {rows.map((r) => (
         <div key={r.label} className="flex gap-1.5 text-[12.5px] leading-snug">
-          <span className="w-8 shrink-0 font-bold text-slate-400">{r.label}</span>
-          <span className="font-semibold text-slate-600">{r.value}</span>
+          <span className="w-8 shrink-0 font-bold text-nk-ink-hint">{r.label}</span>
+          <span className="font-semibold text-nk-ink-sub">{r.value}</span>
         </div>
       ))}
       {hasPlan && (
         <button
           type="button"
           onClick={onExpand}
-          className="flex max-w-[180px] items-center gap-1 text-[12.5px] font-semibold text-slate-400 transition hover:text-slate-600"
+          className="flex max-w-[180px] items-center gap-1 text-[12.5px] font-semibold text-nk-ink-hint transition hover:text-nk-ink-sub"
           title="계획 전체 보기"
         >
           <ClipboardList className="h-3 w-3 shrink-0" />
@@ -1181,22 +1181,22 @@ function NextPlanCell({ progress, onExpand }: { progress: ProgressBoardRow["prog
 /** 진도 입력 로그를 표로 — 날짜/페이지/증감/기록자 (recorded_at 내림차순, 최근 5회만 표시) */
 function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
+    <div className="rounded-xl border border-nk-line-soft bg-nk-surface p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-nk-ink-sub">
         <History className="h-3.5 w-3.5" />
         진도 기록 (최근 5회)
       </p>
       {logs.length === 0 ? (
-        <p className="text-xs text-slate-400">기록된 진도 입력이 없습니다</p>
+        <p className="text-xs text-nk-ink-hint">기록된 진도 입력이 없습니다</p>
       ) : (
         <div className="max-h-72 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="h-8 text-[13px] font-bold text-slate-500">날짜</TableHead>
-                <TableHead className="h-8 text-[13px] font-bold text-slate-500">페이지</TableHead>
-                <TableHead className="h-8 text-[13px] font-bold text-slate-500">증감</TableHead>
-                <TableHead className="h-8 text-[13px] font-bold text-slate-500">기록자</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">날짜</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">페이지</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">증감</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">기록자</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1206,18 +1206,18 @@ function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
                 const delta = older ? log.page - older.page : null;
                 return (
                   <TableRow key={log.id}>
-                    <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{formatDate(log.recorded_at)}</TableCell>
-                    <TableCell className="py-1.5 text-[15px] font-bold text-slate-800">{log.page}p</TableCell>
+                    <TableCell className="py-1.5 text-[13px] font-medium text-nk-ink-sub">{formatDate(log.recorded_at)}</TableCell>
+                    <TableCell className="py-1.5 text-[15px] font-bold text-nk-ink">{log.page}p</TableCell>
                     <TableCell className="py-1.5 text-[13px] font-bold">
                       {delta == null ? (
-                        <span className="text-slate-400">-</span>
+                        <span className="text-nk-ink-hint">-</span>
                       ) : delta > 0 ? (
-                        <span style={{ color: "#047857" }}>+{delta}p</span>
+                        <span style={{ color: "rgb(var(--wr-status-done))" }}>+{delta}p</span>
                       ) : (
-                        <span className="text-slate-400">{delta}p</span>
+                        <span className="text-nk-ink-hint">{delta}p</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-1.5 text-[13px] font-semibold text-slate-500">{log.recorded_by || "-"}</TableCell>
+                    <TableCell className="py-1.5 text-[13px] font-semibold text-nk-ink-sub">{log.recorded_by || "-"}</TableCell>
                   </TableRow>
                 );
               })}
@@ -1233,31 +1233,31 @@ function ProgressLogTable({ logs }: { logs: ProgressBoardRow["recent_logs"] }) {
 function TextbookHistoryTable({ history }: { history: ProgressBoardRow["textbook_history"] }) {
   const hasNote = history.some((h) => h.note);
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
+    <div className="rounded-xl border border-nk-line-soft bg-nk-surface p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-nk-ink-sub">
         <History className="h-3.5 w-3.5" />
         지난 교재 ({history.length})
       </p>
       {history.length === 0 ? (
-        <p className="text-xs text-slate-400">기록된 지난 교재가 없습니다</p>
+        <p className="text-xs text-nk-ink-hint">기록된 지난 교재가 없습니다</p>
       ) : (
         <div className="max-h-72 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="h-8 text-[13px] font-bold text-slate-500">교재명</TableHead>
-                <TableHead className="h-8 text-[13px] font-bold text-slate-500">시작일</TableHead>
-                <TableHead className="h-8 text-[13px] font-bold text-slate-500">종료일</TableHead>
-                {hasNote && <TableHead className="h-8 text-[13px] font-bold text-slate-500">비고</TableHead>}
+                <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">교재명</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">시작일</TableHead>
+                <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">종료일</TableHead>
+                {hasNote && <TableHead className="h-8 text-[13px] font-bold text-nk-ink-sub">비고</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((h) => (
                 <TableRow key={h.id}>
-                  <TableCell className="py-1.5 text-[15px] font-semibold text-slate-700">{h.textbook}</TableCell>
-                  <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{shortDate(h.started_on)}</TableCell>
-                  <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{shortDate(h.finished_on)}</TableCell>
-                  {hasNote && <TableCell className="py-1.5 text-[13px] font-medium text-slate-500">{h.note || "-"}</TableCell>}
+                  <TableCell className="py-1.5 text-[15px] font-semibold text-nk-ink">{h.textbook}</TableCell>
+                  <TableCell className="py-1.5 text-[13px] font-medium text-nk-ink-sub">{shortDate(h.started_on)}</TableCell>
+                  <TableCell className="py-1.5 text-[13px] font-medium text-nk-ink-sub">{shortDate(h.finished_on)}</TableCell>
+                  {hasNote && <TableCell className="py-1.5 text-[13px] font-medium text-nk-ink-sub">{h.note || "-"}</TableCell>}
                 </TableRow>
               ))}
             </TableBody>
@@ -1282,17 +1282,17 @@ function ClassDetailPanel({
 
   const infoRow = (label: string, value: string | null | undefined) => (
     <div className="flex gap-2 text-sm">
-      <span className="w-24 shrink-0 font-bold text-slate-400">{label}</span>
-      <span className="font-semibold text-slate-700">{value || "-"}</span>
+      <span className="w-24 shrink-0 font-bold text-nk-ink-hint">{label}</span>
+      <span className="font-semibold text-nk-ink">{value || "-"}</span>
     </div>
   );
 
   return (
-    <div className="space-y-3 border-t-2 border-[var(--primary)]/15 bg-slate-50/50 px-4 py-4">
+    <div className="space-y-3 border-t-2 border-[var(--primary)]/15 bg-nk-sunken/50 px-4 py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-black text-slate-800">{row.class_name}</span>
-          <span className="text-xs font-semibold text-slate-400">
+          <span className="text-sm font-black text-nk-ink">{row.class_name}</span>
+          <span className="text-xs font-semibold text-nk-ink-hint">
             {row.teacher_name || "담당 미정"} · 재원 {row.actual_student_count}명
           </span>
         </div>
@@ -1310,8 +1310,8 @@ function ClassDetailPanel({
             const schedule = formatSchedule(row.class_days, row.class_time, row.clinic_time);
             if (schedule.segments.length === 0) return null;
             return (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
+              <div className="rounded-xl border border-nk-line-soft bg-nk-sunken/60 p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-nk-ink-sub">
                   <CalendarClock className="h-3.5 w-3.5" />
                   요일 · 수업 시간
                 </p>
@@ -1319,11 +1319,11 @@ function ClassDetailPanel({
                   {schedule.segments.map((seg, idx) => (
                     <li
                       key={`${seg.days}-${idx}`}
-                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700"
+                      className="rounded-lg border border-nk-line-soft bg-nk-surface px-2.5 py-1 text-sm font-semibold text-nk-ink"
                     >
                       <span className="font-bold">{seg.days}</span>
-                      {seg.classTime && <span className="ml-1 text-slate-500">{seg.classTime}</span>}
-                      {seg.clinicTime && <span className="ml-1 text-[11px] text-slate-400">클리닉 {seg.clinicTime}</span>}
+                      {seg.classTime && <span className="ml-1 text-nk-ink-sub">{seg.classTime}</span>}
+                      {seg.clinicTime && <span className="ml-1 text-[11px] text-nk-ink-hint">클리닉 {seg.clinicTime}</span>}
                     </li>
                   ))}
                 </ul>
@@ -1332,12 +1332,12 @@ function ClassDetailPanel({
           })()}
 
           {/* 반 특성 */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <p className="mb-2 text-[13px] font-extrabold text-slate-600">반 특성</p>
+          <div className="rounded-xl border border-nk-line-soft bg-nk-sunken/60 p-3">
+            <p className="mb-2 text-[13px] font-extrabold text-nk-ink-sub">반 특성</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {TRAIT_LABELS.map(({ key, label }) => (
-                <div key={key} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center">
-                  <p className="text-[10px] font-bold text-slate-400">{label}</p>
+                <div key={key} className="rounded-lg border border-nk-line-soft bg-nk-surface px-2 py-1.5 text-center">
+                  <p className="text-[10px] font-bold text-nk-ink-hint">{label}</p>
                   <p className="text-sm font-black" style={{ color: "var(--primary)" }}>
                     {progress?.[key] || "-"}
                   </p>
@@ -1347,12 +1347,12 @@ function ClassDetailPanel({
           </div>
 
           {/* 교재·진도 */}
-          <div className="space-y-2 rounded-xl border border-slate-200 p-3">
-            <p className="text-[13px] font-extrabold text-slate-600">교재 · 진도</p>
+          <div className="space-y-2 rounded-xl border border-nk-line-soft p-3">
+            <p className="text-[13px] font-extrabold text-nk-ink-sub">교재 · 진도</p>
             {infoRow("메인교재", progress?.main_textbook)}
             {percent != null && (
               <div className="flex gap-2">
-                <span className="w-28 shrink-0 text-sm font-bold text-slate-400">진도율</span>
+                <span className="w-28 shrink-0 text-sm font-bold text-nk-ink-hint">진도율</span>
                 <div className="flex-1">
                   <ProgressMeter current={progress?.current_page} total={progress?.main_total_pages} />
                 </div>
@@ -1363,7 +1363,7 @@ function ClassDetailPanel({
             {progress?.target_percent != null && infoRow("목표 진도율", `${progress.target_percent}%`)}
             {progress?.target_end_date && (
               <div className="flex gap-2">
-                <span className="w-28 shrink-0 text-sm font-bold text-slate-400">페이스 진단</span>
+                <span className="w-28 shrink-0 text-sm font-bold text-nk-ink-hint">페이스 진단</span>
                 <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
               </div>
             )}
@@ -1384,8 +1384,8 @@ function ClassDetailPanel({
           <ProgressLogTable logs={row.recent_logs} />
 
           {/* 수업 진행 단원 (완료/진행중) */}
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
+          <div className="rounded-xl border border-nk-line-soft bg-nk-surface p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-nk-ink-sub">
               <Layers className="h-3.5 w-3.5" />
               수업 진행 단원 ({row.curriculum.length})
             </p>
@@ -1396,8 +1396,8 @@ function ClassDetailPanel({
           <TextbookHistoryTable history={row.textbook_history} />
 
           {/* 학생 명단 (학년별 — 누가 초5/초6인지) */}
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-slate-600">
+          <div className="rounded-xl border border-nk-line-soft bg-nk-surface p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold text-nk-ink-sub">
               <GraduationCap className="h-3.5 w-3.5" />
               학생 명단 ({row.student_names.length})
             </p>
@@ -1545,10 +1545,10 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-        <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-        <p className="text-sm font-semibold text-slate-600">표시할 반이 없습니다</p>
-        <p className="mt-1 text-xs text-slate-400">마이그레이션 미적용 또는 조회 오류가 있으면 빈 목록으로 표시됩니다.</p>
+      <div className="rounded-2xl border border-nk-line-soft bg-nk-surface p-12 text-center shadow-sm">
+        <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-nk-ink-hint" />
+        <p className="text-sm font-semibold text-nk-ink-sub">표시할 반이 없습니다</p>
+        <p className="mt-1 text-xs text-nk-ink-hint">마이그레이션 미적용 또는 조회 오류가 있으면 빈 목록으로 표시됩니다.</p>
       </div>
     );
   }
@@ -1582,10 +1582,10 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       {!currentTeacher && (
         <div
           className="flex items-start gap-2.5 rounded-2xl border px-4 py-3"
-          style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }}
+          style={{ background: "rgb(var(--wr-status-late-soft))", borderColor: "rgb(var(--wr-status-late-soft))" }}
         >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-          <div className="text-xs leading-relaxed text-red-700">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-nk-late" />
+          <div className="text-xs leading-relaxed text-nk-late">
             <p className="font-extrabold">로그인 계정으로 선생님을 확인할 수 없어 입력이 잠겨 있습니다.</p>
             <p className="mt-0.5">
               임시 번호(010-0000-xxxx) 계정이 아닌 <b>본인 실제 전화번호</b>로 다시 로그인해주세요.
@@ -1598,18 +1598,18 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       {/* 주간 진도 입력 현황 — 강사별 (목요일 기준) */}
       {teacherChips.length > 0 && (
         <div
-          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-slate-200 bg-white px-4 py-3"
-          style={{ boxShadow: "0 1px 3px rgba(15,43,91,0.04), 0 4px 12px rgba(15,43,91,0.03)" }}
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-nk-line-soft bg-nk-surface px-4 py-3"
+          style={{ boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.04), 0 4px 12px rgb(var(--wr-navy-strong) / 0.03)" }}
         >
-          <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
+          <span className="flex items-center gap-1.5 text-xs font-extrabold text-nk-ink-sub">
             {staleTeacherCount > 0 ? (
-              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              <AlertTriangle className="h-4 w-4 text-nk-warn" />
             ) : (
-              <BookOpenCheck className="h-4 w-4 text-emerald-500" />
+              <BookOpenCheck className="h-4 w-4 text-nk-done" />
             )}
             이번 주 진도 입력 (목요일 기준)
             {staleTeacherCount > 0 && (
-              <span className="text-orange-600">— 미입력 {staleTeacherCount}명</span>
+              <span className="text-nk-warn">— 미입력 {staleTeacherCount}명</span>
             )}
           </span>
           <div className="flex flex-wrap gap-1">
@@ -1626,13 +1626,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
                   style={
                     incomplete
-                      ? { background: "#FEE2E2", color: "#B91C1C", boxShadow: "inset 0 0 0 1px #FCA5A5" }
-                      : { background: "#ECFDF5", color: "#047857", boxShadow: "inset 0 0 0 1px #A7F3D0" }
+                      ? { background: "rgb(var(--wr-status-late-soft))", color: "rgb(var(--wr-status-late))", boxShadow: "inset 0 0 0 1px rgb(var(--wr-status-late-soft))" }
+                      : { background: "rgb(var(--wr-status-done-soft))", color: "rgb(var(--wr-status-done))", boxShadow: "inset 0 0 0 1px rgb(var(--wr-status-done-soft))" }
                   }
                 >
                   <span
                     className="h-1.5 w-1.5 rounded-full"
-                    style={{ background: incomplete ? "#EF4444" : "#10B981" }}
+                    style={{ background: incomplete ? "rgb(var(--wr-status-late))" : "rgb(var(--wr-status-done))" }}
                   />
                   {t.name}
                   {incomplete && <span className="font-black">{t.stale}</span>}
@@ -1658,13 +1658,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                 active
                   ? {
                       background: "linear-gradient(135deg, var(--primary), var(--primary-soft))",
-                      color: "#fff",
-                      boxShadow: "0 6px 16px color-mix(in srgb, var(--primary) 28%, transparent), inset 0 0 0 1px rgba(233,196,106,0.35)",
+                      color: "rgb(var(--wr-surface))",
+                      boxShadow: "0 2px 8px rgb(var(--wr-navy-strong) / 0.18)",
                     }
                   : {
-                      background: "#fff",
+                      background: "rgb(var(--wr-surface))",
                       color: "var(--muted-foreground)",
-                      boxShadow: "inset 0 0 0 1px var(--border), 0 1px 2px rgba(15,23,42,0.04)",
+                      boxShadow: "inset 0 0 0 1px var(--border), 0 1px 2px rgb(var(--wr-navy-strong) / 0.04)",
                     }
               }
             >
@@ -1674,7 +1674,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
         })}
       </div>
         {/* 요일 그룹 범례 */}
-        <div className="flex flex-wrap items-center gap-3 pr-1 text-[11px] font-bold text-slate-500">
+        <div className="flex flex-wrap items-center gap-3 pr-1 text-[11px] font-bold text-nk-ink-sub">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full" style={{ background: DAY_GROUP_TONES.월수.accent }} />
             월수반
@@ -1692,21 +1692,21 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
       {visibleGroups.map(({ grade, items }) => (
         <section key={grade} className="card-elevated overflow-hidden rounded-2xl">
           <SectionHeader grade={grade} count={items.length} />
-          <div className="overflow-x-auto rounded-b-2xl border border-t-0 border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-b-2xl border border-t-0 border-nk-line-soft bg-nk-surface">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/90">
-                  <TableHead className="min-w-[140px] px-4 text-[13px] font-bold text-slate-500">반명 · 특성 · 시간</TableHead>
-                  <TableHead className="min-w-[72px] text-[13px] font-bold text-slate-500">강사</TableHead>
-                  <TableHead className="min-w-[68px] text-[13px] font-bold text-slate-500">인원</TableHead>
-                  <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">메인교재 (페이지)</TableHead>
-                  <TableHead className="min-w-[240px] text-[13px] font-bold text-slate-500">예상 vs 실제 진도율</TableHead>
-                  <TableHead className="min-w-[110px] text-[13px] font-bold text-slate-500">지난 교재</TableHead>
-                  <TableHead className="min-w-[150px] text-[13px] font-bold text-slate-500">다음 계획</TableHead>
-                  <TableHead className="min-w-[130px] text-[13px] font-bold text-slate-500">진행 단원</TableHead>
-                  <TableHead className="min-w-[96px] text-[13px] font-bold text-slate-500">현재 페이지</TableHead>
-                  <TableHead className="min-w-[96px] text-[13px] font-bold text-slate-500">최신화</TableHead>
-                  <TableHead className="min-w-[84px] text-[13px] font-bold text-slate-500">작업</TableHead>
+                <TableRow className="bg-nk-sunken/90">
+                  <TableHead className="min-w-[140px] px-4 text-[13px] font-bold text-nk-ink-sub">반명 · 특성 · 시간</TableHead>
+                  <TableHead className="min-w-[72px] text-[13px] font-bold text-nk-ink-sub">강사</TableHead>
+                  <TableHead className="min-w-[68px] text-[13px] font-bold text-nk-ink-sub">인원</TableHead>
+                  <TableHead className="min-w-[150px] text-[13px] font-bold text-nk-ink-sub">메인교재 (페이지)</TableHead>
+                  <TableHead className="min-w-[240px] text-[13px] font-bold text-nk-ink-sub">예상 vs 실제 진도율</TableHead>
+                  <TableHead className="min-w-[110px] text-[13px] font-bold text-nk-ink-sub">지난 교재</TableHead>
+                  <TableHead className="min-w-[150px] text-[13px] font-bold text-nk-ink-sub">다음 계획</TableHead>
+                  <TableHead className="min-w-[130px] text-[13px] font-bold text-nk-ink-sub">진행 단원</TableHead>
+                  <TableHead className="min-w-[96px] text-[13px] font-bold text-nk-ink-sub">현재 페이지</TableHead>
+                  <TableHead className="min-w-[96px] text-[13px] font-bold text-nk-ink-sub">최신화</TableHead>
+                  <TableHead className="min-w-[84px] text-[13px] font-bold text-nk-ink-sub">작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1725,23 +1725,23 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   return (
                     <Fragment key={row.class_id}>
                     <TableRow
-                      className={`transition-colors hover:bg-[#F6F2E7]/60 ${isExpanded ? "bg-[#F6F2E7]/55" : "odd:bg-white even:bg-slate-50/45"}`}
+                      className={`transition-colors hover:bg-[rgb(var(--wr-status-warn-soft))]/60 ${isExpanded ? "bg-[rgb(var(--wr-status-warn-soft))]/55" : "odd:bg-nk-surface even:bg-nk-sunken/45"}`}
                     >
                       <TableCell
-                        className="align-top py-3 px-4 font-bold text-slate-900"
+                        className="align-top py-3 px-4 font-bold text-nk-ink"
                         style={dayGroup !== "기타" ? { boxShadow: `inset 3px 0 0 ${dayTone.accent}` } : undefined}
                       >
                         <button
                           type="button"
                           onClick={() => toggleExpand(row.class_id)}
                           title="클릭하면 학생 명단·진행 단원·계획이 펼쳐집니다"
-                          className="flex cursor-pointer items-center gap-1.5 text-left text-slate-900 transition"
+                          className="flex cursor-pointer items-center gap-1.5 text-left text-nk-ink transition"
                         >
                           <ChevronRight
                             className="h-4 w-4 shrink-0 transition-transform duration-200"
                             style={{ transform: isExpanded ? "rotate(90deg)" : "none", color: "var(--primary)" }}
                           />
-                          {!editable && <Lock className="h-3.5 w-3.5 text-slate-300" />}
+                          {!editable && <Lock className="h-3.5 w-3.5 text-nk-ink-hint" />}
                           <span className="text-[14px] font-black underline-offset-4 hover:underline">{row.class_name}</span>
                         </button>
                         <div className="pl-[22px]">
@@ -1749,24 +1749,24 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           <ScheduleBadge row={row} />
                         </div>
                       </TableCell>
-                      <TableCell className="align-top py-3 text-[15px] font-semibold text-slate-600">{row.teacher_name || "-"}</TableCell>
+                      <TableCell className="align-top py-3 text-[15px] font-semibold text-nk-ink-sub">{row.teacher_name || "-"}</TableCell>
                       <TableCell className="align-top py-3">
                         <button
                           type="button"
                           onClick={() => toggleExpand(row.class_id)}
                           title="학년별 명단 펼쳐 보기"
-                          className="inline-flex min-w-12 cursor-pointer items-center justify-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100"
+                          className="inline-flex min-w-12 cursor-pointer items-center justify-center gap-1 rounded-md border border-nk-line-soft bg-nk-sunken px-2 py-0.5 text-xs font-bold text-nk-ink-sub transition hover:border-nk-line hover:bg-nk-sunken"
                         >
-                          <Users className="h-3 w-3 text-slate-400" />
+                          <Users className="h-3 w-3 text-nk-ink-hint" />
                           {row.student_count}명
                         </button>
                         <GradeBreakdownText breakdown={row.grade_breakdown} />
                       </TableCell>
                       <TableCell className="align-top py-3">
-                        <p className="max-w-[160px] whitespace-normal text-[15px] font-semibold text-slate-800">{progress?.main_textbook || "-"}</p>
+                        <p className="max-w-[160px] whitespace-normal text-[15px] font-semibold text-nk-ink">{progress?.main_textbook || "-"}</p>
                         {progress?.current_page != null && progress?.main_total_pages != null && (
-                          <p className="mt-0.5 text-[12.5px] font-medium text-slate-400">
-                            {progress.current_page}p <span className="text-slate-300">/ {progress.main_total_pages}p</span>
+                          <p className="mt-0.5 text-[12.5px] font-medium text-nk-ink-hint">
+                            {progress.current_page}p <span className="text-nk-ink-hint">/ {progress.main_total_pages}p</span>
                           </p>
                         )}
                       </TableCell>
@@ -1794,13 +1794,13 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                                   disabled={isTargetSaving}
                                   className="h-7 w-14 text-center text-[12.5px] font-bold"
                                 />
-                                <span className="text-[12px] font-bold text-slate-400">%</span>
+                                <span className="text-[12px] font-bold text-nk-ink-hint">%</span>
                               </div>
                               <Button size="sm" variant="outline" disabled={isTargetSaving} onClick={() => handleTargetSave(row)} className="h-7 gap-1 px-2 text-[11px]">
                                 <Save className="h-3 w-3" />
                                 저장
                               </Button>
-                              <Button size="sm" variant="ghost" disabled={isTargetSaving} onClick={() => setEditingTargetClassId(null)} className="h-7 px-2 text-[11px] text-slate-400">
+                              <Button size="sm" variant="ghost" disabled={isTargetSaving} onClick={() => setEditingTargetClassId(null)} className="h-7 px-2 text-[11px] text-nk-ink-hint">
                                 취소
                               </Button>
                             </div>
@@ -1813,7 +1813,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                                 title="클릭하면 마감일·목표 진도율을 수정합니다"
                               >
                                 <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
-                                <Pencil className="h-3 w-3 shrink-0 text-slate-300" />
+                                <Pencil className="h-3 w-3 shrink-0 text-nk-ink-hint" />
                               </button>
                             ) : (
                               <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
@@ -1823,7 +1823,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                               <button
                                 type="button"
                                 onClick={() => setEditingTargetClassId(row.class_id)}
-                                className="inline-flex items-center gap-1 rounded-md border border-dashed border-slate-300 px-1.5 py-0.5 text-[11.5px] font-bold text-slate-400 transition hover:border-slate-400 hover:text-slate-600"
+                                className="inline-flex items-center gap-1 rounded-md border border-dashed border-nk-line px-1.5 py-0.5 text-[11.5px] font-bold text-nk-ink-hint transition hover:border-nk-line hover:text-nk-ink-sub"
                               >
                                 <CalendarClock className="h-3 w-3" />
                                 마감일 입력
@@ -1884,15 +1884,15 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           return (
                             <div className="space-y-0.5">
                               {parts ? (
-                                <p className="text-sm font-bold text-slate-700">
+                                <p className="text-sm font-bold text-nk-ink">
                                   {parts.date}
-                                  <span className="ml-1 text-[12.5px] font-medium text-slate-400">{parts.time}</span>
+                                  <span className="ml-1 text-[12.5px] font-medium text-nk-ink-hint">{parts.time}</span>
                                 </p>
                               ) : (
-                                <p className="text-xs font-semibold text-slate-400">미입력</p>
+                                <p className="text-xs font-semibold text-nk-ink-hint">미입력</p>
                               )}
                               {progress?.updated_by && (
-                                <p className="text-[12.5px] font-medium text-slate-400">{progress.updated_by}</p>
+                                <p className="text-[12.5px] font-medium text-nk-ink-hint">{progress.updated_by}</p>
                               )}
                             </div>
                           );

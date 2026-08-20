@@ -21,20 +21,20 @@ const ASSIGNABLE_MENUS = ALL_MENU_ITEMS.filter(
 const MENU_GROUPS = [
   {
     label: "상담관리",
-    color: "#EFF6FF",
-    borderColor: "#BFDBFE",
+    color: "rgb(var(--wr-status-progress-soft))",
+    borderColor: "rgb(var(--wr-status-progress-soft))",
     hrefs: ["/", "/consultations", "/bookings"],
   },
   {
     label: "설문현황",
-    color: "#F0FDF4",
-    borderColor: "#BBF7D0",
+    color: "rgb(var(--wr-status-done-soft))",
+    borderColor: "rgb(var(--wr-status-done-soft))",
     hrefs: ["/surveys", "/analyses", "/registrations", "/onboarding", "/progress"],
   },
   {
     label: "퇴원생",
-    color: "#FFF7ED",
-    borderColor: "#FED7AA",
+    color: "rgb(var(--wr-status-warn-soft))",
+    borderColor: "rgb(var(--wr-status-warn-soft))",
     hrefs: [
       "/withdrawals",
       "/withdrawals/dashboard",
@@ -44,8 +44,8 @@ const MENU_GROUPS = [
   },
   {
     label: "학생관리",
-    color: "#FAF5FF",
-    borderColor: "#E9D5FF",
+    color: "rgb(var(--wr-sunken))",
+    borderColor: "rgb(var(--wr-sunken))",
     hrefs: ["/settings/students", "/settings/classes", "/settings/teachers"],
   },
 ];
@@ -164,9 +164,9 @@ export function PermissionsClient({ teachers }: Props) {
 
   if (teachers.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-        <Shield className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-        <p className="text-sm text-slate-500">권한을 설정할 선생님이 없습니다</p>
+      <div className="bg-nk-surface rounded-2xl border border-nk-line-soft p-12 text-center">
+        <Shield className="h-10 w-10 text-nk-ink-hint mx-auto mb-3" />
+        <p className="text-sm text-nk-ink-sub">권한을 설정할 선생님이 없습니다</p>
       </div>
     );
   }
@@ -175,13 +175,13 @@ export function PermissionsClient({ teachers }: Props) {
     <div className="space-y-3">
       {/* 전체 저장 버튼 */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-nk-ink-hint">
           메뉴 이름을 클릭하면 모든 선생님의 해당 메뉴를 선택/해제합니다
         </p>
         <button
           onClick={saveAllPermissions}
           disabled={isPending || !hasChanges}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-nk-progress text-nk-navy-ink font-semibold text-sm hover:bg-nk-progress disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
         >
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -190,12 +190,12 @@ export function PermissionsClient({ teachers }: Props) {
           )}
           {isPending ? "저장 중..." : "전체 저장"}
           {hasChanges && !isPending && (
-            <span className="w-2 h-2 rounded-full bg-yellow-300 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-nk-warn animate-pulse" />
           )}
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-nk-surface rounded-2xl border border-nk-line-soft overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: "800px" }}>
             <thead>
@@ -203,7 +203,7 @@ export function PermissionsClient({ teachers }: Props) {
               <tr>
                 <th
                   rowSpan={2}
-                  className="text-left px-4 py-3 text-xs font-bold text-slate-500 border-b border-r border-slate-200 sticky left-0 bg-[#F8FAFC] z-10"
+                  className="text-left px-4 py-3 text-xs font-bold text-nk-ink-sub border-b border-r border-nk-line-soft sticky left-0 bg-[rgb(var(--wr-sunken))] z-10"
                   style={{ minWidth: "140px" }}
                 >
                   선생님
@@ -212,26 +212,26 @@ export function PermissionsClient({ teachers }: Props) {
                   <th
                     key={group.label}
                     colSpan={group.hrefs.length}
-                    className="px-2 py-2 text-[11px] font-bold border-b border-slate-200 text-center"
+                    className="px-2 py-2 text-[11px] font-bold border-b border-nk-line-soft text-center"
                     style={{
                       background: group.color,
                       borderLeft: `2px solid ${group.borderColor}`,
                       borderRight: `2px solid ${group.borderColor}`,
                     }}
                   >
-                    <span className="text-slate-600">{group.label}</span>
+                    <span className="text-nk-ink-sub">{group.label}</span>
                   </th>
                 ))}
                 <th
                   rowSpan={2}
-                  className="px-3 py-3 text-xs font-bold text-slate-500 border-b border-slate-200 text-center"
+                  className="px-3 py-3 text-xs font-bold text-nk-ink-sub border-b border-nk-line-soft text-center"
                   style={{ minWidth: "70px" }}
                 >
                   전체
                 </th>
               </tr>
               {/* 개별 메뉴 헤더 행 (클릭하면 모든 강사 토글) */}
-              <tr style={{ background: "#F8FAFC" }}>
+              <tr style={{ background: "rgb(var(--wr-sunken))" }}>
                 {ASSIGNABLE_MENUS.map((m) => {
                   const gi = HREF_TO_GROUP.get(m.href) ?? -1;
                   const group = MENU_GROUPS[gi];
@@ -245,7 +245,7 @@ export function PermissionsClient({ teachers }: Props) {
                   return (
                     <th
                       key={m.href}
-                      className="px-1 py-2 text-center border-b border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors"
+                      className="px-1 py-2 text-center border-b border-nk-line-soft cursor-pointer hover:bg-nk-progress-soft transition-colors"
                       style={
                         group
                           ? {
@@ -267,20 +267,20 @@ export function PermissionsClient({ teachers }: Props) {
                         <div
                           className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                             allChecked
-                              ? "bg-blue-500 border-blue-500"
+                              ? "bg-nk-progress border-nk-progress"
                               : someChecked
-                                ? "bg-blue-200 border-blue-400"
-                                : "border-slate-300 bg-white"
+                                ? "bg-nk-progress-soft border-nk-progress"
+                                : "border-nk-line bg-nk-surface"
                           }`}
                         >
                           {allChecked && (
-                            <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                            <Check className="h-2.5 w-2.5 text-nk-navy-ink" strokeWidth={3} />
                           )}
                           {someChecked && !allChecked && (
-                            <div className="w-1.5 h-0.5 bg-blue-600 rounded" />
+                            <div className="w-1.5 h-0.5 bg-nk-progress rounded" />
                           )}
                         </div>
-                        <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
+                        <span className="text-[10px] font-semibold text-nk-ink-hint whitespace-nowrap">
                           {m.label}
                         </span>
                       </div>
@@ -299,24 +299,24 @@ export function PermissionsClient({ teachers }: Props) {
                 return (
                   <tr
                     key={teacher.id}
-                    className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
+                    className="border-b border-nk-line-soft hover:bg-nk-sunken/50 transition-colors"
                   >
-                    <td className="px-4 py-3 border-r border-slate-100 sticky left-0 bg-white z-10">
+                    <td className="px-4 py-3 border-r border-nk-line-soft sticky left-0 bg-nk-surface z-10">
                       <div className="flex items-center gap-2">
                         <div
                           className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
                           style={{
-                            background: "rgba(15,43,91,0.08)",
+                            background: "rgb(var(--wr-navy-strong) / 0.08)",
                             color: "var(--primary)",
                           }}
                         >
                           {teacher.name[0]}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-semibold text-sm text-slate-800 truncate">
+                          <div className="font-semibold text-sm text-nk-ink truncate">
                             {teacher.name}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-nk-ink-hint">
                             {teacher.subject || "담임"}
                           </div>
                         </div>
@@ -349,8 +349,8 @@ export function PermissionsClient({ teachers }: Props) {
                             onClick={() => toggleMenu(teacher.id, m.href)}
                             className={`w-7 h-7 rounded-md flex items-center justify-center mx-auto transition-all ${
                               checked
-                                ? "bg-blue-500 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-300 hover:bg-slate-200"
+                                ? "bg-nk-progress text-nk-navy-ink shadow-sm"
+                                : "bg-nk-sunken text-nk-ink-hint hover:bg-nk-line"
                             }`}
                           >
                             {checked && (
@@ -368,8 +368,8 @@ export function PermissionsClient({ teachers }: Props) {
                         onClick={() => toggleAll(teacher.id, !allChecked)}
                         className={`text-[10px] px-2 py-1 rounded transition-colors ${
                           allChecked
-                            ? "text-red-500 hover:bg-red-50"
-                            : "text-blue-500 hover:bg-blue-50"
+                            ? "text-nk-late hover:bg-nk-late-soft"
+                            : "text-nk-progress hover:bg-nk-progress-soft"
                         }`}
                       >
                         {allChecked ? "해제" : "전체"}

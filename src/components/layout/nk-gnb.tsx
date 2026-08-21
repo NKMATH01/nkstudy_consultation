@@ -3,13 +3,13 @@
 //
 // 스타일은 public/nk-shared.css 의 .nk-gnb* 클래스가 전부 갖고 있다.
 //
-// ★ 2026-08-20 부터 '미니 GNB' 다 (대표 지시, 공통 구조 v2).
-//   전에는 여기 가운데에 프로그램 전환 링크 8개가 얹혀 있어서, 옮겨 다닐 때만 쓰는
-//   줄이 화면에서 가장 눈에 띄는 자리를 차지했다. 그 줄은 사이드바 맨 위
-//   'NK 프로그램' 접이식 섹션으로 내렸다(layout/sidebar 참고).
-//   여기 남는 것은 '어느 프로그램인지'와 늘 손 닿아야 하는 것뿐이다.
+// ★ 가운데는 NK 프로그램 전환 줄이다 (대표 지시, 2026-08-21).
+//   2026-08-20 에 이 줄을 사이드바로 내렸다가 되돌렸다. 상단바는 프로그램 사이를 오가는
+//   폴더 탭이고, 사이드바는 지금 열려 있는 프로그램의 메뉴만 담는다. 둘을 사이드바에
+//   함께 쌓으니 어디까지가 이 앱인지 읽히지 않았다.
 //
-// 바꿔 끼우는 곳은 한 군데뿐이다 — constants/nk-programs 의 CURRENT_PROGRAM_ID.
+// 목록·순서·활성 판정은 전부 constants/nk-programs 에서 온다. 다른 앱에 이식할 때
+// 바꾸는 곳은 그 파일의 CURRENT_PROGRAM_ID 한 줄뿐이다.
 //
 // 서버 컴포넌트로 둔다 — 남은 것 중 상호작용이 있는 버튼만 클라이언트 컴포넌트로
 // 따로 분리돼 있다.
@@ -18,7 +18,11 @@ import Link from "next/link";
 
 import { ClaudeCodeButton } from "./claude-code-button";
 import { ProgramFeedbackButton } from "./program-feedback-button";
-import { CURRENT_PROGRAM } from "@/constants/nk-programs";
+import {
+  CURRENT_PROGRAM,
+  CURRENT_PROGRAM_ID,
+  VISIBLE_NK_PROGRAMS,
+} from "@/constants/nk-programs";
 
 export function NkGnb({
   userName = "",
@@ -40,8 +44,27 @@ export function NkGnb({
         <span className="nk-gnb__wordmark-name">{CURRENT_PROGRAM.label}</span>
       </Link>
 
-      {/* 가운데는 비워 둔다. 프로그램 전환은 사이드바 맨 위로 옮겼다(구조 v2). */}
-      <div className="flex-1" />
+      {/* 프로그램 전환 — 같은 창에서 이동한다. 새 탭으로 열면 탭이 쌓이고
+          '여러 프로그램'으로 느껴진다.
+          활성 표시는 밝은 잉크로 뒤집는 방식이다(.nk-gnb__app--active) — 브라스는
+          워드마크 한 곳에만 쓴다.
+          8개가 넘치는 좁은 화면에서는 줄바꿈 없이 가로로 밀린다(.nk-gnb__apps). */}
+      <nav className="nk-gnb__apps" aria-label="NK 프로그램 전환">
+        {VISIBLE_NK_PROGRAMS.map((program) => {
+          const here = program.id === CURRENT_PROGRAM_ID;
+          return (
+            <a
+              key={program.id}
+              href={program.url}
+              className={here ? "nk-gnb__app nk-gnb__app--active" : "nk-gnb__app"}
+              aria-current={here ? "page" : undefined}
+              title={here ? undefined : `${program.label}으로 이동`}
+            >
+              {program.label}
+            </a>
+          );
+        })}
+      </nav>
 
       <div className="nk-gnb__right">
         {/* 야간 모드 토글은 두지 않는다 — 이 앱은 코럴 라이트 스킨 한 벌뿐이라

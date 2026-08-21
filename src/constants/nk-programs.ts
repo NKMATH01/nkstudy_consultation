@@ -14,9 +14,10 @@ import {
  * NK 학원 프로그램 목록 — 모든 프로그램이 공유하는 전환 메뉴의 원본.
  * 기준 구현: 18.NK업무보고 프로그램/constants/nk-programs.ts
  *
- * ★ 상단바가 아니라 사이드바에 둔다 (대표 지시, 2026-08-20).
- *   프로그램이 8개로 늘면서 상단 알약 줄이 화면에서 가장 눈에 띄는 요소가 됐다.
- *   훑고 지나가는 링크지 매번 볼 정보가 아니라, 사이드바 맨 위 접이식 섹션으로 내렸다.
+ * ★ 상단바(GNB) 가운데에 둔다 (대표 지시, 2026-08-21).
+ *   2026-08-20 에 사이드바로 내렸다가 되돌렸다. 프로그램 전환은 모든 NK 앱이 공유하는
+ *   바깥 이동 수단이고, 사이드바는 '지금 이 프로그램의 메뉴'만 담는다 — 둘을 한 기둥에
+ *   섞으니 어디까지가 이 앱인지 읽히지 않았다.
  *
  * ★ 순서를 프로그램마다 바꾸지 마라.
  *   순서가 다르면 옮겨 다닐 때마다 눈으로 다시 찾아야 한다.
@@ -52,5 +53,11 @@ export const VISIBLE_NK_PROGRAMS = NK_PROGRAMS.filter((p) => p.url.trim().length
 export const CURRENT_PROGRAM =
   NK_PROGRAMS.find((p) => p.id === CURRENT_PROGRAM_ID) ?? NK_PROGRAMS[0];
 
-/** 사이드바 섹션 접힘 상태 저장 키 — 전 프로그램 공통. */
-export const SIDEBAR_OPEN_KEY = "nk:sidebar-open-sections";
+/**
+ * 사이드바 섹션 접힘 상태 저장 키 — 전 프로그램 공통.
+ *
+ * ★ v3 로 올렸다 (2026-08-21). v2 에 저장된 집합에는 없어진 'nk-programs' 섹션과
+ *   그때 유일하게 열려 있던 카테고리 하나만 들어 있다. 그 값을 그대로 읽으면 새로 생긴
+ *   카테고리 섹션들이 전부 접힌 채 열려 사이드바가 비어 보인다.
+ */
+export const SIDEBAR_OPEN_KEY = "nk:sidebar-open-sections-v3";

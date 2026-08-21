@@ -1,6 +1,7 @@
-// 사이드바·헤더가 함께 쓰는 메뉴 카테고리(섹터) 정의.
-// 카테고리 탭은 헤더 중앙에, 선택된 카테고리의 세부 메뉴는 사이드바에 렌더한다.
-// 두 화면이 같은 정의를 봐야 하므로 여기서만 관리한다(메뉴 구성·이름·순서·권한 규칙 불변).
+// 사이드바가 쓰는 메뉴 카테고리(섹터) 정의.
+// 카테고리와 그 세부 메뉴는 전부 사이드바에 접이식 섹션으로 렌더한다 (대표 지시, 2026-08-21).
+// 상단 GNB 는 NK 프로그램 전환 전용이다 — 이 앱의 메뉴는 올라가지 않는다.
+// 메뉴 구성·이름·순서·권한 규칙은 여기서만 관리한다.
 //
 // NOTE: src/constants/menu.ts는 코럴 리디자인 미리보기용 자리표시자로, 카테고리 구성이
 // 다르고(3분류) 어디서도 import되지 않는다. 운영 메뉴는 이 파일이 단일 출처다.
@@ -100,19 +101,31 @@ export function filterMenuItems(
   );
 }
 
-// 카테고리(섹터) 정의 — 각 섹터는 대표 아이콘 1개 + 소속 메뉴 아이템 배열로 구성.
-// 학생 관리 섹터의 매칭 대상에는 adminOnlyItems 경로도 포함해, 관리자 전용 화면에서도
-// 카테고리 계산이 학생 관리로 잡히도록 한다(권한 필터는 렌더 단계에서 별도로 수행).
-export const SECTOR_DEFS: {
+export type MenuSector = {
+  /** 접힘 상태 저장용 고유 id. 라벨을 바꿔도 사용자가 접어 둔 상태가 살아남도록 따로 둔다. */
+  id: string;
   name: string;
   icon: React.ComponentType<{ className?: string }>;
   items: MenuItem[];
-}[] = [
-  { name: "상담 관리", icon: Users, items: consultItems },
-  { name: "학생 분석", icon: BarChart3, items: analysisItems },
-  { name: "퇴원생 관리", icon: UserMinus, items: withdrawalItems },
-  { name: "학생 관리", icon: GraduationCap, items: [...studentMgmtItems, ...adminOnlyItems] },
+};
+
+// 카테고리(섹터) 정의 — 각 섹터는 대표 아이콘 1개 + 소속 메뉴 아이템 배열로 구성.
+// 학생 관리 섹터의 매칭 대상에는 adminOnlyItems 경로도 포함해, 관리자 전용 화면에서도
+// 카테고리 계산이 학생 관리로 잡히도록 한다(권한 필터는 렌더 단계에서 별도로 수행).
+export const SECTOR_DEFS: MenuSector[] = [
+  { id: "consult-sector", name: "상담 관리", icon: Users, items: consultItems },
+  { id: "analysis-sector", name: "학생 분석", icon: BarChart3, items: analysisItems },
+  { id: "withdrawal-sector", name: "퇴원생 관리", icon: UserMinus, items: withdrawalItems },
+  {
+    id: "student-sector",
+    name: "학생 관리",
+    icon: GraduationCap,
+    items: [...studentMgmtItems, ...adminOnlyItems],
+  },
 ];
+
+/** 사이드바 아코디언의 기본 펼침 — 저장된 값이 없을 때 전 카테고리를 펼쳐 둔다. */
+export const ALL_SECTOR_IDS = SECTOR_DEFS.map((sector) => sector.id);
 
 // 현재 경로가 속한 카테고리명을 계산한다.
 // - href === "/" 는 pathname === "/" 로만 매칭(루트 오탐 방지)
@@ -129,15 +142,33 @@ export function computeInitialSector(pathname: string): string {
 }
 
 /** 권한 필터를 거친 카테고리 목록. 표시할 메뉴가 0개인 카테고리는 제외한다. */
-export function getVisibleSectors(currentTeacher: CurrentTeacherInfo | null | undefined) {
+export function getVisibleSectors(
+  currentTeacher: CurrentTeacherInfo | null | undefined,
+): MenuSector[] {
   const isAdmin = currentTeacher?.role === "admin";
   const visibleStudentMgmt = filterMenuItems(studentMgmtItems, currentTeacher);
 
   return [
-    { name: "상담 관리", icon: Users, items: filterMenuItems(consultItems, currentTeacher) },
-    { name: "학생 분석", icon: BarChart3, items: filterMenuItems(analysisItems, currentTeacher) },
-    { name: "퇴원생 관리", icon: UserMinus, items: filterMenuItems(withdrawalItems, currentTeacher) },
     {
+      id: "consult-sector",
+      name: "상담 관리",
+      icon: Users,
+      items: filterMenuItems(consultItems, currentTeacher),
+    },
+    {
+      id: "analysis-sector",
+      name: "학생 분석",
+      icon: BarChart3,
+      items: filterMenuItems(analysisItems, currentTeacher),
+    },
+    {
+      id: "withdrawal-sector",
+      name: "퇴원생 관리",
+      icon: UserMinus,
+      items: filterMenuItems(withdrawalItems, currentTeacher),
+    },
+    {
+      id: "student-sector",
       name: "학생 관리",
       icon: GraduationCap,
       items: isAdmin ? [...visibleStudentMgmt, ...adminOnlyItems] : visibleStudentMgmt,

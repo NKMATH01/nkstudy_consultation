@@ -1,8 +1,15 @@
 "use client";
 
-// NK 네이비·브라스 체계. 카테고리(상담 관리/학생 분석/퇴원생 관리/학생 관리) 탭은 헤더 중앙으로 옮겼고,
-// 사이드바는 현재 경로가 속한 카테고리의 세부 메뉴만 보여준다.
-// 메뉴 정의·권한 로직은 src/lib/menu-sectors.ts를 헤더와 공유한다(구성·이름·순서·링크 불변).
+// NK 네이비·브라스 체계.
+//
+// ★ 사이드바는 '이 프로그램의 메뉴'만 담는다 (대표 지시, 2026-08-21).
+//   카테고리 4개(상담 관리·학생 분석·퇴원생 관리·학생 관리)와 그 세부 메뉴가 전부 여기
+//   접이식 섹션으로 들어온다. 전에는 카테고리 탭이 헤더 중앙에 있어서 한 카테고리의 메뉴만
+//   보였고, 다른 카테고리로 가려면 위를 한 번 거쳐야 했다.
+//   NK 프로그램 전환은 반대로 상단 GNB 로 올라갔다(layout/nk-gnb 참고) — 바깥으로 나가는
+//   길과 안에서 도는 길을 한 기둥에 섞지 않는다.
+//
+// 메뉴 정의·권한 로직은 src/lib/menu-sectors.ts 단일 출처다(구성·이름·순서·링크 불변).
 
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
@@ -13,21 +20,16 @@ import {
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
-  LayoutGrid,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { CurrentTeacherInfo } from "@/types";
 import {
+  ALL_SECTOR_IDS,
   computeInitialSector,
   getVisibleSectors,
   type MenuItem,
 } from "@/lib/menu-sectors";
-import {
-  CURRENT_PROGRAM,
-  CURRENT_PROGRAM_ID,
-  SIDEBAR_OPEN_KEY,
-  VISIBLE_NK_PROGRAMS,
-} from "@/constants/nk-programs";
+import { SIDEBAR_OPEN_KEY } from "@/constants/nk-programs";
 
 const COLLAPSE_STORAGE_KEY = "nkc:sidebar-collapsed";
 
@@ -76,12 +78,12 @@ function setCollapsedStore(next: boolean) {
 /*
   사이드 섹션 아코디언 — 접기 상태와 같은 방식의 외부 저장소다.
 
-  ★ 저장 키(nk:sidebar-open-sections)를 전 프로그램이 공유한다. 업무보고에서 접어 둔
-    'NK 프로그램'은 여기서도 접힌 채로 열린다.
   ★ 저장값이 없을 때만 기본값을 쓴다. 한 번 접어 둔 것을 화면을 옮길 때마다 되돌리면
     접는 기능이 있으나 마나가 된다.
+  ★ 기본값은 '전부 펼침'이다. 카테고리 4개가 여기로 내려온 마당에 기본이 접힘이면
+    첫 화면에서 메뉴가 하나도 안 보인다.
 */
-const DEFAULT_OPEN_SECTIONS = ["consult-sector"];
+const DEFAULT_OPEN_SECTIONS = ALL_SECTOR_IDS;
 
 let openSectionsRaw: string | null = null;
 let openSectionsRead = false;
@@ -162,15 +164,10 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
     else next.add(id);
     setOpenSections(next);
   };
-  const programsOpen = openSections.has("nk-programs");
-  const sectorOpen = openSections.has("consult-sector");
-
-  // 현재 경로가 속한 카테고리의 메뉴만 렌더한다(카테고리 전환은 헤더 탭이 담당).
+  // 권한을 통과한 카테고리 전부를 렌더한다. 지금 보고 있는 화면이 어느 카테고리에
+  // 속하는지는 섹션 머리에 표시해 둔다 — 스크롤로 밀려도 자기 위치를 잃지 않게.
   const visibleSectors = getVisibleSectors(currentTeacher);
   const pathSectorName = computeInitialSector(pathname);
-  const currentSector =
-    visibleSectors.find((sector) => sector.name === pathSectorName) ?? visibleSectors[0];
-  const activeItems = currentSector?.items ?? [];
 
   const progressActive = pathname.startsWith("/progress");
 
@@ -222,7 +219,14 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
   const divider = <div className="mx-3 my-2.5 h-px bg-nk-line-soft" />;
 
   // 섹션 머리 — 누르면 접히고 펴진다. 접혀 있을 때만 안쪽 사정을 힌트로 알린다.
-  const sectionHead = (id: string, label: string, open: boolean, hint?: string) => (
+  // 지금 보고 있는 화면이 속한 카테고리는 잉크를 올려 둔다(접어 놨을 때 특히 필요하다).
+  const sectionHead = (
+    id: string,
+    label: string,
+    open: boolean,
+    hint?: string,
+    active = false,
+  ) => (
     <button
       type="button"
       onClick={() => toggleSection(id)}
@@ -230,10 +234,12 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       className="mb-2 flex w-full items-center gap-1.5 rounded-md px-3.5 py-1 text-left transition-colors hover:bg-nk-navy-soft"
     >
       <ChevronDown
-        className={`h-3 w-3 flex-shrink-0 text-nk-ink-hint transition-transform ${open ? "" : "-rotate-90"}`}
+        className={`h-3 w-3 flex-shrink-0 transition-transform ${
+          active ? "text-nk-navy" : "text-nk-ink-hint"
+        } ${open ? "" : "-rotate-90"}`}
       />
       <span
-        className="flex-1 truncate uppercase text-nk-ink-hint"
+        className={`flex-1 truncate uppercase ${active ? "text-nk-navy" : "text-nk-ink-hint"}`}
         style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em" }}
       >
         {label}
@@ -278,78 +284,28 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         </div>
       )}
 
-      {/* Navigation — 현재 카테고리의 세부 메뉴. 길어지면 이 영역만 스크롤 */}
+      {/* Navigation — 이 프로그램의 카테고리 전부. 길어지면 이 영역만 스크롤 */}
       <nav
         className={`min-h-0 flex-1 overflow-y-auto pb-2 ${isCollapsed ? "px-2" : "px-3"} ${inSheet ? "pt-3" : ""}`}
         style={{ scrollbarWidth: "thin" }}
       >
-        {/* ── NK 프로그램 전환 — 기본 접힘 ────────────────────────────────
-            상단바에 있던 8개 링크를 여기로 내렸다(공통 구조 v2). 접혀 있을 때는
-            지금 어느 프로그램에 있는지만 보여 주고, 펼치면 전부 나온다.
-            같은 창에서 이동한다 — 새 탭으로 열면 탭이 쌓이고 '여러 프로그램'으로 느껴진다. */}
-        {isCollapsed ? (
-          // 아이콘만 남는 폭에서는 8줄을 넣을 자리가 없다. 누르면 사이드바를 펴면서
-          // 프로그램 섹션을 함께 연다 — 좁혀 뒀다고 전환 길이 막히면 안 된다.
-          <button
-            type="button"
-            onClick={() => {
-              setCollapsedStore(false);
-              if (!programsOpen) toggleSection("nk-programs");
-            }}
-            title="NK 프로그램"
-            aria-label="NK 프로그램 열기"
-            className="mb-1 flex w-full items-center justify-center rounded-lg px-0 py-2 text-nk-ink-hint transition-colors hover:bg-nk-navy-soft hover:text-nk-navy"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-nk-sunken">
-              <LayoutGrid className="h-[15px] w-[15px]" />
-            </span>
-          </button>
-        ) : (
-          <>
-            {sectionHead("nk-programs", "NK 프로그램", programsOpen, CURRENT_PROGRAM.label)}
-            {programsOpen &&
-              VISIBLE_NK_PROGRAMS.map((program) => {
-                const here = program.id === CURRENT_PROGRAM_ID;
-                return (
-                  <a
-                    key={program.id}
-                    href={program.url}
-                    aria-current={here ? "page" : undefined}
-                    title={
-                      here
-                        ? `${program.label} (지금 보는 프로그램)`
-                        : `${program.label}으로 이동`
-                    }
-                    className={`group relative mb-1 flex w-full items-center gap-2.5 overflow-hidden rounded-lg px-3.5 py-2 ${
-                      here ? "bg-nk-navy-soft text-nk-navy" : "text-nk-ink-sub hover:bg-nk-navy-soft/60"
-                    }`}
-                    style={{ fontSize: "13px", fontWeight: here ? 700 : 600 }}
-                  >
-                    <span
-                      className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${
-                        here
-                          ? "bg-nk-navy text-nk-navy-ink"
-                          : "bg-nk-sunken text-nk-ink-hint group-hover:bg-nk-navy-soft group-hover:text-nk-navy"
-                      }`}
-                    >
-                      <program.Icon className="h-[15px] w-[15px]" />
-                    </span>
-                    <span className="flex-1 truncate">{program.label}</span>
-                    {here && <span className="text-[10px] font-bold">현재</span>}
-                  </a>
-                );
-              })}
-          </>
-        )}
-
-        {divider}
-
-        {activeItems.length > 0 && (
-          <>
-            {!isCollapsed && sectionHead("consult-sector", currentSector?.name ?? "", sectorOpen, `${activeItems.length}개`)}
-            {(sectorOpen || isCollapsed) && renderItems(activeItems)}
-          </>
-        )}
+        {/* ── 카테고리 4개 ────────────────────────────────────────────────
+            아이콘 폭으로 접어 둔 상태에서는 섹션 머리를 넣을 자리가 없으므로
+            머리를 감추고 메뉴 아이콘만 카테고리 순서대로 이어 붙인다.
+            그때는 접힘 상태와 무관하게 전부 보여 준다 — 아이콘만 남은 줄에서
+            무엇이 접혀 있는지 알 길이 없으면 메뉴가 사라진 것으로 보인다. */}
+        {visibleSectors.map((sector, index) => {
+          const open = openSections.has(sector.id);
+          const active = sector.name === pathSectorName;
+          return (
+            <div key={sector.id}>
+              {index > 0 && divider}
+              {!isCollapsed &&
+                sectionHead(sector.id, sector.name, open, `${sector.items.length}개`, active)}
+              {(open || isCollapsed) && renderItems(sector.items)}
+            </div>
+          );
+        })}
 
         {divider}
 

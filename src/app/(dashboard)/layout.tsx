@@ -28,7 +28,7 @@ export default async function DashboardLayout({
         }}
       />
     <div className="flex h-screen flex-col overflow-hidden app-chrome">
-      {/* NK 공통 상단 바 — 프로그램 전환은 사이드바 맨 위로 옮겼다(구조 v2).
+      {/* NK 공통 상단 바 — 가운데가 프로그램 전환 줄이다. 이 앱의 메뉴는 전부 사이드바에 있다.
           Claude Code 버튼은 대표급만 본다 (대표 지시). AI 비서를 여는 조건과 같은
           역할 집합을 쓴다 — 같은 '대표급'을 두 군데서 다르게 정의하지 않는다. */}
       <NkGnb userName={currentTeacher?.name ?? ""} showClaudeCode={isExecutive} />

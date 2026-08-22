@@ -152,7 +152,10 @@ function CustomTooltipContent({
   return (
     <div
       className="rounded-lg px-3 py-2 text-xs shadow-lg border"
-      style={{ background: "white", borderColor: "rgb(var(--wr-line))" }}
+      // 이 컴포넌트는 지금 아무도 쓰지 않지만(아래 차트들은 각자 content 를 넘긴다),
+      // 리터럴 "white" 를 남겨 두면 되살리는 순간 야간에서 흰 카드 위 흰 글자가 된다.
+      // 여기에는 bg-nk-surface 클래스가 없으므로 지우는 대신 토큰으로 바꾼다.
+      style={{ background: "rgb(var(--wr-surface))", borderColor: "rgb(var(--wr-line))" }}
     >
       {label && (
         <div className="font-semibold mb-1" style={{ color: NK_PRIMARY }}>
@@ -993,7 +996,11 @@ export function WithdrawalDashboard({
           className="relative overflow-hidden rounded-2xl p-5 bg-nk-surface cursor-pointer hover:shadow-md transition-shadow"
           style={{
             border: `1px solid ${insightData.earlyCount > 0 ? "rgb(var(--wr-status-late-soft))" : "rgb(var(--wr-line-soft))"}`,
-            background: insightData.earlyCount > 0 ? "rgb(var(--wr-status-late-soft))" : "white",
+            // 경고가 없을 때는 background 를 아예 주지 않는다 — 클래스의 bg-nk-surface 가
+            // 그대로 살아야 한다. 예전에는 여기 "white" 리터럴이 있었는데, 인라인이
+            // 유틸리티를 이겨서 야간에 흰 카드 위 흰 글자가 됐다.
+            // 주간에는 --wr-surface 가 255 255 255 라 이 카드 색이 전과 똑같다.
+            background: insightData.earlyCount > 0 ? "rgb(var(--wr-status-late-soft))" : undefined,
             boxShadow:
               insightData.earlyCount > 0
                 ? "0 1px 3px rgb(var(--wr-status-late) / 0.08), 0 4px 12px rgb(var(--wr-status-late) / 0.06)"

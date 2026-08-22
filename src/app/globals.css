@@ -363,3 +363,36 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgb(var(--wr-line, 214 219 226)); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgb(var(--wr-ink-hint, 133 141 154)); }
+
+/* ============================================================================
+   recharts 기본 툴팁 — 서드파티가 인라인으로 박는 색을 되찾는다.
+   ----------------------------------------------------------------------------
+   ★ 왜 여기서만 !important 를 쓰는가 (이걸 다른 곳에서 흉내 내지 마라)
+     recharts 는 .recharts-default-tooltip 의 배경·테두리를 그 div 의 style 속성에
+     직접 넣는다(기본값 #fff / #ccc). 인라인 스타일은 선택자 특이성으로 못 이기므로
+     남는 수단이 !important 뿐이다. 우리 코드가 만든 스타일을 덮는 게 아니라,
+     손댈 수 없는 라이브러리 인라인을 덮는 자리다.
+
+   ★ 왜 호출부가 아니라 여기인가
+     <Tooltip> 은 지금 3개 파일에 6개 있고, 그중 5개는 content 로 우리 마크업을
+     넘겨서(bg-nk-surface) 이미 야간에 잘 따라온다. 기본 툴팁을 쓰는 건 대시보드의
+     월별 차트 하나뿐이다. 그 한 곳을 contentStyle 로 고치면 다음에 차트가 늘 때
+     같은 실수를 반복한다 — 규칙 한 벌로 두면 새 차트가 자동으로 따라온다.
+
+   ★ 야간에 무엇이 깨져 있었나
+     배경은 인라인 #fff 로 고정인데 .recharts-tooltip-label 은 색이 없어 상위에서
+     상속받는다. 야간의 상위 잉크는 거의 흰색이라 흰 바탕에 흰 글자가 됐다.
+
+   ★ .recharts-tooltip-item 의 색은 일부러 건드리지 않는다
+     그 li 의 인라인 color 는 계열 색이고, 이 앱의 계열 색은 이미 토큰이라
+     (rgb(var(--wr-navy)) · rgb(var(--wr-status-done))) 야간에 알아서 밝아진다.
+     여기서 --wr-ink 로 덮으면 두 계열이 같은 색이 되어 툴팁에서 색-계열 대응이
+     사라진다. 읽히지 않던 것은 라벨이지 항목이 아니었다.
+   ============================================================================ */
+.recharts-default-tooltip {
+  background-color: rgb(var(--wr-surface)) !important;
+  border-color: rgb(var(--wr-line)) !important;
+}
+.recharts-tooltip-label {
+  color: rgb(var(--wr-ink)) !important;
+}

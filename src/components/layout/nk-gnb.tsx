@@ -18,6 +18,7 @@ import Link from "next/link";
 
 import { ClaudeCodeButton } from "./claude-code-button";
 import { ProgramFeedbackButton } from "./program-feedback-button";
+import { ThemeToggle } from "./theme-toggle";
 import {
   CURRENT_PROGRAM,
   CURRENT_PROGRAM_ID,
@@ -67,9 +68,11 @@ export function NkGnb({
       </nav>
 
       <div className="nk-gnb__right">
-        {/* 야간 모드 토글은 두지 않는다 — 이 앱은 코럴 라이트 스킨 한 벌뿐이라
-            눌러도 상단 바 색만 바뀌고 본문은 그대로다. 앱에 야간 팔레트가 생기면
-            그때 design-system README 3단계대로 붙인다. */}
+        {/* 야간 모드 — 전 직원. Claude Code 버튼과 달리 역할 게이트를 걸지 않는다.
+            눈부심은 직급이 아니라 시간의 문제고, 선생님도 밤 수업 뒤에 상담을 기록한다
+            (업무보고와 같은 기준). 저장 키 nk:wr-theme 이 8개 프로그램 공용이라
+            한 곳에서 켜면 같은 도메인의 다른 화면도 같은 선택을 따른다. */}
+        <ThemeToggle />
         {/* 오류·개선 제안 — 전 직원. 작성자는 로그인 강사 이름으로 채운다. */}
         <ProgramFeedbackButton userName={userName} />
         {/* Claude Code — 대표급만. 저장소를 여는 버튼이라 선생님에게는 쓸 일이 없다. */}

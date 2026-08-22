@@ -157,13 +157,20 @@
 .nk-gnb {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
   height: 4rem;
   flex-shrink: 0;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
   background: rgb(var(--wr-navy-strong));
   font-family: var(--wr-font-sans);
   box-sizing: border-box;
+}
+/* 1536px 이상에서만 넉넉하게. 그 아래는 좁혀야 전환 탭 8개가 한 줄에 들어간다. */
+@media (min-width: 1536px) {
+  .nk-gnb {
+    gap: 1.5rem;
+    padding: 0 1.5rem;
+  }
 }
 
 /* 워드마크 — "NK" 만 브라스. 이 화면에서 브라스를 쓰는 첫 자리다. */

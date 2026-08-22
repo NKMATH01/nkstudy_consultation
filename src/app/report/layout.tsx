@@ -9,7 +9,9 @@ export default function ReportPublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen" style={{ background: "#F8F9FC" }}>
+    // data-theme="day" — 학부모가 여는 보고서라 라이트로 못 박는다. 직원이 야간을 켜 두면
+    // <html> 의 플래그를 여기까지 물려받아 공유 UI(Toaster·Dialog)만 어두워진다.
+    <div className="min-h-screen" data-theme="day" style={{ background: "#F8F9FC" }}>
       {/* 공개 보고서 인쇄 시 레이아웃 크롬을 제거해 A4 페이지만 출력한다(§13). */}
       <style
         dangerouslySetInnerHTML={{

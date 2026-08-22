@@ -9,7 +9,9 @@ export default function SurveyPublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen" style={{ background: "#F8F9FC" }}>
+    // data-theme="day" — 학생·학부모가 여는 설문이라 라이트로 못 박는다. 직원이 야간을
+    // 켜 두면 <html> 의 플래그를 여기까지 물려받아 공유 UI(Toaster·Dialog)만 어두워진다.
+    <div className="min-h-screen" data-theme="day" style={{ background: "#F8F9FC" }}>
       {/* Top Bar */}
       <header className="bg-white" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         <div className="max-w-[580px] mx-auto px-5 py-3 flex items-center gap-2.5">

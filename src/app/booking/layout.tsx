@@ -9,7 +9,10 @@ export default function BookingPublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen" style={{ background: "#F8F9FC" }}>
+    // data-theme="day" — 학부모가 여는 화면이라 라이트로 못 박는다. 직원이 야간을 켜 두면
+    // <html> 의 플래그를 여기까지 물려받는데, 이 화면은 hex 직접 지정이라 대부분 그대로고
+    // 공유 UI(Toaster·Dialog)만 토큰을 따라 어두워져 "부분만 어두운" 화면이 된다.
+    <div className="min-h-screen" data-theme="day" style={{ background: "#F8F9FC" }}>
       <header className="bg-white sticky top-0 z-50" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         <div className="max-w-[520px] mx-auto px-4 py-3 flex items-center gap-2.5">
           <div

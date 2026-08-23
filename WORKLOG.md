@@ -4,16 +4,84 @@
 
 ---
 
-## ▶ 다음 세션 시작 체크리스트 (2026-07-23 세션 마감 기준)
+## ▶ 다음 세션 시작 체크리스트 (2026-08-23 세션 마감 기준)
 
-**배포 상태**: origin/master = 이 브랜치 병합 후 해시(작성 시점 기준 `5e6ca8a` 이후) — hotfix2(상담기록 자동생성+근거충실도) + STEP 4(상담 허브) + 모델/기록지/정리 배포.
+**배포 상태**: `origin/master = 158ccea` — NK 공통 디자인 시스템 이식 + 야간 모드 배포 완료.
 
-1. **[남은 작업]** STEP 5 챗 제안 HMAC (`CHAT_PROPOSAL_SIGNING_SECRET` Vercel 설정 선행)
-2. **[스모크]** 관리자 취소/시간변경 실사용·토요일 예약 1건
-3. **[보류]** SOLAPI 키 4종+알림톡 템플릿(카카오 승인 필요)
-4. **[환경변수]** Vercel 환경변수 `GEMINI_MODEL`이 설정돼 있으면 `gemini-3.6-flash`로 갱신 필요(코드 기본값은 전환됨)
+**작업 체계**: Claude=브레인(분석·지시·검증·푸시), 실행자=코드·커밋(push 금지, 사용자 승인 시에만 해제). DDL은 사용자가 SQL Editor 실행(https://supabase.com/dashboard/project/scrliiiiexjedgzogcfo/sql/new). 상세 이력은 아래 세션 기록과 메모리 참조.
 
-**작업 체계**: Claude=브레인(분석·지시·검증·푸시), Opus 4.8 실행자=코드·커밋(push 금지). DDL은 사용자가 SQL Editor 실행(https://supabase.com/dashboard/project/scrliiiiexjedgzogcfo/sql/new). 상세 이력은 아래 세션 기록과 메모리 참조.
+### 남은 일
+
+1. **[육안 1건]** 야간 토글을 **클릭한 직후** 입력창·버튼이 즉시 따라 어두워지는지 배포본에서 확인. 로컬 검수 창이 화면에 표시되지 않아 라이브 전환만 신뢰성 있게 재지 못했다. **야간 상태로 새로 로드했을 때는 폼 컨트롤 포함 정상 확인됨** — 안 따라오는 지점이 있으면 그 자리만 수리한다.
+2. **[보류·사용자 결정]** 알림톡 **실발송 스모크 미실시** — "학부모 연락 오면 그때 확인"(2026-08-03 결정). 미수신 신고가 들어오면 `nkc_send_logs`·`nkc_scheduled_messages` 를 조회해 **시도 없음 / 발송 실패 / 성공했는데 미수신** 셋 중 무엇인지부터 가른다. 진단은 `scripts/check-alimtalk-setup.mjs`(읽기 전용).
+3. **[역이식 후보]** `public/nk-shared.css` 의 `.nk-pf__*`(오류·개선 제안 위젯)가 업무보고 `design-system/nk-shared.css` **원본에는 없다**(원본 내 `nk-pf` 0건). 규약이 "원본을 먼저 고치고 이 파일로 옮긴다"이므로, 방향대로면 이걸 원본으로 올려야 나머지 6개 프로그램도 같은 위젯을 쓸 수 있다.
+4. **[정리 후보]** 로컬 `feature/*` 브랜치 **10개**가 전부 origin/master 에 **병합 완료(ahead 0)** 인 채 46~93 커밋 behind 로 남아 있다. 원격에는 그중 3개(`booking-lifecycle`·`coral-redesign`·`summary-student-focus`)만 있다.
+5. **[미확인]** Vercel 환경변수 `GEMINI_MODEL`. 코드 기본값은 `gemini-3.6-flash` 로 이미 전환돼 있다(`src/lib/env.ts:9`). Vercel 대시보드에 값이 **따로 박혀 있다면** 낡은 모델명일 수 있는데, 이번 세션에서 대시보드를 확인하지 못했다 — 완료로 단정하지 말 것.
+
+### 이 저장소 소관이 아닌 것 (오해 방지)
+
+퇴원 조기경보 **R1 `WITHDRAWAL_RISK`·R2 `WITHDRAWAL_COMPOSITE` 는 업무보고(nk-work-report)에 이미 구현 완료**다(`lib/students/alert-engine.ts`·`lib/ai-directives/consult-logic.ts` 에서 확인). 이 저장소에서 다시 만들지 마라. 상담관리의 퇴원 통계를 가중치로 연동하는 **R3 만** 후속 후보다.
+
+### 완료되어 내려간 항목 (2026-07-23 체크리스트)
+
+- STEP 5 챗 제안 HMAC → 2026-07-26 `18d8cd0` 배포 완료
+- 관리자 취소/시간변경·토요일 예약 스모크 → 2026-07-26 사용자 전체 확인 완료
+- SOLAPI 키·알림톡 템플릿 카카오 승인 → 2026-08-03 `b88a277` 로 3종 승인·개통 완료
+
+---
+
+## 2026-08-19~23 — NK 공통 디자인 시스템 이식 + 야간 모드
+
+NK 8개 프로그램이 같은 얼굴을 갖도록 업무보고(nk-work-report)의 디자인 시스템을 이 앱에 이식했다. 마지막이 야간 모드다.
+
+| 커밋 | 날짜 | 내용 |
+|---|---|---|
+| `40feaf4` | 8/19 | NK 공통 상단바(GNB) 이식 + Claude Code 버튼. 프로토콜 `claudecode-consult`, 런처 `tools/claude-launcher/`, `.gitattributes` 에 `*.cmd text eol=crlf` |
+| `debbb68` | 8/19 | 오류·개선 제안 위젯 — 업무보고 의견함 연동 |
+| `62da72a` | 8/20 | 본문 전면 리스킨 — 네이비·브라스 (기능 불변) |
+| `8a63e1b` | 8/20 | 네비 v2 — 프로그램 메뉴 사이드 이동·미니 GNB |
+| `dbeaf74` | 8/21 | Claude Code 버튼은 대표급(director·principal·admin)만 |
+| `4a23ea4` | 8/21 | **대표 피드백으로 자리 되돌림** — 상단 GNB = 프로그램 전환 8개, 사이드바 = 이 앱 메뉴만. 접힘 저장 키 v3 |
+| `65090c4` | 8/22 | 야간 모드 이식 |
+| `158ccea` | 8/23 | 실검수 후속 수리 |
+
+### 야간 모드 (`65090c4`)
+
+**팔레트를 만들 필요가 없었다.** `public/nk-shared.css` 에 `:root[data-theme='night']` 한 벌이 이미 통째로 들어 있었고, `globals.css` 는 `--wr-*` 를 재정의하지 않고 `@theme inline` 으로 매핑만 한다. 모자란 것은 `<html>` 에 `data-theme="night"` 를 찍는 **스위치 하나**였다. 그래서 컴포넌트의 색 클래스는 한 글자도 바꾸지 않았다.
+
+- 토글 `src/components/layout/theme-toggle.tsx` — GNB 우측, **전 직원 노출**(대표 결정). Claude Code 버튼과 달리 역할 게이트 없음. 업무보고 구현에 있는 **야간 시간대 자동 제안 팝업은 대표 결정으로 제외**.
+- 복원 스크립트는 `src/app/layout.tsx` 의 `<head>` 안, `nk-shared.css` `<link>` **앞에 인라인 blocking** 으로 둔다. `next/script` 나 `useEffect` 로 미루면 야간을 켜 둔 사람이 접속할 때마다 흰 화면이 번쩍인 뒤 어두워진다(업무보고에서 실제로 겪고 고친 사고).
+- 저장 키 `nk:wr-theme` 는 **NK 8개 프로그램 공용**이라 이름을 바꾸지 않는다. 단 브라우저 저장소는 도메인별로 분리되므로 도메인이 다르면 각각 한 번씩 켜야 한다.
+- 상태 복원은 `useState`+`useEffect` 가 아니라 **`useSyncExternalStore`**. 저장값이 React 밖(localStorage)에 있어 초기값으로 읽으면 서버 렌더와 어긋나고, effect 안에서 `setState` 로 복원하면 이 저장소의 React Compiler 린트(`set-state-in-effect`)가 **error 로 막는다**. 서버 스냅샷을 `'day'` 로 고정해 하이드레이션을 맞추고 그 뒤 클라이언트 스냅샷으로 갈아끼운다. 덤으로 다른 탭의 전환도 따라온다.
+- **학부모·학생 공개 화면 4곳은 라이트 고정** — `booking`·`report`·`survey`·`feedback` 레이아웃 최상위 래퍼에 `data-theme="day"`(`nk-shared.css` 의 탈출구). `feedback` 은 layout 이 없어 새로 만들었다. `login` 은 직원 화면이라 야간 대상.
+  - **다만 이 래퍼가 덮는 것은 그 서브트리뿐이다.** 루트의 `<Toaster />` 는 `{children}` 의 형제고 sonner·Radix 는 `document.body` 로 포털을 띄우므로 토스트·다이얼로그는 덮이지 않는다. 실피해가 작은 이유는 학부모 브라우저에 `nk:wr-theme` 저장값이 없어 늘 라이트이기 때문이고, 직원이 야간을 켠 채 학부모 링크를 열었을 때만 토스트가 어둡게 뜬다.
+
+### 실검수 후속 수리 (`158ccea`)
+
+브라우저 실검수에서 야간에 밝게 남는 면 2건이 나왔다. 둘 다 **인라인 스타일이 토큰을 이긴 것**이다.
+
+- `withdrawal-dashboard-client.tsx` **조기 퇴원 경고 카드(996행)** — `className` 에 `bg-nk-surface` 가 있는데 인라인 `background` 삼항이 경고 0명일 때 `"white"` 를 넣어 유틸리티를 덮었다. 야간에 **흰 카드 위 흰 글자**. false 분기를 `undefined` 로 바꿔 `background` 를 아예 넘기지 않는다. 실측 computed backgroundColor — 주간 `rgb(255,255,255)`(수정 전과 동일) · 야간 `rgb(20,27,37)`.
+  - 같은 파일의 죽은 `CustomTooltipContent`(155행)에도 같은 리터럴이 있었다. 여기엔 `bg-nk-surface` 클래스가 없어 지우면 배경이 사라지므로 `rgb(var(--wr-surface))` 로 교체.
+- **recharts 기본 툴팁** — `globals.css` 에 규칙 한 벌. 실측 — 주간 배경 `rgb(255,255,255)`/라벨 `rgb(20,24,31)`, 야간 배경 `rgb(20,27,37)`/라벨 `rgb(231,236,243)`(이전엔 흰 배경에 흰 글자). `<Tooltip>` 6개 중 5개는 `content` 로 우리 마크업(`bg-nk-surface`)을 넘겨 이미 정상이고 기본 툴팁은 대시보드 월별 차트 하나뿐인데, **호출부를 고치면 차트가 늘 때마다 같은 실수를 반복하므로 CSS 규칙으로 뒀다.**
+  - `.recharts-tooltip-item` 의 색은 **일부러 두었다.** 그 `li` 의 인라인 `color` 는 계열 색이고 이 앱의 계열 색은 이미 토큰이라(`rgb(var(--wr-navy))`·`rgb(var(--wr-status-done))`) 야간에 알아서 밝아진다. `--wr-ink` 로 덮으면 두 계열이 한 색이 되어 툴팁의 색↔계열 대응이 사라진다. 읽히지 않던 것은 라벨이지 항목이 아니었다.
+
+### ⚠ 함정 2개 — 다음 사람이 반드시 읽을 것
+
+**1) hex 검사를 `#[0-9a-fA-F]{6}` 로만 하면 놓친다.**
+`background: "white"` 같은 **색 키워드**, 3자리 hex, `rgb(숫자)` 리터럴이 이 정규식에 안 걸린다. 실제로 이 검사를 통과했는데도 야간에 흰 카드 위 흰 글자(대비 격차 20)가 남아 있었다. 검사 패턴은 여기까지 넓혀라:
+
+```
+grep -rEn "background: *[\"']?(white|black)|backgroundColor: *[\"']?(white|black)|: *[\"']#[0-9a-fA-F]{3}[\"']|rgb\( *[0-9]" "src/app/(dashboard)" src/components --include=*.tsx
+```
+(보고서·학부모 공개 화면 `analysis-report-v2`·`teacher-sheet`·`report-premium`·`report-theme` 은 라이트 고정이라 제외 대상 — 거기 리터럴 색은 정상이다.)
+
+**2) 인라인 스타일은 Tailwind 유틸리티를 이긴다.**
+`className="bg-nk-surface"` 가 있어도 `style={{ background: "white" }}` 가 있으면 토큰이 죽는다. 클래스가 붙어 있다고 안심하지 마라. 서드파티(recharts)가 인라인으로 박는 색은 특이성으로 못 이기므로 **CSS `!important` 말고 수단이 없다** — 그래서 `globals.css` 의 recharts 블록에만 `!important` 를 썼고 "우리 코드가 아니라 손댈 수 없는 라이브러리 인라인을 덮는 자리"라는 사유를 주석으로 남겼다. **다른 곳에서 흉내 내지 마라.**
+
+### 검증
+
+tsc `--noEmit` 0 error · lint 0 error(기존 warning 29건 유지) · vitest 533/533 · `next build` 성공(static 26/26) · 넓힌 리터럴 색 검사 대시보드 트리 잔여 0건.
+브라우저 실검수 — `/`·`/consultations`·`/onboarding`·`/withdrawals/dashboard` 를 야간으로 로드해, 수리 후 밝게 남는 면이 **의도된 활성 탭 알약 1건뿐**임을 확인.
 
 ---
 

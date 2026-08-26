@@ -8,7 +8,7 @@ Google Apps Script 기반에서 Next.js + Supabase로 마이그레이션한 프�
 - **프레임워크**: Next.js 16.1 (App Router) + React 19 + TypeScript
 - **스타일**: Tailwind CSS v4 + shadcn/ui (radix-ui)
 - **DB/Auth**: Supabase (PostgreSQL + Auth + RLS)
-- **AI**: Google Gemini 3.6 Flash (설문 분석) + Claude Haiku (등록 안내문 생성)
+- **AI**: Google Gemini 3.6 Flash (설문 분석) + Claude Haiku 4.5 (등록 안내문 생성) + Claude Sonnet 4.6 (AI 채팅 비서, `src/app/api/chat/route.ts:428`)
 - **차트**: recharts
 - **폼 관리**: react-hook-form + zod
 - **상태 관리**: @tanstack/react-query (서버 상태)
@@ -66,7 +66,7 @@ src/
       public-survey.ts    # 공개 설문 제출 (인증 불필요)
       registration.ts     # 등록 안내문 생성(Claude)/조회/삭제/AI편집
       settings.ts         # 반/선생님/학생 CRUD
-      survey.ts           # 설문 CRUD + 6-Factor 계산
+      survey.ts           # 설문 CRUD + 7-Factor 계산
       booking.ts          # 예약 CRUD + 슬롯 차단
       withdrawal.ts       # 퇴원생 CRUD
       progress.ts         # 진도 현황 조회/갱신
@@ -109,6 +109,7 @@ supabase/
 ## 환경변수 (.env.local)
 
 ```
+NEXT_PUBLIC_BASE_URL=           # 공개 링크 생성 기준 URL (기본: src/lib/academy.ts 의 DEFAULT_BASE_URL)
 NEXT_PUBLIC_SUPABASE_URL=       # Supabase 프로젝트 URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase 익명 키
 GEMINI_API_KEY=                 # Google Gemini API 키 (서버 전용)
@@ -123,6 +124,7 @@ SOLAPI_API_SECRET=              # Solapi/CoolSMS API 시크릿 (서버 전용)
 SOLAPI_PFID=                    # 알림톡 발신프로필 ID (서버 전용)
 SOLAPI_SENDER_PHONE=            # 대체 SMS/LMS 발신번호 (서버 전용)
 CHAT_PROPOSAL_SIGNING_SECRET=   # 챗 제안 HMAC 서명 전용 시크릿 (서버 전용)
+SUPABASE_SERVICE_ROLE_KEY=      # Supabase 서비스 롤 키 (서버 전용)
 ```
 
 ## 빌드/실행
@@ -132,6 +134,8 @@ npm install
 npm run dev          # 개발 서버 (http://localhost:3000)
 npm run build        # 프로덕션 빌드
 npm run lint         # ESLint 검사
+npm test             # 단위 테스트 (vitest run, 현재 533건)
+npm run test:e2e     # E2E 테스트 (node e2e/run.mjs)
 ```
 
 ## 주요 컨벤션

@@ -12,6 +12,9 @@ Google Apps Script 기반에서 Next.js + Supabase로 마이그레이션한 프�
 - **차트**: recharts
 - **폼 관리**: react-hook-form + zod
 - **상태 관리**: @tanstack/react-query (서버 상태)
+- **디자인**: NK 8개 프로그램 공통 디자인 시스템(네이비·브라스). 공유 토큰은 `public/nk-shared.css`
+- **야간 모드**: `<html data-theme="night">` 스위치 방식. 저장 키 `nk:wr-theme` 는 NK 8개 프로그램 공용. 학부모·학생 공개 화면 4곳(`booking`·`report`·`survey`·`feedback`)은 `data-theme="day"` 로 라이트 고정
+- **알림톡**: Solapi 경유 카카오 알림톡
 
 ## 프로젝트 구조
 
@@ -26,22 +29,31 @@ src/
       registrations/      # 등록 안내문 보기
       settings/           # 반/선생님/학생 관리
       bookings/           # 상담 예약 관리
-      withdrawals/        # 퇴원생 관리 + 분석 대시보드
-      onboarding/         # 신입생 온보딩 체크리스트
+      withdrawals/        # 퇴원생 관리 + 분석 대시보드 (현황/분석/월간 반성/강사 러닝 뷰)
+      onboarding/         # 신입생 온보딩 체크리스트 (등록 관리)
+      drip-responses/     # 설문 피드백 응답 현황
+      progress/           # 진도 현황 보드
     api/
       onboarding-status/  # 온보딩 상태 API (REST)
+      chat/               # AI 채팅 비서 API + chat/execute (제안 실행, HMAC 검증)
     login/                # 로그인 페이지
     survey/               # 공개 설문 페이지 (인증 불필요)
     booking/              # 공개 예약 페이지 (인증 불필요)
+    report/[token]/       # 학부모 보고서 (인증 불필요, 토큰 기반)
+    feedback/[token]/     # 설문 피드백 (인증 불필요, 토큰 기반)
   components/
     analyses/             # 분석 상세/목록 클라이언트 컴포넌트
+    assessment-v2/        # V2 학생 설문 UI (인테이크 화면, 문항 응답, 진행 클라이언트)
+    analysis-report-v2/   # V2 결과 보고서 (학부모용/상담자용/강사 시트)
+    chat/                 # AI 채팅 비서 UI (챗 클라이언트, 제안 확인 카드)
     common/               # 공통 UI (DateFilter, EmptyState, SearchInput, StatusBadge)
     consultations/        # 상담 상세/목록/폼/텍스트파싱 컴포넌트
     bookings/             # 예약 현황판 클라이언트 컴포넌트
     withdrawals/          # 퇴원생 목록/폼/분석 대시보드
     onboarding/           # 신입생 온보딩 리스트
+    progress/             # 진도 현황 보드 클라이언트 컴포넌트
     dashboard/            # 대시보드 클라이언트 컴포넌트
-    layout/               # Header, Sidebar
+    layout/               # Header, Sidebar, nk-gnb(NK 프로그램 전환 GNB), theme-toggle(야간 모드)
     providers/            # QueryProvider
     registrations/        # 등록 안내 상세/목록/폼 컴포넌트
     settings/             # 반/선생님/학생 폼/리스트 컴포넌트
@@ -57,9 +69,23 @@ src/
       survey.ts           # 설문 CRUD + 6-Factor 계산
       booking.ts          # 예약 CRUD + 슬롯 차단
       withdrawal.ts       # 퇴원생 CRUD
+      progress.ts         # 진도 현황 조회/갱신
+    assessment/v2/        # V2 설문 정의·점수 엔진·해석·직렬화
+      definition.ts       # 문항 정의 (공통 38 + 수학 11 / 영어 12)
+      scoring.ts          # 축·요인 점수 계산 엔진
+      interpretation.ts   # 점수 → 해석 텍스트
+      serializer.ts       # 응답 JSONB 직렬화/역직렬화
+    chat-tools.ts         # AI 채팅 비서 도구 정의 (조회/제안 생성)
+    solapi/               # 카카오 알림톡 발송 클라이언트 (client.ts, alimtalk.ts)
+    consultation-alimtalk.ts  # 상담 알림톡 템플릿·발송
+    registration-alimtalk.ts  # 등록 안내 알림톡 템플릿·발송
+    analysis-alimtalk.ts      # 분석 결과 알림톡 템플릿·발송
+    withdrawal-insight/   # 퇴원 신호·블록 분석 (signals.ts, blocks.ts, events.ts)
+    menu-sectors.ts       # 사이드바 메뉴 카테고리 단일 출처 + 권한 필터
     gemini.ts             # Gemini API 호출, JSON 추출, 분석 프롬프트 빌더
     claude.ts             # Claude Haiku API 호출, 등록 안내문 프롬프트 및 HTML 템플릿 빌더
-    factors.ts            # 6-Factor 점수 계산 공유 유틸
+    factors.ts            # 레거시 V1 7-Factor 점수 계산 공유 유틸
+    auth.ts               # 휴대폰번호 ↔ Supabase Auth 이메일 변환
     env.ts                # 환경변수 Zod 검증
     supabase/
       client.ts           # 브라우저용 Supabase 클라이언트
@@ -118,10 +144,15 @@ npm run lint         # ESLint 검사
 - 에러 로깅: `console.error("[모듈]", { context })` 패턴
 - Gemini API: 헤더 기반 인증 (`x-goog-api-key`), 자동 재시도 (429/5xx)
 - 환경변수: `src/lib/env.ts`에서 Zod 검증 후 `env` 객체로 사용
-- API 엔드포인트: `PATCH /api/onboarding-status` (유일한 REST API)
+- REST API 엔드포인트 (3개):
+  - `PATCH /api/onboarding-status` — 온보딩 상태 갱신
+  - `POST /api/chat` — AI 채팅 비서 (Claude Sonnet 4.6 스트리밍)
+  - `POST /api/chat/execute` — 챗 제안 실행 (HMAC 서명 검증)
 
 ## 공개 페이지
 
-- `/survey` - 학생용 공개 설문 페이지 (인증 불필요, 35문항(7-Factor) + 주관식)
+- `/survey` - 학생용 공개 설문 페이지 (인증 불필요, V2 학습운영 프로필: 공통 38문항 + 수학 11 / 영어 12)
 - `/booking` - 상담 예약 페이지 (인증 불필요)
+- `/report/[token]` - 학부모 보고서 (인증 불필요, 토큰 기반)
+- `/feedback/[token]` - 설문 피드백 (인증 불필요, 토큰 기반)
 - `/login` - 관리자 로그인

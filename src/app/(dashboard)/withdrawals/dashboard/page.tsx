@@ -1,4 +1,5 @@
 import { getWithdrawals, getStudentCountsByTeacher, getMonthlyBaseStudentCounts } from "@/lib/actions/withdrawal";
+import { isCountedWithdrawal } from "@/lib/withdrawal-status";
 import { getImprovementActions } from "@/lib/actions/improvement-action";
 import { currentYearMonth, prevYearMonth } from "@/lib/improvement-actions";
 import { WithdrawalDashboard } from "@/components/withdrawals/withdrawal-dashboard-client";
@@ -16,8 +17,10 @@ export default async function WithdrawalDashboardPage() {
     getImprovementActions(prevYearMonth(actionsYearMonth)),
   ]);
 
-  const mathCount = withdrawals.filter((w) => w.subject?.includes("수학")).length;
-  const engCount = withdrawals.filter((w) => w.subject?.includes("영어")).length;
+  // 헤더 숫자도 통계다 — 퇴원 건만 센다. 클라이언트에는 전체를 그대로 넘긴다.
+  const counted = withdrawals.filter(isCountedWithdrawal);
+  const mathCount = counted.filter((w) => w.subject?.includes("수학")).length;
+  const engCount = counted.filter((w) => w.subject?.includes("영어")).length;
 
   return (
     <div className="space-y-5">
@@ -39,7 +42,7 @@ export default async function WithdrawalDashboardPage() {
             <span>전체 퇴원생 데이터를 종합적으로 분석합니다</span>
             <span className="text-nk-ink-hint">|</span>
             <span>
-              총 <span className="font-bold" style={{ color: "var(--primary)" }}>{withdrawals.length}</span>명
+              퇴원 <span className="font-bold" style={{ color: "var(--primary)" }}>{counted.length}</span>명
             </span>
             {mathCount > 0 && (
               <>

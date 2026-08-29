@@ -1,5 +1,6 @@
 import { getWithdrawals } from "@/lib/actions/withdrawal";
 import { WithdrawalList } from "@/components/withdrawals/withdrawal-list-client";
+import { isCountedWithdrawal } from "@/lib/withdrawal-status";
 import { UserMinus } from "lucide-react";
 import { checkPagePermission } from "@/lib/check-permission";
 
@@ -7,8 +8,10 @@ export default async function WithdrawalsPage() {
   await checkPagePermission("/withdrawals");
   const withdrawals = await getWithdrawals();
 
-  const mathCount = withdrawals.filter((w) => w.subject?.includes("수학")).length;
-  const engCount = withdrawals.filter((w) => w.subject?.includes("영어")).length;
+  // 헤더 숫자는 통계라 퇴원 건만 센다. 목록에는 휴원·복귀까지 전체를 넘긴다.
+  const counted = withdrawals.filter(isCountedWithdrawal);
+  const mathCount = counted.filter((w) => w.subject?.includes("수학")).length;
+  const engCount = counted.filter((w) => w.subject?.includes("영어")).length;
 
   return (
     <div className="space-y-5">
@@ -29,7 +32,7 @@ export default async function WithdrawalsPage() {
           </h1>
           <div className="flex items-center gap-2 text-[12.5px]" style={{ color: "rgb(var(--wr-ink-sub))" }}>
             <span>
-              총 <span className="font-bold" style={{ color: "var(--primary)" }}>{withdrawals.length}</span>명
+              퇴원 <span className="font-bold" style={{ color: "var(--primary)" }}>{counted.length}</span>명
             </span>
             {mathCount > 0 && (
               <>

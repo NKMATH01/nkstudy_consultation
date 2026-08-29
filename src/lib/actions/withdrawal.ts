@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { retrospectiveFormSchema, withdrawalFormSchema } from "@/lib/validations/withdrawal";
+import { statusOf } from "@/lib/withdrawal-status";
 import {
   isRetrospectiveComplete,
   parseRetrospective,
@@ -54,6 +55,9 @@ export async function getWithdrawals(): Promise<Withdrawal[]> {
     notice_date: row.notice_date ?? null,
     duration_months: row.duration_months != null ? Number(row.duration_months) : null,
     withdrawal_date: row.withdrawal_date ?? null,
+    // status 컬럼이 아직 없는 DB에서도 기존 동작대로 '퇴원'으로 읽힌다.
+    status: statusOf(row as { status?: string | null }),
+    returned_at: row.returned_at ?? null,
     class_attitude: row.class_attitude ?? null,
     homework_submission: row.homework_submission ?? null,
     attendance: row.attendance ?? null,
@@ -130,6 +134,8 @@ export async function createWithdrawal(formData: FormData) {
       expected_comeback_date: parsed.data.expected_comeback_date || null,
       special_notes: parsed.data.special_notes || null,
       raw_text: parsed.data.raw_text || null,
+      status: parsed.data.status,
+      returned_at: parsed.data.returned_at || null,
     });
 
     if (error) {
@@ -255,6 +261,8 @@ export async function updateWithdrawal(id: string, formData: FormData) {
         expected_comeback_date: parsed.data.expected_comeback_date || null,
         special_notes: parsed.data.special_notes || null,
         raw_text: parsed.data.raw_text || null,
+        status: parsed.data.status,
+        returned_at: parsed.data.returned_at || null,
       })
       .eq("id", id);
 

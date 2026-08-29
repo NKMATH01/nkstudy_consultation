@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { GraduationCap, Info, Quote, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import type { Withdrawal } from "@/types";
+import { isCountedWithdrawal } from "@/lib/withdrawal-status";
 import {
   buildTeacherLearning,
   listTeachersFromWithdrawals,
@@ -78,12 +79,17 @@ function LearningCard({
 }
 
 export function TeacherLearningClient({
-  withdrawals,
+  withdrawals: allWithdrawals,
   teacherStudentCounts,
 }: {
   withdrawals: Withdrawal[];
   teacherStudentCounts?: Record<string, number>;
 }) {
+  // 강사 러닝도 퇴원 통계다 — 휴원·복귀는 세지 않는다.
+  const withdrawals = useMemo(
+    () => allWithdrawals.filter(isCountedWithdrawal),
+    [allWithdrawals]
+  );
   const [currentYear] = useState(() => new Date().getFullYear());
   const [currentMonth] = useState(() => new Date().getMonth() + 1);
 

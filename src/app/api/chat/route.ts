@@ -13,6 +13,8 @@ import {
   getV2CoreMetrics,
   SUBJECT_LABEL_V2,
 } from "@/lib/assessment/v2/display";
+import { statusOf } from "@/lib/withdrawal-status";
+import { WITHDRAWAL_STATUS_LABELS } from "@/types";
 
 const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
@@ -312,7 +314,7 @@ ${JSON.stringify((registrations.data || []).map(r => ({ 이름: r.name, 배정�
 ${JSON.stringify((bookings.data || []).map(b => ({ 학생: b.student_name, 날짜: b.booking_date, 시간: b.booking_hour, 지점: b.branch, 유형: b.consult_type, 결제: b.paid })), null, 0)}
 
 ### 퇴원생 최근 30건
-${JSON.stringify((withdrawals.data || []).map(w => ({ 이름: w.name, 과목: w.subject, 반: w.class_name, 담임: w.teacher, 사유: w.reason_category, 복귀가능: w.comeback_possibility, 퇴원일: w.enrollment_end })), null, 0)}
+${JSON.stringify((withdrawals.data || []).map(w => ({ 이름: w.name, 과목: w.subject, 반: w.class_name, 담임: w.teacher, 사유: w.reason_category, 복귀가능: w.comeback_possibility, 퇴원일: w.withdrawal_date, 상태: WITHDRAWAL_STATUS_LABELS[statusOf(w)] })), null, 0)}
 `;
 }
 

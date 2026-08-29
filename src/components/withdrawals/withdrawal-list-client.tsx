@@ -8,6 +8,15 @@ import {
   retrospectiveStatus,
   type RetrospectiveStatus,
 } from "@/lib/withdrawal-retrospective";
+import {
+  daysSinceWithdrawal,
+  isCountedWithdrawal,
+  isPausedOverdue,
+  retrospectiveReminder,
+  statusOf,
+  summarizeStatuses,
+  toIsoDay,
+} from "@/lib/withdrawal-status";
 import { WithdrawalRetrospectiveDialog } from "@/components/withdrawals/withdrawal-retrospective-dialog";
 import { EventAxesSummary } from "@/components/withdrawals/withdrawal-insight-blocks";
 import {
@@ -40,7 +49,8 @@ import {
 } from "@/components/ui/dialog";
 import { WithdrawalFormDialog } from "@/components/withdrawals/withdrawal-form-client";
 import { deleteWithdrawal } from "@/lib/actions/withdrawal";
-import type { Withdrawal } from "@/types";
+import { WITHDRAWAL_STATUS_LABELS } from "@/types";
+import type { Withdrawal, WithdrawalStatusValue } from "@/types";
 
 interface Props {
   withdrawals: Withdrawal[];
@@ -210,6 +220,27 @@ function ReasonBadge({ value }: { value: string | null }) {
   );
 }
 
+/* ─── Withdrawal Status Badge ─── */
+const STATUS_BADGE: Record<WithdrawalStatusValue, string> = {
+  withdrawn: "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft",
+  paused: "bg-nk-warn-soft text-nk-warn ring-nk-warn",
+  returned: "bg-nk-done-soft text-nk-done ring-nk-done",
+};
+
+function StatusBadge({ value, overdue }: { value: WithdrawalStatusValue; overdue: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md ring-1 ring-inset whitespace-nowrap ${
+        overdue ? "bg-nk-late-soft text-nk-late ring-nk-late" : STATUS_BADGE[value]
+      }`}
+      title={overdue ? "예상 복귀 시기가 지났습니다" : undefined}
+    >
+      {WITHDRAWAL_STATUS_LABELS[value]}
+      {overdue ? "!" : ""}
+    </span>
+  );
+}
+
 /* ─── Retrospective Status Badge ─── */
 const RETRO_BADGE: Record<RetrospectiveStatus, { label: string; cls: string }> = {
   none: { label: "회고 필요", cls: "bg-nk-warn-soft text-nk-warn ring-nk-warn" },
@@ -219,12 +250,25 @@ const RETRO_BADGE: Record<RetrospectiveStatus, { label: string; cls: string }> =
 
 function RetrospectiveBadge({
   status,
+  reminder,
+  daysSince,
   onClick,
 }: {
   status: RetrospectiveStatus;
+  reminder: "none" | "waiting" | "overdue";
+  daysSince: number | null;
   onClick: (e: React.MouseEvent) => void;
 }) {
-  const badge = RETRO_BADGE[status];
+  // 퇴원 건이면서 회고가 밀린 경우에는 남은/지난 날짜를 앞세워 보여 준다.
+  let badge = RETRO_BADGE[status];
+  if (reminder === "overdue") {
+    badge = {
+      label: daysSince === null ? "회고 지연" : `회고 D+${daysSince}`,
+      cls: "bg-nk-late-soft text-nk-late ring-nk-late",
+    };
+  } else if (reminder === "waiting") {
+    badge = { label: "회고 대기", cls: "bg-nk-sunken text-nk-ink-sub ring-nk-line-soft" };
+  }
   return (
     <button
       type="button"
@@ -268,6 +312,8 @@ function DetailItem({ label, value, icon: Icon }: { label: string; value: string
 export function WithdrawalList({ withdrawals }: Props) {
   const router = useRouter();
   const [currentYear] = useState(() => new Date().getFullYear());
+  // 마운트 시점의 오늘 (렌더 중 new Date() 호출 회피 — react-hooks/purity)
+  const [today] = useState(() => toIsoDay(new Date()));
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Withdrawal | undefined>();
@@ -337,6 +383,11 @@ export function WithdrawalList({ withdrawals }: Props) {
   const mathCount = withdrawals.filter((w) => w.subject?.includes("수학")).length;
   const engCount = withdrawals.filter((w) => w.subject?.includes("영어")).length;
 
+  /* ─── 상태 요약 (목록은 전체를 보여 주고, 챙길 것만 한 줄로 짚어 준다) ─── */
+  const statusSummary = useMemo(() => summarizeStatuses(withdrawals, today), [withdrawals, today]);
+  /* ─── 인사이트 스트립은 '통계'라 퇴원 건만 센다 (휴원·복귀 제외) ─── */
+  const countedWithdrawals = useMemo(() => withdrawals.filter(isCountedWithdrawal), [withdrawals]);
+
   /* ─── Actions ─── */
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -365,7 +416,7 @@ export function WithdrawalList({ withdrawals }: Props) {
 
   return (
     <>
-      <WithdrawalInsightStrip withdrawals={withdrawals} />
+      <WithdrawalInsightStrip withdrawals={countedWithdrawals} />
       <div
         className="bg-nk-surface rounded-2xl border border-nk-line-soft overflow-hidden"
         style={{ boxShadow: "0 1px 3px rgb(var(--wr-navy-strong) / 0.02), 0 4px 12px rgb(var(--wr-navy-strong) / 0.04)" }}
@@ -389,6 +440,41 @@ export function WithdrawalList({ withdrawals }: Props) {
             퇴원생 등록
           </button>
         </div>
+
+        {/* ─── Status Summary Line ─── */}
+        {withdrawals.length > 0 && (
+          <div
+            className="px-6 py-2.5 border-b border-nk-line-soft flex items-center gap-3 flex-wrap text-xs"
+            style={{ background: "rgb(var(--wr-sunken))" }}
+          >
+            <span className="font-semibold text-nk-ink-sub">상태:</span>
+            <span className="text-nk-ink-sub">
+              휴원 <span className="font-bold text-nk-warn">{statusSummary.paused}</span>
+            </span>
+            <span className="text-nk-line">|</span>
+            <span className="text-nk-ink-sub">
+              복귀 예정 경과{" "}
+              <span className={`font-bold ${statusSummary.pausedOverdue > 0 ? "text-nk-late" : "text-nk-ink-hint"}`}>
+                {statusSummary.pausedOverdue}
+              </span>
+            </span>
+            <span className="text-nk-line">|</span>
+            <span className="text-nk-ink-sub">
+              회고 미작성{" "}
+              <span className={`font-bold ${statusSummary.retrospectiveMissing > 0 ? "text-nk-warn" : "text-nk-done"}`}>
+                {statusSummary.retrospectiveMissing}
+              </span>
+            </span>
+            {statusSummary.returned > 0 && (
+              <>
+                <span className="text-nk-line">|</span>
+                <span className="text-nk-ink-sub">
+                  복귀 <span className="font-bold text-nk-done">{statusSummary.returned}</span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* ─── Monthly Tabs ─── */}
         {availableMonths.length > 0 && (
@@ -551,10 +637,13 @@ export function WithdrawalList({ withdrawals }: Props) {
             </button>
           </div>
         ) : (
-          <div>
+          /* 상태 칸이 늘면서 좁은 화면에서 잘릴 수 있어 가로 스크롤을 연다.
+             펼침 상세 패널에는 min-w를 주지 않아 카드 폭에 맞춰 그대로 흐른다. */
+          <div className="overflow-x-auto">
             {/* ─── Column Header ─── */}
-            <div className="px-6 py-2 flex items-center gap-4 border-b border-nk-line-soft bg-nk-sunken/50">
+            <div className="px-6 py-2 flex items-center gap-4 border-b border-nk-line-soft bg-nk-sunken/50 min-w-[1060px]">
               <span className="w-5 flex-shrink-0" />
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[52px] flex-shrink-0">상태</span>
               <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[80px] flex-shrink-0">퇴원일</span>
               <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[60px] flex-shrink-0">이름</span>
               <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[52px] flex-shrink-0">과목</span>
@@ -564,18 +653,20 @@ export function WithdrawalList({ withdrawals }: Props) {
               <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[140px] flex-shrink-0">퇴원 사유</span>
               <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[48px] flex-shrink-0">재원</span>
               <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[60px] flex-shrink-0">복귀 가능</span>
-              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[76px] flex-shrink-0">회고</span>
+              <span className="text-[10px] font-bold text-nk-ink-hint uppercase tracking-wider w-[84px] flex-shrink-0">회고</span>
               <span className="ml-auto w-[90px] flex-shrink-0" />
             </div>
 
             {/* ─── List Rows ─── */}
             {filtered.map((w) => {
               const isExpanded = expandedId === w.id;
+              const rowStatus = statusOf(w);
+              const reminder = retrospectiveReminder(w, today);
               return (
                 <div key={w.id} className={`border-b border-nk-line-soft last:border-b-0 transition-colors ${isExpanded ? "bg-[var(--primary)]/[0.015]" : ""}`}>
                   {/* ─ Summary Row ─ */}
                   <div
-                    className="px-6 py-3 flex items-center gap-4 hover:bg-nk-sunken/80 transition-colors cursor-pointer group"
+                    className="px-6 py-3 flex items-center gap-4 hover:bg-nk-sunken/80 transition-colors cursor-pointer group min-w-[1060px]"
                     onClick={() => setExpandedId(isExpanded ? null : w.id)}
                   >
                     <span className="flex-shrink-0 w-5 flex items-center justify-center">
@@ -584,6 +675,9 @@ export function WithdrawalList({ withdrawals }: Props) {
                       ) : (
                         <ChevronRight className="h-4 w-4 text-nk-ink-hint group-hover:text-nk-ink-sub transition-colors" />
                       )}
+                    </span>
+                    <span className="w-[52px] flex-shrink-0">
+                      <StatusBadge value={rowStatus} overdue={isPausedOverdue(w, today)} />
                     </span>
                     <span className="text-xs text-nk-ink-hint w-[80px] flex-shrink-0 tabular-nums">{w.withdrawal_date || "-"}</span>
                     <span className="font-bold text-sm text-nk-ink w-[60px] flex-shrink-0 truncate">{w.name}</span>
@@ -594,9 +688,11 @@ export function WithdrawalList({ withdrawals }: Props) {
                     <span className="w-[140px] flex-shrink-0"><ReasonBadge value={w.reason_category} /></span>
                     <span className="text-xs text-nk-ink-hint w-[48px] flex-shrink-0 tabular-nums">{w.duration_months ? `${w.duration_months}개월` : "-"}</span>
                     <span className="w-[60px] flex-shrink-0"><ComebackBadge value={w.comeback_possibility} /></span>
-                    <span className="w-[76px] flex-shrink-0">
+                    <span className="w-[84px] flex-shrink-0">
                       <RetrospectiveBadge
                         status={retrospectiveStatus(w.retrospective)}
+                        reminder={reminder}
+                        daysSince={daysSinceWithdrawal(w, today)}
                         onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
                       />
                     </span>
@@ -746,6 +842,8 @@ export function WithdrawalList({ withdrawals }: Props) {
                             <h4 className="text-xs font-bold text-nk-ink">퇴원 회고</h4>
                             <RetrospectiveBadge
                               status={retrospectiveStatus(w.retrospective)}
+                              reminder={reminder}
+                              daysSince={daysSinceWithdrawal(w, today)}
                               onClick={(e) => { e.stopPropagation(); setRetroTarget(w); }}
                             />
                           </div>

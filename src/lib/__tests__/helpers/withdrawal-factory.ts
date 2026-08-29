@@ -20,6 +20,8 @@ export function makeW(partial: Partial<Withdrawal> = {}): Withdrawal {
     notice_date: null,
     duration_months: null,
     withdrawal_date: "2026-03-10",
+    status: "withdrawn",
+    returned_at: null,
     class_attitude: null,
     homework_submission: null,
     attendance: null,

@@ -14,6 +14,7 @@ import {
 import { DiagnosisSection } from "@/components/withdrawals/withdrawal-diagnosis-hero";
 import { ImprovementActionsCard } from "@/components/withdrawals/improvement-actions-card";
 import { computeRetrospectiveRate } from "@/lib/withdrawal-retrospective";
+import { isCountedWithdrawal } from "@/lib/withdrawal-status";
 import { adoptPrescriptionAction } from "@/lib/actions/improvement-action";
 import type { ImprovementAction } from "@/lib/improvement-actions";
 import type { DiagnosisType } from "@/lib/withdrawal-analytics";
@@ -407,7 +408,7 @@ function SortableHeader({ label, sortField, currentSort, currentDir, onSort }: {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function WithdrawalDashboard({
-  withdrawals,
+  withdrawals: allWithdrawals,
   totalStudentCount,
   teacherStudentCounts,
   monthlyBaseTotal,
@@ -417,6 +418,11 @@ export function WithdrawalDashboard({
   actionsYearMonth,
 }: Props) {
   const router = useRouter();
+  // 퇴원 통계는 status='withdrawn'만 센다. 휴원·복귀는 아래 계산 전부에서 빠진다.
+  const withdrawals = useMemo(
+    () => allWithdrawals.filter(isCountedWithdrawal),
+    [allWithdrawals]
+  );
   const [currentYear] = useState(() => new Date().getFullYear());
   // 월 탭은 연도 정보가 없거나 올해인 건만 대상으로 한다.
   const matchesMonth = useCallback(

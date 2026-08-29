@@ -511,6 +511,16 @@ export const WITHDRAWAL_REASONS = [
   "기타",
 ] as const;
 
+/** 퇴원 기록의 상태. 퇴원 통계는 withdrawn만 센다. */
+export type WithdrawalStatusValue = "withdrawn" | "paused" | "returned";
+
+/** 퇴원 상태 한국어 라벨. 상담용 STATUS_LABELS와는 별개 상수다. */
+export const WITHDRAWAL_STATUS_LABELS: Record<WithdrawalStatusValue, string> = {
+  withdrawn: "퇴원",
+  paused: "휴원",
+  returned: "복귀",
+};
+
 export interface Withdrawal {
   id: string;
   name: string;
@@ -527,6 +537,10 @@ export interface Withdrawal {
   duration_months: number | null;
   /** 퇴원일 = 마지막 등원일. */
   withdrawal_date: string | null;
+  /** 퇴원/휴원/복귀. 컬럼 도입 이전 기록은 서버에서 withdrawn으로 채워 내려온다. */
+  status: WithdrawalStatusValue;
+  /** 복귀 확정일. status='returned' 일 때만 값이 있다. */
+  returned_at: string | null;
   class_attitude: string | null;
   homework_submission: string | null;
   attendance: string | null;

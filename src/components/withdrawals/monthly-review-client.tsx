@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Withdrawal } from "@/types";
 import { getMonthFromDate, isCurrentYearMonth } from "@/lib/withdrawal-analytics";
+import { isCountedWithdrawal } from "@/lib/withdrawal-status";
 import {
   buildMonthlyLessons,
   collectMonthWithdrawals,
@@ -88,7 +89,7 @@ function ReviewCard({
 }
 
 export function MonthlyReviewClient({
-  withdrawals,
+  withdrawals: allWithdrawals,
   currentActions,
   prevActions,
   actionsYearMonth,
@@ -98,6 +99,11 @@ export function MonthlyReviewClient({
   prevActions: ImprovementAction[];
   actionsYearMonth: string;
 }) {
+  // 월간 반성은 퇴원 통계다 — 휴원·복귀는 세지 않는다.
+  const withdrawals = useMemo(
+    () => allWithdrawals.filter(isCountedWithdrawal),
+    [allWithdrawals]
+  );
   const [currentYear] = useState(() => new Date().getFullYear());
 
   const availableMonths = useMemo(() => {

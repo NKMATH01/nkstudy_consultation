@@ -9,6 +9,9 @@ export const WITHDRAWAL_REQUIRED_MESSAGES = {
   reason_category: "퇴원 사유 분류를 선택해주세요",
   final_consult_date: "최종 상담일을 선택해주세요",
   final_consult_summary: `상담 요약을 ${CONSULT_SUMMARY_MIN_LENGTH}자 이상 입력해주세요`,
+  /** 휴원은 언제 돌아오는지가 추적의 전부라 반드시 받는다. */
+  expected_comeback_date: "휴원은 예상 복귀 시기를 입력해주세요",
+  returned_at: "복귀일을 선택해주세요",
 } as const;
 
 /** 필수 날짜: 값이 없어도(undefined) 같은 안내가 나가도록 error 메시지를 고정한다. */
@@ -22,7 +25,7 @@ const optionalDate = (message: string) =>
     .optional()
     .refine((v) => !v || ISO_DATE_PATTERN.test(v), { message });
 
-export const withdrawalFormSchema = z.object({
+const withdrawalFormBaseSchema = z.object({
   // 필수 조건은 그대로(1자 이상)고, 값이 아예 안 넘어왔을 때도 같은 한국어 안내가 나가게만 맞춘다.
   name: z.string({ error: "이름을 입력해주세요" }).min(1, "이름을 입력해주세요"),
   school: z.string().optional(),
@@ -56,9 +59,36 @@ export const withdrawalFormSchema = z.object({
     .min(CONSULT_SUMMARY_MIN_LENGTH, WITHDRAWAL_REQUIRED_MESSAGES.final_consult_summary),
   parent_thanks: z.boolean().optional(),
   comeback_possibility: z.string().optional(),
+  // 자유 텍스트 유지 — 기존 데이터에 "9월 초" 같은 서술형이 섞여 있다.
   expected_comeback_date: z.string().optional(),
   special_notes: z.string().optional(),
   raw_text: z.string().optional(),
+  /** 퇴원/휴원/복귀. 값이 안 넘어오면 기존 동작대로 '퇴원'으로 본다. */
+  status: z
+    .enum(["withdrawn", "paused", "returned"], { error: "상태를 선택해주세요" })
+    .optional()
+    .default("withdrawn"),
+  /** 복귀 확정일. status='returned' 일 때만 필수. */
+  returned_at: optionalDate(WITHDRAWAL_REQUIRED_MESSAGES.returned_at),
+});
+
+export const withdrawalFormSchema = withdrawalFormBaseSchema.superRefine((data, context) => {
+  // 휴원은 '언제 돌아오는지'가 추적의 전부다.
+  if (data.status === "paused" && !data.expected_comeback_date?.trim()) {
+    context.addIssue({
+      code: "custom",
+      path: ["expected_comeback_date"],
+      message: WITHDRAWAL_REQUIRED_MESSAGES.expected_comeback_date,
+    });
+  }
+  // 복귀는 복귀일이 없으면 기록으로서 의미가 없다.
+  if (data.status === "returned" && !data.returned_at?.trim()) {
+    context.addIssue({
+      code: "custom",
+      path: ["returned_at"],
+      message: WITHDRAWAL_REQUIRED_MESSAGES.returned_at,
+    });
+  }
 });
 
 export type WithdrawalFormValues = z.infer<typeof withdrawalFormSchema>;

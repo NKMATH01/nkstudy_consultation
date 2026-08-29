@@ -22,8 +22,9 @@ import {
   CONSULT_SUMMARY_MIN_LENGTH,
   WITHDRAWAL_REQUIRED_MESSAGES,
 } from "@/lib/validations/withdrawal";
-import { WITHDRAWAL_REASONS } from "@/types";
-import type { Withdrawal } from "@/types";
+import { detectPausedFromText, statusOf, toIsoDay } from "@/lib/withdrawal-status";
+import { WITHDRAWAL_REASONS, WITHDRAWAL_STATUS_LABELS } from "@/types";
+import type { Withdrawal, WithdrawalStatusValue } from "@/types";
 
 interface Props {
   open: boolean;
@@ -36,6 +37,9 @@ const INFERRED_REASON_KEY = "_reason_inferred";
 
 /** 월까지만 있어 채우지 못한 날짜 항목 목록 (UI 전용 키, DB 저장 대상 아님) */
 const PARTIAL_DATE_KEY = "_partial_dates";
+
+/** 파싱으로 추론된 상태임을 표시하는 UI 전용 키 (DB 저장 대상 아님) */
+const INFERRED_STATUS_KEY = "_status_inferred";
 
 /** Parse the NK withdrawal text template (supports multiple formats) */
 function parseWithdrawalText(text: string) {
@@ -160,6 +164,12 @@ function parseWithdrawalText(text: string) {
   const comebackDate = grab(/예상\s*복귀\s*시기\s*[:：]\s*(.+)/);
   if (comebackDate) result.expected_comeback_date = comebackDate;
 
+  // "휴원"·"복귀 예정" 문구가 있으면 휴원을 제안한다(확정 아님 — 폼에서 확인 후 저장).
+  if (detectPausedFromText(text)) {
+    result.status = "paused";
+    result[INFERRED_STATUS_KEY] = "true";
+  }
+
   const notes = grab(/(?:특이사항|비고)\s*[:：]\s*(.+)/);
   if (notes) result.special_notes = notes;
 
@@ -211,6 +221,25 @@ function parseWithdrawalText(text: string) {
   return result;
 }
 
+/** 상태 세그먼트. 색은 NK 공통 상태 토큰(--wr-status-*)을 쓰는 유틸리티로만 준다. */
+const STATUS_OPTIONS: { value: WithdrawalStatusValue; label: string; activeCls: string }[] = [
+  {
+    value: "withdrawn",
+    label: WITHDRAWAL_STATUS_LABELS.withdrawn,
+    activeCls: "bg-nk-late-soft text-nk-late ring-nk-late",
+  },
+  {
+    value: "paused",
+    label: `${WITHDRAWAL_STATUS_LABELS.paused} (복귀 예정)`,
+    activeCls: "bg-nk-warn-soft text-nk-warn ring-nk-warn",
+  },
+  {
+    value: "returned",
+    label: WITHDRAWAL_STATUS_LABELS.returned,
+    activeCls: "bg-nk-done-soft text-nk-done ring-nk-done",
+  },
+];
+
 const ATTITUDES = ["상", "중상", "중", "중하", "하"];
 const GRADE_CHANGES = ["상승", "유지", "하락"];
 const COMEBACKS = ["상", "중상", "중", "중하", "하", "최하"];
@@ -220,12 +249,16 @@ type WithdrawalFieldsUpdater = WithdrawalFields | ((prev: WithdrawalFields) => W
 type StringUpdater = string | ((prev: string) => string);
 type FieldErrors = Record<string, string>;
 
+type RequiredCheck = { key: string; message: string; isValid: (v: string) => boolean };
+
 /**
  * 저장 전 필수 검증. 서버 스키마(withdrawalFormSchema)와 같은 규칙을 쓰되,
  * 어느 칸이 문제인지 짚어 주려고 클라이언트에서 한 번 더 본다.
  * 배열 순서 = 사용자에게 안내할 우선순위(첫 항목으로 스크롤·포커스).
+ *
+ * 휴원·복귀도 상담을 거쳐 결정되므로 상담일·요약 기준은 퇴원과 동일하게 유지한다.
  */
-const REQUIRED_CHECKS: { key: string; message: string; isValid: (v: string) => boolean }[] = [
+const BASE_REQUIRED_CHECKS: RequiredCheck[] = [
   { key: "name", message: "이름을 입력해주세요", isValid: (v) => v.trim().length > 0 },
   {
     key: "withdrawal_date",
@@ -249,9 +282,31 @@ const REQUIRED_CHECKS: { key: string; message: string; isValid: (v: string) => b
   },
 ];
 
-function validateWithdrawalFields(fields: WithdrawalFields): FieldErrors {
+/** 상태에 따라 조건부 필수가 붙는다. 복귀일은 폼 맨 위, 예상 복귀 시기는 맨 아래라 순서를 맞춘다. */
+function requiredChecksFor(status: WithdrawalStatusValue): RequiredCheck[] {
+  const checks: RequiredCheck[] = [];
+  if (status === "returned") {
+    checks.push({
+      key: "returned_at",
+      message: WITHDRAWAL_REQUIRED_MESSAGES.returned_at,
+      isValid: (v) => ISO_DATE_PATTERN.test(v),
+    });
+  }
+  checks.push(...BASE_REQUIRED_CHECKS);
+  if (status === "paused") {
+    checks.push({
+      key: "expected_comeback_date",
+      message: WITHDRAWAL_REQUIRED_MESSAGES.expected_comeback_date,
+      // 자유 텍스트 유지 — "9월 초" 같은 서술형도 통과시킨다.
+      isValid: (v) => v.trim().length > 0,
+    });
+  }
+  return checks;
+}
+
+function validateWithdrawalFields(fields: WithdrawalFields, checks: RequiredCheck[]): FieldErrors {
   const errors: FieldErrors = {};
-  REQUIRED_CHECKS.forEach(({ key, message, isValid }) => {
+  checks.forEach(({ key, message, isValid }) => {
     if (!isValid(fields[key] ?? "")) errors[key] = message;
   });
   return errors;
@@ -295,6 +350,8 @@ function buildWithdrawalFields(withdrawal?: Withdrawal): WithdrawalFields {
   if (withdrawal.comeback_possibility) prefill.comeback_possibility = withdrawal.comeback_possibility;
   if (withdrawal.expected_comeback_date) prefill.expected_comeback_date = withdrawal.expected_comeback_date;
   if (withdrawal.special_notes) prefill.special_notes = withdrawal.special_notes;
+  prefill.status = statusOf(withdrawal);
+  if (withdrawal.returned_at) prefill.returned_at = withdrawal.returned_at;
   return prefill;
 }
 
@@ -376,6 +433,17 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
         if (months !== null) next.duration_months = String(months);
         delete next[PARTIAL_DATE_KEY];
       }
+      if (key === "status") {
+        // 사용자가 상태를 직접 고르면 추론 표시를 해제한다.
+        delete next[INFERRED_STATUS_KEY];
+        // 복귀로 바꾸면 복귀일을 오늘로 미리 채운다(수정 가능).
+        if (value === "returned") {
+          if (!next.returned_at) next.returned_at = toIsoDay(new Date());
+        } else {
+          // 복귀가 아니면 복귀일은 남기지 않는다(DB 규약: returned일 때만 값이 있다).
+          delete next.returned_at;
+        }
+      }
       return next;
     });
     // 사용자가 고치기 시작하면 그 칸의 에러 표시는 지운다.
@@ -387,12 +455,15 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
   };
 
   const isReasonInferred = fields[INFERRED_REASON_KEY] === "true";
+  const isStatusInferred = fields[INFERRED_STATUS_KEY] === "true";
   const partialDates = fields[PARTIAL_DATE_KEY] || "";
   const summaryLength = (fields.final_consult_summary || "").trim().length;
+  const status = statusOf({ status: fields.status });
+  const requiredChecks = requiredChecksFor(status);
 
   const handleSubmit = () => {
-    const nextErrors = validateWithdrawalFields(fields);
-    const firstInvalid = REQUIRED_CHECKS.find(({ key }) => nextErrors[key]);
+    const nextErrors = validateWithdrawalFields(fields, requiredChecks);
+    const firstInvalid = requiredChecks.find(({ key }) => nextErrors[key]);
     if (firstInvalid) {
       setErrors(nextErrors);
       toast.error(nextErrors[firstInvalid.key]);
@@ -466,6 +537,59 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
               placeholder="NK학원 퇴원 기록 텍스트를 여기에 붙여넣으세요..."
               className="w-full h-32 rounded-lg border border-nk-progress bg-nk-surface px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-nk-progress"
             />
+          </div>
+
+          {/* Status */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className="text-sm font-bold text-nk-ink flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-nk-progress" />
+                상태
+              </h4>
+              {isStatusInferred && (
+                <span className="inline-flex items-center rounded-md bg-nk-warn-soft px-2 py-0.5 text-[11px] font-semibold text-nk-warn ring-1 ring-inset ring-nk-warn">
+                  텍스트에서 휴원으로 추정 — 확인 후 저장하세요
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {STATUS_OPTIONS.map((option) => {
+                const active = status === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => updateField("status", option.value)}
+                    aria-pressed={active}
+                    className={`h-9 rounded-lg px-4 text-xs font-bold ring-1 ring-inset transition-colors ${
+                      active
+                        ? `${option.activeCls} shadow-sm`
+                        : "bg-nk-surface text-nk-ink-sub ring-nk-line-soft hover:bg-nk-sunken"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            {status === "paused" && (
+              <p className="mt-2 text-[11px] text-nk-ink-hint">
+                휴원은 퇴원 통계에서 빠집니다. 복귀 예정일이 지나면 목록에서 알려드립니다.
+              </p>
+            )}
+            {status === "returned" && (
+              <div className="mt-3 max-w-[220px]">
+                <label className={labelCls}>복귀일 *</label>
+                <input
+                  ref={registerField("returned_at")}
+                  className={inputCls + invalidCls("returned_at")}
+                  type="date"
+                  value={fields.returned_at || ""}
+                  onChange={(e) => updateField("returned_at", e.target.value)}
+                />
+                <FieldError message={errors.returned_at} />
+              </div>
+            )}
           </div>
 
           {/* Basic Info */}
@@ -668,8 +792,20 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
                 </select>
               </div>
               <div>
-                <label className={labelCls}>예상 복귀 시기</label>
-                <input className={inputCls} placeholder="없음" value={fields.expected_comeback_date || ""} onChange={(e) => updateField("expected_comeback_date", e.target.value)} />
+                <label className={labelCls}>예상 복귀 시기{status === "paused" ? " *" : ""}</label>
+                <input
+                  ref={registerField("expected_comeback_date")}
+                  className={inputCls + invalidCls("expected_comeback_date")}
+                  placeholder={status === "paused" ? "2026-09-01 또는 9월 초" : "없음"}
+                  value={fields.expected_comeback_date || ""}
+                  onChange={(e) => updateField("expected_comeback_date", e.target.value)}
+                />
+                <FieldError message={errors.expected_comeback_date} />
+                {status === "paused" && (
+                  <p className="mt-1 text-[11px] text-nk-ink-hint">
+                    복귀 예정일이 지나면 목록에서 알려드립니다 (날짜로 적으면 경과 확인 가능)
+                  </p>
+                )}
               </div>
             </div>
             <div className="mt-3">

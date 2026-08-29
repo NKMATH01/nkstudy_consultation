@@ -638,7 +638,8 @@ export function WithdrawalList({ withdrawals }: Props) {
                           <span className="text-nk-line">|</span>
                           <span><span className="text-nk-ink-hint">등원:</span> <span className="font-semibold text-nk-ink">{w.enrollment_start || "-"}</span></span>
                           <span className="text-nk-line">|</span>
-                          <span><span className="text-nk-ink-hint">퇴원:</span> <span className="font-semibold text-nk-ink">{w.enrollment_end || "-"}</span></span>
+                          {/* 퇴원일 = 마지막 등원일(withdrawal_date). 컬럼 분리 이전 기록만 enrollment_end로 보완한다. */}
+                          <span><span className="text-nk-ink-hint">퇴원:</span> <span className="font-semibold text-nk-ink">{w.withdrawal_date || w.enrollment_end || "-"}</span></span>
                           <span className="text-nk-line">|</span>
                           <span><span className="text-nk-ink-hint">재원기간:</span> <span className="font-semibold text-nk-ink">{w.duration_months ? `${w.duration_months}개월` : "-"}</span></span>
                         </div>

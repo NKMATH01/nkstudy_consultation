@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileText, Wand2 } from "lucide-react";
@@ -13,6 +13,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createWithdrawal, updateWithdrawal } from "@/lib/actions/withdrawal";
+import {
+  calcDurationMonths,
+  ISO_DATE_PATTERN,
+  normalizeDateInput,
+} from "@/lib/withdrawal-dates";
+import {
+  CONSULT_SUMMARY_MIN_LENGTH,
+  WITHDRAWAL_REQUIRED_MESSAGES,
+} from "@/lib/validations/withdrawal";
 import { WITHDRAWAL_REASONS } from "@/types";
 import type { Withdrawal } from "@/types";
 
@@ -25,19 +34,34 @@ interface Props {
 /** 파싱으로 추론된 사유임을 표시하는 UI 전용 키 (DB 저장 대상 아님) */
 const INFERRED_REASON_KEY = "_reason_inferred";
 
-/** Normalize date string: dots/slashes → hyphens */
-function normalizeDate(d: string): string {
-  return d.trim().replace(/[./]/g, "-");
-}
+/** 월까지만 있어 채우지 못한 날짜 항목 목록 (UI 전용 키, DB 저장 대상 아님) */
+const PARTIAL_DATE_KEY = "_partial_dates";
 
 /** Parse the NK withdrawal text template (supports multiple formats) */
 function parseWithdrawalText(text: string) {
   const result: Record<string, string> = {};
+  /** 연·월·일이 다 갖춰지지 않아 버린 날짜 항목의 라벨 */
+  const partialDates: string[] = [];
 
   // Helper: match first captured group
   const grab = (re: RegExp): string | null => {
     const m = text.match(re);
     return m ? m[1].trim() : null;
+  };
+
+  /**
+   * 날짜류 값은 YYYY-MM-DD로 정규화해서만 채운다.
+   * "2026.01"(월만)·"01.29"(연도 없음)처럼 반쪽짜리면 칸을 비워 두고 안내 목록에 남긴다.
+   */
+  const putDate = (key: string, rawValue: string | null, label: string) => {
+    if (!rawValue) return;
+    const normalized = normalizeDateInput(rawValue);
+    if (normalized) {
+      result[key] = normalized;
+      return;
+    }
+    // 앞선 항목에서 이미 온전한 값을 채웠다면 안내할 필요가 없다.
+    if (!result[key] && !partialDates.includes(label)) partialDates.push(label);
   };
 
   // Basic info — support 이름/학생명/성명
@@ -55,16 +79,17 @@ function parseWithdrawalText(text: string) {
   if (directGrade) result.grade = directGrade;
 
   // Duration — compound format: 2024.03.01 ~ 2025.01.15 (10개월)
+  // 재원 종료일 = 마지막 등원일 = 퇴원일이므로 withdrawal_date에 채운다.
+  // 아래에서 '퇴원일:' 항목을 만나면 그 값이 덮어쓴다(더 명시적인 입력이 우선).
   const durationMatch = text.match(/재원\s*기간\s*[:：]\s*(\S+)\s*~\s*(\S+)\s*\((\d+)개월\)/);
   if (durationMatch) {
-    result.enrollment_start = normalizeDate(durationMatch[1]);
-    result.enrollment_end = normalizeDate(durationMatch[2]);
+    putDate("enrollment_start", durationMatch[1], "등록일");
+    putDate("withdrawal_date", durationMatch[2], "퇴원일");
     result.duration_months = durationMatch[3];
   }
   // Separate field: 수업 시작일 / 등록일
   if (!result.enrollment_start) {
-    const start = grab(/(?:수업\s*시작일|등록일)\s*[:：]\s*(.+)/);
-    if (start) result.enrollment_start = normalizeDate(start);
+    putDate("enrollment_start", grab(/(?:수업\s*시작일|등록일)\s*[:：]\s*(.+)/), "등록일");
   }
   // 수업 기간 (N개월)
   if (!result.duration_months) {
@@ -73,8 +98,10 @@ function parseWithdrawalText(text: string) {
   }
 
   // Withdrawal date
-  const wDate = grab(/퇴원일\s*[:：]\s*(.+)/);
-  if (wDate) result.withdrawal_date = normalizeDate(wDate);
+  putDate("withdrawal_date", grab(/퇴원일\s*[:：]\s*(.+)/), "퇴원일");
+
+  // 퇴원 인지일 — 학원이 퇴원 사실을 알게 된 날 (퇴원일과 별개)
+  putDate("notice_date", grab(/퇴원\s*인지일\s*[:：]\s*(.+)/), "퇴원 인지일");
 
   // Learning status
   const attMap: Record<string, string> = { 보통: "중", 좋음: "중상", 우수: "상", 나쁨: "중하", 매우나쁨: "하" };
@@ -114,9 +141,8 @@ function parseWithdrawalText(text: string) {
   // Direct reason field: 퇴원사유/퇴원 사유
   const directReason = grab(/퇴원\s*사유\s*[:：]\s*(.+)/);
 
-  // Final consultation
-  const consultDate = grab(/(?:최종\s*)?상담\s*일(?:시)?\s*[:：]\s*(.+)/);
-  if (consultDate) result.final_consult_date = consultDate;
+  // Final consultation — 상담 일시도 날짜 칸이므로 정규화 대상이다.
+  putDate("final_consult_date", grab(/(?:최종\s*)?상담\s*일(?:시)?\s*[:：]\s*(.+)/), "최종 상담일");
 
   const counselor = grab(/상담자\s*[:：]\s*(.+)/);
   if (counselor) result.final_counselor = counselor.replace(/T$/, "");
@@ -174,6 +200,9 @@ function parseWithdrawalText(text: string) {
     if (gradeFromClass) result.grade = gradeFromClass[1];
   }
 
+  // 달력에서 직접 골라야 하는 날짜 칸을 안내한다.
+  if (partialDates.length > 0) result[PARTIAL_DATE_KEY] = partialDates.join(", ");
+
   // Clean empty values
   Object.keys(result).forEach((k) => {
     if (!result[k]) delete result[k];
@@ -189,6 +218,50 @@ const COMEBACKS = ["상", "중상", "중", "중하", "하", "최하"];
 type WithdrawalFields = Record<string, string>;
 type WithdrawalFieldsUpdater = WithdrawalFields | ((prev: WithdrawalFields) => WithdrawalFields);
 type StringUpdater = string | ((prev: string) => string);
+type FieldErrors = Record<string, string>;
+
+/**
+ * 저장 전 필수 검증. 서버 스키마(withdrawalFormSchema)와 같은 규칙을 쓰되,
+ * 어느 칸이 문제인지 짚어 주려고 클라이언트에서 한 번 더 본다.
+ * 배열 순서 = 사용자에게 안내할 우선순위(첫 항목으로 스크롤·포커스).
+ */
+const REQUIRED_CHECKS: { key: string; message: string; isValid: (v: string) => boolean }[] = [
+  { key: "name", message: "이름을 입력해주세요", isValid: (v) => v.trim().length > 0 },
+  {
+    key: "withdrawal_date",
+    message: WITHDRAWAL_REQUIRED_MESSAGES.withdrawal_date,
+    isValid: (v) => ISO_DATE_PATTERN.test(v),
+  },
+  {
+    key: "reason_category",
+    message: WITHDRAWAL_REQUIRED_MESSAGES.reason_category,
+    isValid: (v) => v.trim().length > 0,
+  },
+  {
+    key: "final_consult_date",
+    message: WITHDRAWAL_REQUIRED_MESSAGES.final_consult_date,
+    isValid: (v) => ISO_DATE_PATTERN.test(v),
+  },
+  {
+    key: "final_consult_summary",
+    message: WITHDRAWAL_REQUIRED_MESSAGES.final_consult_summary,
+    isValid: (v) => v.trim().length >= CONSULT_SUMMARY_MIN_LENGTH,
+  },
+];
+
+function validateWithdrawalFields(fields: WithdrawalFields): FieldErrors {
+  const errors: FieldErrors = {};
+  REQUIRED_CHECKS.forEach(({ key, message, isValid }) => {
+    if (!isValid(fields[key] ?? "")) errors[key] = message;
+  });
+  return errors;
+}
+
+/** 칸 아래 붙는 에러 문구. 메시지가 없으면 아무것도 그리지 않는다. */
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="mt-1 text-[11px] font-semibold text-nk-late">{message}</p>;
+}
 
 function buildWithdrawalFields(withdrawal?: Withdrawal): WithdrawalFields {
   if (!withdrawal) return {};
@@ -202,7 +275,9 @@ function buildWithdrawalFields(withdrawal?: Withdrawal): WithdrawalFields {
   if (withdrawal.grade) prefill.grade = withdrawal.grade;
   if (withdrawal.withdrawal_date) prefill.withdrawal_date = withdrawal.withdrawal_date;
   if (withdrawal.enrollment_start) prefill.enrollment_start = withdrawal.enrollment_start;
+  // enrollment_end는 입력칸을 내렸지만, 수정 저장 때 기존 값이 지워지지 않도록 그대로 실어 보낸다.
   if (withdrawal.enrollment_end) prefill.enrollment_end = withdrawal.enrollment_end;
+  if (withdrawal.notice_date) prefill.notice_date = withdrawal.notice_date;
   if (withdrawal.duration_months != null) prefill.duration_months = String(withdrawal.duration_months);
   if (withdrawal.class_attitude) prefill.class_attitude = withdrawal.class_attitude;
   if (withdrawal.homework_submission) prefill.homework_submission = withdrawal.homework_submission;
@@ -254,6 +329,18 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
       return { key: formKey, value: nextValue };
     });
   };
+  const [errorState, setErrorState] = useState<{ key: string; value: FieldErrors }>(() => ({
+    key: formKey,
+    value: {},
+  }));
+  const errors = errorState.key === formKey ? errorState.value : {};
+  const setErrors = (value: FieldErrors) => setErrorState({ key: formKey, value });
+
+  /** 검증 실패 시 해당 칸으로 스크롤·포커스하기 위한 참조 */
+  const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
+  const registerField = (key: string) => (el: HTMLElement | null) => {
+    fieldRefs.current[key] = el;
+  };
 
   const handleParse = () => {
     if (!rawText.trim()) {
@@ -261,8 +348,20 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
       return;
     }
     const parsed = parseWithdrawalText(rawText);
-    setFields({ ...fields, ...parsed });
+    const merged = { ...fields, ...parsed };
+    // 이번 분석에서 빠진 날짜가 없으면 지난 분석의 안내는 지운다.
+    if (!parsed[PARTIAL_DATE_KEY]) delete merged[PARTIAL_DATE_KEY];
+    // 텍스트가 개월 수를 주지 않았으면 등록일·퇴원일로 재원기간을 채운다.
+    if (!merged.duration_months) {
+      const months = calcDurationMonths(merged.enrollment_start, merged.withdrawal_date);
+      if (months !== null) merged.duration_months = String(months);
+    }
+    setFields(merged);
+    setErrors({});
     toast.success("텍스트 분석이 완료되었습니다");
+    if (merged[PARTIAL_DATE_KEY]) {
+      toast.warning(`${merged[PARTIAL_DATE_KEY]}은(는) 달력에서 선택해주세요 (연·월·일이 모두 필요합니다)`);
+    }
   };
 
   const updateField = (key: string, value: string) => {
@@ -270,17 +369,39 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
       const next = { ...prev, [key]: value };
       // 사용자가 사유를 직접 고르면 추론 표시를 해제한다.
       if (key === "reason_category") delete next[INFERRED_REASON_KEY];
+      // 등록일·퇴원일이 바뀔 때만 재원기간을 자동 계산한다.
+      // (손으로 고친 값은 다음 날짜 변경 전까지 그대로 유지된다)
+      if (key === "enrollment_start" || key === "withdrawal_date") {
+        const months = calcDurationMonths(next.enrollment_start, next.withdrawal_date);
+        if (months !== null) next.duration_months = String(months);
+        delete next[PARTIAL_DATE_KEY];
+      }
       return next;
     });
+    // 사용자가 고치기 시작하면 그 칸의 에러 표시는 지운다.
+    if (errors[key]) {
+      const nextErrors = { ...errors };
+      delete nextErrors[key];
+      setErrors(nextErrors);
+    }
   };
 
   const isReasonInferred = fields[INFERRED_REASON_KEY] === "true";
+  const partialDates = fields[PARTIAL_DATE_KEY] || "";
+  const summaryLength = (fields.final_consult_summary || "").trim().length;
 
   const handleSubmit = () => {
-    if (!fields.name?.trim()) {
-      toast.error("이름을 입력해주세요");
+    const nextErrors = validateWithdrawalFields(fields);
+    const firstInvalid = REQUIRED_CHECKS.find(({ key }) => nextErrors[key]);
+    if (firstInvalid) {
+      setErrors(nextErrors);
+      toast.error(nextErrors[firstInvalid.key]);
+      const el = fieldRefs.current[firstInvalid.key];
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.focus({ preventScroll: true });
       return;
     }
+    setErrors({});
     startTransition(async () => {
       const formData = new FormData();
       Object.entries(fields).forEach(([key, value]) => {
@@ -309,6 +430,9 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
   const inputCls = "w-full h-9 rounded-md border border-nk-line-soft bg-nk-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress";
   const selectCls = "w-full h-9 rounded-md border border-nk-line-soft bg-nk-surface px-2 text-sm focus:outline-none focus:ring-2 focus:ring-nk-progress";
   const labelCls = "text-xs font-semibold text-nk-ink-sub mb-1 block";
+  const textareaCls = "w-full rounded-md border border-nk-line-soft bg-nk-surface px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-nk-progress";
+  /** 검증에 걸린 칸은 테두리로 표시한다. */
+  const invalidCls = (key: string) => (errors[key] ? " border-nk-late ring-1 ring-nk-late" : "");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -353,7 +477,8 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className={labelCls}>이름 *</label>
-                <input className={inputCls} placeholder="학생 이름" value={fields.name || ""} onChange={(e) => updateField("name", e.target.value)} />
+                <input ref={registerField("name")} className={inputCls + invalidCls("name")} placeholder="학생 이름" value={fields.name || ""} onChange={(e) => updateField("name", e.target.value)} />
+                <FieldError message={errors.name} />
               </div>
               <div>
                 <label className={labelCls}>학교</label>
@@ -378,22 +503,30 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
                 <input className={inputCls} placeholder="고2" value={fields.grade || ""} onChange={(e) => updateField("grade", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>퇴원일</label>
-                <input className={inputCls} type="date" value={fields.withdrawal_date || ""} onChange={(e) => updateField("withdrawal_date", e.target.value)} />
+                <label className={labelCls}>퇴원일 (마지막 등원일) *</label>
+                <input ref={registerField("withdrawal_date")} className={inputCls + invalidCls("withdrawal_date")} type="date" value={fields.withdrawal_date || ""} onChange={(e) => updateField("withdrawal_date", e.target.value)} />
+                <FieldError message={errors.withdrawal_date} />
               </div>
             </div>
+            {partialDates && (
+              <p className="mt-2 text-[11px] font-semibold text-nk-warn">
+                붙여넣기 텍스트에 연·월·일이 다 없어 비워 둔 항목: {partialDates} — 달력에서 선택해주세요
+              </p>
+            )}
             <div className="grid grid-cols-3 gap-3 mt-3">
               <div>
                 <label className={labelCls}>등록일</label>
                 <input className={inputCls} type="date" value={fields.enrollment_start || ""} onChange={(e) => updateField("enrollment_start", e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>퇴원인지일</label>
-                <input className={inputCls} type="date" value={fields.enrollment_end || ""} onChange={(e) => updateField("enrollment_end", e.target.value)} />
+                <label className={labelCls}>퇴원 인지일</label>
+                <input className={inputCls} type="date" value={fields.notice_date || ""} onChange={(e) => updateField("notice_date", e.target.value)} />
+                <p className="mt-1 text-[11px] text-nk-ink-hint">학원이 퇴원 사실을 알게 된 날</p>
               </div>
               <div>
                 <label className={labelCls}>재원기간(개월)</label>
                 <input className={inputCls} type="number" placeholder="5" value={fields.duration_months || ""} onChange={(e) => updateField("duration_months", e.target.value)} />
+                <p className="mt-1 text-[11px] text-nk-ink-hint">등록일·퇴원일로 자동 계산</p>
               </div>
             </div>
           </div>
@@ -448,17 +581,18 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
             </h4>
             <div className="mb-3">
               <div className="flex items-center gap-2 mb-1">
-                <label className={`${labelCls} mb-0`}>퇴원 사유 분류</label>
+                <label className={`${labelCls} mb-0`}>퇴원 사유 분류 *</label>
                 {isReasonInferred && (
                   <span className="inline-flex items-center rounded-md bg-nk-warn-soft px-2 py-0.5 text-[11px] font-semibold text-nk-warn ring-1 ring-inset ring-nk-warn">
                     자동 추론된 사유 — 확인 후 저장하세요
                   </span>
                 )}
               </div>
-              <select className={selectCls} value={fields.reason_category || ""} onChange={(e) => updateField("reason_category", e.target.value)}>
+              <select ref={registerField("reason_category")} className={selectCls + invalidCls("reason_category")} value={fields.reason_category || ""} onChange={(e) => updateField("reason_category", e.target.value)}>
                 <option value="">선택</option>
                 {WITHDRAWAL_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
+              <FieldError message={errors.reason_category} />
             </div>
             <div className="space-y-3">
               <div>
@@ -483,19 +617,32 @@ export function WithdrawalFormDialog({ open, onOpenChange, withdrawal }: Props) 
               최종 상담
             </h4>
             <p className="text-xs text-nk-ink-hint mb-3">퇴원 상담 직전에 진행한 마지막 정기 상담 내용을 기록합니다</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>상담 일시</label>
-                <input className={inputCls} placeholder="01.29" value={fields.final_consult_date || ""} onChange={(e) => updateField("final_consult_date", e.target.value)} />
+                <label className={labelCls}>상담 일시 *</label>
+                <input ref={registerField("final_consult_date")} className={inputCls + invalidCls("final_consult_date")} type="date" value={fields.final_consult_date || ""} onChange={(e) => updateField("final_consult_date", e.target.value)} />
+                <FieldError message={errors.final_consult_date} />
               </div>
               <div>
                 <label className={labelCls}>상담자</label>
                 <input className={inputCls} placeholder="선생님" value={fields.final_counselor || ""} onChange={(e) => updateField("final_counselor", e.target.value)} />
               </div>
-              <div>
-                <label className={labelCls}>상담 요약</label>
-                <input className={inputCls} placeholder="요약" value={fields.final_consult_summary || ""} onChange={(e) => updateField("final_consult_summary", e.target.value)} />
+            </div>
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-1">
+                <label className={`${labelCls} mb-0`}>상담 요약 *</label>
+                <span className={`text-[11px] font-semibold ${summaryLength >= CONSULT_SUMMARY_MIN_LENGTH ? "text-nk-done" : "text-nk-ink-hint"}`}>
+                  {summaryLength} / 최소 {CONSULT_SUMMARY_MIN_LENGTH}자
+                </span>
               </div>
+              <textarea
+                ref={registerField("final_consult_summary")}
+                className={`${textareaCls} h-20${invalidCls("final_consult_summary")}`}
+                placeholder={`무엇을 이야기했고 무엇을 약속했는지 ${CONSULT_SUMMARY_MIN_LENGTH}자 이상 적어주세요`}
+                value={fields.final_consult_summary || ""}
+                onChange={(e) => updateField("final_consult_summary", e.target.value)}
+              />
+              <FieldError message={errors.final_consult_summary} />
             </div>
           </div>
 

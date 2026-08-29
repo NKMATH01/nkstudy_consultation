@@ -520,8 +520,12 @@ export interface Withdrawal {
   teacher: string | null;
   grade: string | null;
   enrollment_start: string | null;
+  /** @deprecated 폼에서 내려간 레거시 칸. 과거 기록 보존용으로만 남는다. */
   enrollment_end: string | null;
+  /** 퇴원 인지일 — 학원이 퇴원 사실을 알게 된 날. 퇴원일(마지막 등원일)과 구분한다. */
+  notice_date: string | null;
   duration_months: number | null;
+  /** 퇴원일 = 마지막 등원일. */
   withdrawal_date: string | null;
   class_attitude: string | null;
   homework_submission: string | null;

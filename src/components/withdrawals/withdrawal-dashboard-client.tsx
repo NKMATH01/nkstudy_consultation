@@ -1807,7 +1807,8 @@ export function WithdrawalDashboard({
                   <div><span className="text-nk-ink-hint text-xs">학교:</span> <span className="font-medium text-nk-ink">{selectedStudent.school || "-"}</span></div>
                   <div><span className="text-nk-ink-hint text-xs">반:</span> <span className="font-medium text-nk-ink">{selectedStudent.class_name || "-"}</span></div>
                   <div><span className="text-nk-ink-hint text-xs">등원 시작:</span> <span className="font-medium text-nk-ink">{selectedStudent.enrollment_start || "-"}</span></div>
-                  <div><span className="text-nk-ink-hint text-xs">퇴원인지일:</span> <span className="font-medium text-nk-ink">{selectedStudent.enrollment_end || "-"}</span></div>
+                  {/* 신규 기록은 notice_date, 컬럼 도입 이전 기록은 enrollment_end에 인지일이 들어 있다. */}
+                  <div><span className="text-nk-ink-hint text-xs">퇴원 인지일:</span> <span className="font-medium text-nk-ink">{selectedStudent.notice_date || selectedStudent.enrollment_end || "-"}</span></div>
                 </div>
               </div>
               {/* Learning Status */}

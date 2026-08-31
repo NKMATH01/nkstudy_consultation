@@ -49,12 +49,13 @@ export function ProgramFeedbackButton({ userName = "" }: { userName?: string }) 
 
   return (
     <>
-      {/* 전환 칩·Claude Code 버튼과 같은 문법(알약·아이콘+라벨). 색으로 튀게 하지 않는다. */}
+      {/* 우측 유틸 알약(.nk-gnb__util) — Claude Code·사용법과 같은 문법(아이콘+라벨).
+          전환 탭(.nk-gnb__app)이 아니다. 색으로 튀게 하지 않는다. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         title="프로그램 오류 신고·개선 제안"
-        className="nk-gnb__app"
+        className="nk-gnb__util"
       >
         <LifeBuoy size={14} strokeWidth={2} />
         오류·개선 제안

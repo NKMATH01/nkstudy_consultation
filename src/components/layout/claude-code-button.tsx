@@ -55,7 +55,9 @@ export function ClaudeCodeButton() {
         type="button"
         onClick={open}
         title="이 PC 에서 Claude Code 를 엽니다"
-        className="nk-gnb__app"
+        // 우측 유틸은 테두리 알약(.nk-gnb__util)이다. 전환 탭(.nk-gnb__app)은 테두리
+        // 없는 납작한 탭이라, 그 클래스를 쓰면 도구가 '갈 곳'처럼 읽힌다.
+        className="nk-gnb__util"
       >
         <TerminalSquare className="h-3.5 w-3.5" strokeWidth={2} />
         Claude Code

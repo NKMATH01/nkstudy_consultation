@@ -18,6 +18,15 @@ const envSchema = z.object({
   SOLAPI_SENDER_PHONE: z.string().optional().default(""),
   CHAT_PROPOSAL_SIGNING_SECRET: z.string().optional().default(""),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(""),
+  /**
+   * NK 8개 프로그램이 공유하는 SSO 서명 비밀키 (업무보고가 발급, 이 앱이 검증).
+   *
+   * ★ optional 이지만 '없어도 되는 값'이라는 뜻은 아니다. 비어 있으면
+   *   /api/sso/consume 이 모든 진입을 거절한다(fail closed) — 검증할 근거가 없는데
+   *   문을 열 수는 없다. 빌드를 세우지 않는 이유는, 이 키 없이도 앱의 나머지가
+   *   평소대로 돌아야 하기 때문이다(전화번호 로그인은 이 키와 무관하다).
+   */
+  NK_SSO_SECRET: z.string().optional().default(""),
 });
 
 function validateEnv() {

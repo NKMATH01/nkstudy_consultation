@@ -113,7 +113,7 @@ console.log("2. Gemini API 호출...");
 const surveyText = surveyToText(survey);
 const prompt = buildPrompt(surveyText);
 
-const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-3.6-flash"}:generateContent`;
+const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-3.8-flash"}:generateContent`;
 const res = await fetch(geminiUrl, {
   method: "POST",
   headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },

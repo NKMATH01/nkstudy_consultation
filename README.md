@@ -10,7 +10,7 @@
 |------|------|
 | **상담 관리** | 신입생 상담 등록/수정/삭제, 카카오톡 텍스트 파싱으로 자동 입력 |
 | **설문 현황** | 학습운영 프로필 V2 설문 — 공통 38문항 + 수학 11문항 / 영어 12문항 (수학만 49 · 영어만 50 · 수학+영어 61) |
-| **AI 분석** | Gemini 3.6 Flash API로 학습성향 분석 보고서 생성 (모델 기본값 `gemini-3.6-flash`, `src/lib/env.ts:9`) |
+| **AI 분석** | Gemini 3.8 Flash API로 학습성향 분석 보고서 생성 (모델 기본값 `gemini-3.8-flash`, `src/lib/env.ts:9`) |
 | **등록 안내** | 분석 결과 + 행정정보 기반 맞춤 등록 안내문 생성 (2페이지 보고서) |
 | **설정** | 반/선생님 관리 (CRUD) |
 | **공개 설문** | 학생이 로그인 없이 직접 설문에 응답하는 공개 페이지 (멀티스텝 폼) |
@@ -122,7 +122,7 @@ ANTHROPIC_API_KEY=your-anthropic-api-key
 
 ```env
 NEXT_PUBLIC_BASE_URL=           # 공개 링크 생성용 기준 URL (기본: src/lib/academy.ts 의 DEFAULT_BASE_URL)
-GEMINI_MODEL=                   # 기본: gemini-3.6-flash
+GEMINI_MODEL=                   # 기본: gemini-3.8-flash
 CLAUDE_MODEL=                   # 기본: claude-haiku-4-5-20251001
 NK_ACADEMY_VEHICLE_FEE=         # 차량비 (기본: 20000)
 NK_ACADEMY_BANK_INFO=           # 계좌 정보

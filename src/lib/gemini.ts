@@ -22,7 +22,8 @@ export async function callGeminiAPI(prompt: string, retryCount = 0): Promise<str
       temperature: 0.3,
       topP: 0.95,
       maxOutputTokens: 8192,
-      // Gemini 3.x는 thinkingBudget(숫자) 대신 thinkingLevel(문자열)만 허용 — thinkingBudget 전송 시 400.
+      // gemini-3.8-flash는 thinkingBudget(숫자)·thinkingLevel(문자열)을 모두 받는다(대표 확인, 2026-09-03).
+      // 다만 이전 3.x 계열에서 thinkingBudget이 400을 내던 이력이 있어, 여기서는 그대로 thinkingLevel을 쓴다.
       // 구조화된 JSON 분석 프롬프트에는 깊은 thinking이 불필요하므로 최소 수준으로 고정.
       thinkingConfig: { thinkingLevel: "minimal" },
     },

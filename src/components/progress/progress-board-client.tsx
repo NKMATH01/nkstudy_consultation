@@ -47,6 +47,7 @@ import {
   type CurriculumProgress,
 } from "@/types";
 import { formatSchedule } from "@/lib/schedule";
+import { computeExpectedPercent, type ExpectedPercentResult } from "@/lib/progress-expected";
 import type { ProgressBoardRow, ProgressTeacherInfo } from "@/lib/actions/progress";
 
 interface Props {
@@ -385,28 +386,38 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
 }
 
 /**
- * 예상 진도율(%) — 시작일(가장 최근 완료 교재 finished_on, 없으면 진도 생성일)부터
- * 마감일(target_end_date)까지 오늘 기준 경과 비율. 목표 진도율(target_percent)이 있으면
- * 마감일에 100%가 아니라 목표%에 도달하도록 스케일(경과비율 × 목표% / 100)하고 상한도 목표%로 캡.
- * 마감일 없으면 null(요약 카드 분류 제외).
+ * 예상 진도율 계산 결과 — 계산식은 lib/progress-expected.ts 참조.
+ * 시작일 우선순위: 현재 교재 started_on → 가장 최근 완료 교재 finished_on → 진도 생성일.
  */
-function expectedPercent(row: ProgressBoardRow): number | null {
+function expectedInfo(row: ProgressBoardRow): ExpectedPercentResult | null {
   const progress = row.progress;
-  if (!progress?.target_end_date) return null;
-  const end = new Date(progress.target_end_date);
-  if (Number.isNaN(end.getTime())) return null;
-  const finished = row.textbook_history.find((h) => h.finished_on)?.finished_on;
-  const startStr = finished ?? progress.created_at ?? null;
-  if (!startStr) return null;
-  const start = new Date(startStr);
-  if (Number.isNaN(start.getTime())) return null;
-  const span = end.getTime() - start.getTime();
-  if (span <= 0) return null;
-  const target = progress.target_percent ?? 100;
-  const elapsed = ((Date.now() - start.getTime()) / span) * 100;
-  const scaled = (elapsed * target) / 100;
-  return Math.max(0, Math.min(target, Math.round(scaled)));
+  if (!progress) return null;
+  return computeExpectedPercent({
+    targetEndDate: progress.target_end_date,
+    targetPercent: progress.target_percent,
+    history: row.textbook_history,
+    progressCreatedAt: progress.created_at,
+  });
 }
+
+/** 예상 진도율(%) — 마감일·시작일이 없으면 null(요약 카드 분류 제외). */
+function expectedPercent(row: ProgressBoardRow): number | null {
+  return expectedInfo(row)?.percent ?? null;
+}
+
+/** 시작일 원본 문자열 → "8/1" 형태. 파싱 실패 시 null. */
+function formatStartLabel(startDate: string): string | null {
+  const d = new Date(startDate);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+/** 시작일 출처별 안내 문구 (툴팁) */
+const START_SOURCE_LABELS: Record<ExpectedPercentResult["source"], string> = {
+  current_textbook: "현재 교재 시작일",
+  recent_finished: "직전 교재 완료일",
+  progress_created: "진도 등록일",
+};
 
 type DiffTone = "delay" | "slightDelay" | "normal" | "aheadSlight" | "ahead";
 
@@ -446,18 +457,29 @@ function DiffBadge({ badge }: { badge: { pct: string; word: string; tone: DiffTo
 /** 예상 vs 실제 진도율 — 예상(회색 게이지 + ▼마커) / 실제(색 게이지) 두 줄 + 우측 차이 배지 */
 function ExpectedVsActualCell({ row }: { row: ProgressBoardRow }) {
   const actual = progressPercent(row.progress?.current_page, row.progress?.main_total_pages);
-  const expected = expectedPercent(row);
+  const info = expectedInfo(row);
+  const expected = info?.percent ?? null;
   if (actual == null && expected == null) {
     return <span className="text-xs text-nk-ink-hint">예상 정보 없음</span>;
   }
   const badge = diffBadge(actual, expected);
   const actualColors = actual != null ? meterColors(actual) : null;
+  // 예상%의 근거가 되는 시작일 — 강사가 과대/과소 계산을 바로 확인할 수 있게 노출
+  const startLabel = info ? formatStartLabel(info.startDate) : null;
   return (
     <div className="flex min-w-[220px] items-center gap-2.5">
       <div className="flex-1 space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="w-7 shrink-0 text-[11px] font-bold text-nk-ink-hint">예상</span>
           <span className="w-9 shrink-0 text-[13px] font-black tabular-nums text-nk-ink-sub">{expected != null ? `${expected}%` : "-"}</span>
+          {startLabel && info && (
+            <span
+              className="shrink-0 whitespace-nowrap text-[10px] font-semibold text-nk-ink-hint"
+              title={`${START_SOURCE_LABELS[info.source]} ${startLabel} 부터 마감일까지 경과 비율로 계산`}
+            >
+              시작 {startLabel} 기준
+            </span>
+          )}
           <div className="relative h-2 flex-1 rounded-full" style={{ background: "rgb(var(--wr-line-soft))" }}>
             {expected != null && (
               <>

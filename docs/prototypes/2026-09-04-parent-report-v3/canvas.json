@@ -1,0 +1,7 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 7900, "print": "flow", "title": "학부모 결과지 3판" },
+    { "file": "Compare.dc.html", "x": 480, "y": 0, "w": 720, "h": 1250, "title": "2판→3판 비교" }
+  ],
+  "launch": { "view": "canvas" }
+}

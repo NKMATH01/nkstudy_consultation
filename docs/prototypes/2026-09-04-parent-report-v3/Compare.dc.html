@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    body {
+      margin: 0;
+      background: #e8e9e6;
+      font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      font-size: 14.5px;
+      line-height: 1.65;
+      color: #334050;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #b88a32; }
+    a:hover { color: #8a6422; }
+    * { box-sizing: border-box; }
+    p { margin: 0; }
+    h1, h2, h3, h4 { margin: 0; font-weight: 800; word-break: keep-all; font-family: "Gothic A1", "Noto Sans KR", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 720px; padding: 26px 24px 28px; display: flex; flex-direction: column; gap: 18px; background: #e8e9e6;">
+
+  <!-- 머리 -->
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <span class="mono" style="color: #b88a32; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;">NK 학습성향 검사 &#183; 학부모 결과지 개편</span>
+    <h1 style="color: #152033; font-size: 21px; line-height: 1.35; letter-spacing: -0.02em;">학부모 결과지 2판 &#8594; 3판</h1>
+    <p style="color: #586270; font-size: 12.5px; line-height: 1.75;">2판은 상담 브리핑에 가까웠습니다. 3판은 심리검사 결과보고서의 짜임을 따르되, 규준이 없는 검사라 또래 비교와 점수 표기는 넣지 않습니다. 아래는 무엇을 왜 바꿨는지입니다.</p>
+  </div>
+
+  <!-- 비교표 -->
+  <div style="border: 1px solid #cfd4d9; background: #ffffff; display: flex; flex-direction: column;">
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 11px 16px; background: #152033;">
+      <span class="mono" style="color: #8c99ac; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">구분</span>
+      <span class="mono" style="color: #aeb8c8; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">2판</span>
+      <span class="mono" style="color: #e8cf9d; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">3판</span>
+      <span class="mono" style="color: #aeb8c8; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">바꾼 이유</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">닮은 모양</strong>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">상담 브리핑. 판정 문장 하나와 항목 눈금, 제안 세 개를 카드로 쌓았습니다.</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">심리검사 결과보고서. 표지 &#183; 신뢰도 &#183; 프로파일 &#183; 척도별 해석 &#183; 종합 소견 &#183; 제언의 짜임을 따릅니다.</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">학부모가 이미 아는 형식이라야 전문성이 읽힙니다. 다만 규준이 없어 T점수 &#183; 백분위는 넣지 않습니다.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">판단 표현</strong>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">세 갈래 중 하나를 골라 학생 전체를 한 문장으로 묶었습니다. 항목은 다섯 칸 눈금에 색 한 칸.</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">항목마다 <strong style="color: #2d776a;">잘 되고 있음</strong> &#183; <strong style="color: #8a6422;">지켜볼 것</strong> &#183; <strong style="color: #a8433d;">먼저 도울 것</strong> 세 등급 중 하나를 주고, 그 등급을 준 응답을 그대로 붙입니다.</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">사람을 묶으면 낙인이 되고 근거가 사라집니다. 판정은 행동 단위로만 내립니다. 구간은 75 이상 &#183; 62.5 이상 &#183; 그 아래.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">구성(순서)</strong>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">판정 &#8594; 항목별 &#8594; 시험 관찰 &#8594; 제안. 검사 설명과 응답 신뢰도가 없었습니다.</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">표지 &#8594; 개요&#183;신뢰도 &#8594; 프로파일 &#8594; 핵심 소견(의지) &#8594; 척도별 해석 &#8594; 학습 선호 &#8594; 수학 &#8594; 행동 관찰 &#8594; 종합 소견 &#8594; 제언.</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">무엇을 어떻게 쟀고 그 응답을 믿을 수 있는지부터 밝혀야 뒤의 판정이 섭니다. 의지는 프로파일 바로 다음에 둡니다.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">톤</strong>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">&#8220;할 마음은 있습니다&#8221; 같은 단정과 위로가 섞였습니다.</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">소견서. &#8220;~로 나타났습니다&#8221;, &#8220;~를 확인합니다&#8221;, &#8220;~부터 시작합니다&#8221;로 통일했습니다.</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">위로는 요청받은 적이 없습니다. 관찰과 조치를 분명히 적는 쪽이 신뢰를 줍니다.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">디자인</strong>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">둥근 모서리에 왼쪽 색 테두리를 두른 카드를 쌓았습니다. 눈금은 다섯 칸 블록.</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">표와 하이라인 구분선, 소제목 위계로 짭니다. 프로파일은 세 구간 띠 위에 마커 하나입니다.</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">카드 나열은 어디를 먼저 볼지 알려 주지 않습니다. 색은 등급에만 쓰고 아이콘은 쓰지 않습니다.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">새로 들어간 것</strong>
+      <p style="color: #94a3b8; font-size: 12px; line-height: 1.7;">없음</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">표지 기본 정보표, 응답 신뢰도 네 지표, 여덟 행 프로파일, 척도마다 &#8220;학원에서는&#8221; 한 줄, 학습 선호 원문 표, 꼬리말 네 줄.</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">신뢰도 지표가 심리검사 보고서의 타당도 자리를 대신합니다. 학습 선호는 묶지 않기로 한 항목이라 답을 그대로 옮깁니다.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px;">
+      <strong style="color: #152033; font-size: 12.5px;">뺀 것</strong>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">세 갈래 판정 목록, 항목 평균 숫자, 다섯 칸 눈금, &#8220;이 학생에게서만 나온 것&#8221; 카드.</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">모두 뺐습니다. 학부모 결과지에는 숫자를 보이지 않습니다.</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">규준이 없는 내부 지표를 숫자로 보이면 또래 비교로 읽힙니다. 평균값은 상담자 화면에만 남깁니다.</p>
+    </div>
+
+  </div>
+
+  <!-- 아직 못 정한 것 -->
+  <div style="border: 1px solid #cfd4d9; background: #f4f6f6; padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
+    <span class="mono" style="color: #8a6422; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;">아직 못 정한 것</span>
+    <div style="display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px 10px; align-items: baseline;">
+      <span class="mono" style="color: #b88a32; font-size: 11px; font-weight: 700;">1</span>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">등급 이름을 잘 되고 있음 &#183; 지켜볼 것 &#183; 먼저 도울 것으로 확정할지. 학부모가 &#8220;먼저 도울 것&#8221;을 문제 지적으로 읽는지 확인이 필요합니다.</p>
+      <span class="mono" style="color: #b88a32; font-size: 11px; font-weight: 700;">2</span>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">행동 관찰 세 항목(빈칸 처리 &#183; 손을 놓은 시점 &#183; 마무리)을 종이 체크표로 시작할지, 처음부터 화면 입력으로 넣을지.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

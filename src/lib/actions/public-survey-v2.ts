@@ -5,7 +5,7 @@
 // 클라이언트가 보낸 점수는 신뢰하지 않는다.
 // 서버 로그에 전화번호·서술 전문·전체 응답 JSON을 출력하지 않는다.
 
-import { createClient } from "@/lib/supabase/server";
+import { createTrustedWriteClient } from "@/lib/supabase/trusted-write";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { computeScoreProfile } from "@/lib/assessment/v2/scoring";
 import {
@@ -48,7 +48,7 @@ export async function submitPublicSurveyV2(raw: unknown): Promise<SubmitResult> 
   const insertData = buildV2InsertPayload(data, score);
 
   try {
-    const supabase = await createClient();
+    const { client: supabase } = await createTrustedWriteClient();
 
     // 중복 제출 방어: 정규화 연락처 기반 10분 규칙(동명이인 오탐 감소, 이름 단독 금지).
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();

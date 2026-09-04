@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createTrustedWriteClient } from "@/lib/supabase/trusted-write";
 import { calculateFactors } from "@/lib/factors";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -145,7 +145,7 @@ export async function submitPublicSurvey(data: Record<string, unknown>) {
   }
 
   try {
-    const supabase = await createClient();
+    const { client: supabase } = await createTrustedWriteClient();
 
     // 중복 제출 방어(완전한 원자성은 아님): 같은 이름으로 10분 내 제출된 설문이 있으면 차단.
     // parent_phone 값이 있으면 조건에 포함해 동명이인 오탐을 줄인다.

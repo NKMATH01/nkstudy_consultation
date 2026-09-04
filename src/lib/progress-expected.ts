@@ -5,6 +5,7 @@
  * 시작일을 잘못 잡으면(예: 진도 행을 오래전에 만든 반) 경과 비율이 부풀려져 예상%가
  * 과대 계산된다. 그래서 시작일은 아래 우선순위로 고른다.
  *
+ *   0) 강사 입력 시작일    — class_progress.main_started_on (강사가 직접 넣은 값, 최우선)
  *   1) 현재 교재의 시작일  — finished_on 이 없는(=진행 중인) 이력의 started_on
  *   2) 가장 최근 완료 교재 — finished_on 중 가장 늦은 날짜
  *   3) 진도 행 생성일      — progress.created_at (최후 폴백)
@@ -26,6 +27,8 @@ export interface ExpectedPercentInput {
   targetPercent: number | null | undefined;
   /** 반의 교재 이력 (순서 무관) */
   history: TextbookHistoryInput[];
+  /** 강사가 입력한 현재 교재 시작일. 있으면 최우선으로 쓴다 */
+  mainStartedOn?: string | null;
   /** 진도 행 생성일 (최후 폴백) */
   progressCreatedAt: string | null | undefined;
   /** 기준 시각. 테스트에서 주입, 기본값은 현재 시각 */
@@ -33,7 +36,11 @@ export interface ExpectedPercentInput {
 }
 
 /** 시작일을 어디서 가져왔는지 — 화면 안내 문구·디버깅용 */
-export type ExpectedStartSource = "current_textbook" | "recent_finished" | "progress_created";
+export type ExpectedStartSource =
+  | "main_started_on"
+  | "current_textbook"
+  | "recent_finished"
+  | "progress_created";
 
 export interface ExpectedPercentResult {
   /** 예상 진도율(%), 0 ~ 목표% */
@@ -54,8 +61,15 @@ function parseDate(value: string | null | undefined): Date | null {
 /** 시작일 후보를 우선순위대로 고른다 */
 function pickStart(
   history: TextbookHistoryInput[],
-  progressCreatedAt: string | null | undefined
+  progressCreatedAt: string | null | undefined,
+  mainStartedOn?: string | null
 ): { raw: string; date: Date; source: ExpectedStartSource } | null {
+  // 0) 강사가 직접 입력한 현재 교재 시작일 — 유효한 날짜면 무조건 최우선
+  const entered = parseDate(mainStartedOn);
+  if (entered && mainStartedOn) {
+    return { raw: mainStartedOn, date: entered, source: "main_started_on" };
+  }
+
   // 1) 현재 진행 중인 교재(finished_on 없음)의 started_on — 여러 개면 가장 늦은 시작일
   let current: { raw: string; date: Date } | null = null;
   // 2) 완료 교재 중 가장 늦은 finished_on
@@ -92,7 +106,7 @@ export function computeExpectedPercent(input: ExpectedPercentInput): ExpectedPer
   const end = parseDate(input.targetEndDate);
   if (!end) return null;
 
-  const start = pickStart(input.history, input.progressCreatedAt);
+  const start = pickStart(input.history, input.progressCreatedAt, input.mainStartedOn);
   if (!start) return null;
 
   const span = end.getTime() - start.date.getTime();

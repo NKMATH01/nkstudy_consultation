@@ -35,6 +35,8 @@ export const progressFormSchema = z
     next_start_date: z.string().optional(),
     expected_months: optionalNonnegativeInt,
     expected_weeks: optionalNonnegativeInt,
+    // 현재 교재 시작일 — 예상 진도율 계산의 1순위 시작일 (강사 직접 입력)
+    main_started_on: z.string().optional(),
     target_end_date: z.string().optional(),
     target_percent: optionalPercentInt,
     current_plan: z.string().optional(),
@@ -68,8 +70,10 @@ export const currentUnitsSchema = z.object({
   current_minor_unit: z.string().optional(),
 });
 
-// 인라인 저장용 — 마감일 + 목표 진도율(%)
+// 인라인 저장용 — 시작일 + 마감일 + 목표 진도율(%)
 export const targetPlanSchema = z.object({
+  // 현재 교재 시작일 — 예상 진도율 계산의 1순위 시작일 (강사 직접 입력)
+  main_started_on: z.string().optional(),
   target_end_date: z.string().optional(),
   target_percent: optionalPercentInt,
 });

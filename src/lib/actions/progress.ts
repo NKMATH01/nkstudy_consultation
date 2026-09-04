@@ -95,6 +95,8 @@ function mapProgress(row: DbRow): ClassProgress {
     expected_weeks: nullableNumber(row.expected_weeks),
     target_end_date: nullableString(row.target_end_date),
     target_percent: nullableNumber(row.target_percent),
+    // 현재 교재 시작일(강사 입력) — 예상 진도율 시작일 1순위
+    main_started_on: nullableString(row.main_started_on),
     updated_by: nullableString(row.updated_by),
     progress_updated_at: nullableString(row.progress_updated_at),
     created_at: String(row.created_at ?? ""),
@@ -228,6 +230,8 @@ function toProgressPayload(classId: string, data: ProgressFormValues, updatedBy:
     next_start_date: cleanText(data.next_start_date),
     expected_months: data.expected_months ?? null,
     expected_weeks: data.expected_weeks ?? null,
+    // 현재 교재 시작일(강사 입력) — 예상 진도율 시작일 1순위
+    main_started_on: cleanText(data.main_started_on),
     target_end_date: cleanText(data.target_end_date),
     target_percent: data.target_percent ?? null,
     current_plan: cleanText(data.current_plan),
@@ -675,13 +679,22 @@ export async function updateCurrentUnits(classId: string, major: string, minor: 
   }
 }
 
+/**
+ * 인라인 목표 계획 저장.
+ * startDate(현재 교재 시작일)는 선택 인자 — 기존 3인자 호출부와 호환된다.
+ */
 export async function updateTargetPlan(
   classId: string,
   endDate: string,
-  percent: number | string | null
+  percent: number | string | null,
+  startDate?: string | null
 ) {
   try {
-    const parsed = targetPlanSchema.safeParse({ target_end_date: endDate, target_percent: percent });
+    const parsed = targetPlanSchema.safeParse({
+      target_end_date: endDate,
+      target_percent: percent,
+      main_started_on: startDate ?? undefined,
+    });
     if (!parsed.success) {
       return { success: false, error: parsed.error.issues[0].message };
     }
@@ -697,6 +710,8 @@ export async function updateTargetPlan(
           class_id: classId,
           target_end_date: cleanText(parsed.data.target_end_date),
           target_percent: parsed.data.target_percent ?? null,
+          // 현재 교재 시작일 — 예상 진도율 시작일 1순위
+          main_started_on: cleanText(parsed.data.main_started_on),
         },
         { onConflict: "class_id" }
       )

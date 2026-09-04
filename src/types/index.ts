@@ -118,6 +118,8 @@ export interface ClassProgress {
   expected_weeks: number | null;
   target_end_date: string | null;
   target_percent: number | null;
+  /** 현재 교재 시작일(강사 직접 입력) — 예상 진도율 계산의 1순위 시작일 */
+  main_started_on: string | null;
   updated_by: string | null;
   progress_updated_at: string | null;
   created_at: string;

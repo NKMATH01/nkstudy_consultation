@@ -133,6 +133,8 @@ function defaultValues(row: ProgressBoardRow): ProgressFormValues {
     next_start_date: progress?.next_start_date ?? "",
     expected_months: progress?.expected_months ?? undefined,
     expected_weeks: progress?.expected_weeks ?? undefined,
+    // 현재 교재 시작일 — 예상 진도율 계산의 1순위 시작일
+    main_started_on: progress?.main_started_on ?? "",
     target_end_date: progress?.target_end_date ?? "",
     target_percent: progress?.target_percent ?? undefined,
     current_plan: progress?.current_plan ?? "",
@@ -387,7 +389,8 @@ function ProgressMeter({ current, total }: { current: number | null | undefined;
 
 /**
  * 예상 진도율 계산 결과 — 계산식은 lib/progress-expected.ts 참조.
- * 시작일 우선순위: 현재 교재 started_on → 가장 최근 완료 교재 finished_on → 진도 생성일.
+ * 시작일 우선순위: 강사 입력 시작일(main_started_on) → 현재 교재 started_on →
+ * 가장 최근 완료 교재 finished_on → 진도 생성일.
  */
 function expectedInfo(row: ProgressBoardRow): ExpectedPercentResult | null {
   const progress = row.progress;
@@ -396,6 +399,8 @@ function expectedInfo(row: ProgressBoardRow): ExpectedPercentResult | null {
     targetEndDate: progress.target_end_date,
     targetPercent: progress.target_percent,
     history: row.textbook_history,
+    // 강사가 직접 입력한 현재 교재 시작일 — 있으면 최우선
+    mainStartedOn: progress.main_started_on,
     progressCreatedAt: progress.created_at,
   });
 }
@@ -414,10 +419,17 @@ function formatStartLabel(startDate: string): string | null {
 
 /** 시작일 출처별 안내 문구 (툴팁) */
 const START_SOURCE_LABELS: Record<ExpectedPercentResult["source"], string> = {
+  main_started_on: "입력한 현재 교재 시작일",
   current_textbook: "현재 교재 시작일",
   recent_finished: "직전 교재 완료일",
-  progress_created: "진도 등록일",
+  progress_created: "진도 등록일(시작일 미입력)",
 };
+
+/** 시작일이 강사 입력값이 아니라 추정값인 출처 — 화면에서 경고 톤으로 알린다 */
+const ESTIMATED_START_SOURCES: ReadonlySet<ExpectedPercentResult["source"]> = new Set([
+  "recent_finished",
+  "progress_created",
+]);
 
 type DiffTone = "delay" | "slightDelay" | "normal" | "aheadSlight" | "ahead";
 
@@ -466,6 +478,8 @@ function ExpectedVsActualCell({ row }: { row: ProgressBoardRow }) {
   const actualColors = actual != null ? meterColors(actual) : null;
   // 예상%의 근거가 되는 시작일 — 강사가 과대/과소 계산을 바로 확인할 수 있게 노출
   const startLabel = info ? formatStartLabel(info.startDate) : null;
+  // 강사가 시작일을 입력하지 않아 추정으로 계산한 경우 — 경고 문구를 덧붙인다
+  const isEstimatedStart = info != null && ESTIMATED_START_SOURCES.has(info.source);
   return (
     <div className="flex min-w-[220px] items-center gap-2.5">
       <div className="flex-1 space-y-1.5">
@@ -474,10 +488,14 @@ function ExpectedVsActualCell({ row }: { row: ProgressBoardRow }) {
           <span className="w-9 shrink-0 text-[13px] font-black tabular-nums text-nk-ink-sub">{expected != null ? `${expected}%` : "-"}</span>
           {startLabel && info && (
             <span
-              className="shrink-0 whitespace-nowrap text-[10px] font-semibold text-nk-ink-hint"
-              title={`${START_SOURCE_LABELS[info.source]} ${startLabel} 부터 마감일까지 경과 비율로 계산`}
+              // 시작일이 추정값이면 경고 톤 — 강사가 시작일을 직접 넣도록 유도
+              className={`shrink-0 whitespace-nowrap text-[10px] font-semibold ${isEstimatedStart ? "" : "text-nk-ink-hint"}`}
+              style={isEstimatedStart ? { color: "rgb(var(--wr-status-warn))" } : undefined}
+              title={`${START_SOURCE_LABELS[info.source]} ${startLabel} 부터 마감일까지 경과 비율로 계산${
+                isEstimatedStart ? ". 시작일을 입력하면 정확해집니다" : ""
+              }`}
             >
-              시작 {startLabel} 기준
+              시작 {startLabel} 기준{isEstimatedStart ? " · 시작일 미입력" : ""}
             </span>
           )}
           <div className="relative h-2 flex-1 rounded-full" style={{ background: "rgb(var(--wr-line-soft))" }}>
@@ -809,6 +827,12 @@ function ProgressDialog({
           </div>
 
           <div className="flex flex-wrap items-end gap-4">
+            {/* 현재 교재 시작일 — 예상 진도율 계산의 시작점(1순위) */}
+            <label className="space-y-1.5">
+              <span className="text-xs font-bold text-nk-ink-sub">현재 교재 시작일</span>
+              <Input type="date" {...form.register("main_started_on")} className="w-fit" />
+              <span className="text-[10px] text-nk-ink-hint">예상 진도율 계산의 시작점</span>
+            </label>
             <label className="space-y-1.5">
               <span className="text-xs font-bold text-nk-ink-sub">현재 교재 마감일</span>
               <Input type="date" {...form.register("target_end_date")} className="w-fit" />
@@ -1381,6 +1405,8 @@ function ClassDetailPanel({
               </div>
             )}
             {infoRow("예상 기간", formatExpectedDuration(progress?.expected_months, progress?.expected_weeks))}
+            {/* 예상 진도율 계산의 시작점 — 미입력이면 "-" 로 보인다 */}
+            {infoRow("시작일", progress?.main_started_on)}
             {infoRow("마감일", progress?.target_end_date)}
             {progress?.target_percent != null && infoRow("목표 진도율", `${progress.target_percent}%`)}
             {progress?.target_end_date && (
@@ -1457,11 +1483,16 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
     )
   );
   const [pendingUnitsClassId, setPendingUnitsClassId] = useState<string | null>(null);
-  const [targetInputs, setTargetInputs] = useState<Record<string, { endDate: string; percent: string }>>(() =>
+  // 인라인 편집값 — 시작일(예상 진도율 시작점)·마감일·목표 진도율
+  const [targetInputs, setTargetInputs] = useState<Record<string, { startDate: string; endDate: string; percent: string }>>(() =>
     Object.fromEntries(
       initialRows.map((row) => [
         row.class_id,
-        { endDate: row.progress?.target_end_date ?? "", percent: numberValue(row.progress?.target_percent) },
+        {
+          startDate: row.progress?.main_started_on ?? "",
+          endDate: row.progress?.target_end_date ?? "",
+          percent: numberValue(row.progress?.target_percent),
+        },
       ])
     )
   );
@@ -1506,6 +1537,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
     setTargetInputs((prev) => ({
       ...prev,
       [nextRow.class_id]: {
+        startDate: nextRow.progress?.main_started_on ?? "",
         endDate: nextRow.progress?.target_end_date ?? "",
         percent: numberValue(nextRow.progress?.target_percent),
       },
@@ -1549,15 +1581,32 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
     }
   };
 
+  /** 인라인 편집값(시작일·마감일·목표%) 중 바뀐 항목만 갱신 */
+  const setTargetField = (
+    classId: string,
+    patch: Partial<{ startDate: string; endDate: string; percent: string }>
+  ) => {
+    setTargetInputs((prev) => ({
+      ...prev,
+      [classId]: { ...(prev[classId] ?? { startDate: "", endDate: "", percent: "" }), ...patch },
+    }));
+  };
+
   const handleTargetSave = async (row: ProgressBoardRow) => {
-    const input = targetInputs[row.class_id] ?? { endDate: "", percent: "" };
+    const input = targetInputs[row.class_id] ?? { startDate: "", endDate: "", percent: "" };
     setPendingTargetClassId(row.class_id);
-    const result = await updateTargetPlan(row.class_id, input.endDate, input.percent === "" ? null : input.percent);
+    // 시작일은 비어 있으면 null 로 보내 기존 우선순위(교재 이력 등)로 폴백시킨다
+    const result = await updateTargetPlan(
+      row.class_id,
+      input.endDate,
+      input.percent === "" ? null : input.percent,
+      input.startDate || null
+    );
     setPendingTargetClassId(null);
 
     if (result.success && result.progress) {
       updateRow(rowWithProgress(row, { progress: result.progress }));
-      toast.success("마감일·목표 진도율이 저장되었습니다");
+      toast.success("시작일·마감일·목표 진도율이 저장되었습니다");
       setEditingTargetClassId(null);
       router.refresh();
     } else {
@@ -1738,7 +1787,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                   const isSaving = pendingClassId === row.class_id;
                   const isUnitsSaving = pendingUnitsClassId === row.class_id;
                   const units = unitInputs[row.class_id] ?? { major: "", minor: "" };
-                  const target = targetInputs[row.class_id] ?? { endDate: "", percent: "" };
+                  const target = targetInputs[row.class_id] ?? { startDate: "", endDate: "", percent: "" };
                   const isTargetEditing = editingTargetClassId === row.class_id;
                   const isTargetSaving = pendingTargetClassId === row.class_id;
                   const isExpanded = expandedRows.has(row.class_id);
@@ -1797,10 +1846,21 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                           <ExpectedVsActualCell row={row} />
                           {isTargetEditing ? (
                             <div className="flex flex-wrap items-center gap-1.5">
+                              {/* 시작일 → 마감일. 시작일은 예상 진도율 계산의 시작점 */}
                               <Input
                                 type="date"
+                                title="현재 교재 시작일 — 예상 진도율 계산의 시작점"
+                                value={target.startDate}
+                                onChange={(e) => setTargetField(row.class_id, { startDate: e.target.value })}
+                                disabled={isTargetSaving}
+                                className="h-7 w-[130px] text-[12px]"
+                              />
+                              <span className="text-[12px] font-bold text-nk-ink-hint">→</span>
+                              <Input
+                                type="date"
+                                title="현재 교재 마감일"
                                 value={target.endDate}
-                                onChange={(e) => setTargetInputs((prev) => ({ ...prev, [row.class_id]: { endDate: e.target.value, percent: prev[row.class_id]?.percent ?? "" } }))}
+                                onChange={(e) => setTargetField(row.class_id, { endDate: e.target.value })}
                                 disabled={isTargetSaving}
                                 className="h-7 w-[130px] text-[12px]"
                               />
@@ -1812,7 +1872,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                                   max={100}
                                   placeholder="100"
                                   value={target.percent}
-                                  onChange={(e) => setTargetInputs((prev) => ({ ...prev, [row.class_id]: { endDate: prev[row.class_id]?.endDate ?? "", percent: e.target.value.replace(/\D/g, "") } }))}
+                                  onChange={(e) => setTargetField(row.class_id, { percent: e.target.value.replace(/\D/g, "") })}
                                   disabled={isTargetSaving}
                                   className="h-7 w-14 text-center text-[12.5px] font-bold"
                                 />
@@ -1832,7 +1892,7 @@ export function ProgressBoardClient({ initialRows, currentTeacher, initialError 
                                 type="button"
                                 onClick={() => setEditingTargetClassId(row.class_id)}
                                 className="inline-flex items-center gap-1 text-left"
-                                title="클릭하면 마감일·목표 진도율을 수정합니다"
+                                title="클릭하면 시작일·마감일·목표 진도율을 수정합니다"
                               >
                                 <DeadlineBadge progress={progress} weeklyProgress={row.weekly_progress} />
                                 <Pencil className="h-3 w-3 shrink-0 text-nk-ink-hint" />

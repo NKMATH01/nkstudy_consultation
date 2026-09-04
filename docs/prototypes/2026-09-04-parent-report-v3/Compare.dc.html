@@ -32,103 +32,148 @@
   <!-- 머리 -->
   <div style="display: flex; flex-direction: column; gap: 7px;">
     <span class="mono" style="color: #b88a32; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;">NK 학습성향 검사 &#183; 학부모 결과지 개편</span>
-    <h1 style="color: #152033; font-size: 21px; line-height: 1.35; letter-spacing: -0.02em;">학부모 결과지 3판 &#8212; 초안 &#8594; 피드백 반영</h1>
-    <p style="color: #586270; font-size: 12.5px; line-height: 1.75;">3판 초안을 보고 받은 요청을 <strong style="color: #152033;">1&#183;2차</strong>로 나눠 그대로 반영했습니다. 1차에서는 문항별 답변 인용을 전부 빼고 그 자리를 그래프로 채웠으며 학생이 직접 쓴 답과 MBTI, 12주 운영 계획(안)을 새로 넣었습니다. 2차에서는 실제 절차가 없는 검사 중 행동 관찰 섹션을 빼고 NK 지도 방향을 새로 넣었습니다.</p>
+    <h1 style="color: #152033; font-size: 21px; line-height: 1.35; letter-spacing: -0.02em;">학부모 결과지 &#8212; 3판 &#8594; 3판(v2.3 문항표 기준)</h1>
+    <p style="color: #586270; font-size: 12.5px; line-height: 1.75;">결과지에서 알고 싶은 것 <strong style="color: #152033;">아홉 가지</strong>에 척도 하나씩 답하도록 문항을 다시 짰습니다. 공통 36문항 + 직접 질문 2 + 과목 10입니다. 문항표는 <strong style="color: #152033;">docs/assessment-v2.3-blueprint-2026-09-04.md</strong> 에 있습니다. 학생이 적는 주관식과 입력 항목은 <strong style="color: #152033;">하나도 빼지 않고 전부 유지</strong>합니다. 코드는 아직 한 줄도 바꾸지 않았습니다.</p>
   </div>
 
-  <!-- 표 1 · 사용자 피드백 반영 -->
+  <!-- 표 1 · 질문 아홉 개가 어디에서 답을 받는가 -->
   <div style="border: 1px solid #cfd4d9; background: #ffffff; display: flex; flex-direction: column;">
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 11px 16px; background: #152033;">
-      <span class="mono" style="color: #8c99ac; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">피드백</span>
-      <span class="mono" style="color: #aeb8c8; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">요청</span>
-      <span class="mono" style="color: #e8cf9d; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">반영한 방식</span>
-      <span class="mono" style="color: #aeb8c8; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">그래프 &#183; 섹션</span>
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 11px 16px; background: #152033;">
+      <span class="mono" style="color: #e8cf9d; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">알고 싶은 것</span>
+      <span class="mono" style="color: #aeb8c8; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">답하는 척도</span>
+      <span class="mono" style="color: #aeb8c8; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">결과지에서 답하는 곳</span>
+      <span class="mono" style="color: #aeb8c8; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">새 문항 수</span>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
-      <strong style="color: #152033; font-size: 12.5px;">답변 인용 삭제</strong>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">문항 문장과 고른 답을 그대로 보여 주는 &#8220;학생 답변 근거&#8221;를 전부 뺄 것.</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">핵심 소견의 근거 표, 척도별 근거 상자 일곱 개, 학습 선호 원문 표, 수학 근거 표를 모두 삭제했습니다. 문항 문장은 결과지에 한 줄도 남기지 않고 <strong style="color: #152033;">evidenceLabel</strong>(짧은 이름)만 그래프 라벨로 씁니다.</p>
-      <p class="mono" style="color: #586270; font-size: 11px; line-height: 1.7;">03 &#183; 04 &#183; 05 &#183; 07</p>
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">공부를 얼마나 열심히 하는가?</strong>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">학습 태도 A</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">03 프로파일 &#183; 04 질문별 해석 1</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">4</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
-      <strong style="color: #152033; font-size: 12.5px;">그래프 확대</strong>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">그래프를 더 많이 넣을 것.</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">아홉 개를 새로 그렸습니다. 응답 분포 스택 막대, 일곱 축 레이더, 의지 2축 사분면, 척도마다 문항 점 스트립 일곱 벌, 선호 스펙트럼 셋, MBTI 4축 병치, 수학 전략 미니 바, 12주 타임라인. 전부 인라인 SVG 또는 CSS로 그려 외부 리소스가 없습니다.</p>
-      <p class="mono" style="color: #586270; font-size: 11px; line-height: 1.7;">A~I &#183; 01 02 03 04 05 06 07 11</p>
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">숙제를 열심히 하는가?</strong>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">숙제 태도 B</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">03 &#183; 04 질문별 해석 2</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">4</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
-      <strong style="color: #152033; font-size: 12.5px;">주관식 답</strong>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">학생이 직접 쓴 답을 넣을 것.</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">설문 화면의 라벨을 그대로 소제목으로 쓰고 학생 문장을 고치지 않고 옮겼습니다. 이 섹션만 학생 말투를 그대로 둡니다. 학원 이름은 싣지 않고, 비어 있는 항목은 넣지 않습니다.</p>
-      <p class="mono" style="color: #586270; font-size: 11px; line-height: 1.7;">08</p>
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">구체적인 목표가 있는가?</strong>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">목표 의식 C</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">03 &#183; 04 질문별 해석 3 &#183; 05 학생이 직접 적은 것</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">4 + 기존 주관식</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
-      <strong style="color: #152033; font-size: 12.5px;">MBTI</strong>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">MBTI 성향을 넣을 것.</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">네 축마다 MBTI가 가리키는 쪽(속 빈 마커)과 설문 위치(채운 마커)를 나란히 놓고 일치 여부만 칩으로 답니다. 등급·점수와 무관함을 머리말에 밝히고, 등급색은 쓰지 않습니다. MBTI로 성실성&#183;의지&#183;숙제&#183;회복을 설명하는 문장은 한 줄도 없습니다.</p>
-      <p class="mono" style="color: #586270; font-size: 11px; line-height: 1.7;">06 &#183; 그래프 G</p>
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">현재 학습의 어려운 점은?</strong>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">어려운 점 I &#8212; 등급 없음</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">05 학생이 직접 적은 것</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">선택 3 + 기존 주관식</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
-      <strong style="color: #152033; font-size: 12.5px;">12주 계획</strong>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">이전 학원 불만에 답하는 우리 학원 12주 계획을 넣을 것.</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">학생이 고른 범주 세 개를 칩으로 놓고, 각 범주에 대응하는 운영 원칙을 코드의 고정 문구에서 가져왔습니다. 1~4주 &#183; 5~8주 &#183; 9~12주 세 구간마다 목표&#183;행동&#183;확인 방법&#183;담당을 적었습니다. 제목에 <strong style="color: #152033;">(안)</strong>을 붙여 등록 전 확정 약속으로 읽히지 않게 했습니다.</p>
-      <p class="mono" style="color: #586270; font-size: 11px; line-height: 1.7;">11 &#183; 그래프 I</p>
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">강사가 힘들게 시켜도 따라올 것인가?</strong>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">단기 회복력 D</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">02 카드 &#9312; 근거 &#183; 03 &#183; 04 질문별 해석 4</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">5</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">활기차게 질문하는 편인가?</strong>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">질문 성향 G</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">03 &#183; 04 질문별 해석 6</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">4</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1;">
+      <strong style="color: #152033; font-size: 12.5px;">친구나 휴대폰 때문에 공부를 못 하는가?</strong>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">학습 방해 H &#8212; 휴대폰 4 &#183; 친구 3</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">03 &#183; 04 질문별 해석 7&#183;8</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">7</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; border-bottom: 1px solid #eceff1; background: #fbf7ee;">
       <div style="display: flex; flex-direction: column; gap: 3px;">
-        <span class="mono" style="color: #b88a32; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;">2차</span>
-        <strong style="color: #152033; font-size: 12.5px;">행동 관찰 삭제</strong>
+        <span class="mono" style="color: #b88a32; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;">가장 중요</span>
+        <strong style="color: #152033; font-size: 12.5px;">철저한 관리를 버틸 수 있는가?</strong>
       </div>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">검사 중 행동 관찰 삭제</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">실제 감독&#183;기록 절차가 없어 섹션을 통째로 뺐습니다. 그 섹션을 근거로 삼은 종합 소견 문장과 꼬리말도 정리했습니다.</p>
-      <p class="mono" style="color: #586270; font-size: 11px; line-height: 1.7;">(삭제) &#183; 09 &#183; 꼬리말</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">관리 수용 E + 직접 질문 E5</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">02 카드 &#9312; &#183; 03 &#183; 04 질문별 해석 5</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">4 + 직접 1</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.25fr) 128px; gap: 16px; padding: 15px 16px;">
+    <div style="display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.1fr) 108px; gap: 16px; padding: 13px 16px; background: #fbf7ee;">
       <div style="display: flex; flex-direction: column; gap: 3px;">
-        <span class="mono" style="color: #b88a32; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;">2차</span>
-        <strong style="color: #152033; font-size: 12.5px;">NK 지도 방향</strong>
+        <span class="mono" style="color: #b88a32; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;">가장 중요</span>
+        <strong style="color: #152033; font-size: 12.5px;">강하게 밀어도 되는가, 다독여야 하는가?</strong>
       </div>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">NK 지도 방향 추가</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">한 줄 요약 + 표 5행(피드백 방식&#183;과제 틀&#183;질문&#183;오답&#183;결과가 늦을 때&#183;학부모 소통). 학습 선호&#183;핵심 소견&#183;학생이 쓴 답에서 나온 근거를 각 행에 붙였습니다. 유형 이름은 쓰지 않았습니다.</p>
-      <p class="mono" style="color: #586270; font-size: 11px; line-height: 1.7;">10</p>
+      <p style="color: #334050; font-size: 12px; line-height: 1.7;">지도 방식 반응 F + 강제선택 F5</p>
+      <p style="color: #586270; font-size: 12px; line-height: 1.7;">02 카드 &#9313; &#8212; 04에는 넣지 않음</p>
+      <p class="mono" style="color: #152033; font-size: 11.5px; font-weight: 700; line-height: 1.7;">4 + 강제선택 1</p>
     </div>
 
   </div>
 
-  <!-- 표 2 · 감사 문서와 다르게 간 결정 -->
-  <div style="border: 1px solid #cfd4d9; background: #ffffff; display: flex; flex-direction: column;">
+  <!-- 표 2 · 뺀 것 / 넣은 것 -->
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
 
-    <div style="padding: 11px 16px; background: #152033;">
-      <span class="mono" style="color: #e8cf9d; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">감사 문서(2026-09-01)와 다르게 간 결정 2가지 &#8212; 사용자 결정</span>
+    <div style="border: 1px solid #cfd4d9; background: #ffffff; display: flex; flex-direction: column;">
+      <div style="padding: 10px 14px; background: #f4f6f6; border-bottom: 1px solid #dde1e3;">
+        <span class="mono" style="color: #a8433d; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">이번에 뺀 것</span>
+      </div>
+      <div style="padding: 13px 14px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">학습 선호(옛 05)</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">스펙트럼 세 줄을 없앴습니다. 선호 축은 지도 방식 반응 척도가 대신합니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">MBTI 섹션(옛 06)</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">섹션을 없애고 종합 소견의 한두 문장으로 내렸습니다. 원인으로는 쓰지 않습니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">학생이 직접 쓴 답(옛 08)</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">05 학생이 직접 적은 것으로 흡수하고, 학생이 적는 항목을 전부 실었습니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">핵심 소견&#183;학습 의지(옛 03)</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">02 핵심 판단 두 가지가 그 자리를 대신합니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">입학 상담에서 확인할 것(옛 12)</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">확인 목록을 통째로 뺐습니다. 그 자리에 학부모 질문 일곱 개가 들어갑니다.</p>
+        </div>
+      </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 11px 16px; background: #f4f6f6; border-bottom: 1px solid #dde1e3;">
-      <span class="mono" style="color: #586270; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">항목</span>
-      <span class="mono" style="color: #586270; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">감사 문서의 판단</span>
-      <span class="mono" style="color: #586270; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">본 결정(2026-09-04)</span>
-      <span class="mono" style="color: #586270; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">지킨 안전장치</span>
-    </div>
-
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px; border-bottom: 1px solid #eceff1;">
-      <strong style="color: #152033; font-size: 12.5px;">MBTI 표시</strong>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">학생이 적은 자기라벨을 점수와 떨어뜨린 <strong style="color: #a8433d;">비공식 메모로만</strong> 두고, 학부모 공유 자료에서는 MBTI 축을 뺀다.</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">06 섹션에 넣되 설문 응답과 나란히 놓아 <strong style="color: #152033;">일치 여부만</strong> 표시하고, 등급&#183;점수에 반영하지 않음을 머리말에 밝힌다.</p>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">&#167;4 원칙 그대로 &#8212; 공식 검사로 표현하지 않고, 4글자를 능력&#183;성실성&#183;공부법 추천의 근거로 쓰지 않으며, 다른 축은 상담에서 사례를 확인한다고만 적었습니다.</p>
-    </div>
-
-    <div style="display: grid; grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 15px 16px;">
-      <strong style="color: #152033; font-size: 12.5px;">12주 계획</strong>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">학부모 공유 payload에서 12주 계획을 <strong style="color: #a8433d;">제거</strong>하고, 등록 후 별도로 작성한다.</p>
-      <p style="color: #334050; font-size: 12px; line-height: 1.7;">학부모 결과지 11 섹션에 포함하되 제목과 본문에 <strong style="color: #152033;">(안)</strong>을 붙이고, 확정은 등록 후 입학 상담에서 합의한다고 명시한다.</p>
-      <p style="color: #586270; font-size: 12px; line-height: 1.7;">&#167;10 대체 문구 방식 그대로 &#8212; 낙인 없이 행동 단위로 적고, 이전 학원 경험은 원문&#183;학원명 없이 코드의 고정 범주 문구만 씁니다.</p>
+    <div style="border: 1px solid #cfd4d9; background: #ffffff; display: flex; flex-direction: column;">
+      <div style="padding: 10px 14px; background: #f4f6f6; border-bottom: 1px solid #dde1e3;">
+        <span class="mono" style="color: #2d776a; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">새로 넣은 것</span>
+      </div>
+      <div style="padding: 13px 14px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">02 핵심 판단 두 가지</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">관리를 버틸 수 있는가, 강하게 밀어도 되는가를 맨 앞에서 한 문장으로 답합니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">목표 의식 척도</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">문항 4개 + 목표를 한 줄로 적는 칸을 새로 만들었습니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">관리 수용 &#183; 지도 방식 반응</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">경험을 묻는 문항과 학생에게 바로 묻는 질문을 함께 넣었습니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">친구 방해 &#183; 어려운 점 선택지</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">친구 3문항을 새로 넣고, 어려운 점은 여덟 개 중 최대 세 개를 고르게 합니다.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="color: #152033; font-size: 12px;">10 학부모님께 여쭙니다</strong>
+          <p style="color: #586270; font-size: 11.5px; line-height: 1.65;">결과지 맨 아래에 학부모가 표시하는 질문 일곱 개를 넣었습니다. 점수는 내지 않습니다.</p>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -137,6 +182,7 @@
   <div style="border: 1px solid #cfd4d9; background: #f4f6f6; padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
     <span class="mono" style="color: #8a6422; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;">아직 못 정한 것</span>
     <p style="color: #334050; font-size: 12px; line-height: 1.7;">등급 이름을 잘 되고 있음 &#183; 지켜볼 것 &#183; 먼저 도울 것으로 확정할지. 학부모가 &#8220;먼저 도울 것&#8221;을 문제 지적으로 읽는지 확인이 필요합니다.</p>
+    <p style="color: #334050; font-size: 12px; line-height: 1.7;">관리 수용 E1&#183;E2는 경험을 묻는 문항이라 학원을 처음 다니는 학생은 둘 다 &#8220;경험 없음&#8221;이 됩니다. 남은 두 문항으로 점수를 낼지, 판정을 보류할지 정해야 합니다.</p>
   </div>
 
 </div>

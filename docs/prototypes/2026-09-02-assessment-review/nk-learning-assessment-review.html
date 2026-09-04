@@ -1,0 +1,404 @@
+<title>신입생 의지 판별 점검</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;900&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --paper: #e9ebe8;
+    --surface: #ffffff;
+    --sunken: #f3f5f2;
+    --ink: #1b2430;
+    --ink-sub: #4d5a68;
+    --ink-faint: #7c8894;
+    --line: #d6dad4;
+    --line-soft: #e5e8e3;
+    --brass: #9a7326;
+    --brass-soft: #f2ead8;
+    --teal: #276b60;
+    --teal-soft: #e3efec;
+    --coral: #b8534a;
+    --coral-soft: #f6e6e3;
+    --amber: #8a6422;
+    --amber-soft: #f5ecd9;
+    --verdict-bg: #152033;
+    --verdict-ink: #eef1ee;
+    --verdict-sub: #b9c4d4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #10151b;
+      --surface: #171e26;
+      --sunken: #1d252e;
+      --ink: #e6ebf1;
+      --ink-sub: #a9b5c2;
+      --ink-faint: #74818e;
+      --line: #2b353f;
+      --line-soft: #232c35;
+      --brass: #d6ab5c;
+      --brass-soft: #2c2517;
+      --teal: #6fc4b1;
+      --teal-soft: #16302b;
+      --coral: #e08b81;
+      --coral-soft: #331e1b;
+      --amber: #d8b569;
+      --amber-soft: #2b2416;
+      --verdict-bg: #0c1119;
+      --verdict-ink: #e6ebf1;
+      --verdict-sub: #a9b5c2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #10151b;
+    --surface: #171e26;
+    --sunken: #1d252e;
+    --ink: #e6ebf1;
+    --ink-sub: #a9b5c2;
+    --ink-faint: #74818e;
+    --line: #2b353f;
+    --line-soft: #232c35;
+    --brass: #d6ab5c;
+    --brass-soft: #2c2517;
+    --teal: #6fc4b1;
+    --teal-soft: #16302b;
+    --coral: #e08b81;
+    --coral-soft: #331e1b;
+    --amber: #d8b569;
+    --amber-soft: #2b2416;
+    --verdict-bg: #0c1119;
+    --verdict-ink: #e6ebf1;
+    --verdict-sub: #a9b5c2;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    word-break: keep-all;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px 96px; }
+
+  .masthead { padding: 56px 0 30px; border-bottom: 2px solid var(--ink); display: flex; flex-direction: column; gap: 14px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.14em;
+    color: var(--brass); text-transform: uppercase;
+  }
+  h1 {
+    margin: 0;
+    font-family: "Gothic A1", "Apple SD Gothic Neo", sans-serif;
+    font-weight: 900;
+    font-size: clamp(30px, 6.4vw, 46px);
+    line-height: 1.16; letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  .standfirst { font-size: 17px; line-height: 1.72; color: var(--ink-sub); max-width: 62ch; margin: 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-faint); }
+
+  .verdict {
+    margin: 34px 0 0; background: var(--verdict-bg); color: var(--verdict-sub);
+    border-radius: 3px; padding: 26px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .verdict .eyebrow { color: var(--brass); }
+  .verdict p { margin: 0; font-size: 17px; line-height: 1.7; }
+  .verdict strong { color: var(--verdict-ink); font-weight: 600; }
+
+  .correction {
+    margin: 24px 0 0; background: var(--coral-soft);
+    border-left: 3px solid var(--coral); border-radius: 0 3px 3px 0;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .correction .eyebrow { color: var(--coral); }
+  .correction p { margin: 0; font-size: 15.5px; color: var(--ink-sub); }
+  .correction strong { color: var(--ink); font-weight: 600; }
+
+  section { margin-top: 62px; }
+  h2 { margin: 0 0 6px; font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.02em; line-height: 1.3; }
+  .lede { margin: 0 0 24px; color: var(--ink-sub); font-size: 15.5px; max-width: 62ch; }
+  h3 { margin: 0; font-family: "Gothic A1", sans-serif; font-weight: 700; font-size: 17.5px; letter-spacing: -0.015em; }
+  p { margin: 0 0 14px; }
+  p:last-child { margin-bottom: 0; }
+  a { color: var(--brass); text-underline-offset: 3px; }
+  a:hover { color: var(--ink); }
+  a:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+  .cards { display: flex; flex-direction: column; gap: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 3px; padding: 20px 22px; display: flex; flex-direction: column; gap: 9px; }
+  .card--lead { border-left: 3px solid var(--brass); }
+  .card__head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .rank { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; color: var(--brass); font-variant-numeric: tabular-nums; }
+  .card p { font-size: 15px; color: var(--ink-sub); margin: 0; }
+  .card p + p { margin-top: 10px; }
+  .card strong { color: var(--ink); font-weight: 600; }
+
+  .chip { display: inline-block; padding: 3px 9px; border-radius: 3px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+  .chip--now { background: var(--coral-soft); color: var(--coral); }
+  .chip--next { background: var(--amber-soft); color: var(--amber); }
+  .chip--keep { background: var(--teal-soft); color: var(--teal); }
+
+  .evidence { margin-top: 4px; padding: 12px 14px; background: var(--sunken); border-left: 2px solid var(--line); border-radius: 0 3px 3px 0; font-size: 13.5px; line-height: 1.65; color: var(--ink-sub); }
+  .evidence b { color: var(--ink); font-weight: 600; }
+
+  .scroller { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 11px 15px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); background: var(--sunken); }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  .bad { color: var(--coral); font-weight: 600; }
+  .good { color: var(--teal); font-weight: 600; }
+
+  .steps { display: flex; flex-direction: column; }
+  .step { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 18px; padding: 18px 0; border-top: 1px solid var(--line); }
+  .step:last-child { border-bottom: 1px solid var(--line); }
+  .step__when { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--brass); padding-top: 2px; }
+  .step__body { display: flex; flex-direction: column; gap: 6px; }
+  .step__body p { font-size: 14.5px; color: var(--ink-sub); margin: 0; }
+  @media (max-width: 560px) { .step { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+  .sources { font-size: 13.5px; color: var(--ink-sub); }
+  .sources ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 9px; }
+  .sources li { line-height: 1.6; }
+
+  .footnote { margin-top: 58px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-faint); line-height: 1.7; }
+  @media (prefers-reduced-motion: no-preference) { a { transition: color 140ms ease; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">NK EDUCATION · 검사 점검 2판</span>
+    <h1>이 아이가 진짜<br>할 마음이 있는가</h1>
+    <p class="standfirst">입학테스트를 보러 온 학생, 우리 학원에 기록이 하나도 없는 상태. 이 조건에서 60문항으로 무엇을 판단할 수 있고 무엇이 부족한지 다시 봤습니다.</p>
+    <div class="meta">
+      <span>2026.09.02</span>
+      <span>대상 — 입학 학습성향 프로필 v2.2</span>
+      <span>공통 40 + 과목 10문항</span>
+    </div>
+  </header>
+
+  <div class="correction">
+    <span class="eyebrow">1판에서 틀린 것</span>
+    <p>1판에서 <strong>"숙제 제출 기록과 대조하라"</strong>를 두 번째 권고로 올렸습니다. <strong>이 시점에는 성립하지 않습니다.</strong> 검사를 받는 학생은 아직 우리 학원 학생이 아니라, 숙제·출결·응시 기록이 한 줄도 없습니다. 그 대조는 등록해서 넉 주가 지난 뒤에야, 그것도 개인 해석이 아니라 <strong>검사 자체를 보정하는 용도</strong>로만 쓸 수 있습니다. 아래는 그 전제로 다시 짠 우선순위입니다.</p>
+  </div>
+
+  <div class="verdict">
+    <span class="eyebrow">다시 낸 결론</span>
+    <p>이 자리에서 판단 근거는 <strong>검사 응답, 입학테스트, 상담 대화 셋뿐</strong>입니다. 그런데 지금 검사는 <strong>의지를 스무 개 항목 중 하나로 취급</strong>하고, <strong>중간값을 '보통'으로 읽고</strong> 있습니다. 둘 다 신입생 판별에는 치명적입니다. 그리고 <strong>입학테스트라는 유일한 행동 관찰 기회를 기록으로 남기지 않고</strong> 있습니다.</p>
+  </div>
+
+  <section>
+    <h2>가장 급한 것 — 3점을 '보통'으로 읽고 있다</h2>
+    <p class="lede">코드를 확인했습니다. 지적하신 문제가 숫자로 그대로 있습니다.</p>
+
+    <p>응답 1~5점은 <span class="num" style="font-family:'IBM Plex Mono',monospace">(응답−1)÷4×100</span> 으로 환산됩니다. 그래서 <strong>3점은 정확히 50점</strong>이 되고, 지금 기준으로는 "상황에 따른 차이가 나타남"이라는 중립 문구가 나갑니다.</p>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>학생이 고른 답</th><th>환산 점수</th><th>지금 나가는 문구</th><th>실제로 뜻하는 것</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>할 때마다 했다 (5)</td><td class="num">100</td><td>안정적으로 나타남</td><td class="good">잘 되고 있음</td></tr>
+          <tr><td>대부분 했다 (4)</td><td class="num">75</td><td>안정적으로 나타남</td><td class="good">잘 되고 있음</td></tr>
+          <tr><td>절반쯤 했다 (3)</td><td class="num">50</td><td>상황에 따른 차이</td><td class="bad">사실상 안 하고 있음</td></tr>
+          <tr><td>가끔 했다 (2)</td><td class="num">25</td><td>구조가 필요함</td><td class="bad">거의 안 함</td></tr>
+          <tr><td>거의 하지 않았다 (1)</td><td class="num">0</td><td>구조가 필요함</td><td class="bad">안 함</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:18px">왜 3점이 '못한다'인가 — 이 문항들은 <strong>모두 좋은 행동을 묻습니다.</strong> "숙제를 기한 안에 낸다"에 학생 대부분은 4~5를 고릅니다. 그 분포에서 3은 가운데가 아니라 <strong>아래쪽입니다.</strong> 게다가 입학 상담 자리에서 처음 만나는 학원에 답하는 상황이라 <strong>실제보다 높게 답할 이유는 있어도 낮게 답할 이유는 없습니다.</strong> 그런 조건에서 스스로 3을 골랐다면, 실제는 그보다 아래로 보는 것이 맞습니다.</p>
+
+    <div class="evidence">
+      <b>고칠 곳</b> — <span style="font-family:'IBM Plex Mono',monospace">scoring.ts</span> 의 구간 기준. 지금은 60 이상 높음 / 40 이하 낮음입니다.<br>
+      <b>바꿀 값</b> — 잘 되고 있음 <span style="font-family:'IBM Plex Mono',monospace">75 이상</span>(평균 4점) · 지켜볼 것 <span style="font-family:'IBM Plex Mono',monospace">62.5~75</span> · 먼저 도울 것 <span style="font-family:'IBM Plex Mono',monospace">62.5 미만</span>(평균 3.5 미만). 이러면 3점은 '먼저 도울 것'으로 떨어집니다.<br>
+      <b>주의</b> — "낯선 유형을 피한다" 같은 <b>반대 방향 항목</b>은 부호가 뒤집힙니다. 거기서는 3점이 이미 높은 위험 신호입니다. 방향별로 따로 계산해야 합니다.<br>
+      <b>규모</b> — 함수 하나. 다만 문구 매핑까지 같이 손봐야 하고, <b>이미 나간 보고서의 해석이 달라지므로</b> 신규 제출부터 적용합니다.
+    </div>
+  </section>
+
+  <section>
+    <h2>의지를 스무 분의 일로 취급하고 있다</h2>
+    <p class="lede">가장 중요한 것이 화면에서 가장 중요해 보이지 않습니다.</p>
+
+    <p>지금 의지에 해당하는 문항은 <strong>8개</strong>입니다 — 오래 버티는 힘 4문항(G1~G4), 넘어진 뒤 다시 시작하는 힘 4문항(B1~B4). 전체 40문항 중 5분의 1이니 비중 자체는 작지 않습니다.</p>
+    <p><strong>문제는 표시입니다.</strong> 결과지에서 이 둘은 스무 개 항목 목록 안에 다른 항목들과 똑같은 크기로 섞여 있습니다. 휴대폰 조절이나 친구 관계와 같은 무게로 보입니다.</p>
+
+    <div class="cards">
+      <article class="card card--lead">
+        <div class="card__head"><span class="rank">01</span><h3>의지를 결과지의 주인공으로 올린다</h3><span class="chip chip--now">즉시</span></div>
+        <p>표지 다음 첫 화면에 <strong>의지 판정 하나만</strong> 놓습니다. 나머지 열아홉 항목은 그 뒤로 내립니다. 학원이 무엇을 가장 중요하게 보는지가 결과지 구조로 드러나야 합니다.</p>
+        <p>판정은 세 갈래로 씁니다 — <strong>버티는 힘이 이미 있다 / 시작은 하는데 오래 못 간다 / 시작 자체를 도와야 한다.</strong> 점수가 아니라 문장으로 답합니다.</p>
+      </article>
+
+      <article class="card card--lead">
+        <div class="card__head"><span class="rank">02</span><h3>의지는 자기보고에서 가장 부풀려지는 축이다</h3><span class="chip chip--now">즉시</span></div>
+        <p>"열심히 하겠느냐"에 아니라고 답할 학생은 없습니다. 입학 상담 자리라면 더 그렇습니다. <strong>지금 의지 8문항은 전부 빈도 척도라 부풀리기 쉽습니다.</strong></p>
+        <p>해법은 <strong>둘 중 하나 고르기</strong>입니다. 양쪽 모두 그럴듯하게 들리는 두 행동 중 실제로 더 자주 하는 쪽을 고르게 하면, 좋게 보이려는 답이 통하지 않습니다. 이미 이 방식을 한 문항(R2)에 써서 효과를 봤습니다 — <strong>같은 방식을 의지 축에 2~3문항 넣습니다.</strong></p>
+        <div class="evidence"><b>예시</b> — "시험 2주 전인데 계획이 밀렸다. 실제로 더 자주 하는 쪽은? ⓐ 계획을 다시 짠다 ⓑ 일단 눈앞의 것부터 손댄다" — 둘 다 나쁘게 들리지 않지만 가리키는 바가 다릅니다.</div>
+      </article>
+
+      <article class="card card--lead">
+        <div class="card__head"><span class="rank">03</span><h3>"왜 공부하는가"가 빠져 있다</h3><span class="chip chip--now">즉시</span></div>
+        <p>의지는 세기만 있는 게 아니라 <strong>방향</strong>이 있습니다. 잘하고 싶어서 버티는 아이와, 못한다는 말을 듣기 싫어서 버티는 아이는 <strong>같은 점수가 나와도 완전히 다르게 지도해야 합니다.</strong></p>
+        <p>후자는 어려운 문제를 만나면 회피합니다. 못하는 게 드러나니까요. 앞의 아이는 같은 문제를 기회로 봅니다. 지금 검사는 이 둘을 구분하지 못합니다.</p>
+        <div class="evidence"><b>제안</b> — 4문항. 1판에서는 다섯 번째로 미뤘는데, <b>의지 판별이 최우선이라면 이건 미룰 항목이 아닙니다.</b> 의지 축의 일부로 올립니다.</div>
+      </article>
+
+      <article class="card">
+        <div class="card__head"><span class="rank">04</span><h3>"할 수 있다"는 믿음</h3><span class="chip chip--next">다음</span></div>
+        <p>버티는 힘이 약해 보이는 아이 중 상당수는 <strong>의지가 없는 게 아니라 "해도 안 될 것 같다"고 느끼는 경우</strong>입니다. 이 둘은 처방이 정반대입니다 — 앞은 동기를 만들어야 하고, 뒤는 성공 경험을 만들어야 합니다.</p>
+        <p>학업 성취를 가장 잘 예측하는 심리 변인으로, 대학 성적 기준 상관이 내신이나 지능검사보다 높게 나옵니다. 공통 4문항이면 충분합니다.</p>
+        <div class="evidence"><b>근거</b> — Richardson 외(2012): 자기효능감 ρ=.59, 고교 내신 .41, 지능 .21.</div>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>입학테스트가 유일한 행동 관찰 기회다</h2>
+    <p class="lede">학원 기록이 없다는 건 맞지만, 관찰 기회가 아예 없는 건 아닙니다.</p>
+
+    <p>학생은 <strong>지금 우리 앞에서 시험을 보고 있습니다.</strong> 이건 자기보고가 아니라 실제 행동입니다. 그런데 지금은 <strong>점수만 남기고 행동은 남기지 않습니다.</strong></p>
+
+    <p>의지를 판단하는 데 필요한 건 사실 점수가 아니라 이런 것들입니다 — <strong>모르는 문제 앞에서 얼마나 버텼는지, 빈칸으로 두었는지 뭐라도 썼는지, 시간이 부족할 때 무엇을 버렸는지, 다 풀고 검산했는지.</strong></p>
+
+    <div class="cards">
+      <article class="card">
+        <div class="card__head"><h3>감독 교사가 체크할 세 가지</h3><span class="chip chip--now">즉시</span></div>
+        <p><strong>① 빈칸 처리</strong> — 못 푼 문제를 그냥 비웠는가, 식이라도 세워 봤는가<br><strong>② 포기 시점</strong> — 어려운 문항에서 몇 분 만에 손을 놓았는가<br><strong>③ 마무리</strong> — 남은 시간에 검토했는가, 엎드렸는가</p>
+        <p>객관식 세 항목이면 <strong>30초</strong>면 기록됩니다. 이게 자기보고와 맞춰볼 유일한 실제 근거입니다.</p>
+      </article>
+
+      <article class="card">
+        <div class="card__head"><h3>어긋남 자체가 가장 값진 정보다</h3></div>
+        <p>"어려운 과제도 바로 해설을 보지 않고 먼저 시도한다"에 <strong>대부분 했다(4점)</strong>라고 답한 학생이, 입학테스트에서 <strong>낯선 유형 세 문제를 모두 비웠다면</strong> — 이 차이는 숨길 수 없는 신호입니다.</p>
+        <p>학부모 상담에서도 강력합니다. "본인은 이렇게 답했는데 시험에서는 이랬습니다"는 <strong>추측이 아니라 관찰입니다.</strong> 이 한 줄이 결과지 전체의 신뢰도를 만듭니다.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>기준선은 신입생 응답으로 만들어야 한다</h2>
+    <p class="lede">3점을 '못한다'로 읽는 건 지금 당장의 임시 조치입니다. 제대로 된 답은 따로 있습니다.</p>
+    <p>정확히 어디서 잘라야 하는지는 <strong>우리 신입생들이 실제로 어떻게 답하는지</strong>를 봐야 알 수 있습니다. 어떤 문항은 90%가 4점 이상을 고르고, 어떤 문항은 고르게 퍼집니다. 항목마다 기준이 달라야 합니다.</p>
+    <p>쌓인 응답으로 항목별 분포를 뽑으면 <strong>"신입생 100명 중 아래에서 몇 번째"</strong>로 말할 수 있게 됩니다. 이건 재원생 규준이 아니라 <strong>신입생 규준</strong>이어야 합니다 — 비교 대상이 같은 처지의 학생이어야 하니까요.</p>
+    <div class="evidence"><b>순서</b> — 지금은 3점 = 도움 필요로 임시 고정하고, 응답이 100건을 넘으면 분포 기준으로 교체합니다. 임시 조치와 최종 조치가 다르다는 걸 문서에 남겨야 나중에 헷갈리지 않습니다.</div>
+  </section>
+
+  <section>
+    <h2>결과지는 "잘 파악하고 있구나"를 만들어야 한다</h2>
+    <p class="lede">읽기 쉬운 것과 미덥게 보이는 것은 다른 문제입니다. 1판 재설계안은 전자에 치우쳐 있었습니다.</p>
+
+    <div class="cards">
+      <article class="card">
+        <div class="card__head"><h3>전문성은 구체성에서 나온다</h3></div>
+        <p>"성실한 편입니다" 같은 문장은 누구에게나 해당돼서 아무 인상도 남기지 않습니다. 반대로 <strong>"60문항 중 이 학생이 '거의 하지 않았다'를 고른 항목은 두 개였고, 둘 다 혼자 시작하는 상황이었습니다"</strong>는 이 학생에게만 해당합니다.</p>
+        <p>학부모가 "잘 파악하고 있다"고 느끼는 순간은 <strong>자기 아이만의 이야기가 나올 때</strong>입니다.</p>
+      </article>
+
+      <article class="card">
+        <div class="card__head"><h3>교차 검증을 보여주면 신뢰가 생긴다</h3></div>
+        <p>같은 것을 다른 각도로 물은 문항끼리 <strong>맞는지 어긋나는지</strong>를 짚어 주면, 검사를 대충 읽지 않았다는 게 드러납니다.</p>
+        <p>예 — <strong>"본인은 반복 연습을 견딘다고 답했지만, 낮은 점수 뒤 행동에서는 미룬다고 답했습니다. 꾸준함은 있으나 실패 뒤 회복이 느린 형입니다."</strong> 이런 문장 하나가 점수 열 개보다 강합니다.</p>
+      </article>
+
+      <article class="card">
+        <div class="card__head"><h3>근거를 밝히는 건 약해 보이는 게 아니다</h3></div>
+        <p>1판에서 "문항 하나로만 확인해 단정하지 않습니다"라고 썼는데, <strong>이건 변명처럼 읽힙니다.</strong></p>
+        <p>같은 사실을 이렇게 쓰면 전문가로 읽힙니다 — <strong>"이 항목은 문항 하나로 확인했습니다. 입학테스트에서 직접 보고 확정하겠습니다."</strong> 한계를 인정하되 <strong>다음 조치를 함께 제시</strong>하면 오히려 미덥습니다.</p>
+      </article>
+
+      <article class="card">
+        <div class="card__head"><h3>쉬운 말과 전문성은 충돌하지 않는다</h3></div>
+        <p>어려운 용어를 쓰는 게 전문성이 아닙니다. <strong>어려운 판단을 쉬운 말로 정확하게 내리는 것</strong>이 전문성입니다. 결과지 문장은 쉽게 쓰되, 판단은 분명하게 씁니다 — "그럴 수도 있습니다" 대신 <strong>"이 부분은 도움이 필요합니다"</strong>.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>고칠 순서</h2>
+    <p class="lede">문항을 늘리는 것보다 지금 있는 걸 제대로 읽는 게 먼저입니다.</p>
+    <div class="steps">
+      <div class="step">
+        <span class="step__when">1 · 당장</span>
+        <div class="step__body">
+          <h3>3점을 '도움 필요'로 내린다</h3>
+          <p>구간 기준 함수와 문구 매핑을 고칩니다. 반대 방향 항목은 부호를 뒤집어 따로 처리합니다. <strong>문항은 그대로</strong>라 예전 응답과 섞이는 문제가 없고, 신규 제출부터 적용합니다.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="step__when">2 · 당장</span>
+        <div class="step__body">
+          <h3>입학테스트 관찰 3항목을 기록으로 남긴다</h3>
+          <p>감독 교사가 체크하는 객관식 세 개. 검사 코드와 무관해서 <strong>병행 진행 가능</strong>합니다. 종이로 먼저 시작해도 됩니다.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="step__when">3 · 다음</span>
+        <div class="step__body">
+          <h3>의지 축을 결과지 맨 앞으로 + 둘 중 하나 고르기 문항 추가</h3>
+          <p>의지 판정을 첫 화면 주인공으로 올리고, 부풀림에 강한 강제선택 2~3문항과 "왜 공부하는가" 4문항을 넣습니다. 검사 버전을 올립니다.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="step__when">4 · 다음</span>
+        <div class="step__body">
+          <h3>자기효능감 4문항</h3>
+          <p>의지가 약해 보이는 아이가 <strong>동기 부족인지 자신감 부족인지</strong> 가릅니다. 3단계와 같은 버전에 묶어도 됩니다.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="step__when">5 · 나중</span>
+        <div class="step__body">
+          <h3>신입생 규준으로 기준선 교체</h3>
+          <p>응답 100건 이상 쌓인 뒤. 1단계의 임시 기준을 항목별 실제 분포로 바꿉니다.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="step__when">6 · 나중</span>
+        <div class="step__body">
+          <h3>등록한 학생만 사후 검증</h3>
+          <p>등록 후 4주 기록과 입학 때 응답을 맞춰 봅니다. <strong>개인 해석용이 아니라 검사 보정용</strong>입니다. 어떤 문항이 실제를 잘 맞혔는지 알게 되면 그 문항을 늘립니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>1판에서 그대로 두는 것</h2>
+    <p class="lede">방향이 맞다고 판단한 부분은 바뀌지 않았습니다.</p>
+    <div class="cards">
+      <article class="card">
+        <div class="card__head"><h3>유형 검사가 아니라 행동 검사인 것</h3><span class="chip chip--keep">유지</span></div>
+        <p>"시각형·청각형"에 맞춰 가르치면 더 배운다는 주장은 연구로 반복 기각됐습니다. 우리 문항은 유형을 묻지 않고 실제 행동의 빈도를 묻습니다. <strong>이 방향은 옳습니다.</strong></p>
+      </article>
+      <article class="card">
+        <div class="card__head"><h3>취향과 실력을 코드에서 갈라 놓은 것</h3><span class="chip chip--keep">유지</span></div>
+        <p>"혼자 정하고 싶은 정도"는 높다고 좋은 게 아닙니다. 항목마다 잘함·도움 필요·취향을 구분해 두고 AI가 어기지 못하게 막고 있습니다.</p>
+      </article>
+      <article class="card">
+        <div class="card__head"><h3>MBTI 가중치 0</h3><span class="chip chip--keep">유지</span></div>
+        <p>참고 표시만 하고 점수에는 섞지 않습니다. 지금 상태가 맞습니다.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>근거로 삼은 자료</h2>
+    <div class="sources">
+      <ol>
+        <li>Richardson, Abraham &amp; Bond (2012), Honicke &amp; Broadbent (2016) — 자기효능감과 학업성취 — <a href="https://www.semanticscholar.org/paper/The-influence-of-academic-self-efficacy-on-academic-Honicke-Broadbent/2f82021c77228644217fc84cf085c2706cda1a25">Semantic Scholar</a></li>
+        <li>Credé, Tynan &amp; Harms (2017). <em>Much Ado About Grit</em> — 끈기는 성실성과 거의 같은 것이며 예측력은 '버티는 힘' 쪽에서만 나온다 — <a href="https://pubmed.ncbi.nlm.nih.gov/27845531/">PubMed</a></li>
+        <li>Martin &amp; Marsh — 학업 회복탄력(academic buoyancy), 매일의 작은 좌절에서 회복하는 힘 — <a href="https://www.sciencedirect.com/science/article/abs/pii/S0022440507000131">원 논문</a></li>
+        <li>Veenman 외 — 자기보고식 학습전략 측정은 실제 행동과 약하게만 상관한다 — <a href="https://link.springer.com/article/10.1007/s11409-011-9081-9">Metacognition and Learning</a></li>
+        <li>Pashler 외 (2008), Nancekivell 외 (2020) — 학습유형론 기각 — <a href="https://www.apa.org/pubs/journals/releases/edu-edu0000366.pdf">APA PDF</a></li>
+        <li>국내 비교 — MLST-II 학습전략검사(박동혁), 청소년용 185문항·약 45분 — <a href="https://inpsyt.co.kr/psy/item/view/MLST2_CO_SG_A">인싸이트</a></li>
+      </ol>
+    </div>
+  </section>
+
+  <p class="footnote">이 문서는 코드를 직접 읽고 작성했습니다 — 문항 정의, 채점 함수, 구간 기준, 결과지 구성. 다만 <strong>실제 응답 분포는 보지 않았습니다.</strong> 3점을 '도움 필요'로 내리는 판단은 문항이 모두 바람직한 행동을 묻는다는 구조와 대표님의 현장 관찰에 근거한 것이며, 쌓인 응답으로 확인하면 기준을 더 정확히 잡을 수 있습니다. MLST-II의 세부 하위요인은 유료 지침서에만 있어 공개 자료로는 확인하지 못했습니다.</p>
+
+</div>

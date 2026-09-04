@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <style>
+    body {
+      margin: 0;
+      background: #f4f6f6;
+      font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      color: #334050;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #b88a32; }
+    a:hover { color: #8a6422; }
+    * { box-sizing: border-box; }
+    p { margin: 0; }
+    h1, h2, h3, h4 { margin: 0; font-weight: 800; word-break: keep-all; font-family: "Gothic A1", "Noto Sans KR", sans-serif; }
+    .mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="padding: 24px 20px; display: flex; flex-direction: column; gap: 16px;">
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <span class="mono" style="color: #b88a32; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em;">무엇을 왜 바꿨나</span>
+    <h1 style="color: #152033; font-size: 18px; line-height: 1.35;">신입생 결과지는<br>다른 물건이어야 한다</h1>
+    <p style="color: #586270; font-size: 12.5px; line-height: 1.7;">이 학생은 아직 우리 학원 학생이 아닙니다. 숙제 기록도 출결도 없습니다. 판단 근거가 <strong style="color:#334050">설문·입학테스트·상담 셋뿐</strong>이라는 전제로 다시 짰습니다.</p>
+  </div>
+
+  <!-- 교정 1 : 3점 -->
+  <section style="background: #fff; border: 1px solid #dde1e3; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="mono" style="padding: 2px 8px; border-radius: 3px; background: #152033; color: #fff; font-size: 10.5px; font-weight: 600;">01</span>
+      <strong style="color: #152033; font-size: 13.5px;">3점을 '보통'으로 읽고 있었다</strong>
+    </div>
+
+    <p style="color: #586270; font-size: 12.5px; line-height: 1.7;">채점식이 <span class="mono" style="color:#334050">(응답−1)÷4×100</span> 이라 3점은 정확히 50점이 됩니다. 지금 기준(60 이상 높음)에서는 중립 문구가 나갑니다.</p>
+
+    <div style="border: 1px solid #dde1e3; border-radius: 4px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: 1.3fr 0.5fr 1fr; gap: 1px; background: #dde1e3;">
+        <div style="background: #f4f6f6; padding: 8px 11px;"><span class="mono" style="color:#586270;font-size:10px;font-weight:600;">학생이 고른 답</span></div>
+        <div style="background: #f4f6f6; padding: 8px 11px;"><span class="mono" style="color:#586270;font-size:10px;font-weight:600;">점수</span></div>
+        <div style="background: #f4f6f6; padding: 8px 11px;"><span class="mono" style="color:#586270;font-size:10px;font-weight:600;">바뀐 판정</span></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.3fr 0.5fr 1fr; gap: 1px; background: #dde1e3;">
+        <div style="background:#fff;padding:9px 11px;"><span style="color:#334050;font-size:12px;">대부분 했다</span></div>
+        <div style="background:#fff;padding:9px 11px;"><span class="mono" style="color:#334050;font-size:12px;">75</span></div>
+        <div style="background:#fff;padding:9px 11px;"><span style="color:#276b60;font-size:12px;font-weight:700;">잘 되고 있음</span></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.3fr 0.5fr 1fr; gap: 1px; background: #dde1e3;">
+        <div style="background:#f6e6e3;padding:9px 11px;"><span style="color:#152033;font-size:12px;font-weight:700;">절반쯤 했다</span></div>
+        <div style="background:#f6e6e3;padding:9px 11px;"><span class="mono" style="color:#152033;font-size:12px;font-weight:600;">50</span></div>
+        <div style="background:#f6e6e3;padding:9px 11px;"><span style="color:#b8534a;font-size:12px;font-weight:700;">먼저 도울 것</span></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.3fr 0.5fr 1fr; gap: 1px; background: #dde1e3;">
+        <div style="background:#fff;padding:9px 11px;"><span style="color:#334050;font-size:12px;">가끔 했다</span></div>
+        <div style="background:#fff;padding:9px 11px;"><span class="mono" style="color:#334050;font-size:12px;">25</span></div>
+        <div style="background:#fff;padding:9px 11px;"><span style="color:#b8534a;font-size:12px;font-weight:700;">먼저 도울 것</span></div>
+      </div>
+    </div>
+
+    <p style="color: #586270; font-size: 12px; line-height: 1.7;">문항이 전부 <strong style="color:#334050">바람직한 행동</strong>을 묻습니다. 대부분 4~5를 고르는 분포에서 3은 가운데가 아니라 아래쪽입니다. 게다가 처음 만나는 학원에 답하는 자리라 <strong style="color:#334050">낮게 답할 이유가 없습니다.</strong></p>
+  </section>
+
+  <!-- 교정 2 : 의지 -->
+  <section style="background: #fff; border: 1px solid #dde1e3; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="mono" style="padding: 2px 8px; border-radius: 3px; background: #152033; color: #fff; font-size: 10.5px; font-weight: 600;">02</span>
+      <strong style="color: #152033; font-size: 13.5px;">의지를 스무 분의 일로 취급했다</strong>
+    </div>
+
+    <p style="color: #586270; font-size: 12.5px; line-height: 1.7;">의지 문항은 8개로 적지 않은데, 결과지에서는 스무 개 목록 안에 휴대폰·친구 관계와 같은 크기로 섞여 있었습니다.</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 9px;">
+      <div style="border: 1px solid #dde1e3; border-radius: 4px; padding: 11px; display: flex; flex-direction: column; gap: 7px;">
+        <span class="mono" style="color: #b8534a; font-size: 10px; font-weight: 600;">지금</span>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #b88a32;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+        </div>
+        <p style="color: #586270; font-size: 11px; line-height: 1.5;">의지가 목록 중간에</p>
+      </div>
+      <div style="border: 1px solid #dde1e3; border-radius: 4px; padding: 11px; display: flex; flex-direction: column; gap: 7px;">
+        <span class="mono" style="color: #276b60; font-size: 10px; font-weight: 600;">재설계</span>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="height: 16px; border-radius: 2px; background: #152033;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+          <span style="height: 5px; border-radius: 2px; background: #eceff1;"></span>
+        </div>
+        <p style="color: #586270; font-size: 11px; line-height: 1.5;">의지 판정이 첫 화면 전부</p>
+      </div>
+    </div>
+
+    <p style="color: #586270; font-size: 12px; line-height: 1.7;">판정은 점수가 아니라 세 갈래 문장으로 냅니다 — <strong style="color:#334050">버티는 힘이 있다 / 시작은 하는데 오래 못 간다 / 시작 자체를 도와야 한다.</strong></p>
+  </section>
+
+  <!-- 교정 3 : 전문성 -->
+  <section style="background: #152033; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="mono" style="padding: 2px 8px; border-radius: 3px; background: rgba(255,255,255,0.14); color: #e8cf9d; font-size: 10.5px; font-weight: 600;">03</span>
+      <strong style="color: #fff; font-size: 13.5px;">"잘 파악하고 있구나"는 구체성에서 나온다</strong>
+    </div>
+
+    <p style="color: #c4cede; font-size: 12.5px; line-height: 1.7;">쉽게 쓰는 것과 미덥게 보이는 것은 다릅니다. 세 가지 장치를 넣었습니다.</p>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="background: rgba(255,255,255,0.06); border-radius: 4px; padding: 11px 12px; display: flex; flex-direction: column; gap: 4px;">
+        <strong style="color: #e8cf9d; font-size: 12px;">교차 검증을 문장으로 보여준다</strong>
+        <p style="color: #dbe2ed; font-size: 11.5px; line-height: 1.65;">"반복 연습은 견딘다고 답했지만, 낮은 점수 뒤에는 미룬다고 답했습니다" — 응답끼리 맞춰 봤다는 게 드러납니다.</p>
+      </div>
+      <div style="background: rgba(255,255,255,0.06); border-radius: 4px; padding: 11px 12px; display: flex; flex-direction: column; gap: 4px;">
+        <strong style="color: #e8cf9d; font-size: 12px;">이 학생에게만 해당하는 관찰을 넣는다</strong>
+        <p style="color: #dbe2ed; font-size: 11.5px; line-height: 1.65;">"낮게 답한 두 항목이 둘 다 혼자 시작하는 상황이었습니다" — 일반론으로는 못 쓰는 문장입니다.</p>
+      </div>
+      <div style="background: rgba(255,255,255,0.06); border-radius: 4px; padding: 11px 12px; display: flex; flex-direction: column; gap: 4px;">
+        <strong style="color: #e8cf9d; font-size: 12px;">한계는 다음 조치와 함께 쓴다</strong>
+        <p style="color: #dbe2ed; font-size: 11.5px; line-height: 1.65;">"단정하지 않습니다"는 변명으로 읽힙니다. <strong style="color:#fff">"입학테스트에서 직접 보고 확정하겠습니다"</strong>는 계획으로 읽힙니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 교정 4 : 입학테스트 -->
+  <section style="background: #fff; border: 1px solid #dde1e3; border-left: 3px solid #b88a32; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+    <strong style="color: #152033; font-size: 13.5px;">유일한 행동 근거는 오늘 시험이다</strong>
+    <p style="color: #586270; font-size: 12.5px; line-height: 1.7;">학원 기록은 없지만, 학생은 <strong style="color:#334050">지금 우리 앞에서 시험을 보고 있습니다.</strong> 그런데 지금은 점수만 남기고 행동은 남기지 않습니다.</p>
+    <p style="color: #586270; font-size: 12.5px; line-height: 1.7;">감독 교사가 <strong style="color:#334050">빈칸 처리 · 포기 시점 · 마무리</strong> 세 가지만 체크하면 30초입니다. 이게 자기보고와 맞춰볼 유일한 실제 근거이고, <strong style="color:#334050">어긋남 자체가 상담에서 가장 강한 카드</strong>가 됩니다.</p>
+  </section>
+
+</div>
+</x-dc>
+</body>
+</html>

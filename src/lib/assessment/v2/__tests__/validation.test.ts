@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getItemsForSubject, isChoiceItem, isLikert } from "../definition";
+import {
+  INSTRUMENT_REVISION,
+  getItemsForSubject,
+  isChoiceItem,
+  isLikert,
+} from "../definition";
 import { computeScoreProfile } from "../scoring";
 import {
   buildScoringInput,
@@ -31,6 +36,7 @@ function validSubmission(
       subject_selection: subject,
       student_phone: "010-1111-2222",
       parent_phone: "010-3333-4444",
+      profile_notice_acknowledged: true,
       ...(overrides.intake ?? {}),
     },
     responses: { ...responses, ...(overrides.responses ?? {}) },
@@ -69,10 +75,17 @@ describe("v2SubmissionSchema 필수 필드", () => {
     expect(r.success).toBe(false);
   });
 
-  it("14일 약속이 비면 거부한다", () => {
+  it("입학 상담 우선 도움이 비면 거부한다", () => {
     const bad = validSubmission("math", { commitment14: "" });
     const r = v2SubmissionSchema.safeParse(bad);
     expect(r.success).toBe(false);
+  });
+
+  it("학습 프로필 안내를 확인하지 않으면 거부한다", () => {
+    const bad = validSubmission("math", {
+      intake: { profile_notice_acknowledged: false } as never,
+    });
+    expect(v2SubmissionSchema.safeParse(bad).success).toBe(false);
   });
 
   it("필수 Likert 문항 누락 시 거부한다", () => {
@@ -80,6 +93,17 @@ describe("v2SubmissionSchema 필수 필드", () => {
     delete (sub.responses as Record<string, unknown>).LT1;
     const r = v2SubmissionSchema.safeParse(sub);
     expect(r.success).toBe(false);
+  });
+
+  it("경험 의존 문항은 경험 없음·잘 모르겠음을 허용하고 일반 문항은 허용하지 않는다", () => {
+    const allowed = validSubmission("math");
+    (allowed.responses as Record<string, unknown>).P1 = "not_applicable";
+    (allowed.responses as Record<string, unknown>).Q1 = "unknown";
+    expect(v2SubmissionSchema.safeParse(allowed).success).toBe(true);
+
+    const blocked = validSubmission("math");
+    (blocked.responses as Record<string, unknown>).LT1 = "not_applicable";
+    expect(v2SubmissionSchema.safeParse(blocked).success).toBe(false);
   });
 });
 
@@ -130,6 +154,48 @@ describe("NK 기대 최대 3개 (서버 검증)", () => {
     });
     const r = v2SubmissionSchema.safeParse(sub);
     expect(r.success).toBe(true);
+  });
+});
+
+describe("이전 학원 경험 구조화 (서버 검증)", () => {
+  it("최대 3개까지 저장한다", () => {
+    const parsed = v2SubmissionSchema.parse(
+      validSubmission("math", {
+        intake: {
+          prev_concerns: [
+            "수준·진도 불일치",
+            "질문·오답 피드백 부족",
+            "숙제·복습 관리 부족",
+          ],
+        } as never,
+      }),
+    );
+    const score = computeScoreProfile(buildScoringInput(parsed));
+    const payload = buildV2InsertPayload(parsed, score);
+    expect((payload.intake_v2 as Record<string, unknown>).prev_concerns).toEqual(
+      parsed.intake.prev_concerns,
+    );
+  });
+
+  it("4개 선택과 ‘특별한 불만 없음’의 동시 선택을 거부한다", () => {
+    const tooMany = validSubmission("math", {
+      intake: {
+        prev_concerns: [
+          "수준·진도 불일치",
+          "설명 방식이 맞지 않음",
+          "질문·오답 피드백 부족",
+          "숙제·복습 관리 부족",
+        ],
+      } as never,
+    });
+    expect(v2SubmissionSchema.safeParse(tooMany).success).toBe(false);
+
+    const conflicting = validSubmission("math", {
+      intake: {
+        prev_concerns: ["특별한 불만 없음", "일정·통학 부담"],
+      } as never,
+    });
+    expect(v2SubmissionSchema.safeParse(conflicting).success).toBe(false);
   });
 });
 
@@ -235,6 +301,7 @@ describe("buildV2InsertPayload (필드 유실 없음)", () => {
     const score = computeScoreProfile(buildScoringInput(parsed));
     const payload = buildV2InsertPayload(parsed, score);
     const responses = payload.responses_v2 as Record<string, unknown>;
+    expect(responses.instrument_revision).toBe(INSTRUMENT_REVISION);
     expect((responses.responses as Record<string, unknown>).LT1).toBe(3);
     expect((responses.scenarios as Record<string, unknown>).C1).toBe(1);
     expect((responses.supplements as Record<string, unknown>).phone_weekday).toBe(

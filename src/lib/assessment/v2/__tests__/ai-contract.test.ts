@@ -4,6 +4,7 @@ import {
   containsNumericScoreClaim,
   findDetailedSummaryViolation,
   findScoreNotationViolation,
+  findSubjectScopeViolation,
   type AiInterpretation,
 } from "../ai-contract";
 
@@ -92,6 +93,17 @@ describe("validateAiInterpretation (§11)", () => {
       "both"
     );
     expect(res.ok).toBe(false);
+  });
+
+  it("전체 강점·지원 영역에 수학·영어 보조정보를 넣으면 거부한다", () => {
+    expect(findSubjectScopeViolation(["수학 문제 풀이가 강점입니다"]))
+      .toContain("과목 보조정보");
+    const res = validateAiInterpretation(
+      validInterp({ growthAreas: ["영어 긴 지문 연습이 필요합니다"] }),
+      "both",
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("subject");
   });
 });
 

@@ -10,6 +10,8 @@ import {
   MBTI_CONFIDENCE_OPTIONS,
   NK_EXPECTATION_MAX,
   NK_EXPECTATION_OPTIONS,
+  PREVIOUS_ACADEMY_CONCERN_MAX,
+  PREVIOUS_ACADEMY_CONCERN_OPTIONS,
   PREFERRED_DAYS_V2,
   REFERRAL_OPTIONS,
   SUBJECT_OPTIONS,
@@ -22,10 +24,12 @@ export interface IntakeState {
   subject_selection: string;
   student_phone: string;
   parent_phone: string;
+  profile_notice_acknowledged: boolean;
   prev_academy: string;
   prev_academy_duration: string;
   prev_leave_reason: string;
   prev_complaint: string;
+  prev_concerns: string[];
   referral: string;
   referral_friend: string;
   nk_knowledge: string;
@@ -57,10 +61,12 @@ export function emptyIntake(): IntakeState {
     subject_selection: "",
     student_phone: "",
     parent_phone: "",
+    profile_notice_acknowledged: false,
     prev_academy: "",
     prev_academy_duration: "",
     prev_leave_reason: "",
     prev_complaint: "",
+    prev_concerns: [],
     referral: "",
     referral_friend: "",
     nk_knowledge: "",
@@ -104,7 +110,7 @@ export const INTAKE_SCREEN_LABELS = [
   "학습 이력",
   "학원·일정",
   "미래와 과목",
-  "성향 참고",
+  "선택 메모",
 ];
 
 export const INTAKE_SCREEN_COUNT = INTAKE_SCREEN_LABELS.length;
@@ -122,6 +128,7 @@ const SCREEN_FIELDS: Record<number, (keyof IntakeState)[]> = {
     "prev_academy_duration",
     "prev_leave_reason",
     "prev_complaint",
+    "prev_concerns",
     "referral",
     "referral_friend",
     "nk_knowledge",
@@ -155,7 +162,9 @@ export function isIntakeScreenEmpty(index: number, s: IntakeState): boolean {
   if (!fields) return false;
   return fields.every((key) => {
     const v = s[key];
-    return Array.isArray(v) ? v.length === 0 : v.trim() === "";
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "string") return v.trim() === "";
+    return !v;
   });
 }
 
@@ -171,7 +180,8 @@ export function isIntakeScreenComplete(index: number, s: IntakeState): boolean {
           s.subject_selection === "english" ||
           s.subject_selection === "both") &&
         PHONE_RE.test(s.student_phone) &&
-        PHONE_RE.test(s.parent_phone)
+        PHONE_RE.test(s.parent_phone) &&
+        s.profile_notice_acknowledged
       );
     case 1:
       // 유입 경로가 친구 소개면 소개자 이름 필요. 그 외는 선택 입력.
@@ -333,14 +343,34 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
   if (index === 0) {
     return (
       <div className="space-y-4">
-        <ScreenHeading title="기본 정보" desc="학생이 직접 작성하는 학습 프로필입니다." />
+        <ScreenHeading title="기본 정보" desc="학생이 직접 작성하는 입학 학습성향 프로필입니다." />
+        <div className="rounded-2xl border border-primary/20 bg-primary/[0.035] px-4 py-4 text-[12px] leading-relaxed text-muted-foreground">
+          <b className="block text-[13px] text-foreground">이 검사는 무엇을 보나요?</b>
+          <ol className="mt-3 space-y-2.5">
+            <li className="flex items-start gap-2.5">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">1</span>
+              <span><b className="text-foreground">평소 공부 모습</b> — 숙제, 수업 참여, 집중, 끈기, 질문, 고친 뒤 다시 해보기를 봅니다.</span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">2</span>
+              <span><b className="text-foreground">문항 수</b> — 공통 40문항에 선택한 과목마다 공부 방식 10문항이 더해집니다.</span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">3</span>
+              <span><b className="text-foreground">사용 방법</b> — 성격이나 능력을 단정하지 않습니다. 성적과 반은 별도 입학테스트로 확인합니다.</span>
+            </li>
+          </ol>
+          <p className="mt-3 border-t border-primary/15 pt-3">
+            결과는 승인된 직원과 보호자가 봅니다. 외부 AI에는 이름·학교·연락처·건강정보·학원명을 보내지 않습니다.
+          </p>
+        </div>
         <TextField id="v2-name" label="학생 이름" value={state.name} onChange={(v) => update({ name: v })} placeholder="이름" required />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField id="v2-school" label="학교" value={state.school} onChange={(v) => update({ school: v })} placeholder="예: 안산중학교" required />
           <SelectField id="v2-grade" label="학년" value={state.grade} onChange={(v) => update({ grade: v })} options={GRADES} required />
         </div>
         <div>
-          <FieldLabel required>진단 과목</FieldLabel>
+          <FieldLabel required>공부 방식을 추가로 답할 과목</FieldLabel>
           <div className="grid grid-cols-3 gap-2">
             {SUBJECT_OPTIONS.map((opt) => (
               <button
@@ -362,6 +392,16 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
           <TextField id="v2-student-phone" label="학생 연락처" value={state.student_phone} onChange={(v) => update({ student_phone: formatPhone(v) })} placeholder="010-0000-0000" required type="tel" inputMode="numeric" />
           <TextField id="v2-parent-phone" label="학부모 연락처" value={state.parent_phone} onChange={(v) => update({ parent_phone: formatPhone(v) })} placeholder="010-0000-0000" required type="tel" inputMode="numeric" />
         </div>
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border bg-muted/20 px-3.5 py-3 text-[12px] leading-relaxed text-foreground">
+          <input
+            id="v2-profile-notice"
+            type="checkbox"
+            checked={state.profile_notice_acknowledged}
+            onChange={(event) => update({ profile_notice_acknowledged: event.target.checked })}
+            className="mt-0.5 h-4 w-4 accent-primary"
+          />
+          <span><b>위 안내를 확인했습니다.</b> 응답은 입학 상담과 등록 시 초기 수업 제안에 사용됩니다.</span>
+        </label>
       </div>
     );
   }
@@ -369,10 +409,20 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
   if (index === 1) {
     return (
       <div className="space-y-4">
-        <ScreenHeading title="학습 이력" desc="이전 학원과 NK를 알게 된 경로를 알려주세요." optional />
+        <ScreenHeading title="학습 이력" desc="이전 환경에서 반복하지 않았으면 하는 조건을 알려주세요." optional />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField id="v2-prev-academy" label="기존에 다녔던 학원" value={state.prev_academy} onChange={(v) => update({ prev_academy: v })} placeholder="예: OO학원" />
           <TextField id="v2-prev-duration" label="기존 학원 재원 기간" value={state.prev_academy_duration} onChange={(v) => update({ prev_academy_duration: v })} placeholder="예: 1년 6개월" />
+        </div>
+        <div>
+          <FieldLabel>이전 학원에서 아쉬웠던 경험 (최대 {PREVIOUS_ACADEMY_CONCERN_MAX}개)</FieldLabel>
+          <p className="mb-2 text-[12px] leading-relaxed text-muted-foreground">
+            학생의 문제로 평가하지 않고, 입학 상담에서 피해야 할 수업 조건과 필요한 지원을 확인하는 데 사용합니다.
+          </p>
+          <PreviousAcademyConcerns
+            selected={state.prev_concerns}
+            onChange={(next) => update({ prev_concerns: next })}
+          />
         </div>
         <SelectField id="v2-referral" label="NK를 알게 된 경로" value={state.referral} onChange={(v) => update({ referral: v })} options={REFERRAL_OPTIONS} placeholder="선택해주세요" />
         {state.referral === "친구 소개" && (
@@ -440,7 +490,7 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
         <OptionalExtras>
           <TextArea id="v2-study-core" label="공부의 핵심이 무엇이라고 생각하나요?" value={state.study_core} onChange={(v) => update({ study_core: v })} placeholder="예: 꾸준한 복습" />
           <TextArea id="v2-problem-self" label="공부할 때 스스로 느끼는 문제점은?" value={state.problem_self} onChange={(v) => update({ problem_self: v })} placeholder="예: 집중이 오래 안 된다" />
-          <TextArea id="v2-health" label="건강·특이사항" value={state.health_note} onChange={(v) => update({ health_note: v })} placeholder="예: 특이사항 없음" />
+          <TextArea id="v2-health" label="수업 참여에 필요한 지원" value={state.health_note} onChange={(v) => update({ health_note: v })} placeholder="예: 좌석·휴식 등 수업 중 필요한 지원 (없으면 비워두세요)" />
           <TextArea id="v2-requests" label="학원에 바라는 점" value={state.requests} onChange={(v) => update({ requests: v })} placeholder="자유롭게 작성해주세요" />
         </OptionalExtras>
       </div>
@@ -450,10 +500,10 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
   // index === 4
   return (
     <div className="space-y-4">
-      <ScreenHeading title="성향 참고" desc="MBTI는 지도 방식 참고용으로만 쓰이며, 성실성·의지 점수에는 반영되지 않습니다." optional />
+      <ScreenHeading title="선택 성향 메모" desc="알고 있는 MBTI를 선택적으로 적을 수 있습니다. 공식 MBTI 검사가 아니며, 점수·유형 판정·공부법 추천에는 반영하지 않습니다." optional />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <TextField id="v2-mbti" label="알고 있는 MBTI 4글자" value={state.mbti} onChange={(v) => update({ mbti: v.toUpperCase().slice(0, 4) })} placeholder="예: ENFP (모르면 비워두세요)" />
-        <SelectField id="v2-mbti-conf" label="MBTI 확신도" value={mbtiConfidenceLabel(state.mbti_confidence)} onChange={(v) => update({ mbti_confidence: mbtiConfidenceValue(v) })} options={MBTI_CONFIDENCE_OPTIONS.map((o) => o.label)} placeholder="선택" />
+        <SelectField id="v2-mbti-conf" label="본인 생각과 맞는 정도" value={mbtiConfidenceLabel(state.mbti_confidence)} onChange={(v) => update({ mbti_confidence: mbtiConfidenceValue(v) })} options={MBTI_CONFIDENCE_OPTIONS.map((o) => o.label)} placeholder="선택" />
       </div>
       {state.mbti.trim() !== "" && !MBTI_RE.test(state.mbti.trim().toUpperCase()) && (
         <p className="text-[12px] font-medium text-destructive">
@@ -462,7 +512,7 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
       )}
       {MBTI_RE.test(state.mbti.trim().toUpperCase()) && state.mbti_confidence.trim() === "" && (
         <p className="text-[12px] font-medium text-destructive">
-          MBTI를 적었다면 확신도도 골라주세요. 얼마나 확신하는지에 따라 결과지에 반영되는 정도가 달라집니다.
+          MBTI를 적었다면 본인 생각과 맞는 정도도 골라주세요. ‘낮음/잘 모르겠음’이면 결과지에 표시하지 않습니다.
         </p>
       )}
     </div>
@@ -533,6 +583,58 @@ function NkExpectations({
       {NK_EXPECTATION_OPTIONS.map((opt) => {
         const isOn = selected.includes(opt);
         const disabled = !isOn && atMax;
+        return (
+          <button
+            key={opt}
+            type="button"
+            aria-pressed={isOn}
+            disabled={disabled}
+            onClick={() => toggle(opt)}
+            className={`min-h-[44px] rounded-xl border-2 px-3 py-2 text-left text-[13px] font-medium transition-colors ${
+              isOn
+                ? "border-primary bg-primary/[0.06] text-primary"
+                : disabled
+                  ? "cursor-not-allowed border-border bg-muted/40 text-muted-foreground/50"
+                  : "border-border bg-card text-foreground hover:border-primary/40"
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PreviousAcademyConcerns({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const none = "특별한 불만 없음";
+  const atMax = selected.length >= PREVIOUS_ACADEMY_CONCERN_MAX;
+  const toggle = (opt: string) => {
+    if (selected.includes(opt)) {
+      onChange(selected.filter((value) => value !== opt));
+      return;
+    }
+    if (opt === none) {
+      onChange([none]);
+      return;
+    }
+    const withoutNone = selected.filter((value) => value !== none);
+    if (withoutNone.length < PREVIOUS_ACADEMY_CONCERN_MAX) {
+      onChange([...withoutNone, opt]);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {PREVIOUS_ACADEMY_CONCERN_OPTIONS.map((opt) => {
+        const isOn = selected.includes(opt);
+        const disabled = !isOn && opt !== none && atMax && !selected.includes(none);
         return (
           <button
             key={opt}

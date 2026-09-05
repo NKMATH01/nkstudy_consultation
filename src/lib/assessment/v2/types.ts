@@ -10,6 +10,8 @@ export type SubjectSelection = "math" | "english" | "both";
 export type Construct =
   | "learningAttitude"
   | "homeworkReliability"
+  | "helpSeeking"
+  | "feedbackExecution"
   | "phoneBoundary"
   | "longTermPersistence"
   | "shortTermRecovery"
@@ -53,7 +55,7 @@ export interface LikertItem {
   weight: number;
   /** 제출 validation에서 필수 응답 여부. */
   required: boolean;
-  /** "아직 잘 모르겠다"(unknown) 선택을 허용하는지 (N1~N4). */
+  /** "그런 경험이 없거나 잘 모르겠음"(unknown) 선택을 허용하는지. */
   allowUnknown: boolean;
   text: string;
   /** 보고서 근거 라벨 (프로토타입 tag). */
@@ -117,8 +119,8 @@ export type AssessmentItem = LikertItem | ScenarioItem | ForcedChoiceItem;
 /** 선택지 index로 답하는 문항(상황문항·강제선택). 응답은 같은 버킷에 저장한다. */
 export type ChoiceItem = ScenarioItem | ForcedChoiceItem;
 
-/** Likert 응답값. 1~5 정수 또는 "unknown"(잘 모르겠음). */
-export type LikertResponse = number | "unknown";
+/** Likert 응답값. 1~5 정수, 경험 없음, 또는 잘 모르겠음. */
+export type LikertResponse = number | "not_applicable" | "unknown";
 export type ResponseMap = Record<string, LikertResponse | null | undefined>;
 /** 상황문항·강제선택 응답. 1-based 선택지 index. */
 export type ScenarioResponseMap = Record<string, number | null | undefined>;
@@ -199,6 +201,8 @@ export interface ResponseQuality {
 export interface CommonScores {
   learningAttitude: Score;
   homeworkReliability: Score;
+  helpSeeking: Score;
+  feedbackExecution: Score;
   phoneBoundary: Score;
   longTermPersistence: Score;
   shortTermRecovery: Score;
@@ -270,6 +274,8 @@ export interface ScoringInput {
 
 export interface ScoreProfile {
   instrumentVersion: "v2";
+  /** v2 안에서 문항 구성이 달라진 시점을 구분한다. 과거 응답과 새 응답의 혼합 집계 금지. */
+  instrumentRevision?: string;
   subjectSelection: SubjectSelection;
   common: CommonScores;
   coaching: CoachingProfile;
@@ -289,10 +295,14 @@ export interface ScoreProfile {
  */
 export interface StoredIntakeV2 {
   subject_selection?: SubjectSelection | null;
+  profile_notice_acknowledged?: boolean | null;
+  profile_notice_version?: string | null;
+  profile_notice_acknowledged_at?: string | null;
   prev_academy?: string | null;
   prev_academy_duration?: string | null;
   prev_leave_reason?: string | null;
   prev_complaint?: string | null;
+  prev_concerns?: string[] | null;
   referral?: string | null;
   referral_friend?: string | null;
   nk_knowledge?: string | null;
@@ -319,6 +329,7 @@ export interface StoredIntakeV2 {
 
 /** surveys.responses_v2에 저장되는 raw 응답 JSONB 구조. */
 export interface StoredResponsesV2 {
+  instrument_revision?: string | null;
   responses?: Record<string, LikertResponse | null | undefined> | null;
   scenarios?: Record<string, number | null | undefined> | null;
   supplements?: Record<string, string | null | undefined> | null;

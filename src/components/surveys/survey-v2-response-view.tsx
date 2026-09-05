@@ -22,15 +22,19 @@ export function SurveyV2ResponseView({ survey, variant = "cards" }: Props) {
               V2 학습 프로필
             </span>
             <h3 className={`${compact ? "text-xs" : "text-[14.5px]"} mt-1 font-bold text-nk-ink`}>
-              {data.subjectLabel} · 최신 설문 원문
+              {data.subjectLabel} · {data.isCurrentRevision ? "최신 설문 원문" : "과거 설문 응답"}
             </h3>
           </div>
           <span data-testid="v2-response-count" className="rounded-full bg-nk-cat-3-soft px-2.5 py-1 text-[10px] font-black text-nk-cat-3">
-            {data.answeredCount}/{data.questionCount}문항 응답
+            {data.isCurrentRevision
+              ? `${data.answeredCount}/${data.questionCount}문항 응답`
+              : `${data.answeredCount}개 응답 저장`}
           </span>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-nk-ink-sub">
-          현재 V2 설문의 사전정보, 문항, 선택지와 저장된 원응답을 그대로 연결한 화면입니다.
+          {data.isCurrentRevision
+            ? "현재 V2 설문의 사전정보, 문항, 선택지와 저장된 원응답을 그대로 연결한 화면입니다."
+            : "과거 문항 구성은 현재 60문항과 달라, 다른 질문으로 오해하지 않도록 문항 원문을 표시하지 않습니다."}
         </p>
       </section>
 

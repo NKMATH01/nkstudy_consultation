@@ -65,6 +65,7 @@ const FIXTURE_INTAKE: IntakeV2 = {
   englishDifficulty: "긴 지문 독해가 약해요",
   healthNote: "천식이 있어 흡입기를 사용합니다",
   requests: "잘 부탁드립니다",
+  commitment14: "수업 다음 날 오답 1개 다시 풀기",
   mbtiType: "INTP",
   mbtiConfidence: "높음",
 };
@@ -118,11 +119,10 @@ describe("serializer redaction snapshot (§11 / §15.2)", () => {
     });
     const prompt = buildV2AnalysisPrompt(aiInput);
     expect(prompt).toContain("[총평 관점 — 매우 중요]");
-    expect(prompt).toContain('목적은 "우리 아이가 어떤 학생인지" 파악입니다.');
-    expect(prompt).toContain("학원·강사·상담자·NK가 주어인 문장");
+    expect(prompt).toContain("목적은 학생이 스스로 말한 공부 습관과 상담에서 확인할 부분을 이해하는 것입니다.");
+    expect(prompt).toContain("학원·강사·상담자·NK를 주어로 한 문장");
     expect(prompt).toContain("NK 적합도·운영 방식 언급을 모두 금지합니다.");
-    // [스펙 변경] 총평이 4문단 고정으로 바뀌면서 마지막 문단 지시가 구조 규칙으로 옮겨졌다.
-    expect(prompt).toContain("④ 가정 지원 — 가정에서 지켜봐 주시면 좋은 점");
+    expect(prompt).toContain("④ 입학 상담 연결 — 질문 방식, 피드백 방식, 숙제 관리처럼 상담에서 확인하고 합의할 점");
     expect(prompt).not.toContain("학부모와 상담자가 함께 읽는 상세 총평");
   });
 
@@ -152,6 +152,8 @@ describe("serializer redaction snapshot (§11 / §15.2)", () => {
     expect(aiInput.narratives.nkExpectations).toContain("철저한 숙제 관리");
     expect(aiInput.narratives.mathDifficulty).toContain("함수");
     expect(aiInput.narratives.selfPerception).toContain("꾸준함"); // 이름만 마스킹
+    expect(aiInput.narratives.previousAcademyConcerns).toContain("숙제·복습 관리 부족");
+    expect(aiInput.narratives.entryPriority).toContain("오답 1개");
     expect(aiInput.scores).toBe(profile); // 점수는 서버 프로필 그대로
   });
 
@@ -227,7 +229,8 @@ describe("자세한 총평 프롬프트 규칙", () => {
   });
 
   it("점수 인용은 강점·개선 영역·과목 전략에만 남긴다", () => {
-    expect(prompt).toContain("강점·개선 영역·과목 전략에서 특징을 말할 때는 근거 점수를");
+    expect(prompt).toContain("강점·개선 영역은 공통의 일곱 학습행동에서 고르고");
+    expect(prompt).toContain("과목 전략은 각 과목 필드에서만 다루세요");
     // [스펙 변경] 예전에는 총평에도 점수를 인용하라고 지시했다.
     expect(prompt).not.toContain("총평·강점·약점·과목 전략에서 특징을 말할 때는");
     expect(prompt).not.toContain("관련 서버 점수 수치를 문장 안에 그대로 인용");
@@ -235,30 +238,25 @@ describe("자세한 총평 프롬프트 규칙", () => {
 
   it("네 문단 구조를 고정한다", () => {
     for (const heading of [
-      "① 성격·학습 성향",
+      "① 학습에 다가가는 모습",
       "② 학습 특징",
-      "③ 강점과 보완점",
-      "④ 가정 지원",
+      "③ 잘 작동하는 힘과 먼저 도울 지점",
+      "④ 입학 상담 연결",
     ]) {
       expect(prompt, heading).toContain(heading);
     }
   });
 
-  it("①문단 MBTI 참고를 3층 렌즈의 명시적 예외로 밝힌다", () => {
-    expect(prompt).toContain("[총평 ①문단의 MBTI 참고 — 3층 렌즈의 명시적 예외]");
-    expect(prompt).toContain(
-      '확신도가 "high" 또는 "medium"이면 ①문단에서 MBTI를 한 번 참고해 서술하세요',
-    );
-    expect(prompt).toContain('"low"·"none"이거나 MBTI가 없으면 ①문단에서도 언급하지 마세요');
-    expect(prompt).toContain("본인이 적은 MBTI(ENFP)에서도 보이듯");
-    expect(prompt).toContain("MBTI는 E로 적었지만 설문에서는 혼자 정리하는 쪽을 골랐습니다");
+  it("MBTI 자기라벨을 해석 JSON의 근거로 쓰지 못하게 한다", () => {
+    expect(prompt).toContain("[MBTI 서술 규칙 — 비공식 메모]");
+    expect(prompt).toContain("studentType·detailedSummary·strengths·growthAreas");
+    expect(prompt).toContain("high/medium이어도 해석 JSON에서는 MBTI를 언급하지 마세요");
+    expect(prompt).toContain("공식 검사를 실시한 결과가 아닙니다");
   });
 
   it("MBTI를 성실성·의지의 원인으로 쓰는 것은 여전히 막는다", () => {
-    expect(prompt).toContain("P라서 계획을 못 지킨다");
-    expect(prompt).toContain(
-      "MBTI를 성실성·의지·숙제 이행·회복력의 원인이나 판정으로 쓰지 마세요",
-    );
+    expect(prompt).toContain("어떤 점수·지도축·유형 판정·공부법 추천에도 반영되지 않습니다");
+    expect(prompt).toContain("직접 응답한 학습 행동을 항상 우선하세요");
   });
 
   it("유아적 말투와 전문용어를 함께 금지한다", () => {
@@ -310,6 +308,7 @@ describe("intakeFromStored", () => {
     prev_academy_duration: "1년 6개월",
     prev_leave_reason: "성적이 정체되어서",
     prev_complaint: "개인별 관리가 부족했다",
+    prev_concerns: ["질문·오답 피드백 부족"],
     referral: "친구 소개",
     referral_friend: "김친구",
     nk_knowledge: "숙제 관리가 철저하다고 들었다",
@@ -353,6 +352,7 @@ describe("intakeFromStored", () => {
 
   it("배열 필드는 배열로 옮긴다", () => {
     expect(intakeFromStored(STORED).nkExpectations).toEqual(["철저한 숙제 관리"]);
+    expect(intakeFromStored(STORED).prevConcerns).toEqual(["질문·오답 피드백 부족"]);
   });
 
   it("이름·학년은 상위 컬럼에서 받는다(intake_v2에 없다)", () => {
@@ -381,33 +381,34 @@ describe("intakeFromStored", () => {
     expect(intakeFromStored({})).toEqual({});
   });
 
-  it("매핑을 거치면 MBTI와 주관식이 실제로 프롬프트에 실린다", () => {
-    // 회귀 방지: 예전에는 저장 원본을 그대로 넘겨 mbti가 항상 null이었다.
+  it("매핑을 거치면 필요한 주관식만 프롬프트에 실리고 MBTI는 제외된다", () => {
     const aiInput = buildAiSafeInput({
       scoreProfile: profileFor("math"),
       intake: intakeFromStored(STORED, { name: "강현찬", grade: "중2" }),
       responses: fillResponses(4),
     });
-    expect(aiInput.mbti).toEqual({ type: "ENFP", confidence: "medium" });
     expect(aiInput.student.grade).toBe(2);
     expect(aiInput.narratives.futureGoal).toContain("개발자");
     expect(aiInput.narratives.selfPerception).toContain("집중");
+    expect(aiInput.narratives.previousAcademyConcerns).toEqual(["질문·오답 피드백 부족"]);
+    expect(aiInput.narratives.entryPriority).toBe("매일 오답 1개 풀기");
 
     const prompt = buildV2AnalysisPrompt(aiInput);
-    expect(prompt).toContain("ENFP");
+    expect(prompt).not.toContain("ENFP");
     expect(prompt).not.toContain("(제공된 서술 없음)");
   });
 
-  it("저장 원본을 그대로 넘기면 아무것도 실리지 않는다(회귀 증명)", () => {
+  it("저장 원본은 이름이 같은 안전 필드만 읽고, snake_case 필드는 매핑 전까지 읽지 않는다", () => {
     const aiInput = buildAiSafeInput({
       scoreProfile: profileFor("math"),
       intake: STORED as never,
       responses: fillResponses(4),
     });
-    expect(aiInput.mbti).toBeNull();
+    expect(aiInput).not.toHaveProperty("mbti");
     expect(aiInput.narratives.futureGoal).toBeFalsy();
     expect(aiInput.narratives.selfPerception).toBeFalsy();
-    expect(buildV2AnalysisPrompt(aiInput)).toContain("(제공된 서술 없음)");
+    expect(aiInput.narratives.entryPriority).toBe("매일 오답 1개 풀기");
+    expect(buildV2AnalysisPrompt(aiInput)).not.toContain("OO학원");
   });
 });
 

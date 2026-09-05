@@ -24,6 +24,7 @@ export interface CounselorBackground {
   prevAcademy?: string | null;
   prevLeaveReason?: string | null;
   prevComplaint?: string | null;
+  prevConcerns?: string[] | null;
   referral?: string | null;
   nkKnowledge?: string | null;
   nkExpectations?: string[] | null;
@@ -39,6 +40,10 @@ export interface CounselorBackground {
   englishDifficulty?: string | null;
   healthNote?: string | null;
   requests?: string | null;
+  /** 입학 상담에서 학생이 가장 먼저 도움받고 싶은 점. */
+  entryPriority?: string | null;
+  /** 저장 데이터 하위호환용 키. */
+  commitment14?: string | null;
 }
 
 export interface CounselorReportProps {
@@ -93,7 +98,7 @@ function computeGaps(common: CommonScores): { label: string; a: [string, number]
 export function CounselorReport({ profile, header, background, contacts }: CounselorReportProps) {
   const { scores: s, interpretation: i } = profile;
   const review = s.responseQuality.status === "review";
-  const sourceLabel = profile.source === "ai" ? "AI 해석 · 첫 2주 확인 전" : "기본 요약 · 첫 2주 확인 전";
+  const sourceLabel = profile.source === "ai" ? "AI 해석 · 입학 상담용" : "기본 요약 · 입학 상담용";
   const gaps = computeGaps(s.common);
   const summaryParas = splitParas(i.detailedSummary, 3);
   const maskPhone = (p?: string | null) =>
@@ -164,8 +169,8 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
               <dd>{i.recommendedCoaching}</dd>
             </div>
             <div>
-              <dt>첫 14일 확인</dt>
-              <dd>{i.verificationPlan14Days[0] ?? "첫 2주 동안 실제 모습으로 확인"}</dd>
+              <dt>입학 상담 확인</dt>
+              <dd>{i.verificationPlan14Days[0] ?? "학생의 구체적인 공부 경험을 상담에서 확인"}</dd>
             </div>
           </dl>
         </article>
@@ -269,12 +274,11 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
       <ReportSection
         id="sec-fit"
         index="04"
-        title="NK 학원과 잘 맞는 부분"
-        caption="합격·불합격이 아니라, 학원이 무엇을 도와주면 좋을지 보는 값이에요."
+        title="NK 운영 선호와 확인할 점"
+        caption="합격·불합격이나 반 배치 점수가 아니라, 입학 상담에서 운영 조건을 맞추기 위한 자료입니다."
         aside={
           <b className="fit-grade">
             {s.nkFit.stage}
-            {s.nkFit.overall !== null ? ` · ${s.nkFit.overall.toFixed(0)}` : ""}
           </b>
         }
       >
@@ -291,8 +295,8 @@ export function CounselorReport({ profile, header, background, contacts }: Couns
       <ReportSection
         id="sec-solution"
         index="05"
-        title="강점과 12주 계획"
-        caption="잘하는 점을 살리고, 처음에 도와줄 부분을 12주에 나눠 채워 가요."
+        title="강점과 초기 수업 제안"
+        caption="잘하는 점을 살리고, 등록이 결정되면 어떤 방식으로 시작할지 제안합니다."
         aside={<b className="section-note">실행 계획</b>}
       >
         <StrengthGrowth strengths={i.strengths} growthAreas={i.growthAreas} />

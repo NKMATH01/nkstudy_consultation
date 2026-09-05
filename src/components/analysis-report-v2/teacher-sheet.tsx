@@ -1,7 +1,7 @@
 // 강사용 A4 1장 시트.
 //
 // ⚠️ 직원 전용, parent-safe를 거치지 않음 — 학부모 경로에 절대 연결 금지.
-// teacherBrief·verificationPlan14Days·cautions·background는 parent-safe allowlist에서
+// teacherBrief·입학 상담 확인 질문·cautions·background는 parent-safe allowlist에서
 // 명시적으로 제외된 값이다. 이 컴포넌트는 result_profile_v2 원본을 그대로 읽으므로
 // 공유 토큰(/report/[token])·학부모 미리보기 어디에도 연결하면 안 된다.
 //
@@ -12,21 +12,18 @@ import type { CommonScores, Score } from "@/lib/assessment/v2/types";
 import { ALL_ITEMS, isLikert } from "@/lib/assessment/v2/definition";
 import { ITEMS_BY_CONSTRUCT } from "@/lib/assessment/v2/construct-guide";
 import { SCALE_LABELS_V2 } from "@/lib/assessment/v2/display";
-import {
-  FIRST14_RESULT_LABEL,
-  mapPlanToRows,
-  type First14Result,
-} from "@/lib/assessment/v2/first14";
 import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
-import { SIGNAL_DESC, SUBJECT_SIGNAL_DESC, signalBandOf, type SignalBand } from "./signal-descriptions";
+import { SIGNAL_DESC, signalBandOf, type SignalBand } from "./signal-descriptions";
 import { AVOID_LINE, TALK_PRESCRIPTION, TALK_PRESCRIPTION_UNKNOWN } from "./teacher-guidance";
 import type { CounselorBackground } from "./counselor-report";
 import { TEACHER_SHEET_CSS } from "./teacher-sheet-css";
 
-/** ① 지금 상태에 쓰는 5축. 학부모 결과지 00 요약과 같은 축이다. */
+/** ① 지금 상태에 쓰는 7개 핵심 학습행동. 학부모 결과지 00 요약과 같다. */
 const STATE_KEYS: (keyof CommonScores)[] = [
   "learningAttitude",
   "homeworkReliability",
+  "helpSeeking",
+  "feedbackExecution",
   "phoneBoundary",
   "longTermPersistence",
   "shortTermRecovery",
@@ -39,26 +36,17 @@ const TALK_KEYS: (keyof CommonScores)[] = [
   "autonomyNeed",
 ];
 
-export interface TeacherSheetCheck {
-  itemIndex: number;
-  result: First14Result;
-  teacher: string;
-  note?: string | null;
-}
-
 interface Props {
   profile: ResultProfileV2;
   header: { name: string; schoolGrade: string; createdAt?: string | null };
   /** 설문 raw 응답. ④에서 점수 대신 학생이 고른 보기를 보여 주는 데 쓴다. */
   responses?: Record<string, unknown> | null;
   background?: CounselorBackground | null;
-  /** 저장된 14일 확인 결과. 없으면 빈 체크박스로 표시한다. */
-  checks?: TeacherSheetCheck[];
 }
 
 type WeakItem = { key: string; label: string; band: SignalBand; help: string };
 
-/** 약점 후보: 공통 5축 + 선택 과목 학습전략. 학부모 결과지와 같은 기준(45 미만)을 쓴다. */
+/** 약점 후보: 공통 학습행동만 사용한다. 과목 공부 방식은 전체 우선순위에 섞지 않는다. */
 function pickWeaknesses(profile: ResultProfileV2): WeakItem[] {
   const s = profile.scores;
   const pool: { key: string; label: string; score: Score; desc: Record<SignalBand, { help: string }> }[] =
@@ -68,23 +56,6 @@ function pickWeaknesses(profile: ResultProfileV2): WeakItem[] {
       score: s.common[k],
       desc: SIGNAL_DESC[k],
     }));
-
-  if (s.math) {
-    pool.push({
-      key: "mathStrategy",
-      label: "수학 학습전략",
-      score: s.math.mathStrategy,
-      desc: SUBJECT_SIGNAL_DESC.math,
-    });
-  }
-  if (s.english) {
-    pool.push({
-      key: "englishStrategy",
-      label: "영어 학습전략",
-      score: s.english.englishStrategy,
-      desc: SUBJECT_SIGNAL_DESC.english,
-    });
-  }
 
   const scored = pool.filter((p) => isNum(p.score));
   const ascending = [...scored].sort((a, b) => (a.score as number) - (b.score as number));
@@ -119,14 +90,13 @@ function responseLabels(
   return out;
 }
 
-export function TeacherSheet({ profile, header, responses, background, checks }: Props) {
+export function TeacherSheet({ profile, header, responses, background }: Props) {
   const s = profile.scores;
   const i = profile.interpretation;
 
   const weaknesses = pickWeaknesses(profile);
-  const todo = weaknesses[0]?.help ?? "첫 2주 동안 수업 안 행동을 직접 보고 기록해 주세요.";
-  const rows = mapPlanToRows(i.verificationPlan14Days);
-  const checkByIndex = new Map((checks ?? []).map((c) => [c.itemIndex, c]));
+  const todo = weaknesses[0]?.help ?? "첫 수업에서 문제를 시작하고 도움을 구하는 방식을 확인해 주세요.";
+  const consultationQuestions = i.verificationPlan14Days.slice(0, 4);
 
   const review = s.responseQuality.status === "review";
   const callNote = background?.prevLeaveReason || background?.prevComplaint || null;
@@ -220,27 +190,19 @@ export function TeacherSheet({ profile, header, responses, background, checks }:
           </section>
 
           <section className="tsheet__box">
-            <h2>⑤ 2주 뒤 확인</h2>
+            <h2>⑤ 입학 상담 확인</h2>
             <ul className="tsheet__checks">
-              {rows.map((row) => {
-                const saved = checkByIndex.get(row.index);
-                return (
-                  <li key={row.index}>
+              {consultationQuestions.map((question, index) => (
+                  <li key={`${index}-${question}`}>
                     <span className="tsheet__checkbox" aria-hidden>
-                      {saved ? "☑" : "☐"}
+                      ☐
                     </span>
                     <span className="tsheet__check-body">
-                      <b>{row.title}</b>
-                      <i>{row.hint ?? row.fallback}</i>
-                      {saved && (
-                        <em className={`tsheet__result is-${saved.result}`}>
-                          {FIRST14_RESULT_LABEL[saved.result]} · {saved.teacher}
-                        </em>
-                      )}
+                      <b>확인 질문 {index + 1}</b>
+                      <i>{question}</i>
                     </span>
                   </li>
-                );
-              })}
+              ))}
             </ul>
           </section>
         </div>
@@ -255,7 +217,7 @@ export function TeacherSheet({ profile, header, responses, background, checks }:
           */}
           {review ? (
             <li>
-              응답이 한쪽으로 치우쳐 있습니다. 지금 점수는 확정이 아니라 첫 2주에 직접 확인할 값입니다.
+              응답이 한쪽으로 치우쳐 있습니다. 입학 상담과 첫 수업에서 문항 뜻과 실제 경험을 다시 확인해 주세요.
             </li>
           ) : (
             i.cautions.slice(0, 1).map((c) => <li key={c}>{c}</li>)

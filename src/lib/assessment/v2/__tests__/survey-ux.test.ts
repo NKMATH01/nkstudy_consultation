@@ -54,6 +54,22 @@ describe("사전정보 건너뛰기 판정", () => {
     expect(INTAKE_OPTIONAL_SCREENS.has(0)).toBe(false);
   });
 
+  it("첫 화면은 안내 확인까지 해야 완료된다", () => {
+    const filled = {
+      ...emptyIntake(),
+      name: "가상학생",
+      school: "가상중학교",
+      grade: "중2",
+      subject_selection: "math",
+      student_phone: "010-1111-2222",
+      parent_phone: "010-3333-4444",
+    };
+    expect(isIntakeScreenComplete(0, filled)).toBe(false);
+    expect(
+      isIntakeScreenComplete(0, { ...filled, profile_notice_acknowledged: true }),
+    ).toBe(true);
+  });
+
   it("나머지 화면은 비어 있으면 건너뛸 수 있다", () => {
     const s = emptyIntake();
     for (const index of [1, 2, 3, 4]) {

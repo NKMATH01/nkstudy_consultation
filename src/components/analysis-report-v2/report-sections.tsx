@@ -308,7 +308,7 @@ export function PhoneFeature({ common }: { common: CommonScores }) {
   return (
     <div className="phone-feature">
       <div className="phone-score-block">
-        <span>휴대폰 자기조절</span>
+        <span>공부 중 휴대폰 조절</span>
         <strong>{numText(s)}</strong>
         <b>{isNum(s) && s < 50 ? "옆에서 도와주면 좋아요" : "스스로 조절하는 편이에요"}</b>
         <p>공부 시작할 때 자동으로 확인하거나 늦게 자는 습관이 집중을 흔드는지 살펴봐요.</p>
@@ -428,7 +428,7 @@ export function PersonalityRelationGrid({
   );
 }
 
-// ── §NK 적합: 인트로 + 4영역 ────────────────────────────────────────────────
+// ── §NK 운영 선호: 인트로 + 4영역 ──────────────────────────────────────────
 const NK_AREA_META: { key: keyof NkFitLite["areas"]; index: string; label: string }[] = [
   { key: "clinic", index: "01", label: "클리닉 · 보충 공부" },
   { key: "weeklyTest", index: "02", label: "주간 테스트 · 다시 보충" },
@@ -443,14 +443,20 @@ export function NkFitSection({
   nkFit: NkFitLite;
   interpretation: string;
 }) {
-  const cell = (v: number | null) => (v === null ? "–" : v.toFixed(1));
+  const cell = (v: number | null) => {
+    if (v === null) return "확인 필요";
+    if (v >= 75) return "높음";
+    if (v >= 60) return "대체로 높음";
+    if (v >= 40) return "반반";
+    return "낮음";
+  };
   return (
     <>
       <div className="fit-intro">
         <h3>
-          학생이 NK에 맞는지만 보는 게 아니라,
+          입학 적합도를 매기는 점수가 아닙니다.
           <br />
-          <em>NK가 무엇을 도와주면 학생과 잘 맞는지</em>도 함께 봐요.
+          <em>학생의 기대와 현재 습관이 다른 곳</em>을 상담에서 확인합니다.
         </h3>
         <p>{interpretation}</p>
       </div>
@@ -479,7 +485,7 @@ export function NkFitSection({
                   </i>
                 </p>
               </div>
-              <p>마음과 준비의 차이를 보고, 처음 2주에 무엇을 도와줄지 정해요.</p>
+              <p>학생이 원하는 방식과 필요한 구조가 다른지 입학 상담에서 확인해요.</p>
             </article>
           );
         })}
@@ -622,7 +628,7 @@ export function StrengthGrowth({
   );
 }
 
-// ── §솔루션: 12주 계획 ──────────────────────────────────────────────────────
+// ── §솔루션: 등록 후 초기 운영 후보 ────────────────────────────────────────
 export function RoadmapLine({
   roadmap,
 }: {
@@ -631,8 +637,8 @@ export function RoadmapLine({
   return (
     <div className="roadmap-dossier">
       <div className="panel-title">
-        <span>12주 계획</span>
-        <h3>12주 맞춤 계획</h3>
+        <span>등록 후에만 적용</span>
+        <h3>초기 운영 후보</h3>
       </div>
       <div className="roadmap-line">
         {roadmap.map((r, i) => (
@@ -648,11 +654,11 @@ export function RoadmapLine({
   );
 }
 
-// ── §솔루션: 첫 14일 확인 지표 ──────────────────────────────────────────────
+// ── §솔루션: 입학 상담 확인 질문 ────────────────────────────────────────────
 export function VerifyLine({ items }: { items: string[] }) {
   return (
     <div className="verify-line">
-      <span>첫 14일 확인 지표</span>
+      <span>입학 상담 확인 질문</span>
       <ul>
         {items.map((t, i) => (
           <li key={i}>{t}</li>
@@ -668,11 +674,13 @@ export function CautionFooter({ review }: { review: boolean }) {
     <footer className="report-v2-caution">
       <strong>읽는 원칙</strong>
       <p>
-        이 결과는 학생이 최근 4주를 스스로 적은 응답으로 만든 학습 프로필이에요. 휴대폰 사용·성격·친구관계를
-        병이나 문제로 진단하지 않고, 학원 등록 여부를 이 결과만으로 정하지 않아요.
+        이 결과는 입학테스트 전에 학생이 스스로 적은 공부 습관을 정리한 상담 자료입니다. 검증된 심리 진단,
+        또래 규준, 능력 판정이 아니며 등록·반 배치·과목 수준을 이 결과 하나로 정하지 않습니다.
+        학업 수준은 별도의 과목 입학테스트 결과와 상담 내용을 함께 봅니다. MBTI 자기라벨은 어떤 점수나
+        공부법 추천에도 반영하지 않습니다.
         {review
-          ? " 응답이 한쪽으로 치우쳐 있어, 첫 2주 동안 숙제·휴대폰·다시 시작하는 모습으로 꼭 함께 확인할게요."
-          : " 첫 2주 동안 숙제·휴대폰·다시 시작하는 모습으로 함께 확인해 나가요."}
+          ? " 응답에 추가 확인 신호가 있어, 입학 상담에서 문항 뜻과 학생의 실제 경험을 다시 확인해야 합니다."
+          : " 입학 상담에서 학생의 구체적인 경험과 원하는 도움을 확인한 뒤 초기 수업 방향을 결정합니다."}
       </p>
     </footer>
   );

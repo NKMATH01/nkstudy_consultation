@@ -155,7 +155,7 @@ export function normalizeRegistrationReportData(
     const aiRow = aiRows.find((row) => row.factor === metric.label);
     const insight = typeof aiRow?.insight === "string" && aiRow.insight.trim()
       ? aiRow.insight.trim()
-      : `${metric.label}은 ${v2PositiveBandLabel(metric.score)} 상태로, 첫 2주 실제 행동과 함께 확인합니다.`;
+      : `${metric.label}은 ${v2PositiveBandLabel(metric.score)} 상태로, 입학 상담과 과목 테스트 결과를 함께 확인합니다.`;
     return {
       factor: metric.label,
       score: metric.score,
@@ -376,7 +376,7 @@ function buildRegistrationPromptV2(
 1. 이 학생은 최신 V2 학습 프로필 대상입니다. V1의 q1~q35, 6-Factor, 7-Factor, 1~5점 체계를 절대 사용하지 마세요.
 2. 모든 수치는 아래 서버 계산 0~100 점수만 그대로 사용하세요. 새 점수를 계산·추정·변환하지 마세요.
 3. 위험축은 높을수록 지원이 필요한 신호이며, 학생을 낙인찍거나 합격/부적합으로 표현하지 마세요.
-4. 첫 14일 실제 행동으로 설문 결과를 확인한다는 관점을 유지하세요.
+4. 이 프로필은 입학테스트 전에 작성한 자기보고입니다. 과목 테스트 결과와 입학 상담 내용을 함께 사용하세요.
 5. ${subjectInstruction}
 
 # V2 서버 계산 핵심 점수 (factor/score 수정 금지)
@@ -390,7 +390,7 @@ ${JSON.stringify(metrics)}
 - 담임 브리프: ${interpretation.teacherBrief.join(" / ")}
 - 강점: ${interpretation.strengths.join(" / ")}
 - 성장 지원 영역: ${interpretation.growthAreas.join(" / ")}
-- 첫 14일 확인 계획: ${interpretation.verificationPlan14Days.join(" / ")}
+- 입학 상담 확인 질문: ${interpretation.verificationPlan14Days.join(" / ")}
 - NK 운영 적합: ${scores.nkFit.stage} (${scores.nkFit.overall ?? "정보 부족"}점)
 - 수학 전략: ${interpretation.mathStrategy ?? "미선택 과목"}
 - 영어 전략: ${interpretation.englishStrategy ?? "미선택 과목"}
@@ -430,7 +430,7 @@ ${LOCATIONS.map((loc) => `  - ${loc}`).join("\n")}
       {"factor": "위 서버 점수의 factor 그대로", "score": 0, "grade": "위 서버 점수의 grade 그대로", "insight": "해당 신호에 맞는 실행 관점 1문장"}
     ],
     "managementGuide": [
-      {"title": "담임 실행 가이드", "description": "V2 지도 유형과 첫 14일 확인 계획에 맞는 구체 행동 2문장"},
+      {"title": "담임 실행 가이드", "description": "입학 상담에서 합의한 초기 지도 방식에 맞는 구체 행동 2문장"},
       {"title": "과제·복습 가이드", "description": "구체 행동 2문장"},
       {"title": "과목별 전략", "description": "등록 과목에 맞는 구체 행동 2문장"},
       {"title": "소통·피드백", "description": "구체 행동 2문장"}
@@ -439,7 +439,7 @@ ${LOCATIONS.map((loc) => `  - ${loc}`).join("\n")}
   "page2": {
     "welcomeTitle": "등록 과목에 맞는 환영 제목",
     "welcomeSubtitle": "NK 교육 입학 환영 부제",
-    "expertDiagnosis": "V2 결과와 첫 14일 지원 계획을 담은 3~4문장",
+    "expertDiagnosis": "V2 자기보고, 과목 입학테스트, 상담 내용을 연결한 초기 지도 제안 3~4문장",
     "focusPoints": [
       {"number": "01", "title": "핵심 포인트", "description": "구체 설명"},
       {"number": "02", "title": "핵심 포인트", "description": "구체 설명"},
@@ -1133,7 +1133,7 @@ export function buildAnalysisReportHTML(analysis: Analysis): string {
       </div>` : ""}
       ${(analysis.solutions && analysis.solutions.length > 0) ? `
       <div class="sec" id="solution">
-        <div class="sec-title"><h2>12주 맞춤 솔루션</h2></div>
+        <div class="sec-title"><h2>등록 후 초기 학습 제안</h2></div>
         ${solutionHTML}
       </div>` : ""}
       ${analysis.final_assessment ? `

@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { GRADES } from "@/types";
 import {
+  INSTRUMENT_REVISION,
   RETIRED_ITEM_IDS,
   getItemsForSubject,
   isChoiceItem,
@@ -21,6 +22,15 @@ import type {
   ScoringInput,
   SubjectSelection,
 } from "./types";
+import {
+  PREVIOUS_ACADEMY_CONCERN_MAX,
+  PREVIOUS_ACADEMY_CONCERN_OPTIONS,
+} from "./transition-plan";
+
+export {
+  PREVIOUS_ACADEMY_CONCERN_MAX,
+  PREVIOUS_ACADEMY_CONCERN_OPTIONS,
+} from "./transition-plan";
 
 // ── 선택지 상수 (UI·서버 공유) ───────────────────────────────────────
 
@@ -160,12 +170,27 @@ export const intakeSchema = z.object({
   subject_selection: z.enum(["math", "english", "both"]),
   student_phone: requiredPhone,
   parent_phone: requiredPhone,
+  profile_notice_acknowledged: z
+    .boolean()
+    .refine((value) => value, "학습 프로필 안내를 확인해주세요"),
 
   // 6.2 기존 학원과 유입 (구조화 유지, text 병합 금지)
   prev_academy: optStr,
   prev_academy_duration: optStr,
   prev_leave_reason: optStr,
   prev_complaint: optStr,
+  prev_concerns: z
+    .array(z.enum(PREVIOUS_ACADEMY_CONCERN_OPTIONS))
+    .max(
+      PREVIOUS_ACADEMY_CONCERN_MAX,
+      `최대 ${PREVIOUS_ACADEMY_CONCERN_MAX}개까지 선택할 수 있습니다`,
+    )
+    .default([])
+    .refine(
+      (values) =>
+        !values.includes("특별한 불만 없음") || values.length === 1,
+      "‘특별한 불만 없음’은 다른 항목과 함께 선택할 수 없습니다",
+    ),
   referral: optStr,
   referral_friend: optStr,
   nk_knowledge: optStr,
@@ -209,8 +234,9 @@ export type IntakeData = z.output<typeof intakeSchema>;
 
 // ── 응답 스키마 ──────────────────────────────────────────────────────
 
-/** Likert 응답값: 1~5 정수 또는 "unknown". */
+/** Likert 응답값: 1~5 정수, 경험 없음, 또는 잘 모르겠음. */
 const likertValue = z.union([
+  z.literal("not_applicable"),
   z.literal("unknown"),
   z.number().int().min(1).max(5),
 ]);
@@ -245,7 +271,7 @@ export const v2SubmissionSchema = z
     commitment14: z
       .string()
       .trim()
-      .min(1, "첫 14일 실천 약속을 입력해주세요")
+      .min(1, "입학 상담에서 가장 도움받고 싶은 점을 입력해주세요")
       .max(1000),
     meta: metaSchema,
   })
@@ -281,7 +307,7 @@ export const v2SubmissionSchema = z
       }
     }
 
-    // 필수 Likert 응답 검증 + unknown 허용 여부.
+    // 필수 Likert 응답 검증 + 비점수 응답 허용 여부.
     for (const item of likertItems) {
       const v = data.responses[item.id];
       if (v === undefined || v === null) {
@@ -294,10 +320,10 @@ export const v2SubmissionSchema = z
         }
         continue;
       }
-      if (v === "unknown" && !item.allowUnknown) {
+      if ((v === "unknown" || v === "not_applicable") && !item.allowUnknown) {
         ctx.addIssue({
           code: "custom",
-          message: `이 문항은 '잘 모르겠음'을 선택할 수 없습니다: ${item.id}`,
+          message: `이 문항은 비점수 응답을 선택할 수 없습니다: ${item.id}`,
           path: ["responses", item.id],
         });
       }
@@ -431,10 +457,14 @@ export function buildV2InsertPayload(
     // V2 구조화 원본(진실의 원천).
     intake_v2: {
       subject_selection: intake.subject_selection,
+      profile_notice_acknowledged: true,
+      profile_notice_version: "2026-09-01",
+      profile_notice_acknowledged_at: new Date().toISOString(),
       prev_academy: orNull(intake.prev_academy),
       prev_academy_duration: orNull(intake.prev_academy_duration),
       prev_leave_reason: orNull(intake.prev_leave_reason),
       prev_complaint: orNull(intake.prev_complaint),
+      prev_concerns: intake.prev_concerns,
       referral: orNull(intake.referral),
       referral_friend: orNull(intake.referral_friend),
       nk_knowledge: orNull(intake.nk_knowledge),
@@ -456,9 +486,11 @@ export function buildV2InsertPayload(
       requests: orNull(intake.requests),
       mbti: intake.mbti || null,
       mbti_confidence: intake.mbti_confidence,
+      // 하위호환을 위해 저장 키는 유지하지만 의미는 '입학 상담 우선 도움'이다.
       commitment14: data.commitment14,
     },
     responses_v2: {
+      instrument_revision: INSTRUMENT_REVISION,
       responses: data.responses,
       scenarios: data.scenarios,
       supplements: data.supplements,

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   ALL_ITEMS,
   REVERSE_IDS,
+  getItemsForSubject,
   isLikert,
 } from "../definition";
 import {
@@ -48,14 +49,20 @@ const ALL_SCENARIOS: ScenarioResponseMap = {
 // ── definition 무결성 ────────────────────────────────────────────────
 
 describe("definition 무결성", () => {
-  // [스펙 변경] R3-1·R3-2 추가(공통 +2), M5 폐기(수학 -1) → 순증 +1문항.
-  it("문항 수: 공통 38 / 수학 11 / 영어 12", () => {
+  // 학습성향 중심 리비전: 공통 40 + 과목별 공부 방식 10씩.
+  it("문항 수: 공통 40 / 수학 10 / 영어 10", () => {
     const common = ALL_ITEMS.filter((i) => i.subject === "common");
     const math = ALL_ITEMS.filter((i) => i.subject === "math");
     const english = ALL_ITEMS.filter((i) => i.subject === "english");
-    expect(common).toHaveLength(38);
-    expect(math).toHaveLength(11);
-    expect(english).toHaveLength(12);
+    expect(common).toHaveLength(40);
+    expect(math).toHaveLength(10);
+    expect(english).toHaveLength(10);
+  });
+
+  it("선택 과목에 따라 수학 50 / 영어 50 / 둘 다 60문항을 제공한다", () => {
+    expect(getItemsForSubject("math")).toHaveLength(50);
+    expect(getItemsForSubject("english")).toHaveLength(50);
+    expect(getItemsForSubject("both")).toHaveLength(60);
   });
 
   it("direction=reverse인 문항은 정확히 REVERSE_IDS와 일치한다", () => {
@@ -112,6 +119,8 @@ describe("고정 fixture — 극단값", () => {
     });
     expect(p.common.learningAttitude).toBe(100.0);
     expect(p.common.homeworkReliability).toBe(100.0);
+    expect(p.common.helpSeeking).toBe(100.0);
+    expect(p.common.feedbackExecution).toBe(100.0);
     expect(p.common.phoneBoundary).toBe(100.0);
     expect(p.common.longTermPersistence).toBe(100.0);
     expect(p.common.shortTermRecovery).toBe(100.0);
@@ -126,6 +135,8 @@ describe("고정 fixture — 극단값", () => {
     });
     expect(p.common.learningAttitude).toBe(50.0);
     expect(p.common.homeworkReliability).toBe(50.0);
+    expect(p.common.helpSeeking).toBe(50.0);
+    expect(p.common.feedbackExecution).toBe(50.0);
     expect(p.common.phoneBoundary).toBe(50.0);
     expect(p.common.longTermPersistence).toBe(50.0);
     expect(p.common.shortTermRecovery).toBe(50.0);
@@ -226,21 +237,19 @@ describe("지도 유형 4분면", () => {
     expect(classifyCoaching("high", "high")).toBe("따뜻한 도전형");
     expect(classifyCoaching("high", "low")).toBe("직접 도전형");
     expect(classifyCoaching("low", "high")).toBe("안전 기반 점진형");
-    expect(classifyCoaching("low", "low")).toBe("낮은 압력의 구조 관찰형");
+    expect(classifyCoaching("low", "low")).toBe("낮은 압력의 차분한 확인형");
   });
 
-  it("한 축이라도 mixed면 혼합 반응·14일 관찰형", () => {
-    expect(classifyCoaching("mixed", "high")).toBe("혼합 반응·14일 관찰형");
-    expect(classifyCoaching("high", "mixed")).toBe("혼합 반응·14일 관찰형");
-    expect(classifyCoaching(null, "high")).toBe("혼합 반응·14일 관찰형");
+  it("한 축이라도 mixed면 입학 상담 확인 필요", () => {
+    expect(classifyCoaching("mixed", "high")).toBe("입학 상담 확인 필요");
+    expect(classifyCoaching("high", "mixed")).toBe("입학 상담 확인 필요");
+    expect(classifyCoaching(null, "high")).toBe("입학 상담 확인 필요");
   });
 
-  // [스펙 변경] 직접 피드백 수용이 3문항이 되어 R3 하나만으로는 유효응답 75%에 미치지 못한다.
-  it("프로필에서 직접 피드백 3문항·R4 조합으로 coachingType을 결정한다", () => {
+  it("프로필에서 직접 피드백 선호 R3와 관계 선호 R4로 구형 coachingType을 결정한다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      // 직접 피드백 3문항 전부 5, 관계 안전 R4=5 → 둘 다 100 → high/high
-      responses: { R3: 5, "R3-1": 5, "R3-2": 5, R4: 5 },
+      responses: { R3: 5, R4: 5 },
     });
     expect(p.coaching.coachingType).toBe("따뜻한 도전형");
   });
@@ -578,31 +587,31 @@ describe("R2 강제선택 채점", () => {
   });
 });
 
-describe("직접 피드백 수용 3문항 확장", () => {
-  it("R3·R3-1·R3-2 세 문항의 평균으로 계산한다", () => {
+describe("직접 피드백 선호와 피드백 실행 분리", () => {
+  it("R3은 방식 선호 한 문항, FB1~FB4는 실행 행동 네 문항으로 따로 계산한다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      // 100 / 50 / 0 → 평균 50
-      responses: { R3: 5, "R3-1": 3, "R3-2": 1 },
+      responses: { R3: 5, FB1: 5, FB2: 3, FB3: 1, FB4: 3 },
     });
-    expect(p.common.directFeedbackAcceptance).toBe(50.0);
-    expect(p.coaching.challenge).toBe(50.0);
+    expect(p.common.directFeedbackAcceptance).toBe(100.0);
+    expect(p.coaching.challenge).toBe(100.0);
+    expect(p.common.feedbackExecution).toBe(50.0);
   });
 
-  it("한 문항만 답하면 유효응답 75%에 못 미쳐 insufficient", () => {
+  it("피드백 실행은 4문항 중 3문항부터 산출한다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { R3: 5 },
+      responses: { FB1: 5, FB2: 5, FB3: 5 },
     });
-    expect(p.common.directFeedbackAcceptance).toBe("insufficient");
+    expect(p.common.feedbackExecution).toBe(100.0);
   });
 
-  it("세 문항 중 둘만 답해도 75% 미만이라 insufficient (2/3)", () => {
+  it("피드백 실행 두 문항만 답하면 75% 미만이라 insufficient", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { R3: 5, "R3-1": 5 },
+      responses: { FB1: 5, FB2: 5 },
     });
-    expect(p.common.directFeedbackAcceptance).toBe("insufficient");
+    expect(p.common.feedbackExecution).toBe("insufficient");
   });
 });
 
@@ -666,7 +675,7 @@ describe("relationalFeedbackAxis 구인 전환", () => {
   it("관계 안전이 높고 직접 피드백 수용이 낮으면 관계 중심 쪽(높음)", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { R4: 5, R3: 1, "R3-1": 1, "R3-2": 1 },
+      responses: { R4: 5, R3: 1 },
       scenarioResponses: { R2: 1 },
     });
     expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe(100);
@@ -675,13 +684,13 @@ describe("relationalFeedbackAxis 구인 전환", () => {
   it("관계 안전이 낮고 직접 피드백 수용이 높으면 결과 중심 쪽(낮음)", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { R4: 1, R3: 5, "R3-1": 5, "R3-2": 5 },
+      responses: { R4: 1, R3: 5 },
       scenarioResponses: { R2: 1 },
     });
     expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe(0);
   });
 
-  it("세 피드백 문항이 같은 값이면 예전 R3 단일 공식과 같은 값이 나온다", () => {
+  it("R3 단일 선호 공식과 같은 값이 나온다", () => {
     // 이전 공식: mean(normalize(R4), 100 - normalize(R3))
     for (const [r4, r3] of [
       [5, 2],
@@ -690,7 +699,7 @@ describe("relationalFeedbackAxis 구인 전환", () => {
     ]) {
       const p = computeScoreProfile({
         subjectSelection: "math",
-        responses: { R4: r4, R3: r3, "R3-1": r3, "R3-2": r3 },
+        responses: { R4: r4, R3: r3 },
         scenarioResponses: { R2: 1 },
       });
       const legacy =
@@ -699,10 +708,10 @@ describe("relationalFeedbackAxis 구인 전환", () => {
     }
   });
 
-  it("피드백 3문항 중 일부만 답하면 축을 만들지 않는다", () => {
+  it("관계 안전 또는 직접 피드백 선호가 빠지면 축을 만들지 않는다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { R4: 5, R3: 5 },
+      responses: { R4: 5 },
       scenarioResponses: { R2: 1 },
     });
     expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe("insufficient");

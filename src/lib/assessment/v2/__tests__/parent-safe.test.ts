@@ -4,10 +4,12 @@ import { computeScoreProfile } from "../scoring";
 import { buildFallbackInterpretation, buildResultProfileV2 } from "../interpretation";
 import {
   buildParentSafeProfile,
+  buildBehaviorEvidence,
   buildMbtiSafe,
   buildPeerResponses,
   findForbiddenKeys,
   PARENT_FORBIDDEN_KEYS,
+  toEntranceReportWording,
 } from "../parent-safe";
 import type { LikertItem, ResponseMap, SubjectSelection } from "../types";
 
@@ -61,10 +63,30 @@ describe("buildParentSafeProfile allowlist (§12.3)", () => {
     expect(safe.interpretation.parentSummary.length).toBeGreaterThan(0);
     expect(safe.interpretation.studentType.length).toBeGreaterThan(0);
     expect(safe.interpretation.strengths.length).toBeGreaterThan(0);
-    expect(safe.interpretation.roadmap12Weeks.length).toBeGreaterThan(0);
     expect(safe.scores.common.learningAttitude).toBeDefined();
-    expect(safe.scores.nkFit.stage.length).toBeGreaterThan(0);
     expect(safe.display.name).toBe("가상학생");
+  });
+
+  it("과거 점수 프로필에 새 축이 없으면 undefined 대신 정보 부족으로 정규화한다", () => {
+    const full = resultProfileFor("both");
+    delete (full.scores.common as unknown as Record<string, unknown>).helpSeeking;
+    delete (full.scores.common as unknown as Record<string, unknown>).feedbackExecution;
+    const safe = buildParentSafeProfile(full, DISPLAY);
+    expect(safe.scores.common.helpSeeking).toBe("insufficient");
+    expect(safe.scores.common.feedbackExecution).toBe("insufficient");
+  });
+
+  it("과거 14일·2주 표현의 여러 변형을 입학 상담 문맥으로 바꾼다", () => {
+    for (const text of [
+      "향후 14일간 확인합니다.",
+      "14일 후 다시 봅니다.",
+      "첫 2주 동안 관찰합니다.",
+      "2주 후에 평가합니다.",
+    ]) {
+      const converted = toEntranceReportWording(text);
+      expect(converted).not.toMatch(/14일|2주/);
+      expect(converted).toContain("입학 상담");
+    }
   });
 
   it("연락처·상담자 전용 문구를 담지 않는다", () => {
@@ -88,13 +110,22 @@ describe("buildParentSafeProfile allowlist (§12.3)", () => {
     expect(findForbiddenKeys(safe)).toEqual([]);
   });
 
-  it("점수는 서버 원본과 동일하다(값 변조 없음)", () => {
+  it("공개에 필요한 다문항 핵심 점수만 원본 값 그대로 담는다", () => {
     const full = resultProfileFor("both");
     const safe = buildParentSafeProfile(full, DISPLAY);
-    expect(safe.scores.common).toEqual(full.scores.common);
-    expect(safe.scores.math).toEqual(full.scores.math);
-    expect(safe.scores.nkFit.stage).toBe(full.scores.nkFit.stage);
-    expect(safe.scores.nkFit.overall).toBe(full.scores.nkFit.overall);
+    expect(safe.scores.common).toEqual({
+      learningAttitude: full.scores.common.learningAttitude,
+      homeworkReliability: full.scores.common.homeworkReliability,
+      helpSeeking: full.scores.common.helpSeeking,
+      feedbackExecution: full.scores.common.feedbackExecution,
+      phoneBoundary: full.scores.common.phoneBoundary,
+      longTermPersistence: full.scores.common.longTermPersistence,
+      shortTermRecovery: full.scores.common.shortTermRecovery,
+    });
+    expect(safe.scores.math).toEqual({ mathStrategy: full.scores.math?.mathStrategy });
+    expect(JSON.stringify(safe)).not.toContain('"nkFit"');
+    expect(JSON.stringify(safe)).not.toContain("nkFitInterpretation");
+    expect(JSON.stringify(safe)).not.toContain("mathSelfEfficacy");
   });
 
   it("수학만 선택이면 english 전략이 null이다", () => {
@@ -119,13 +150,13 @@ describe("buildParentSafeProfile allowlist (§12.3)", () => {
 
 // 또래 문항은 합산 점수 대신 "문항 요지 + 고른 보기"로만 내보낸다.
 describe("buildPeerResponses", () => {
-  it("F1·F2·F4를 문항 원문과 보기 문구로 바꾼다", () => {
-    const out = buildPeerResponses({ F1: 4, F2: 5, F4: 2 });
-    expect(out).toHaveLength(3);
-    expect(out[0].question).toContain("먼저 인사하거나 질문");
+  it("F1~F4를 문항 원문과 보기 문구로 바꾼다", () => {
+    const out = buildPeerResponses({ F1: 4, F2: 5, F3: 3, F4: 2 });
+    expect(out).toHaveLength(4);
+    expect(out[0].question).toContain("먼저 질문");
     expect(out[0].answerLabel).toBe("대체로 맞다");
     expect(out[1].answerLabel).toBe("매우 잘 맞다");
-    expect(out[2].answerLabel).toBe("별로 맞지 않다");
+    expect(out[3].answerLabel).toBe("별로 맞지 않다");
   });
 
   it("점수를 담지 않는다", () => {
@@ -134,11 +165,10 @@ describe("buildPeerResponses", () => {
     }
   });
 
-  // F3은 위험축(집중 흔들림)이라 이 카드에 넣지 않는다.
-  it("F3은 포함하지 않는다", () => {
+  it("F3도 점수 없이 학생이 고른 답 그대로 포함한다", () => {
     const out = buildPeerResponses({ F1: 3, F3: 5 });
-    expect(out).toHaveLength(1);
-    expect(JSON.stringify(out)).not.toContain("대화 때문에");
+    expect(out).toHaveLength(2);
+    expect(JSON.stringify(out)).toContain("대화 때문에");
   });
 
   it("응답이 없거나 범위를 벗어나면 건너뛴다", () => {
@@ -150,8 +180,8 @@ describe("buildPeerResponses", () => {
 
 describe("buildParentSafeProfile — peerResponses", () => {
   it("응답을 주면 peerResponses가 담긴다", () => {
-    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, { F1: 4, F2: 4, F4: 4 });
-    expect(p.peerResponses).toHaveLength(3);
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, { F1: 4, F2: 4, F3: 2, F4: 4 });
+    expect(p.peerResponses).toHaveLength(4);
   });
 
   // 예전에 발급된 공유 토큰에는 이 필드가 없다. 화면이 없을 때도 동작해야 한다.
@@ -166,6 +196,22 @@ describe("buildParentSafeProfile — peerResponses", () => {
     for (const key of PARENT_FORBIDDEN_KEYS) {
       expect(json).not.toContain(key);
     }
+  });
+});
+
+describe("buildBehaviorEvidence — 핵심 행동의 답변 근거", () => {
+  it("구인별로 중간에서 멀리 떨어진 답을 최대 2개만 담고 점수는 담지 않는다", () => {
+    const evidence = buildBehaviorEvidence({ H1: 5, H2: 3, H3: 1, H4: 4, Q1: 5 });
+    expect(evidence.homeworkReliability).toHaveLength(2);
+    expect(evidence.homeworkReliability?.map((item) => item.answerLabel)).toEqual([
+      "할 때마다 했다",
+      "거의 하지 않았다",
+    ]);
+    expect(Object.keys(evidence.homeworkReliability?.[0] ?? {}).sort()).toEqual([
+      "answerLabel",
+      "question",
+    ]);
+    expect(evidence.helpSeeking).toHaveLength(1);
   });
 });
 
@@ -214,17 +260,54 @@ describe("buildParentSafeProfile — mbti", () => {
     expect(p.mbti).toBeUndefined();
   });
 
-  // 스펙트럼은 raw(설문 응답)로 위치를 정한다. MBTI 가중이 0이라 final === raw여야 한다.
-  it("지도 선호축은 MBTI 보정 없이 raw와 final이 같다", () => {
-    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, null, {
+  it("지도 선호는 축 점수 없이 학생이 고른 보기만 담는다", () => {
+    const p = buildParentSafeProfile(resultProfileFor("both"), DISPLAY, {
+      R2: 2,
+      R3: 4,
+      R4: 3,
+      R5: 5,
+      R6: 4,
+    }, {
       type: "ENFP",
       confidence: "high",
     });
-    for (const key of ["interactionAxis", "relationalFeedbackAxis", "flexibilityAxis"] as const) {
-      const axis = p.scores.mbtiAxes[key];
-      expect(axis.final, key).toBe(axis.raw);
-      expect(axis.delta, key).toBe(0);
-    }
-    expect(p.scores.mbtiAxes.applied).toBe(false);
+    expect(p.preferenceResponses).toHaveLength(5);
+    expect(p.preferenceResponses?.[0].answerLabel).toContain("수업이 끝난 뒤");
+    expect(JSON.stringify(p)).not.toContain("mbtiAxes");
+  });
+});
+
+describe("buildParentSafeProfile — 이전 경험 전환 약속", () => {
+  it("학생의 입학 상담 우선 도움은 개인정보를 지운 뒤 새 이름으로만 담는다", () => {
+    const p = buildParentSafeProfile(
+      resultProfileFor("both"),
+      DISPLAY,
+      null,
+      null,
+      {
+        entryPriority: "가상학생은 숙제 시작을 돕고 010-1234-5678로 알려주세요",
+      },
+    );
+    expect(p.entryPriority).toContain("숙제 시작");
+    expect(p.entryPriority).toContain("[연락처 삭제]");
+    expect(JSON.stringify(p)).not.toContain("commitment14");
+  });
+
+  it("구조화 범주만 공개 가능한 고정 약속으로 담는다", () => {
+    const p = buildParentSafeProfile(
+      resultProfileFor("both"),
+      DISPLAY,
+      null,
+      null,
+      {
+        prevConcerns: ["질문·오답 피드백 부족"],
+        prevComplaint: "OO학원의 김선생님은 질문을 받아주지 않았다",
+      },
+    );
+    expect(p.transitionPlan?.[0].title).toBe("질문과 오답을 남기지 않기");
+    const json = JSON.stringify(p);
+    expect(json).not.toContain("OO학원");
+    expect(json).not.toContain("김선생님");
+    expect(findForbiddenKeys(p)).toEqual([]);
   });
 });

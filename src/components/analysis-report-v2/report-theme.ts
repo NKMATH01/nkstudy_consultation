@@ -28,15 +28,17 @@ export const C = {
 // ── 핵심 축 한글 라벨(기존 라벨 유지) ────────────────────────────────────
 // 라벨은 여기 한 곳에서만 관리한다(리포트 전역에서 이 상수를 참조).
 export const CONSTRUCT_LABEL: Record<keyof CommonScores, string> = {
-  learningAttitude: "학습 태도",
-  homeworkReliability: "숙제 신뢰도",
-  phoneBoundary: "휴대폰 자기조절",
-  longTermPersistence: "장기 의지",
-  shortTermRecovery: "단기 회복력",
+  learningAttitude: "수업 준비·참여",
+  homeworkReliability: "숙제 시작·마무리",
+  helpSeeking: "질문·도움 요청",
+  feedbackExecution: "고친 뒤 다시 해보기",
+  phoneBoundary: "공부 중 휴대폰 조절",
+  longTermPersistence: "계획 이어가기",
+  shortTermRecovery: "틀린 뒤 다시 시작",
   peerLearningResource: "또래 학습 자원",
-  peerFocusBoundary: "또래 집중 경계",
+  peerFocusBoundary: "친구와 집중 흔들림",
   reflectiveProcessingNeed: "숙고 처리 선호",
-  directFeedbackAcceptance: "직접 피드백 수용",
+  directFeedbackAcceptance: "바로 말해 주는 방식 선호",
   relationshipSafetyNeed: "관계 안전 요구",
   autonomyNeed: "자율성 요구",
   structureNeed: "구조 요구",
@@ -45,7 +47,7 @@ export const CONSTRUCT_LABEL: Record<keyof CommonScores, string> = {
 
 // ── 지도 반응축(코칭) 라벨(기존 라벨 유지) ───────────────────────────────
 export const COACHING_LABEL = {
-  challenge: "직접 피드백 수용",
+  challenge: "바로 말해 주는 방식 선호",
   safety: "관계 안전 요구",
   autonomy: "자율성 요구",
   structure: "구조 요구",
@@ -56,13 +58,15 @@ export const COACHING_LABEL = {
 export const CONSTRUCT_GLOSS: Record<keyof CommonScores, string> = {
   learningAttitude: "수업 준비·집중·질문처럼 수업에서 보이는 태도",
   homeworkReliability: "정한 대로 숙제를 시작하고 끝내는 정도",
+  helpSeeking: "막힌 지점을 정리해 필요한 도움을 구하는 정도",
+  feedbackExecution: "고칠 점을 기록하고 다음 문제에 적용하는 정도",
   phoneBoundary: "공부할 때 휴대폰을 스스로 멀리하는 정도",
   longTermPersistence: "목표와 계획을 오래 유지하는 힘",
   shortTermRecovery: "낮은 점수·막힘 이후 다시 공부로 돌아오는 힘",
   peerLearningResource: "친구가 공부에 도움이 되는 정도",
-  peerFocusBoundary: "친구와 있을 때 집중을 지키는 정도",
+  peerFocusBoundary: "친구와 있을 때 공부가 늦어지는 정도",
   reflectiveProcessingNeed: "혼자 차분히 정리하며 생각하는 편",
-  directFeedbackAcceptance: "직설적인 지적을 받아들이는 정도",
+  directFeedbackAcceptance: "고칠 점을 바로 말해 주는 방식을 편하게 느끼는 정도",
   relationshipSafetyNeed: "편안한 관계 속에서 더 잘 배우는 정도",
   autonomyNeed: "스스로 정하고 싶어 하는 정도",
   structureNeed: "정해진 틀과 마감을 선호하는 정도",
@@ -111,7 +115,7 @@ export function riskBand(s: Score): BandStyle {
 // ── 설명용 band 문구(§8.7.1) ─────────────────────────────────────────────
 export function bandDescription(s: Score): string {
   if (!isNum(s)) return "응답이 부족해 상담에서 확인이 필요해요";
-  if (s >= 75) return "최근 4주 동안 꾸준히 잘 하고 있어요";
+  if (s >= 75) return "이번 응답에서는 비교적 안정적으로 나타나요";
   if (s >= 60) return "대체로 잘 되지만 상황을 조금 타요";
   if (s >= 40) return "상황에 따라 들쭉날쭉해요";
   return "처음에 옆에서 도와주면 좋아요";
@@ -125,25 +129,19 @@ export function pct(s: Score): number {
 export interface DockItem {
   id: string;
   label: string;
+  index: string;
 }
 // 단일화된 학부모 공유본 섹션으로 하단 메뉴를 맞춘다(과목 섹션은 선택 노출이라 제외).
 export const DOCK_ITEMS: DockItem[] = [
-  { id: "sec-glance", label: "요약" },
-  { id: "sec-summary", label: "종합" },
-  { id: "sec-strength", label: "강점" },
-  { id: "sec-weakness", label: "약점" },
-  { id: "sec-signals", label: "항목별" },
-  { id: "sec-plan", label: "계획" },
+  { id: "sec-glance", label: "요약", index: "00" },
+  { id: "sec-strength", label: "강점", index: "02" },
+  { id: "sec-weakness", label: "지원", index: "03" },
+  { id: "sec-plan", label: "상담", index: "07" },
 ];
 
-/** 과목 섹션이 있을 때만 끼워 넣는 항목(선택 과목이 없으면 렌더되지 않는다). */
-export const DOCK_SUBJECT_ITEM: DockItem = { id: "sec-subject", label: "과목" };
-
-/** 실제 렌더되는 섹션에 맞춘 dock 목록. */
-export function dockItemsFor(hasSubject: boolean): DockItem[] {
-  if (!hasSubject) return DOCK_ITEMS;
-  const idx = DOCK_ITEMS.findIndex((d) => d.id === "sec-plan");
-  return [...DOCK_ITEMS.slice(0, idx), DOCK_SUBJECT_ITEM, ...DOCK_ITEMS.slice(idx)];
+/** 모바일 하단 메뉴는 핵심 네 곳만 제공하고, 나머지는 본문 스크롤로 읽는다. */
+export function dockItemsFor(_hasSubject: boolean): DockItem[] {
+  return DOCK_ITEMS;
 }
 
 export const SUBJECT_LABEL: Record<string, string> = {

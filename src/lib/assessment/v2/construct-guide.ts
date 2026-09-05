@@ -51,7 +51,7 @@ export const FORCED_CHOICE_CONSTRUCTS: string[] = (() => {
  *
  * R2는 천장이라 강제선택으로 바꿨다 — 이제 top2 자체가 없어 목록에서 뺀다.
  */
-export const CEILING_ITEMS = ["M9", "LT1", "R1", "N1", "N2"];
+export const CEILING_ITEMS = ["LT1", "R1"];
 
 type Direction = "positive" | "risk" | "preference";
 
@@ -79,6 +79,16 @@ export const CONSTRUCT_GUIDE: Record<string, ConstructGuide> = {
     direction: "positive",
     highMeans: "숙제 시작과 제출이 안정적임",
   },
+  helpSeeking: {
+    definition: "막힌 지점을 정리하고 필요한 도움을 요청한 뒤 이해를 확인하는 행동",
+    direction: "positive",
+    highMeans: "질문과 도움을 실제 학습 행동으로 잘 연결함",
+  },
+  feedbackExecution: {
+    definition: "받은 피드백을 기록하고 고친 뒤 다음 문제에 적용하는 행동",
+    direction: "positive",
+    highMeans: "피드백을 실제 수정과 다음 시도까지 연결함",
+  },
   phoneBoundary: {
     definition: "공부 중 휴대폰을 스스로 멀리 두는 행동",
     direction: "positive",
@@ -105,7 +115,7 @@ export const CONSTRUCT_GUIDE: Record<string, ConstructGuide> = {
     highMeans: "친구 관계가 공부에 도움이 됨",
   },
   peerFocusBoundary: {
-    definition: "친구가 옆에 있을 때 집중이 흔들리는 정도",
+    definition: "친구가 옆에 있을 때 공부가 늦어지는 정도",
     direction: "risk",
     highMeans: "친구와 함께일 때 집중이 흔들려 자리 배치 배려가 필요함",
   },
@@ -130,24 +140,14 @@ export const CONSTRUCT_GUIDE: Record<string, ConstructGuide> = {
     highMeans: "즉답보다 생각할 시간을 주면 더 잘함",
   },
   directFeedbackAcceptance: {
-    definition: "직접적인 지적을 받아들이는 정도",
+    definition: "고칠 점을 바로 말해 주는 방식을 편하게 느끼는 정도",
     direction: "preference",
-    highMeans: "돌려 말하기보다 분명한 피드백이 잘 맞음",
-  },
-  nkFit: {
-    definition: "NK 운영 방식(클리닉·주간테스트 등)과의 맞물림",
-    direction: "positive",
-    highMeans: "NK 운영 방식과 잘 맞물림",
+    highMeans: "고칠 점을 분명하게 바로 말해 주는 방식이 잘 맞음",
   },
   mathStrategy: {
     definition: "수학을 공부하는 방법의 짜임새",
     direction: "positive",
     highMeans: "수학 공부 방법이 잡혀 있음",
-  },
-  mathSelfEfficacy: {
-    definition: "수학을 해낼 수 있다는 자신감",
-    direction: "positive",
-    highMeans: "수학에 자신감이 있음",
   },
   mathNoveltyAvoidance: {
     definition: "처음 보는 유형을 피하려는 정도",
@@ -163,11 +163,6 @@ export const CONSTRUCT_GUIDE: Record<string, ConstructGuide> = {
     definition: "영어를 공부하는 방법의 짜임새",
     direction: "positive",
     highMeans: "영어 공부 방법이 잡혀 있음",
-  },
-  englishSelfEfficacy: {
-    definition: "영어를 해낼 수 있다는 자신감",
-    direction: "positive",
-    highMeans: "영어에 자신감이 있음",
   },
   englishReadingAvoidance: {
     definition: "긴 지문을 피하려는 정도",
@@ -192,7 +187,11 @@ export function buildConstructDictionary(): string {
   const rows = Object.entries(CONSTRUCT_GUIDE).map(([key, guide]) => {
     const label = CONSTRUCT_LABEL[key as keyof typeof CONSTRUCT_LABEL] ?? key;
     const items = ITEMS_BY_CONSTRUCT[key] ?? [];
-    const count = items.length === 1 ? "단일문항" : `${items.length}문항`;
+    const count = key === "conscientiousness"
+      ? "여러 축의 파생 참고값"
+      : items.length === 1
+        ? "단일문항"
+        : `${items.length}문항`;
     return `| ${label} | ${count} | ${guide.definition} | ${DIRECTION_NOTE[guide.direction]} — ${guide.highMeans} |`;
   });
 
@@ -210,7 +209,7 @@ export function buildNamingRules(): string {
 
   return `[지표 이름·표기 규칙 — 매우 중요]
 - 위 표의 "한글 이름"으로만 지표를 지칭하세요. 다른 번역어를 새로 만들지 마세요.
-- 영문 키(learningAttitude 등)·내부 코드(NKFit, nkFit, 상황문항, evidence, construct, R2·M9 같은 문항 ID)를 문장에 절대 쓰지 마세요.
+- 영문 키(learningAttitude 등)·내부 코드(NKFit, nkFit, 상황문항, evidence, construct, R2·Q1 같은 문항 ID)를 문장에 절대 쓰지 마세요.
 - "역채점", "위험축", "선호축" 같은 내부 용어도 쓰지 마세요.
 
 [방향 해석 — 매우 중요]
@@ -228,10 +227,12 @@ export function buildNamingRules(): string {
 - 강점은 여러 문항이 함께 뒷받침될 때만 쓰세요.`;
 }
 
-/** studentType 생성 공식(5축 최고/최저 행동 조합). */
+/** studentType 생성 공식(7개 핵심 학습행동 중 최고/최저 조합). */
 export const STUDENT_TYPE_AXES = [
   "learningAttitude",
   "homeworkReliability",
+  "helpSeeking",
+  "feedbackExecution",
   "phoneBoundary",
   "longTermPersistence",
   "shortTermRecovery",
@@ -243,9 +244,9 @@ export function buildStudentTypeRule(): string {
   );
 
   return `[studentType 작성 공식 — 매우 중요]
-- 다음 다섯 축 중 가장 높은 축과 가장 낮은 축을 고르고, 그 두 축의 "행동"을 이어 붙인 한 문장으로 쓰세요: ${labels.join(", ")}
+- 다음 일곱 축 중 가장 높은 축과 가장 낮은 축을 고르고, 그 두 축의 "행동"을 이어 붙인 한 문장으로 쓰세요: ${labels.join(", ")}
 - 형식 예시: "숙제는 기한 안에 챙기지만, 낮은 점수 뒤 다시 시작까지 시간이 걸리는 학생"
-- 유형명·분류명(예: 혼합 반응, 14일 관찰형, 자기주도형)을 쓰지 마세요.
+- 유형명·분류명(예: 혼합 반응, 관찰형, 자기주도형)을 쓰지 마세요.
 - "~한 틀", "~형", "~타입" 같은 상투구를 쓰지 마세요.
 - 학생 실명을 쓰지 마세요(다른 필드와 달리 {{학생}} 토큰도 넣지 마세요 — 행동만 서술).
 - 점수 수치를 넣지 마세요.`;

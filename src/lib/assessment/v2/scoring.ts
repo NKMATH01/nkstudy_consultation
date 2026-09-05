@@ -4,6 +4,7 @@
 
 import {
   ALL_ITEMS,
+  INSTRUMENT_REVISION,
   MIN_VALID_RATIO,
   REVERSE_IDS,
   getItemsForSubject,
@@ -202,12 +203,12 @@ export function classifyCoaching(
     challengeBand === "mixed" ||
     safetyBand === "mixed"
   ) {
-    return "혼합 반응·14일 관찰형";
+    return "입학 상담 확인 필요";
   }
   if (challengeBand === "high" && safetyBand === "high") return "따뜻한 도전형";
   if (challengeBand === "high" && safetyBand === "low") return "직접 도전형";
   if (challengeBand === "low" && safetyBand === "high") return "안전 기반 점진형";
-  return "낮은 압력의 구조 관찰형";
+  return "낮은 압력의 차분한 확인형";
 }
 
 /**
@@ -224,21 +225,21 @@ export function classifyAutonomyStructure(
     autonomyBand === "mixed" ||
     structureBand === "mixed"
   ) {
-    return "혼합 반응·14일 관찰형";
+    return "입학 상담 확인 필요";
   }
   if (autonomyBand === "high" && structureBand === "high") return "구조 속 선택권";
   if (autonomyBand === "high" && structureBand === "low") return "자기 주도 우선형";
   if (autonomyBand === "low" && structureBand === "high") return "명확한 구조 우선형";
-  return "낮은 압력의 점진 관찰형";
+  return "낮은 압력의 점진 확인형";
 }
 
 /** 8.7.1 설명용 해석 band. 접근·등록 판정에 사용하지 않는다. */
 export function interpretBand(score: Score): string {
   if (!isNum(score)) return "정보 부족·상담 확인 필요";
-  if (score >= 75) return "최근 행동에서 비교적 안정적으로 관찰됨";
-  if (score >= 60) return "대체로 작동하나 조건의 영향을 받음";
-  if (score >= 40) return "상황에 따른 변동이 큼";
-  return "초기 구조와 짧은 확인 주기가 필요함";
+  if (score >= 75) return "이번 응답에서 비교적 안정적으로 나타남";
+  if (score >= 60) return "이번 응답에서 대체로 잘된다고 나타났으나 조건의 영향을 받을 수 있음";
+  if (score >= 40) return "이번 응답에서 상황에 따른 차이가 나타남";
+  return "이번 응답에서는 시작을 돕는 구조가 필요하다고 나타남";
 }
 
 // ── 8.5 / 8.7.4 MBTI 보조축 ─────────────────────────────────────────
@@ -248,7 +249,7 @@ export function interpretBand(score: Score): string {
  *
  * 예전에는 high 0.08 / medium 0.04로 축을 살짝 밀었는데, 그 결과 화면에 보이는 위치가
  * "학생이 실제로 답한 위치"가 아니게 됐다. MBTI는 학생이 적어 낸 참고 정보일 뿐이므로
- * 위치를 정하지 않고, 결과지에서는 별도 마커로 병치해 다르면 첫 2주에 확인한다.
+ * 위치를 정하지 않고, 결과지에는 비공식 자기메모로만 분리해 표시한다.
  *
  * 타입·저장 구조(AxisScore.raw/delta/final, applied)는 하위호환을 위해 유지한다.
  * 가중치가 0이므로 delta는 항상 0, final === raw, applied === false가 된다.
@@ -337,9 +338,8 @@ function computeMbtiAxes(
 
   // relationalFeedbackAxis: raw = mean(관계 안전 요구, 100 - 직접 피드백 수용).
   //
-  // 예전에는 R4·R3 원응답을 직접 읽었다. 직접 피드백 수용이 R3 한 문항일 때는 같은 값이지만,
-  // 지금은 R3+R3-1+R3-2 세 문항이라 원응답 하나만 보면 축이 문항 하나에 매달린다.
-  // 방향은 그대로다 — 관계 안전이 높을수록, 직접 피드백 수용이 낮을수록 관계 중심(F) 쪽.
+  // R3은 직접 말해 주는 방식에 대한 선호, R4는 관계 안전에 대한 선호다.
+  // 둘 다 단일문항이라 공개 점수나 성격유형으로 쓰지 않고 구형 내부 필드만 유지한다.
   const relationalRaw: Score =
     isNum(constructs.relationshipSafetyNeed) && isNum(constructs.directFeedbackAcceptance)
       ? clamp(
@@ -610,6 +610,8 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
   // 공통 composite (full precision 원천값 유지).
   const learningAttitude = scoreByConstruct("learningAttitude", responses);
   const homeworkReliability = scoreByConstruct("homeworkReliability", responses);
+  const helpSeeking = scoreByConstruct("helpSeeking", responses);
+  const feedbackExecution = scoreByConstruct("feedbackExecution", responses);
   const phoneBoundary = scoreByConstruct("phoneBoundary", responses);
   const longTermPersistence = scoreByConstruct("longTermPersistence", responses);
   const shortTermRecovery = scoreByConstruct("shortTermRecovery", responses);
@@ -637,6 +639,8 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
   const common: CommonScores = {
     learningAttitude: display(learningAttitude),
     homeworkReliability: display(homeworkReliability),
+    helpSeeking: display(helpSeeking),
+    feedbackExecution: display(feedbackExecution),
     phoneBoundary: display(phoneBoundary),
     longTermPersistence: display(longTermPersistence),
     shortTermRecovery: display(shortTermRecovery),
@@ -694,6 +698,8 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
   const commonEntries: Array<[string, Score]> = [
     ["learningAttitude", learningAttitude],
     ["homeworkReliability", homeworkReliability],
+    ["helpSeeking", helpSeeking],
+    ["feedbackExecution", feedbackExecution],
     ["phoneBoundary", phoneBoundary],
     ["longTermPersistence", longTermPersistence],
     ["shortTermRecovery", shortTermRecovery],
@@ -718,6 +724,7 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
 
   return {
     instrumentVersion: "v2",
+    instrumentRevision: INSTRUMENT_REVISION,
     subjectSelection,
     common,
     coaching,

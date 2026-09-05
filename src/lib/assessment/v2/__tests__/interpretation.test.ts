@@ -69,7 +69,7 @@ describe("buildFallbackInterpretation (§11-6)", () => {
     expect(interp.detailedSummary).not.toContain("지도할 때");
     expect(interp.detailedSummary).not.toContain("NK 운영");
     expect(interp.detailedSummary).toContain(
-      "새 환경에서 실제 모습은 첫 수업들을 지켜보면 더 정확해져요."
+      "학업 수준과 과목별 시작점은 별도의 입학테스트 결과를 함께 봐야 더 정확해요."
     );
   });
 });
@@ -82,7 +82,7 @@ describe("neutralQualityNote", () => {
       responses: fill(3),
     });
     expect(profile.responseQuality.status).toBe("review");
-    expect(neutralQualityNote(profile)).toBe("첫 14일 행동 확인 필요");
+    expect(neutralQualityNote(profile)).toBe("입학 상담에서 응답 의미 확인 필요");
   });
 
   it("정상이면 빈 문자열", () => {

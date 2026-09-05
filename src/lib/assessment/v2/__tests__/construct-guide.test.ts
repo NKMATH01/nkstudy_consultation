@@ -14,21 +14,19 @@ import { CONSTRUCT_LABEL } from "@/components/analysis-report-v2/report-theme";
 
 describe("ITEMS_BY_CONSTRUCT — definition.ts 실측 집계", () => {
   // 하드코딩이 아니라 definition에서 집계하므로 문항이 바뀌면 여기서 먼저 깨진다.
-  // [스펙 변경] 직접 피드백 수용은 R3+R3-1+R3-2 3문항으로 확장돼 단일문항 목록에서 빠졌다.
-  // 숙고 처리 선호는 R2 강제선택 1문항이라 여전히 단일문항이다(점수 인용 금지 대상).
-  it("단일문항 구인 10개를 실제 정의에서 뽑아낸다", () => {
+  // 직접 피드백 선호(R3)와 지도 선호·과목 위험 신호는 단일문항이라 점수로 확대하지 않는다.
+  it("단일문항 구인 9개를 실제 정의에서 뽑아낸다", () => {
     expect(SINGLE_ITEM_CONSTRUCTS.sort()).toEqual(
       [
         "autonomyNeed",
         "englishReadingAvoidance",
-        "englishSelfEfficacy",
         "englishTestInterference",
         "mathNoveltyAvoidance",
-        "mathSelfEfficacy",
         "mathTestInterference",
         "peerFocusBoundary",
         "reflectiveProcessingNeed",
         "relationshipSafetyNeed",
+        "directFeedbackAcceptance",
       ].sort(),
     );
   });
@@ -83,9 +81,9 @@ describe("buildConstructDictionary", () => {
   const dict = buildConstructDictionary();
 
   it("화면과 같은 한글 라벨을 쓴다", () => {
-    expect(dict).toContain("학습 태도");
-    expect(dict).toContain("숙제 신뢰도");
-    expect(dict).toContain("또래 집중 경계");
+    expect(dict).toContain("수업 준비·참여");
+    expect(dict).toContain("숙제 시작·마무리");
+    expect(dict).toContain("친구와 집중 흔들림");
   });
 
   it("단일문항 여부를 표에 밝힌다", () => {
@@ -111,7 +109,7 @@ describe("buildNamingRules", () => {
 
   it("단일문항 구인을 한글 라벨로 나열한다", () => {
     expect(rules).toContain("숙고 처리 선호");
-    expect(rules).toContain("또래 집중 경계");
+    expect(rules).toContain("친구와 집중 흔들림");
   });
 
   it("천장 문항을 강점 근거에서 배제한다", () => {
@@ -129,8 +127,8 @@ describe("buildNamingRules", () => {
 describe("buildStudentTypeRule", () => {
   const rule = buildStudentTypeRule();
 
-  it("5축을 한글 라벨로 지정한다", () => {
-    expect(STUDENT_TYPE_AXES).toHaveLength(5);
+  it("7개 핵심 학습행동을 한글 라벨로 지정한다", () => {
+    expect(STUDENT_TYPE_AXES).toHaveLength(7);
     for (const axis of STUDENT_TYPE_AXES) {
       expect(rule).toContain(CONSTRUCT_LABEL[axis]);
     }

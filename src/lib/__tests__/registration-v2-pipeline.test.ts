@@ -65,7 +65,7 @@ describe("V2 등록안내 연동", () => {
 
     expect(prompt).toContain("최신 V2 학습 프로필 대상");
     expect(prompt).toContain("서버 계산 0~100 점수");
-    expect(prompt).toContain("첫 14일");
+    expect(prompt).toContain("입학 상담 확인 질문");
     expect(prompt).not.toContain("1~5번(성격)");
     expect(prompt).not.toContain("18~19번(탐구력)");
   });
@@ -77,7 +77,7 @@ describe("V2 등록안내 연동", () => {
         page1: {
           profileSummary: "요약",
           sixFactorScores: [
-            { factor: "학습 태도", score: 999, grade: "천재", insight: "맞춤 인사이트" },
+            { factor: "수업 준비·참여", score: 999, grade: "천재", insight: "맞춤 인사이트" },
           ],
           managementGuide: [],
         },
@@ -87,7 +87,7 @@ describe("V2 등록안내 연동", () => {
     );
     const page1 = normalized.page1 as ReportTemplateData["page1"];
     const serverScore = analysis.result_profile_v2!.scores.common.learningAttitude;
-    const attitude = page1.sixFactorScores?.find((row) => row.factor === "학습 태도");
+    const attitude = page1.sixFactorScores?.find((row) => row.factor === "수업 준비·참여");
 
     expect(normalized.instrumentVersion).toBe("v2");
     expect(attitude?.score).toBe(serverScore);
@@ -109,7 +109,7 @@ describe("V2 등록안내 연동", () => {
         page2: {
           welcomeTitle: "환영합니다",
           welcomeSubtitle: "함께 시작해요",
-          expertDiagnosis: "첫 14일 동안 확인합니다.",
+          expertDiagnosis: "입학 상담과 테스트 결과를 함께 봅니다.",
           focusPoints: [],
           academyRules: [],
         },

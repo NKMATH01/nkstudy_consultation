@@ -6,10 +6,12 @@ import type { CommonScores } from "../types";
 // 00 한 장 요약이 의존하는 규칙을 고정한다.
 // (컴포넌트 렌더 대신 규칙만 검증 — 렌더 스모크는 배포 후 브라우저로 확인)
 
-/** 00 요약 정렬 바에 쓰는 5축. peerLearningResource는 합산 축에서 뺐다(P1-B). */
+/** 00 요약 정렬 바에 쓰는 7개 핵심 학습행동. 또래·과목 점수는 섞지 않는다. */
 const GLANCE_KEYS: (keyof CommonScores)[] = [
   "learningAttitude",
   "homeworkReliability",
+  "helpSeeking",
+  "feedbackExecution",
   "phoneBoundary",
   "longTermPersistence",
   "shortTermRecovery",
@@ -20,8 +22,8 @@ function sortDesc(items: { label: string; score: number | null }[]) {
 }
 
 describe("00 한 장 요약 — 정렬 바", () => {
-  it("합산 축은 또래 자원을 제외한 5축이다", () => {
-    expect(GLANCE_KEYS).toHaveLength(5);
+  it("합산 축은 또래·과목을 제외한 7개 학습행동이다", () => {
+    expect(GLANCE_KEYS).toHaveLength(7);
     expect(GLANCE_KEYS).not.toContain("peerLearningResource");
     expect(GLANCE_KEYS).not.toContain("peerFocusBoundary");
   });
@@ -107,10 +109,17 @@ describe("dockItemsFor — 실제 렌더 섹션과 일치", () => {
     expect(ids).not.toContain("sec-subject");
   });
 
-  it("과목 섹션이 있으면 계획 앞에 과목을 끼운다", () => {
-    const ids = dockItemsFor(true).map((d) => d.id);
-    expect(ids).toContain("sec-subject");
-    expect(ids.indexOf("sec-subject")).toBeLessThan(ids.indexOf("sec-plan"));
+  it("모바일 dock은 핵심 네 섹션만 둔다", () => {
+    expect(dockItemsFor(false).map((d) => d.id)).toEqual([
+      "sec-glance",
+      "sec-strength",
+      "sec-weakness",
+      "sec-plan",
+    ]);
+  });
+
+  it("과목 유무와 관계없이 모바일 dock은 간결하게 유지한다", () => {
+    expect(dockItemsFor(true)).toEqual(dockItemsFor(false));
   });
 
   it("모든 dock 항목이 결과지에 실제로 있는 섹션 id를 가리킨다", () => {

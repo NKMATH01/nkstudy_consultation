@@ -71,18 +71,18 @@ describe("TeacherSheet — 필수 블록", () => {
       "① 지금 상태",
       "② 먼저 도울 것",
       "④ 말 거는 방식",
-      "⑤ 2주 뒤 확인",
+      "⑤ 입학 상담 확인",
       "③ 주의",
     ]) {
       expect(html, title).toContain(title);
     }
   });
 
-  it("2주 뒤 확인은 저장 전이면 빈 체크박스 3개다", () => {
-    expect(html.match(/☐/g) ?? []).toHaveLength(3);
-    expect(html).toContain("수업 진입");
-    expect(html).toContain("숙제 기한");
-    expect(html).toContain("재시작");
+  it("입학 상담에서 확인할 질문을 빈 체크박스로 보여 준다", () => {
+    expect(html.match(/☐/g) ?? []).toHaveLength(4);
+    expect(html).toContain("평소 숙제를 언제 시작하고 무엇 때문에 미루는지");
+    expect(html).toContain("공부할 때 휴대폰을 어디에 두는지");
+    expect(html).toContain("다시 시작한 경험");
   });
 
   it("먼저 도울 것에 금지형·행동형이 함께 나온다", () => {
@@ -105,20 +105,18 @@ describe("TeacherSheet — 노출 금지", () => {
   });
 
   it("말 거는 방식에는 점수를 쓰지 않는다", () => {
-    const talk = html.split("④ 말 거는 방식")[1]?.split("⑤ 2주 뒤 확인")[0] ?? "";
+    const talk = html.split("④ 말 거는 방식")[1]?.split("⑤ 입학 상담 확인")[0] ?? "";
     expect(talk).not.toMatch(/\d+(\.\d+)?점/);
     expect(talk).not.toMatch(/\d+\s*\/\s*5/);
   });
 });
 
-describe("TeacherSheet — 상태 반영", () => {
-  it("저장된 확인 결과가 있으면 체크 표시와 결과 라벨이 보인다", () => {
-    const html = render({
-      checks: [{ itemIndex: 2, result: "differed", teacher: "김수한" }],
-    }, fill(2));
-    expect(html).toContain("☑");
-    expect(html).toContain("달랐음");
-    expect(html).toContain("김수한");
+describe("TeacherSheet — 입학 상담 상태", () => {
+  it("등록 후 확인 결과를 입학 당일 강사 시트에 섞지 않는다", () => {
+    const html = render({}, fill(2));
+    expect(html).not.toContain("☑");
+    expect(html).not.toContain("달랐음");
+    expect(html).not.toContain("14일");
   });
 
   it("응답 품질이 정상이고 이전 학원 메모가 없으면 주의 블록이 비어 있다고 밝힌다", () => {
@@ -129,8 +127,8 @@ describe("TeacherSheet — 상태 반영", () => {
   it("응답 품질 경고와 해석 주의가 같은 말을 두 번 하지 않는다", () => {
     const html = render();
     const caution = html.split("③ 주의")[1] ?? "";
-    expect(caution).toContain("첫 2주에 직접 확인할 값입니다");
-    expect(caution).not.toContain("첫 2주 동안 함께 확인할 부분이에요");
+    expect(caution).toContain("입학 상담과 첫 수업에서");
+    expect(caution).not.toContain("첫 2주 동안");
   });
 
   it("이전 학원 불만이 있으면 첫 통화 주의를 띄운다", () => {

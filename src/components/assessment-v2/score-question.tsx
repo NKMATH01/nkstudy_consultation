@@ -20,7 +20,7 @@ export type ScoreValue = LikertResponse | number;
 interface OptionRowProps {
   selected: boolean;
   label: string;
-  /** 좌측 표기(1~5 번호 또는 A~D). */
+  /** 좌측 표기(리커트는 빈 원, 상황문항은 A~D). */
   marker: string;
   onSelect: (viaPointer: boolean) => void;
   ariaLabel: string;
@@ -106,6 +106,11 @@ export const ScoreQuestion = forwardRef<HTMLHeadingElement, Props>(
             {questionNumber} / {totalQuestions}
           </span>
           {title}
+          {likert && item.scale === "frequency" && (
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
+              최근 2주 동안 실제로 한 행동을 떠올려 답해주세요.
+            </p>
+          )}
         </div>
 
         {likert ? (
@@ -136,17 +141,17 @@ function LikertOptions({
   onSelect: (value: ScoreValue, viaPointer: boolean) => void;
 }) {
   const labels = SCALE_LABELS_V2[item.scale];
-  // 위에서 아래로 5→1. 긍정이 맨 위에 오면 첫 선택지가 기준점이 되어 읽기 순서가 자연스럽다.
-  // 저장값은 그대로 1~5이며 표시 순서만 뒤집는다.
+  // 숫자를 보이면 5를 '좋은 답'으로 고르기 쉬워 문장만 낮은 빈도→높은 빈도로 보여 준다.
+  // 저장값은 기존과 같은 1~5다.
   return (
     <div role="radiogroup" aria-label={item.text} className="space-y-2">
-      {[5, 4, 3, 2, 1].map((v) => (
+      {[1, 2, 3, 4, 5].map((v) => (
         <OptionRow
           key={v}
-          marker={String(v)}
+          marker=""
           selected={value === v}
           label={labels[v - 1]}
-          ariaLabel={`${v}점: ${labels[v - 1]}`}
+          ariaLabel={labels[v - 1]}
           heightClass="min-h-[52px]"
           onSelect={(viaPointer) => onSelect(v, viaPointer)}
         />
@@ -154,10 +159,19 @@ function LikertOptions({
       {item.allowUnknown && (
         <div className="mt-4 border-t border-border pt-3">
           <OptionRow
+            marker="–"
+            selected={value === "not_applicable"}
+            label="최근 2주에는 그런 경험이 없었음"
+            ariaLabel="최근 2주에는 그런 경험이 없었음"
+            muted
+            onSelect={(viaPointer) => onSelect("not_applicable", viaPointer)}
+          />
+          <div className="h-2" />
+          <OptionRow
             marker="?"
             selected={value === "unknown"}
-            label="아직 잘 모르겠음"
-            ariaLabel="아직 잘 모르겠음"
+            label="잘 모르겠음"
+            ariaLabel="잘 모르겠음"
             muted
             onSelect={(viaPointer) => onSelect("unknown", viaPointer)}
           />

@@ -49,7 +49,7 @@ function loadEnvLocal() {
 
 // ── 설문 진행 헬퍼 ───────────────────────────────────────────────────
 const NAV = { waitUntil: "domcontentloaded", timeout: 120000 };
-const nextBtn = (p) => p.getByRole("button", { name: "다음", exact: true });
+const nextBtn = (p) => p.getByRole("button", { name: /^(다음|건너뛰기)$/ });
 const submitBtn = (p) => p.getByRole("button", { name: "제출하기", exact: true });
 const radios = (p) => p.getByRole("radio");
 
@@ -61,6 +61,7 @@ async function fillScreen0(page) {
     await page.getByRole("button", { name: "수학+영어", exact: true }).click();
     await page.fill("#v2-student-phone", STUDENT.studentPhone);
     await page.fill("#v2-parent-phone", STUDENT.parentPhone);
+    await page.check("#v2-profile-notice");
     await page.waitForTimeout(250);
     if (await nextBtn(page).isEnabled().catch(() => false)) return;
   }
@@ -70,7 +71,7 @@ async function fillScreen0(page) {
 async function answerAllScore(page) {
   let count = 0;
   while (count < 80) {
-    if (await page.locator("#v2-commitment14").isVisible().catch(() => false)) break;
+    if (await page.locator("#v2-entry-priority").isVisible().catch(() => false)) break;
     await radios(page).first().focus();
     await page.keyboard.press("Enter");
     count += 1;
@@ -139,7 +140,7 @@ async function main() {
         for (let i = 0; i < 5; i++) await nextBtn(page).click();
         const answered = await answerAllScore(page);
         assertEqual(answered, 60, "수학+영어 응답 문항 수");
-        await page.fill("#v2-commitment14", "E2E 검증용 약속(삭제 예정): 매일 오답 1개 재풀이");
+        await page.fill("#v2-entry-priority", "E2E 검증용: 오답 공부 방법을 도움받고 싶음");
         await submitBtn(page).click();
         // 성공 화면 또는 중복 방어 메시지.
         const ok = page.getByText("설문이 제출되었습니다", { exact: false });

@@ -149,7 +149,7 @@ export function ReportToolbar({
           <span className="premium-brand__mark">NK</span>
           <span>
             <strong>NK EDUCATION</strong>
-            <small>학습 성향 분석 보고서</small>
+            <small>입학 상담용 학습 자기보고</small>
           </span>
         </span>
         <div className="report-v2-actions rptv2-noprint">
@@ -195,20 +195,22 @@ export function ReportDock({ hasSubject = false }: { hasSubject?: boolean }) {
   }, [items]);
 
   const go = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     setActive(id);
   };
 
   return (
     <nav className="report-dock rptv2-noprint" aria-label="보고서 섹션 이동">
-      {items.map((d, idx) => (
+      {items.map((d) => (
         <button
           key={d.id}
           type="button"
           className={active === d.id ? "is-active" : undefined}
+          aria-current={active === d.id ? "location" : undefined}
           onClick={() => go(d.id)}
         >
-          <b>{String(idx).padStart(2, "0")}</b>
+          <b>{d.index}</b>
           <span>{d.label}</span>
         </button>
       ))}

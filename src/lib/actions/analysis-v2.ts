@@ -19,6 +19,7 @@ import {
   buildResultProfileV2,
 } from "@/lib/assessment/v2/interpretation";
 import { applyStudentNameToInterpretation } from "@/lib/assessment/v2/name-substitution";
+import { INSTRUMENT_REVISION } from "@/lib/assessment/v2/definition";
 import { stampConsultationAnalysis } from "@/lib/actions/consultation-analysis";
 import type { AiInterpretation } from "@/lib/assessment/v2/ai-contract";
 import type { ScoreProfile } from "@/lib/assessment/v2/types";
@@ -120,6 +121,18 @@ export async function analyzeSurveyV2(surveyId: string) {
     return {
       success: false,
       error: "score_profile_v2가 없습니다 (제출 시 서버 점수 계산 필요)",
+    };
+  }
+
+  const storedRevision =
+    typeof row.responses_v2?.instrument_revision === "string"
+      ? row.responses_v2.instrument_revision
+      : scoreProfile.instrumentRevision;
+  if (storedRevision !== INSTRUMENT_REVISION) {
+    return {
+      success: false,
+      error:
+        "과거 문항 구성의 응답입니다. 현재 60문항 기준으로 다시 분석할 수 없습니다. 기존 결과를 보존해 주세요.",
     };
   }
 

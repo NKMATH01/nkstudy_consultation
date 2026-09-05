@@ -162,7 +162,7 @@ function mapSurveyForPrompt(s: Record<string, unknown>) {
       수학어려움: intake.math_difficulty,
       영어어려움: intake.english_difficulty,
       요청사항: intake.requests,
-      첫14일약속: intake.commitment14,
+      입학상담_우선도움: intake.commitment14,
     },
     핵심점수_0_100: metrics,
     NK운영적합: { 단계: nkFit.stage, 점수: nkFit.overall },
@@ -377,7 +377,7 @@ NK EDUCATION은 수학/영어 학원입니다.
 - 상담 결과: none(미결정) → registered(등록) / hold(고민중) / other(미등록)
 - 상담 결과 한국어 매핑: "등록"→registered, "고민"/"고민중"→hold, "미등록"→other, "미결정"/"미정"→none
 - 설문/분석은 버전 구분이 필수입니다. V1 과거 자료만 7-Factor(1~5점)를 사용합니다.
-- V2 최신 학습 프로필은 0~100 서버 점수(학습 태도, 숙제 신뢰도, 장기 의지, 단기 회복력, 휴대폰 자기조절, 학습 성실성), 지도 유형, NK 운영 적합 단계, 첫 14일 확인 계획을 사용합니다. V2를 V1 지표로 바꾸거나 빈 V1 점수를 해석하지 마세요.
+- V2 최신 학습 프로필은 입학테스트 전에 학생이 작성한 자기보고입니다. 0~100 서버 내부 지표, 학생이 우선 도움받고 싶은 점, 과목 입학테스트와 입학 상담 내용을 함께 사용합니다. V2를 V1 지표로 바꾸거나 설문만으로 반 배치·등록 적합을 단정하지 마세요.
 
 ## 데이터 한계
 - 재원생: 전체 (is_active=true)

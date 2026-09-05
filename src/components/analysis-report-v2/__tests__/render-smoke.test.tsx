@@ -50,7 +50,7 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     expect(html).toContain("핵심 지도 판정");
     expect(html).toContain("선생님 메모");
     expect(html).toContain("MBTI");
-    expect(html).toContain("첫 14일 확인 지표");
+    expect(html).toContain("입학 상담 확인 질문");
     expect(html).toContain("읽는 원칙");
     // 연락처는 마스킹되어 원본 뒷자리가 노출되지 않는다.
     expect(html).not.toContain("010-1234-5678");
@@ -78,31 +78,43 @@ describe("V2 결과 보고서 렌더 smoke", () => {
 
   it("학부모 보고서는 상담자 전용 문구를 포함하지 않는다", () => {
     const profile = resultFor("both");
-    const safe = buildParentSafeProfile(profile, { name: "가상학생", schoolGrade: "중2" });
+    const safe = buildParentSafeProfile(
+      profile,
+      { name: "가상학생", schoolGrade: "중2" },
+      null,
+      null,
+      {
+        prevConcerns: ["질문·오답 피드백 부족"],
+        entryPriority: "숙제를 미루지 않고 시작하는 방법",
+      },
+    );
     const html = renderToStaticMarkup(<ParentReport data={safe} />);
-    // 재설계: 선별된 종합 분석 구조(약점 섹션 포함).
+    // 재설계: 선별된 종합 분석 구조(지원 섹션 포함).
     expect(html).toContain("종합 분석");
-    // 실명 호칭 치환: "OO 학생의 강점/약점"(가상학생 → "가상학생 학생").
-    expect(html).toContain("학생의 강점");
-    expect(html).toContain("학생의 약점");
+    expect(html).toContain("학생에게 잘 작동하는 힘");
+    expect(html).toContain("학생을 먼저 도울 지점");
+    expect(html).toContain("학생이 직접 말한 가장 필요한 도움");
+    expect(html).toContain("숙제를 미루지 않고 시작하는 방법");
     // AI/fallback의 "{{학생}}" 토큰이 렌더에 그대로 노출되지 않는다.
     expect(html).not.toContain("{{학생}}");
     // 강점 카드에도 관련 construct 점수 배지가 붙는다(약점 카드와 동일 스타일).
     expect(html).toContain("insight-cards__badge");
-    // 본문에 실제 점수 수치가 인용된다(예: "81.3점").
-    expect(html).toMatch(/\d+\.\d+점/);
+    // 학부모 본문에는 규준처럼 보이는 가짜 정밀 점수를 노출하지 않는다.
+    expect(html).not.toMatch(/\d+\.\d+\s*(?:점|\/\s*5)/);
     expect(html).toContain("항목별 분석");
-    expect(html).toContain("NK의 지도 계획");
-    expect(html).toContain("12주 맞춤 계획");
+    expect(html).toContain("입학 상담·초기 수업 제안");
+    expect(html).not.toContain("12주 운영 초안");
+    expect(html).toContain("입학 상담에서 합의할 운영 조건");
+    expect(html).toContain("질문과 오답을 남기지 않기");
     // 상담자 전용 블록이 학부모 화면에 없다.
     expect(html).not.toContain("선생님 메모");
     expect(html).not.toContain("핵심 지도 판정");
     expect(html).not.toContain("상담 배경과 학생이 쓴 이야기");
     // 상담자용 MBTI 조정 패널(축 보정 수치)은 학부모 화면에 없다.
-    // 단, 지도 선호 스펙트럼 캡션의 "MBTI는 위치를 정하지 않습니다" 고지는 의도된 문구다.
+    // MBTI 자기라벨은 지도 선호 축 위에도 놓지 않는다.
     expect(html).not.toContain("MBTI 조정");
     expect(html).not.toContain("confidenceWeight");
-    expect(html).toContain("MBTI는 위치를 정하지 않습니다");
+    expect(html).not.toContain("spectrum__mbti");
   });
 
   it("응답 품질 review이면 중립 확인 문구를 표시한다", () => {
@@ -121,6 +133,7 @@ describe("V2 결과 보고서 렌더 smoke", () => {
     const html = renderToStaticMarkup(
       <CounselorReport profile={profile} header={{ name: "가상", schoolGrade: "중2" }} />
     );
-    expect(html).toContain("응답이 한쪽으로 치우쳐 있어");
+    expect(html).not.toContain("첫 14일");
+    expect(html).toContain("입학 상담");
   });
 });

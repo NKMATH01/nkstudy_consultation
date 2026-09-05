@@ -1,23 +1,26 @@
 // 학부모 공유용 V2 결과 보고서. parent-safe snapshot만 렌더한다(화이트 톤·쉬운 우리말).
 // 단일화(방향 변경): 상담자/학부모 보고서를 이 학부모 공유본 하나로 통일한다.
-// 구조: 종합 분석 → 강점 → 약점 → 항목별 분석(레이더+구간별 3문장 해설) → 과목 이야기 → NK 지도 계획 → 읽는 안내.
+// 구조: 종합 분석 → 잘 작동하는 힘 → 먼저 도울 지점 → 항목별 분석 → 학습 선호 → 과목 보조 → 상담 제안.
 // 학생 호칭은 "OO 학생"(실명+학생)으로 통일한다. 결정론 문구는 렌더가 이름을 받아 조립하고,
 // AI/fallback 해석 문구는 name-substitution이 "{{학생}}" 토큰·따님/아이 등을 치환한다.
 // parent-safe payload(allowlist)는 그대로 두고 렌더만 선별한다(§12.3, 기존 공유 snapshot 호환).
-// 항목별 특징·약점 해설은 공용 매트릭스(signal-descriptions)를 사용한다(중복 정의 금지, 낙인 표현 금지).
+// 항목별 특징·지원 해설은 공용 매트릭스(signal-descriptions)를 사용한다(중복 정의 금지, 낙인 표현 금지).
 
-import type { ParentSafeProfile, ParentSafeScores } from "@/lib/assessment/v2/parent-safe";
+import {
+  toEntranceReportWording,
+  type ParentBehaviorKey,
+  type ParentSafeProfile,
+  type ParentSafeScores,
+} from "@/lib/assessment/v2/parent-safe";
 import { studentLabel } from "@/lib/assessment/v2/name-substitution";
 import type { CommonScores, Score } from "@/lib/assessment/v2/types";
 import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
 import { ReportSection } from "./report-frame";
-import { CautionFooter, RoadmapLine, VerifyLine } from "./report-sections";
+import { CautionFooter, VerifyLine } from "./report-sections";
 import {
   SIGNAL_BAND_LABEL,
   SIGNAL_DESC,
   SIGNAL_INSUFFICIENT,
-  SUBJECT_SIGNAL_DESC,
-  describeBand,
   signalBandOf,
   signalToneOf,
   type BandDesc,
@@ -59,11 +62,6 @@ function commonState(key: keyof CommonScores, score: Score): string | null {
   return band && desc ? firstSentence(desc[band].state) : null;
 }
 
-function subjectState(subject: "math" | "english", score: Score): string | null {
-  const band = signalBandOf(score);
-  return band ? firstSentence(SUBJECT_SIGNAL_DESC[subject][band].state) : null;
-}
-
 type DigestArea = { key: string; label: string; text: string };
 type DigestCand = { state: string | null; score: Score };
 
@@ -79,48 +77,41 @@ function lowestState(cands: DigestCand[]): string {
 
 function buildAreaDigest(
   scores: ParentSafeScores,
-  showMath: boolean,
-  showEnglish: boolean
 ): DigestArea[] {
   const c = scores.common;
-  const areas: DigestArea[] = [
+  return [
     {
       key: "learning",
-      label: "학습 · 수업과 숙제",
+      label: "수업 · 참여와 질문",
       text: lowestState([
         { state: commonState("learningAttitude", c.learningAttitude), score: c.learningAttitude },
-        { state: commonState("homeworkReliability", c.homeworkReliability), score: c.homeworkReliability },
+        { state: commonState("helpSeeking", c.helpSeeking), score: c.helpSeeking },
       ]),
     },
     {
-      key: "life",
-      label: "생활 · 휴대폰과 친구",
+      key: "homework",
+      label: "과제 · 숙제와 피드백",
+      text: lowestState([
+        { state: commonState("homeworkReliability", c.homeworkReliability), score: c.homeworkReliability },
+        { state: commonState("feedbackExecution", c.feedbackExecution), score: c.feedbackExecution },
+      ]),
+    },
+    {
+      key: "focus",
+      label: "집중 · 휴대폰 조절",
       text: lowestState([
         { state: commonState("phoneBoundary", c.phoneBoundary), score: c.phoneBoundary },
-        { state: commonState("peerLearningResource", c.peerLearningResource), score: c.peerLearningResource },
       ]),
     },
     {
-      key: "mind",
-      label: "마음 · 의지와 회복",
+      key: "persistence",
+      label: "꾸준함 · 의지와 회복",
       text: lowestState([
         { state: commonState("longTermPersistence", c.longTermPersistence), score: c.longTermPersistence },
         { state: commonState("shortTermRecovery", c.shortTermRecovery), score: c.shortTermRecovery },
       ]),
     },
   ];
-
-  const subjectCands: DigestCand[] = [];
-  if (showMath && scores.math)
-    subjectCands.push({ state: subjectState("math", scores.math.mathStrategy), score: scores.math.mathStrategy });
-  if (showEnglish && scores.english)
-    subjectCands.push({
-      state: subjectState("english", scores.english.englishStrategy),
-      score: scores.english.englishStrategy,
-    });
-  if (subjectCands.length) areas.push({ key: "subject", label: "과목 · 학습 방법", text: lowestState(subjectCands) });
-
-  return areas;
 }
 
 // 규칙 기반(fallback) 강점 문자열은 "라벨: 설명 (점수점)" 꼴 → 앞부분을 소제목으로.
@@ -148,11 +139,6 @@ function matchStrengthScore(text: string, items: LabeledScore[]): { score: numbe
   return null;
 }
 
-/** 0~100 서버 점수를 학부모 화면 표기(5점 만점 평균)로 바꾼다. */
-function toFivePoint(score: number): string {
-  return (score / 20).toFixed(1);
-}
-
 function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: LabeledScore[] }) {
   const shown = items.slice(0, 3);
   return (
@@ -169,7 +155,6 @@ function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: Lab
                   {head && <strong>{head}</strong>}
                   {matched && (
                     <span className="insight-cards__badge">
-                      <b>{toFivePoint(matched.score)} / 5</b>
                       <span className={`analysis-rows__band b-${matched.band}`}>
                         {SIGNAL_BAND_LABEL[matched.band]}
                       </span>
@@ -189,15 +174,23 @@ function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: Lab
 // 또래 관련 지표는 합산 축에서 뺀다.
 // "도움 받는 힘"과 "집중 흔들림"이 한 점수로 상쇄돼 뜻이 흐려지기 때문이며,
 // 대신 아래 "친구와 공부" 카드에서 문항 요지 + 학생이 고른 보기로 보여 준다.
-const RADAR_KEYS: (keyof CommonScores)[] = [
+const RADAR_KEYS: (keyof ParentSafeScores["common"])[] = [
   "learningAttitude",
   "homeworkReliability",
+  "helpSeeking",
+  "feedbackExecution",
   "phoneBoundary",
   "longTermPersistence",
   "shortTermRecovery",
 ];
 
-type AnalysisItem = { label: string; score: Score; desc: Record<SignalBand, BandDesc> };
+type AnalysisItem = {
+  key: string;
+  label: string;
+  score: Score;
+  desc: Record<SignalBand, BandDesc>;
+  evidence?: { question: string; answerLabel: string }[];
+};
 
 // ④ 항목별 분석: 항목명 + 점수·밴드 배지 + 슬림 막대 + 구간별 3문장 해설.
 function ItemAnalysisRows({ items }: { items: AnalysisItem[] }) {
@@ -211,9 +204,6 @@ function ItemAnalysisRows({ items }: { items: AnalysisItem[] }) {
             <header>
               <h4>{it.label}</h4>
               <span className="analysis-rows__badge">
-                {isNum(it.score) && signalBandOf(it.score) !== "low" && (
-                  <b className="analysis-rows__score">{toFivePoint(it.score)} / 5</b>
-                )}
                 <span className={`analysis-rows__band b-${tone}`}>
                   {band ? SIGNAL_BAND_LABEL[band] : "정보 부족"}
                 </span>
@@ -224,7 +214,24 @@ function ItemAnalysisRows({ items }: { items: AnalysisItem[] }) {
                 <b style={{ width: `${pct(it.score)}%` }} />
               </i>
             )}
-            <p>{band ? describeBand(it.desc[band]) : SIGNAL_INSUFFICIENT}</p>
+            <p>
+              {band
+                ? `${it.desc[band].state} ${toEntranceReportWording(it.desc[band].help)} 입학 상담에서 학생의 실제 경험을 더 확인합니다.`
+                : SIGNAL_INSUFFICIENT}
+            </p>
+            {it.evidence && it.evidence.length > 0 && (
+              <div className="analysis-rows__evidence">
+                <b>학생 답변 근거</b>
+                <ul>
+                  {it.evidence.map((entry) => (
+                    <li key={`${entry.question}-${entry.answerLabel}`}>
+                      <span>{entry.question}</span>
+                      <strong>{entry.answerLabel}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </article>
         );
       })}
@@ -241,7 +248,7 @@ function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boole
       <div className="weakness-cards">
         <article className="is-none">
           <p className="weak-manifest">
-            아직 점수로 뚜렷한 약점을 꼽기는 일러요. 처음 몇 주간 실제 모습으로 함께 확인하며 보완점을 찾아갈게요.
+            아직 응답만으로 우선 지원 지점을 꼽기는 일러요. 입학 상담에서 구체적인 공부 경험과 과목 테스트 결과를 함께 확인해요.
           </p>
         </article>
       </div>
@@ -251,7 +258,7 @@ function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boole
     <div className="weakness-cards">
       {relative && (
         <p className="weakness-note">
-          지금 뚜렷한 약점은 없어요. 다른 강점에 비해 상대적으로 먼저 챙기면 좋은 부분을 짚어 둘게요.
+          뚜렷한 어려움이 확인된 것은 아니에요. 학생의 다른 응답보다 상대적으로 먼저 살펴볼 부분입니다.
         </p>
       )}
       {items.map((w) => (
@@ -259,13 +266,12 @@ function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boole
           <header>
             <h4>{w.label}</h4>
             <span className="weakness-cards__badge">
-              <b>{toFivePoint(w.score)} / 5</b>
               <span className={`analysis-rows__band b-${w.band}`}>{SIGNAL_BAND_LABEL[w.band]}</span>
             </span>
           </header>
           <p className="weak-manifest">{w.manifest}</p>
           <p className="weak-help">
-            <b>NK의 도움</b> {w.help}
+            <b>등록 시 권장 도움</b> {w.help}
           </p>
         </article>
       ))}
@@ -273,81 +279,22 @@ function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boole
   );
 }
 
-// 첫 14일 확인 포인트는 상담자 전용 데이터(verificationPlan14Days)를 쓰지 않는다(parent-safe 금지).
-// 가정에서 함께 볼 수 있는 일반 지침으로 제시한다.
-const FIRST_14_DAYS_FALLBACK = [
-  "숙제를 정한 시각에 스스로 시작하는지",
-  "공부를 시작하기 전에 휴대폰을 정리하는지",
-  "문제가 막혔을 때 무엇부터 다시 시작하는지",
+// 학부모와 학생에게 입학 상담에서 직접 물어볼 수 있는 기본 질문.
+const ENTRY_CONSULTATION_FALLBACK = [
+  "평소 숙제를 언제 시작하고 무엇 때문에 미루는지",
+  "공부할 때 휴대폰을 어디에 두는지",
+  "문제가 막혔을 때 누구에게 어떻게 도움을 구하는지",
 ];
 
 /**
- * 첫 14일 확인 포인트를 그 학생의 약점에 맞춰 만든다.
- * 상담자 전용 verificationPlan14Days는 parent-safe 금지라 쓰지 않고,
- * 이미 화면에 있는 약점 해설(help)을 "관찰 가능한 문장"으로 바꿔 쓴다.
+ * 학생 응답에서 먼저 확인할 지점을 입학 상담 질문으로 바꾼다.
+ * 내부 확인계획은 parent-safe 금지라 쓰지 않는다.
  */
-function buildFirst14Days(weaknesses: Weakness[]): string[] {
+function buildEntranceChecks(weaknesses: Weakness[]): string[] {
   const fromWeak = weaknesses
-    .map((w) => w.help.trim())
-    .filter(Boolean)
-    .map((help) => (help.endsWith("지") ? help : toObservable(help)));
-  const merged = [...new Set([...fromWeak, ...FIRST_14_DAYS_FALLBACK])];
+    .map((w) => `${w.label}: 언제 가장 어렵고 어떤 도움을 원하는지`);
+  const merged = [...new Set([...fromWeak, ...ENTRY_CONSULTATION_FALLBACK])];
   return merged.slice(0, 3);
-}
-
-/** help 문장을 "~하는지" 형태의 관찰 문장으로 다듬는다. */
-function toObservable(help: string): string {
-  const trimmed = help.replace(/[.!]$/, "").trim();
-  return `${trimmed}— 이 부분이 지켜지는지`;
-}
-
-/**
- * 지도 선호 스펙트럼 3축.
- * conceptAxis(개념 처리)는 학부모에게 오해 소지가 커서 화면에 넣지 않는다(계산은 유지).
- * MBTI 글자는 위치를 정하지 않고 별도 마커로만 병치한다.
- */
-const PREFERENCE_AXES = [
-  { key: "interactionAxis", left: "혼자 정리", right: "함께 이야기", mbtiIndex: 0, high: "E" },
-  { key: "relationalFeedbackAxis", left: "결과 중심", right: "관계 중심", mbtiIndex: 2, high: "F" },
-  { key: "flexibilityAxis", left: "정해진 순서", right: "유연하게", mbtiIndex: 3, high: "P" },
-] as const;
-
-function PreferenceSpectrum({
-  axes,
-  mbti,
-}: {
-  axes: ParentSafeProfile["scores"]["mbtiAxes"];
-  mbti?: ParentSafeProfile["mbti"];
-}) {
-  return (
-    <div className="spectrum">
-      {PREFERENCE_AXES.map((ax) => {
-        // 위치는 설문 응답 raw만 쓴다(final은 MBTI 보정이 섞일 수 있던 값이라 쓰지 않는다).
-        const raw = axes[ax.key].raw;
-        if (!isNum(raw)) return null;
-        const letter = mbti?.type?.[ax.mbtiIndex];
-        const mbtiPct = letter ? (letter === ax.high ? 100 : 0) : null;
-        return (
-          <div key={ax.key} className="spectrum__row">
-            <span className="spectrum__end">{ax.left}</span>
-            <i className="spectrum__track">
-              <b className="spectrum__survey" style={{ left: `${pct(raw)}%` }} title="설문 응답 위치" />
-              {mbtiPct !== null && (
-                <b className="spectrum__mbti" style={{ left: `${mbtiPct}%` }} title={`MBTI ${letter}`} />
-              )}
-            </i>
-            <span className="spectrum__end">{ax.right}</span>
-          </div>
-        );
-      })}
-      <p className="spectrum__note">
-        ● 학생의 행동 응답이 위치를 정합니다 — MBTI는 위치를 정하지 않습니다.
-      </p>
-      {mbti && (
-        <p className="spectrum__note">◇ 두 표시가 다르면 첫 2주 수업에서 확인합니다.</p>
-      )}
-    </div>
-  );
 }
 
 /**
@@ -374,9 +321,6 @@ function SortedBars({ items }: { items: AnalysisItem[] }) {
               <b className={`b-${tone}`} style={{ width: `${pct(it.score)}%` }} />
             </i>
             <span className="glance-bars__meta">
-              {isNum(it.score) && band !== "low" && (
-                <b className="glance-bars__score">{toFivePoint(it.score as number)} / 5</b>
-              )}
               <span className={`analysis-rows__band b-${tone}`}>
                 {band ? SIGNAL_BAND_LABEL[band] : "정보 부족"}
               </span>
@@ -392,9 +336,15 @@ function SortedBars({ items }: { items: AnalysisItem[] }) {
  * "친구와 공부" 카드. 점수·밴드 없이 문항 요지와 학생이 고른 보기만 보여 준다.
  * 응답 원본이 없는(예전에 발급된) 스냅샷에서는 렌더하지 않는다.
  */
-function PeerStudyCard({ items }: { items: NonNullable<ParentSafeProfile["peerResponses"]> }) {
+function StudentAnswerCards({
+  items,
+  note,
+}: {
+  items: NonNullable<ParentSafeProfile["peerResponses"]>;
+  note: string;
+}) {
   return (
-    <div className="analysis-rows">
+    <div className="analysis-rows student-answer-cards">
       {items.map((p, i) => (
         <article key={i}>
           <header>
@@ -405,16 +355,39 @@ function PeerStudyCard({ items }: { items: NonNullable<ParentSafeProfile["peerRe
           </header>
         </article>
       ))}
-      <p className="report-note">
-        친구 관계는 점수로 묶지 않고, 문항별로 어떻게 답했는지 그대로 보여 드립니다.
-      </p>
+      <p className="report-note">{note}</p>
     </div>
   );
 }
 
 export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const s = data.scores;
-  const i = data.interpretation;
+  // 과거에 발급된 snapshot도 입학테스트 문맥으로 표시한다.
+  const rawI = data.interpretation;
+  const i = {
+    ...rawI,
+    studentType: toEntranceReportWording(rawI.studentType),
+    parentSummary: toEntranceReportWording(rawI.parentSummary),
+    detailedSummary: rawI.detailedSummary
+      ? toEntranceReportWording(rawI.detailedSummary)
+      : undefined,
+    strengths: rawI.strengths.map(toEntranceReportWording),
+    growthAreas: rawI.growthAreas.map(toEntranceReportWording),
+    initialTeachingSuggestion: rawI.initialTeachingSuggestion
+      ? toEntranceReportWording(rawI.initialTeachingSuggestion)
+      : undefined,
+    operationsConsultationNote: rawI.operationsConsultationNote
+      ? toEntranceReportWording(rawI.operationsConsultationNote)
+      : rawI.nkFitInterpretation
+        ? toEntranceReportWording(rawI.nkFitInterpretation)
+        : undefined,
+    mathStrategy: rawI.mathStrategy
+      ? toEntranceReportWording(rawI.mathStrategy)
+      : null,
+    englishStrategy: rawI.englishStrategy
+      ? toEntranceReportWording(rawI.englishStrategy)
+      : null,
+  };
   const review = s.responseQualityStatus === "review";
   const genDate = formatDate(data.generatedAt);
 
@@ -430,32 +403,24 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   // 01 종합 분석 본문: AI 상세 총평(문단 분할) + 전 영역 결정론적 요약.
   // detailedSummary는 과거 공유 snapshot에 없을 수 있어 optional 처리(없으면 상세 본문 생략).
   const summaryParas = i.detailedSummary ? splitParagraphs(i.detailedSummary) : [];
-  const areaDigest = buildAreaDigest(s, showMath, showEnglish);
+  const areaDigest = buildAreaDigest(s);
 
   // 결정론 UI 문구의 학생 호칭(예: "강현찬 학생"). 렌더가 이미 이름을 알고 있어 "OO 학생"으로 쓴다.
   const who = studentLabel(data.display.name);
 
-  // 항목별 분석: 핵심 6신호 + 선택 과목 학습전략 신호(6~8개).
-  // 00 요약 정렬 바는 공통 5축만 쓴다(과목 전략은 "과목 이야기" 섹션이 따로 다룬다).
+  // 항목별 분석: 공통 핵심 7신호가 중심이고, 선택 과목은 뒤쪽 보조 정보로만 붙인다.
+  // 00 요약·강점·먼저 도울 지점에는 과목 점수를 섞지 않는다.
   const glanceItems: AnalysisItem[] = RADAR_KEYS.map((k) => ({
+    key: k,
     label: CONSTRUCT_LABEL[k],
     score: s.common[k],
     desc: SIGNAL_DESC[k],
+    evidence: data.behaviorEvidence?.[k as ParentBehaviorKey],
   }));
-  const analysisItems: AnalysisItem[] = [...glanceItems];
-  if (showMath && s.math) {
-    analysisItems.push({ label: "수학 학습전략", score: s.math.mathStrategy, desc: SUBJECT_SIGNAL_DESC.math });
-  }
-  if (showEnglish && s.english) {
-    analysisItems.push({
-      label: "영어 학습전략",
-      score: s.english.englishStrategy,
-      desc: SUBJECT_SIGNAL_DESC.english,
-    });
-  }
+  const analysisItems: AnalysisItem[] = glanceItems;
 
   // 약점: 낮은 점수 항목(45 미만)을 결정론적으로 뽑는다. 없으면 최하위 2개(상대적 보완점).
-  const scored = analysisItems.filter((it) => isNum(it.score));
+  const scored = glanceItems.filter((it) => isNum(it.score));
   const ascending = [...scored].sort((a, b) => (a.score as number) - (b.score as number));
   const lowOnes = ascending.filter((it) => (it.score as number) < 45).slice(0, 3);
   const relativeWeak = lowOnes.length === 0;
@@ -466,6 +431,32 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
     .sort((a, b) => (b.score as number) - (a.score as number))
     .slice(0, 2)
     .map((it) => it.label);
+  const strongestEvidenceItem = [...scored]
+    .sort((a, b) => (b.score as number) - (a.score as number))
+    .find((item) => item.evidence?.length);
+  const supportEvidenceItem = ascending.find(
+    (item) => item.evidence?.length && item.key !== strongestEvidenceItem?.key,
+  );
+  const summaryEvidence: Array<{
+    tone: "strength" | "support";
+    label: string;
+    question: string;
+    answerLabel: string;
+  }> = [];
+  if (strongestEvidenceItem?.evidence?.[0]) {
+    summaryEvidence.push({
+      tone: "strength",
+      label: strongestEvidenceItem.label,
+      ...strongestEvidenceItem.evidence[0],
+    });
+  }
+  if (supportEvidenceItem?.evidence?.[0]) {
+    summaryEvidence.push({
+      tone: "support",
+      label: supportEvidenceItem.label,
+      ...supportEvidenceItem.evidence[0],
+    });
+  }
 
   // 밴드가 첫 문장을 이미 보여 주므로 01에서는 그 뒤부터 이어 붙인다.
   const parentSummaryRest = (() => {
@@ -479,8 +470,8 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
     const bd = it.desc[band];
     const manifest =
       band === "high"
-        ? "지금은 안정적인 편이에요. 다만 다른 강점에 비하면 상대적으로 먼저 챙겨 두면 좋습니다."
-        : bd.example;
+        ? "이번 응답에서는 비교적 안정적으로 나타났어요. 다만 다른 응답보다 먼저 확인할 부분입니다."
+        : `${bd.state} 입학 상담에서 언제 가장 어려운지 더 확인합니다.`;
     return { label: it.label, score: it.score as number, band, manifest, help: bd.help };
   });
 
@@ -490,20 +481,18 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
       <header className="report-v2-band">
         <div className="report-v2-band__brand">
           <span className="report-v2-band__mark">NK</span>
-          <span>NK 학습 프로필 2.0</span>
+          <span>NK 입학 학습성향 프로필</span>
         </div>
         <h1>
-          {data.display.name} 학생 <em>학습 프로필</em>
+          {data.display.name} 학생 <em>입학 학습성향 리포트</em>
         </h1>
         <div className="report-v2-band__meta">{bandMeta}</div>
+        <div className="report-evidence-strip" aria-label="결과 해석 기준">
+          <span>자료 · 학생 자기보고</span>
+          <span>목적 · 학습성향 상담</span>
+          <span>{review ? "응답 · 추가 확인 필요" : "응답 · 정상 완료"}</span>
+        </div>
         <p className="report-v2-band__summary">{firstSentence(i.parentSummary)}</p>
-        {/* MBTI는 확신도 high/medium일 때만. 그래프·숫자와 붙이지 않는다. */}
-        {data.mbti && (
-          <div className="report-v2-band__mbti">
-            <span className="mbti-pill">{data.mbti.type}</span>
-            <span className="mbti-caption">학생이 적은 성향 · 지도 방식 참고용</span>
-          </div>
-        )}
       </header>
 
       {/* ⓪ 한 장 요약 — 열자마자 "무엇을 먼저 도울지"가 보이게 */}
@@ -511,10 +500,31 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         id="sec-glance"
         index="00"
         title="한 장 요약"
-        caption="위에서부터 잘 되고 있는 순서예요. 아래 항목을 먼저 도와드립니다."
+        caption="학생 자신의 응답 안에서 비교한 순서입니다. 또래 규준이나 능력 순위가 아닙니다."
       >
         <div className="glance">
           <h3 className="glance__type">{i.studentType}</h3>
+
+          {data.entryPriority && (
+            <div className="glance__priority">
+              <span>학생이 직접 말한 가장 필요한 도움</span>
+              <strong>{data.entryPriority}</strong>
+            </div>
+          )}
+
+          {summaryEvidence.length > 0 && (
+            <div className="glance__evidence-grid" aria-label="학생 답변 한눈에">
+              {summaryEvidence.map((item) => (
+                <article key={`${item.tone}-${item.label}`} className={`is-${item.tone}`}>
+                  <span>
+                    {item.tone === "strength" ? "잘 되는 답변" : "먼저 확인할 답변"} · {item.label}
+                  </span>
+                  <p>{item.question}</p>
+                  <strong>{item.answerLabel}</strong>
+                </article>
+              ))}
+            </div>
+          )}
 
           <SortedBars items={glanceItems} />
 
@@ -537,21 +547,21 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
           </div>
 
           <p className="glance__promise">
-            8주 후 같은 검사를 다시 해 이 그래프의 변화를 비교해 드립니다.
+            이 검사의 중심은 성적이 아니라 숙제·집중·끈기·질문·회복 같은 학습성향입니다. 학업 수준과 반은 별도의 과목 입학테스트로 확인합니다.
           </p>
         </div>
       </ReportSection>
 
-      {/* ① 종합 분석 — 전문가 총평을 가장 비중 크게 */}
+      {/* ① 종합 분석 — 자기보고에 근거한 잠정 해석 */}
       <ReportSection
         id="sec-summary"
         index="01"
         title="종합 분석"
-        caption={`${who}이 직접 쓴 최근 4주 응답으로 지금 학습 상태를 정리했습니다.`}
-        aside={<b className="section-note">전문 분석 총평</b>}
+        caption={`${who}이 직접 쓴 이번 응답으로 지금의 학습 행동 가설을 정리했습니다.`}
+        aside={<b className="section-note">응답 기반 해석</b>}
       >
         <div className="executive-statement">
-          <span>학습 유형</span>
+           <span>이번 응답에서 보인 학습 모습</span>
           <h3>{i.studentType}</h3>
           {/* 밴드에 이미 첫 문장이 있어 여기서는 나머지부터 이어 붙인다(같은 문장 반복 방지). */}
           <p className="executive-statement__lead">{parentSummaryRest || i.parentSummary}</p>
@@ -577,8 +587,8 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
             </div>
           )}
           <ul>
-            <li>점수는 다른 학생과의 우열이 아니라, 먼저 도와줄 순서를 뜻합니다.</li>
-            <li>처음 2주 동안 학원과 가정이 실제 모습으로 함께 확인해 맞춰 갑니다.</li>
+            <li>막대는 학생 자신의 응답을 환산한 내부 지표이며 규준 점수가 아닙니다.</li>
+            <li>관계·수업 선호와 친구 문항은 좋고 나쁜 점수로 묶지 않고 학생이 고른 답 그대로 봅니다.</li>
           </ul>
         </div>
       </ReportSection>
@@ -587,19 +597,19 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
       <ReportSection
         id="sec-strength"
         index="02"
-        title={`${who}의 강점`}
-        caption="지금 학습에서 이미 잘 작동하고 있는, 앞으로 더 키워 갈 힘입니다."
+        title={`${who}에게 잘 작동하는 힘`}
+        caption="학생이 이번 설문에서 비교적 잘된다고 답한 부분입니다. 실제 경험은 입학 상담에서 확인합니다."
       >
         <StrengthCards items={i.strengths} scoreItems={analysisItems} />
       </ReportSection>
 
-      {/* ③ OO 학생의 약점 — 점수 근거 + 실제 나타남 + NK 도움 */}
+      {/* ③ 먼저 도울 지점 — 낙인 없이 행동 가설로 */}
       <ReportSection
         id="sec-weakness"
         index="03"
-        title={`${who}의 약점`}
-        caption="약점은 혼낼 점이 아니라 함께 보완할 지점입니다. 실제로 어떻게 나타나는지와 도울 방법을 함께 적었어요."
-        aside={<b className="section-note">낙인 없이</b>}
+        title={`${who}을 먼저 도울 지점`}
+        caption="낮은 응답을 결함으로 부르지 않고, 입학 상담에서 먼저 물어볼 내용으로 정리했습니다."
+        aside={<b className="section-note">상담 확인 항목</b>}
       >
         <WeaknessCards items={weaknesses} relative={relativeWeak} />
       </ReportSection>
@@ -609,30 +619,62 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         id="sec-signals"
         index="04"
         title="항목별 분석"
-        caption="핵심 학습 신호를 점수와 함께, 항목별로 상태·실제 모습·도울 방법까지 풀어 정리했습니다."
+        caption="일곱 학습행동을 상태와 학생 답변 근거로 함께 확인합니다. 과목 공부 방식은 전체 우선순위에 섞지 않습니다."
       >
         {/* 레이더는 00 요약의 정렬 바로 대체했다(축 순서 고정 → 우선순위가 안 읽힘). */}
         <p className="report-note">
-          점수는 다른 학생과의 우열이 아니라 도와줄 순서예요. 낮은 쪽은 혼낼 부분이 아니라 먼저 도와줄
-          부분입니다.
+          막대는 학생의 자기보고를 0~100 범위로 환산한 내부 지표입니다. 규준·백분위·능력 점수가 아니며,
+          낮은 쪽은 혼낼 부분이 아니라 입학 상담에서 먼저 확인할 부분입니다.
         </p>
-        <ItemAnalysisRows items={analysisItems} />
+        <details className="report-expandable">
+          <summary>학습행동과 답변 근거 {analysisItems.length}개 보기</summary>
+          <ItemAnalysisRows items={analysisItems} />
 
-        {data.peerResponses && data.peerResponses.length > 0 && (
-          <>
-            <h3 className="report-subhead">친구와 공부</h3>
-            <PeerStudyCard items={data.peerResponses} />
-          </>
+          {data.peerResponses && data.peerResponses.length > 0 && (
+            <>
+              <h3 className="report-subhead">친구와 공부</h3>
+              <StudentAnswerCards
+                items={data.peerResponses}
+                note="친구 관계는 점수로 묶지 않고, 문항별로 어떻게 답했는지 그대로 보여 드립니다."
+              />
+            </>
+          )}
+        </details>
+      </ReportSection>
+
+      {/* ⑤ 학습 선호 — 좋고 나쁜 점수로 만들지 않고 원응답을 먼저 보여 준다. */}
+      <ReportSection
+        id="sec-preference"
+        index="05"
+        title="학습할 때 편한 방식"
+        caption="직접·개별 피드백, 정해진 틀과 선택권처럼 학생이 편하게 배우는 조건을 고른 답 그대로 보여 드립니다."
+      >
+        {data.preferenceResponses && data.preferenceResponses.length > 0 ? (
+          <details className="report-expandable">
+            <summary>학생이 고른 답 {data.preferenceResponses.length}개 보기</summary>
+            <StudentAnswerCards
+              items={data.preferenceResponses}
+              note="이 답은 수업 방식에 대한 상담 질문입니다. 능력 점수나 고정 성격 유형이 아닙니다."
+            />
+          </details>
+        ) : (
+          <p className="report-note">저장된 원응답이 없어 입학 상담에서 직접 확인합니다.</p>
+        )}
+        {data.mbti && (
+          <div className="report-v2-band__mbti">
+            <span className="mbti-pill">{data.mbti.type}</span>
+            <span className="mbti-caption">학생이 적은 비공식 메모 · 점수와 추천에 미반영</span>
+          </div>
         )}
       </ReportSection>
 
-      {/* ⑤ 과목 이야기 — 전략 해석 1문단(세부 지표 나열 제거) */}
+      {/* ⑥ 과목별 공부 방식 — 전체 학습성향 뒤에 두는 10문항 보조 정보 */}
       {hasSubjectNote && (
         <ReportSection
           id="sec-subject"
-          index="05"
-          title="과목 이야기"
-          caption="선택한 과목에서 지금 어떤 방식이 잘 맞는지 한 문단으로 정리했습니다."
+          index="06"
+          title="과목별 공부 방식"
+          caption="과목별 10문항으로 본 보조 정보입니다. 수학·영어 실력이나 반 배치 점수가 아닙니다."
         >
           <div className="subject-notes">
             {showMath && i.mathStrategy && (
@@ -651,31 +693,41 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         </ReportSection>
       )}
 
-      {/* ⑤ 지도 선호 — 점수 카드와 시각 문법을 분리한 스펙트럼 */}
-      <ReportSection
-        id="sec-preference"
-        index="06"
-        title="지도 선호"
-        caption="어떤 방식으로 도와줄 때 더 잘 따라오는지, 학생의 응답 위치로 정리했습니다."
-      >
-        <div className="spectrum-card">
-          <PreferenceSpectrum axes={s.mbtiAxes} mbti={data.mbti} />
-        </div>
-      </ReportSection>
-
-      {/* ⑥ NK의 지도 계획 — 12주 로드맵 + 첫 14일 확인 포인트 */}
+      {/* ⑥ 입학 상담 제안 — 초기 수업 방향 + 이전 경험 반영 + 상담 질문 */}
       <ReportSection
         id="sec-plan"
         index="07"
-        title="NK의 지도 계획"
-        caption="위 분석을 바탕으로, 학원이 언제 무엇을 도와줄지 계획으로 정리했습니다."
+        title="입학 상담·초기 수업 제안"
+        caption="학생의 응답과 이전 학습환경을 바탕으로 상담에서 함께 결정할 내용입니다. 등록 전 확정 계획은 아닙니다."
       >
         <div className="plan-intro">
-          <span>NK의 지도 방향</span>
-          <p>{i.nkFitInterpretation}</p>
+          <span>등록한다면 권장할 시작 방식</span>
+          <p>{
+            i.initialTeachingSuggestion ??
+            i.operationsConsultationNote ??
+            "학생이 답한 숙제·집중·질문·피드백 습관을 상담에서 확인한 뒤, 등록 시 시작 방식을 제안합니다."
+          }</p>
         </div>
-        <RoadmapLine roadmap={i.roadmap12Weeks} />
-        <VerifyLine items={buildFirst14Days(weaknesses)} />
+        {data.transitionPlan && data.transitionPlan.length > 0 && (
+          <div className="transition-contract">
+            <header>
+              <span>이전 경험 반영</span>
+              <h3>입학 상담에서 합의할 운영 조건</h3>
+              <p>이전 학원명이나 원문은 공유하지 않고, 같은 불편을 줄이기 위해 상담할 조건만 남겼습니다.</p>
+            </header>
+            <div className="transition-contract__grid">
+              {data.transitionPlan.map((item, index) => (
+                <article key={`${item.concern}-${index}`}>
+                  <span>{item.concern}</span>
+                  <h4>{item.title}</h4>
+                  <p>{toEntranceReportWording(item.commitment)}</p>
+                  <small><b>등록 시 적용 후보</b> {toEntranceReportWording(item.check)}</small>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
+        <VerifyLine items={buildEntranceChecks(weaknesses)} />
       </ReportSection>
 
       {/* ⑦ 읽는 안내 + 생성일 */}

@@ -4,6 +4,7 @@
 // 운영 DB에 V2 컬럼이 없어 "제출 성공" 흐름은 검증하지 않는다(제출 직전까지만).
 
 import { spawn } from "node:child_process";
+import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const IS_WIN = process.platform === "win32";
@@ -27,12 +28,17 @@ export async function startServer({ port = 3210, timeoutMs = 120000 } = {}) {
   }
 
   const baseURL = `http://localhost:${port}`;
-  const cmd = IS_WIN ? "npx.cmd" : "npx";
-  const child = spawn(cmd, ["next", "dev", "-p", String(port)], {
+  // Windows에서 npx.cmd를 shell:true로 띄우면 실제 Next 서버가 셸 트리 밖에 남을 수 있다.
+  // 설치된 Next CLI를 현재 Node로 직접 실행하면 child.pid가 종료할 프로세스 트리를 가리킨다.
+  const cmd = IS_WIN ? process.execPath : "npx";
+  const args = IS_WIN
+    ? [join(process.cwd(), "node_modules", "next", "dist", "bin", "next"), "dev", "-p", String(port)]
+    : ["next", "dev", "-p", String(port)];
+  const child = spawn(cmd, args, {
     cwd: process.cwd(),
     env: { ...process.env, NODE_ENV: "development" },
     stdio: ["ignore", "pipe", "pipe"],
-    shell: IS_WIN,
+    shell: false,
   });
   child.stdout.on("data", () => {});
   child.stderr.on("data", (d) => {
@@ -46,7 +52,14 @@ export async function startServer({ port = 3210, timeoutMs = 120000 } = {}) {
     if (!child.pid) return;
     if (IS_WIN) {
       await new Promise((res) => {
-        spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { shell: true }).on("exit", res);
+        const killer = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+          shell: false,
+          stdio: "ignore",
+          windowsHide: true,
+        });
+        killer.once("exit", res);
+        // 이미 종료된 프로세스처럼 taskkill 자체가 시작되지 못해도 정리를 막지 않는다.
+        killer.once("error", res);
       });
     } else {
       try {

@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "NK 학습성향 설문",
-  description: "NK Academy 학습성향 진단 설문 조사",
+  title: "NK 입학 학습성향 프로필",
+  description: "입학테스트 당일 작성하는 숙제·집중·질문·피드백 학습성향 자기보고",
 };
 
 export default function SurveyPublicLayout({
@@ -33,7 +33,7 @@ export default function SurveyPublicLayout({
             NK Academy
           </span>
           <span className="text-[10px]" style={{ color: "#94A3B8" }}>
-            학습성향 진단
+            입학 학습성향 프로필
           </span>
         </div>
       </header>

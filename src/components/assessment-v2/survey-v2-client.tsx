@@ -3,7 +3,7 @@
 // 설문 V2 학생 UI 오케스트레이터.
 // §7 UX 규칙: 첫 화면부터 실제 설문, 점수형 한 화면 한 문항, 포인터 최초 선택 시 자동 이동,
 // 키보드·기존 답 수정·보조 선택 문항은 자동 이동 예외,
-// localStorage 임시 저장(제출 후 삭제) + 재방문 이어하기, response_meta 수집.
+// sessionStorage 4시간 임시 저장(제출 후 삭제) + 같은 탭 이어하기, response_meta 수집.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Send, Sparkles } from "lucide-react";
@@ -30,6 +30,7 @@ import {
 } from "./intake-screens";
 
 const STORAGE_KEY = "nk-survey-v2";
+const DRAFT_TTL_MS = 4 * 60 * 60 * 1000;
 const AUTO_ADVANCE_MS = 520; // §7 460~620ms 범위.
 const AUTO_ADVANCE_MS_REDUCED = 200;
 
@@ -51,6 +52,7 @@ interface ItemMeta {
 }
 
 interface PersistedState {
+  expiresAt: number;
   intake: IntakeState;
   responses: Record<string, ScoreValue>;
   scenarios: Record<string, number>;
@@ -60,16 +62,21 @@ interface PersistedState {
 }
 
 /**
- * 저장분을 읽는다. localStorage가 원본이고, sessionStorage는 이 화면이
- * sessionStorage를 쓰던 시절에 설문을 시작한 학생의 진행분을 살리기 위한 대체 경로다.
+ * 저장분을 읽는다. 미성년 학생의 연락처·서술·응답이 기기에 장기 잔류하지 않도록
+ * 현재 탭 세션에만 저장하고 4시간이 지나면 자동 폐기한다.
  */
 function readSaved(): Partial<PersistedState> | null {
   try {
-    const raw =
-      window.localStorage.getItem(STORAGE_KEY) ??
-      window.sessionStorage.getItem(STORAGE_KEY);
+    // 예전 버전의 무기한 localStorage 초안은 읽지 않고 즉시 정리한다.
+    window.localStorage.removeItem(STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as Partial<PersistedState>;
+    const parsed = JSON.parse(raw) as Partial<PersistedState>;
+    if (typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Date.now()) {
+      window.sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     // 손상된 저장값은 무시하고 새로 시작한다.
     return null;
@@ -162,11 +169,12 @@ export function SurveyV2Client() {
     setResume(null);
   }, []);
 
-  // ── localStorage 저장(이어하기를 묻는 중과 제출 후에는 저장하지 않음) ──
+  // ── 탭 세션 저장(이어하기를 묻는 중과 제출 후에는 저장하지 않음) ──
   useEffect(() => {
     if (!hydrated || submitted || resume) return;
     try {
       const payload: PersistedState = {
+        expiresAt: Date.now() + DRAFT_TTL_MS,
         intake,
         responses,
         scenarios,
@@ -174,7 +182,7 @@ export function SurveyV2Client() {
         commitment14,
         index,
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
       // 용량 초과 등은 무시(진행은 계속 가능).
     }
@@ -289,7 +297,7 @@ export function SurveyV2Client() {
       }
 
       // §7 자동 이동: 포인터 최초 선택 + 보조 선택 문항 아님 + 마지막 점수 화면 아님.
-      // §7 자동 이동 예외: 보조 선택 문항(P4·N4)은 보조값이 선택사항이므로 자동 이동하지 않는다.
+      // §7 자동 이동 예외: 보조 선택 문항(P4)은 보조값이 선택사항이므로 자동 이동하지 않는다.
       const hasSupplement = isLikert(currentItem) && !!currentItem.supplement;
       if (viaPointer && !hadValue && !hasSupplement) {
         const reduced =
@@ -427,7 +435,7 @@ export function SurveyV2Client() {
         <p className="mx-auto max-w-sm leading-relaxed text-muted-foreground">
           소중한 응답 감사합니다.
           <br />
-          NK EDU에서 꼼꼼히 분석한 후 연락드리겠습니다.
+          숙제·집중·질문·피드백 등 학습성향을 정리해 입학 상담에서 설명드리겠습니다.
         </p>
         <div className="pt-2">
           <span className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
@@ -435,6 +443,17 @@ export function SurveyV2Client() {
             NK Academy
           </span>
         </div>
+      </div>
+    );
+  }
+
+  // 서버 HTML이 보인 직후 React 연결 전에 입력하면 값이 초기화될 수 있다.
+  // 연결이 끝날 때까지 짧은 준비 화면을 보여 실제 학생의 첫 입력을 보호한다.
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-center" aria-busy="true">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden="true" />
+        <p className="text-sm font-semibold text-muted-foreground">입학 학습 프로필을 준비하고 있어요.</p>
       </div>
     );
   }
@@ -531,7 +550,7 @@ export function SurveyV2Client() {
           />
         )}
         {isCommitment && (
-          <CommitmentScreen value={commitment14} onChange={setCommitment14} />
+          <EntryPriorityScreen value={commitment14} onChange={setCommitment14} />
         )}
       </div>
 
@@ -693,14 +712,14 @@ function ResumeBanner({
   );
 }
 
-/** 마무리 화면 예시. 탭하면 입력칸에 들어가고, 그대로 고쳐 쓸 수 있다. */
-const COMMITMENT_EXAMPLES = [
-  "학원 오기 전 오답 1개 풀기",
-  "숙제는 받은 날 첫 문제까지 풀어두기",
-  "공부 시작할 때 휴대폰 가방에 넣기",
+/** 입학 상담 우선 질문 예시. 탭하면 입력칸에 들어가고, 그대로 고쳐 쓸 수 있다. */
+const ENTRY_PRIORITY_EXAMPLES = [
+  "숙제를 미루지 않고 시작하는 방법",
+  "틀린 문제를 다시 공부하는 방법",
+  "휴대폰 때문에 집중이 끊기지 않는 방법",
 ];
 
-function CommitmentScreen({
+function EntryPriorityScreen({
   value,
   onChange,
 }: {
@@ -710,13 +729,13 @@ function CommitmentScreen({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-[18px] font-bold text-foreground">첫 14일 실천 약속</h2>
+        <h2 className="text-[18px] font-bold text-foreground">입학 상담에서 가장 도움받고 싶은 점</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          점수가 아니라, 앞으로 2주간 스스로 지켜볼 작은 행동 하나를 적어주세요.
+          공부하면서 가장 먼저 바꾸고 싶거나 선생님의 도움을 받고 싶은 한 가지를 적어주세요.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        {COMMITMENT_EXAMPLES.map((example) => (
+        {ENTRY_PRIORITY_EXAMPLES.map((example) => (
           <button
             key={example}
             type="button"
@@ -728,15 +747,15 @@ function CommitmentScreen({
         ))}
       </div>
       <textarea
-        id="v2-commitment14"
+        id="v2-entry-priority"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={4}
-        placeholder="예: 매일 학원 오기 전 수학 오답 1개를 다시 풀어보겠습니다."
+        placeholder="예: 숙제를 제때 시작하는 방법을 배우고 싶어요."
         className="w-full resize-none rounded-xl border border-border bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
       />
       <p className="text-[12px] text-muted-foreground">
-        예시를 눌러 넣은 뒤 자기 말로 고쳐도 됩니다. 작성한 약속은 첫 상담과 2주 뒤 확인에 활용됩니다.
+        예시를 눌러 넣은 뒤 자기 말로 고쳐도 됩니다. 작성한 내용은 입학 상담과, 등록할 경우 초기 수업 방향을 제안하는 데 활용됩니다.
       </p>
     </div>
   );

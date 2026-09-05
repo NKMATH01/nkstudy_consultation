@@ -10,7 +10,7 @@ import { startServer, runTests, newPage, assert, assertEqual } from "./lib/harne
 const NAV = { waitUntil: "domcontentloaded", timeout: 120000 };
 
 // ── 선택자/헬퍼 ──────────────────────────────────────────────────────
-const nextBtn = (p) => p.getByRole("button", { name: "다음", exact: true });
+const nextBtn = (p) => p.getByRole("button", { name: /^(다음|건너뛰기)$/ });
 const prevBtn = (p) => p.getByRole("button", { name: "이전", exact: true });
 const submitBtn = (p) => p.getByRole("button", { name: "제출하기", exact: true });
 const radios = (p) => p.getByRole("radio");
@@ -30,6 +30,7 @@ async function fillScreen0(page, subjectLabel) {
     await page.getByRole("button", { name: subjectLabel, exact: true }).click();
     await page.fill("#v2-student-phone", "01012345678");
     await page.fill("#v2-parent-phone", "01087654321");
+    await page.check("#v2-profile-notice");
     await page.waitForTimeout(250);
     if (await nextBtn(page).isEnabled().catch(() => false)) return;
   }
@@ -59,7 +60,7 @@ async function getScoreTotal(page) {
 async function answerAllScore(page) {
   let count = 0;
   while (count < 80) {
-    if (await page.locator("#v2-commitment14").isVisible().catch(() => false)) break;
+    if (await page.locator("#v2-entry-priority").isVisible().catch(() => false)) break;
     const first = radios(page).first();
     await first.focus();
     await page.keyboard.press("Enter"); // detail=0 → 자동 이동 없음
@@ -81,46 +82,46 @@ function surveyTests(baseURL, browser) {
           await fillScreen0(page, "수학");
           await enterScorePhase(page);
           const total = await getScoreTotal(page);
-          assertEqual(total, 48, "수학 단일 선택 점수형 문항 수");
+          assertEqual(total, 50, "수학 단일 선택 점수형 문항 수");
         } finally {
           await context.close();
         }
       },
     },
     {
-      name: "수학만 48문항 전 문항 진행 + 제출 직전 도달",
+      name: "수학만 50문항 전 문항 진행 + 제출 직전 도달",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
           await goSurvey(page, baseURL);
           await fillScreen0(page, "수학");
           await enterScorePhase(page);
-          assertEqual(await getScoreTotal(page), 48, "수학 문항 수(진입)");
+          assertEqual(await getScoreTotal(page), 50, "수학 문항 수(진입)");
           const answered = await answerAllScore(page);
-          assertEqual(answered, 48, "수학 응답 문항 수");
-          assert(await page.locator("#v2-commitment14").isVisible(), "14일 약속 화면 도달");
+          assertEqual(answered, 50, "수학 응답 문항 수");
+          assert(await page.locator("#v2-entry-priority").isVisible(), "입학 상담 우선 도움 화면 도달");
         } finally {
           await context.close();
         }
       },
     },
     {
-      name: "영어만 48문항 전 문항 진행",
+      name: "영어만 50문항 전 문항 진행",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
           await goSurvey(page, baseURL);
           await fillScreen0(page, "영어");
           await enterScorePhase(page);
-          assertEqual(await getScoreTotal(page), 48, "영어 문항 수(진입)");
-          assertEqual(await answerAllScore(page), 48, "영어 응답 문항 수");
+          assertEqual(await getScoreTotal(page), 50, "영어 문항 수(진입)");
+          assertEqual(await answerAllScore(page), 50, "영어 응답 문항 수");
         } finally {
           await context.close();
         }
       },
     },
     {
-      name: "수학+영어 60문항 + 14일 약속 전 제출 차단 + 제출 버튼 존재(SKIP: 실제 제출)",
+      name: "수학+영어 60문항 + 상담 우선 도움 입력 전 제출 차단 + 제출 버튼 존재(SKIP: 실제 제출)",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
@@ -129,10 +130,10 @@ function surveyTests(baseURL, browser) {
           await enterScorePhase(page);
           assertEqual(await getScoreTotal(page), 60, "수학+영어 문항 수(진입)");
           assertEqual(await answerAllScore(page), 60, "수학+영어 응답 문항 수");
-          // 14일 약속 입력 전: 제출 버튼 비활성.
+          // 상담 우선 도움 입력 전: 제출 버튼 비활성.
           assert(await submitBtn(page).isVisible(), "제출 버튼 존재");
           assert(await submitBtn(page).isDisabled(), "약속 입력 전 제출 차단(비활성)");
-          await page.fill("#v2-commitment14", "매일 학원 오기 전 수학 오답 1개를 다시 풀겠습니다.");
+          await page.fill("#v2-entry-priority", "수학 오답을 다시 공부하는 방법을 도움받고 싶습니다.");
           assert(!(await submitBtn(page).isDisabled()), "약속 입력 후 제출 버튼 활성");
           // 운영 DB에 V2 컬럼이 없어 실제 제출은 SKIP한다.
         } finally {
@@ -191,8 +192,8 @@ function surveyTests(baseURL, browser) {
           await goSurvey(page, baseURL);
           await fillScreen0(page, "수학");
           await enterScorePhase(page);
-          // LT1~P3(11문항) 키보드 진행 → 12번째가 P4(보조 선택 보유).
-          for (let i = 0; i < 11; i++) {
+          // LT1~Q4~P3(15문항) 키보드 진행 → 16번째가 P4(보조 선택 보유).
+          for (let i = 0; i < 15; i++) {
             await radios(page).first().focus();
             await page.keyboard.press("Enter");
             await nextBtn(page).click();
@@ -254,7 +255,12 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    // Windows에서 Next 개발 서버의 파이프 핸들이 늦게 닫혀도 CI가 대기하지 않게 한다.
+    process.exit(process.exitCode ?? 0);
+  })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

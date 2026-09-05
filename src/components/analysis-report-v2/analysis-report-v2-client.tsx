@@ -39,7 +39,7 @@ interface Props {
   analysis?: { id: string; school: string | null; grade: string | null } | null;
 }
 
-export function AnalysisReportV2Client({ profile, header, responses, mbti, contacts, analysis }: Props) {
+export function AnalysisReportV2Client({ profile, header, background, responses, mbti, contacts, analysis }: Props) {
   const [sharing, setSharing] = useState(false);
   const [showAlimtalk, setShowAlimtalk] = useState(false);
   const parentPhone = contacts?.parentPhone || "";
@@ -51,8 +51,9 @@ export function AnalysisReportV2Client({ profile, header, responses, mbti, conta
         { name: header.name, schoolGrade: header.schoolGrade },
         responses,
         mbti,
+        background,
       ),
-    [profile, header.name, header.schoolGrade, responses, mbti]
+    [profile, header.name, header.schoolGrade, responses, mbti, background]
   );
 
   const makeToken = useCallback(async (): Promise<string | null> => {

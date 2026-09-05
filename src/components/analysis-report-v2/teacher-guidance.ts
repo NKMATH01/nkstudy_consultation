@@ -17,6 +17,10 @@ export const AVOID_LINE: Record<string, string> = {
     "집중이 흐트러진 순간을 그 자리에서 지적하지 마세요. 아는 내용이 반복될 때 주로 생깁니다.",
   homeworkReliability:
     "안 해온 이유부터 묻지 마세요. 이유를 대는 자리가 되면 다음 주도 같아집니다.",
+  helpSeeking:
+    "모르는 게 있으면 물어보라고만 하지 마세요. 질문을 적어 내는 안전한 통로를 먼저 정해 주세요.",
+  feedbackExecution:
+    "고칠 점을 여러 개 한꺼번에 주지 마세요. 한 가지를 직접 고쳐 보는 것부터 시작하세요.",
   phoneBoundary:
     "휴대폰을 걷는 것으로 시작하지 마세요. 보관 위치를 학생이 정하게 하는 편이 오래 갑니다.",
   longTermPersistence:
@@ -35,7 +39,7 @@ export const TALK_PRESCRIPTION: Record<string, Record<SignalBand, string>> = {
     low: "지적은 1:1로 한 번에 하나만. 여러 사람 앞에서는 결과만 확인하세요.",
   },
   relationshipSafetyNeed: {
-    high: "첫 2주는 이름을 부르고 짧게 안부를 물은 뒤 과제 이야기로 넘어가세요.",
+    high: "첫 수업은 이름을 부르고 짧게 안부를 물은 뒤 과제 이야기로 넘어가세요.",
     mid: "지적할 일이 생기면 자리를 옮겨 조용히 말해 주세요.",
     low: "본론부터 시작해도 괜찮습니다. 관계를 먼저 풀 필요는 없습니다.",
   },

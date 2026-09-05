@@ -280,7 +280,7 @@ export function CoachingCoordinate({
       <text x={pad + inner * 0.72} y={pad + 16} fontSize="9" fill={C.faint}>따뜻한 도전형</text>
       <text x={pad + 4} y={pad + 16} fontSize="9" fill={C.faint}>안전 기반 점진형</text>
       <text x={pad + inner * 0.72} y={size - pad - 6} fontSize="9" fill={C.faint}>직접 도전형</text>
-      <text x={pad + 4} y={size - pad - 6} fontSize="9" fill={C.faint}>구조 관찰형</text>
+      <text x={pad + 4} y={size - pad - 6} fontSize="9" fill={C.faint}>차분한 확인형</text>
       {/* 축 이름 */}
       <text x={size / 2} y={size - 8} fontSize="10" fill={C.sub} textAnchor="middle">직접 피드백 수용 →</text>
       <text x={12} y={size / 2} fontSize="10" fill={C.sub} textAnchor="middle" transform={`rotate(-90 12 ${size / 2})`}>관계 안전 요구 →</text>

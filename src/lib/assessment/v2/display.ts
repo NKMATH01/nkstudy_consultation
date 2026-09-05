@@ -2,7 +2,7 @@
 // 상세/미리보기/상담기록/목록/등록안내가 DB JSONB를 각자 해석하지 않고
 // 현재 typed definition의 문항·선택지·척도 문구를 함께 사용하도록 한다.
 
-import { getItemsForSubject, isLikert } from "./definition";
+import { INSTRUMENT_REVISION, getItemsForSubject, isLikert } from "./definition";
 import type {
   AssessmentItem,
   LikertResponse,
@@ -29,7 +29,7 @@ export const SUBJECT_SECTION_LABEL_V2: Record<Subject, string> = {
 
 /** 학생 입력 화면과 관리자 표시 화면이 동일한 선택지 문구를 사용한다. */
 export const SCALE_LABELS_V2: Record<Scale, readonly string[]> = {
-  frequency: ["거의 없었다", "한두 번", "절반 정도", "자주", "거의 매번"],
+  frequency: ["거의 하지 않았다", "가끔 했다", "절반쯤 했다", "대부분 했다", "할 때마다 했다"],
   agreement: ["전혀 맞지 않다", "별로 맞지 않다", "반반이다", "대체로 맞다", "매우 잘 맞다"],
   fit: ["전혀 아니다", "별로 아니다", "반반이다", "대체로 그렇다", "매우 그렇다"],
 };
@@ -166,6 +166,8 @@ const MANAGEMENT_FACTOR_CONFIG = [
 export interface SurveyV2DisplayData {
   subject: SubjectSelection;
   subjectLabel: string;
+  instrumentRevision: string | null;
+  isCurrentRevision: boolean;
   intakeSections: DisplaySectionV2[];
   questionGroups: DisplayQuestionGroupV2[];
   answeredCount: number;
@@ -255,7 +257,7 @@ export function buildV2IntakeSections(survey: SurveyV2Source): DisplaySectionV2[
         field("name", "학생 이름", survey.name),
         field("school", "학교", survey.school),
         field("grade", "학년", survey.grade),
-        field("subject_selection", "진단 과목", SUBJECT_LABEL_V2[subject]),
+        field("subject_selection", "확인 과목", SUBJECT_LABEL_V2[subject]),
         field("student_phone", "학생 연락처", survey.student_phone),
         field("parent_phone", "학부모 연락처", survey.parent_phone),
       ],
@@ -268,6 +270,7 @@ export function buildV2IntakeSections(survey: SurveyV2Source): DisplaySectionV2[
         field("prev_academy_duration", "기존 학원 재원 기간", i.prev_academy_duration),
         field("prev_leave_reason", "기존 학원을 옮기려는 결정적 이유", i.prev_leave_reason),
         field("prev_complaint", "기존 학원에서 아쉬웠던 점", i.prev_complaint),
+        { key: "prev_concerns", label: "반복하지 않을 이전 경험", value: listValue(i.prev_concerns) },
         field("referral", "NK를 알게 된 경로", i.referral),
         field("referral_friend", "소개한 친구 이름", i.referral_friend),
         field("nk_knowledge", "NK 운영을 얼마나 알고 있나요?", i.nk_knowledge),
@@ -297,8 +300,8 @@ export function buildV2IntakeSections(survey: SurveyV2Source): DisplaySectionV2[
     },
     {
       key: "commitment",
-      title: "첫 14일 실천 약속",
-      fields: [field("commitment14", "학생이 직접 정한 실천 약속", i.commitment14)],
+      title: "입학 상담 우선 도움",
+      fields: [field("commitment14", "학생이 가장 먼저 도움받고 싶은 점", i.commitment14)],
     },
   ];
 }
@@ -307,7 +310,8 @@ export function formatLikertResponseV2(
   item: Extract<AssessmentItem, { kind: "likert" }>,
   value: unknown
 ): string | null {
-  if (value === "unknown" && item.allowUnknown) return "아직 잘 모르겠음";
+  if (value === "not_applicable" && item.allowUnknown) return "최근에는 해당 경험 없음";
+  if (value === "unknown" && item.allowUnknown) return "잘 모르겠음";
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 5) return null;
   return `${value}점 · ${SCALE_LABELS_V2[item.scale][value - 1]}`;
 }
@@ -323,7 +327,10 @@ function buildQuestion(
 
   if (isLikert(item)) {
     const raw = responses[item.id];
-    const rawValue = raw === "unknown" || typeof raw === "number" ? raw : null;
+    const rawValue =
+      raw === "unknown" || raw === "not_applicable" || typeof raw === "number"
+        ? raw
+        : null;
     return {
       id: item.id,
       number,
@@ -358,6 +365,9 @@ function buildQuestion(
 export function buildV2QuestionGroups(survey: SurveyV2Source): DisplayQuestionGroupV2[] {
   const subject = getSurveyV2Subject(survey);
   const stored = asStoredResponses(survey.responses_v2);
+  // 과거 38+11+12 응답을 현재 40+10+10 문항 문구에 끼워 맞추면 다른 질문에
+  // 답한 것처럼 보인다. 리비전이 확인된 최신 응답만 현재 정의로 복원한다.
+  if (stored.instrument_revision !== INSTRUMENT_REVISION) return [];
   const questions = getItemsForSubject(subject).map((item, index) => buildQuestion(item, index + 1, stored));
   const subjects: Subject[] = ["common"];
   if (subject === "math" || subject === "both") subjects.push("math");
@@ -371,15 +381,25 @@ export function buildV2QuestionGroups(survey: SurveyV2Source): DisplayQuestionGr
 
 export function buildSurveyV2DisplayData(survey: SurveyV2Source): SurveyV2DisplayData {
   const subject = getSurveyV2Subject(survey);
+  const stored = asStoredResponses(survey.responses_v2);
+  const instrumentRevision = textValue(stored.instrument_revision);
+  const isCurrentRevision = instrumentRevision === INSTRUMENT_REVISION;
   const questionGroups = buildV2QuestionGroups(survey);
   const questions = questionGroups.flatMap((group) => group.questions);
+  const legacyAnsweredCount =
+    Object.keys(isRecord(stored.responses) ? stored.responses : {}).length +
+    Object.keys(isRecord(stored.scenarios) ? stored.scenarios : {}).length;
   return {
     subject,
     subjectLabel: SUBJECT_LABEL_V2[subject],
+    instrumentRevision,
+    isCurrentRevision,
     intakeSections: buildV2IntakeSections(survey),
     questionGroups,
-    answeredCount: questions.filter((question) => question.answer !== null).length,
-    questionCount: questions.length,
+    answeredCount: isCurrentRevision
+      ? questions.filter((question) => question.answer !== null).length
+      : legacyAnsweredCount,
+    questionCount: isCurrentRevision ? questions.length : legacyAnsweredCount,
   };
 }
 
@@ -391,12 +411,13 @@ export function getV2CoreMetrics(profile: ScoreProfile | Record<string, unknown>
   if (!isRecord(profile) || !isRecord(profile.common)) return [];
   const common = profile.common as Record<string, unknown>;
   return [
-    { key: "learningAttitude", label: "학습 태도", score: numericScore(common.learningAttitude) },
-    { key: "homeworkReliability", label: "숙제 신뢰도", score: numericScore(common.homeworkReliability) },
-    { key: "longTermPersistence", label: "장기 의지", score: numericScore(common.longTermPersistence) },
-    { key: "shortTermRecovery", label: "단기 회복력", score: numericScore(common.shortTermRecovery) },
-    { key: "phoneBoundary", label: "휴대폰 자기조절", score: numericScore(common.phoneBoundary) },
-    { key: "conscientiousness", label: "학습 성실성", score: numericScore(common.conscientiousness) },
+    { key: "learningAttitude", label: "수업 준비·참여", score: numericScore(common.learningAttitude) },
+    { key: "homeworkReliability", label: "숙제 시작·마무리", score: numericScore(common.homeworkReliability) },
+    { key: "helpSeeking", label: "질문·도움 요청", score: numericScore(common.helpSeeking) },
+    { key: "feedbackExecution", label: "고친 뒤 다시 해보기", score: numericScore(common.feedbackExecution) },
+    { key: "longTermPersistence", label: "계획 이어가기", score: numericScore(common.longTermPersistence) },
+    { key: "shortTermRecovery", label: "틀린 뒤 다시 시작", score: numericScore(common.shortTermRecovery) },
+    { key: "phoneBoundary", label: "공부 중 휴대폰 조절", score: numericScore(common.phoneBoundary) },
   ];
 }
 
@@ -448,7 +469,7 @@ export function surveyV2ToText(survey: SurveyV2Source): string {
     `설문 버전: V2 학습 프로필`,
     `학생 이름: ${survey.name ?? ""}`,
     `학교/학년: ${[survey.school, survey.grade].filter(Boolean).join(" ")}`,
-    `진단 과목: ${data.subjectLabel}`,
+    `확인 과목: ${data.subjectLabel}`,
     `학생 연락처: ${survey.student_phone ?? ""}`,
     `학부모 연락처: ${survey.parent_phone ?? ""}`,
   ];
@@ -458,28 +479,29 @@ export function surveyV2ToText(survey: SurveyV2Source): string {
     for (const item of section.fields) lines.push(`${item.label}: ${item.value ?? "미입력"}`);
   }
 
-  lines.push("", `=== 최신 V2 문항 응답 (${data.answeredCount}/${data.questionCount}) ===`);
-  for (const group of data.questionGroups) {
-    lines.push(`[${group.title}]`);
-    for (const question of group.questions) {
-      lines.push(`${question.number}. (${question.id}·${question.evidenceLabel}) ${question.question}: ${question.answer ?? "미응답"}`);
-      for (const supplement of question.supplements) {
-        lines.push(`  - ${supplement.label}: ${supplement.value ?? "미선택"}`);
+  if (data.isCurrentRevision) {
+    lines.push("", `=== 최신 V2 문항 응답 (${data.answeredCount}/${data.questionCount}) ===`);
+    for (const group of data.questionGroups) {
+      lines.push(`[${group.title}]`);
+      for (const question of group.questions) {
+        lines.push(`${question.number}. (${question.id}·${question.evidenceLabel}) ${question.question}: ${question.answer ?? "미응답"}`);
+        for (const supplement of question.supplements) {
+          lines.push(`  - ${supplement.label}: ${supplement.value ?? "미선택"}`);
+        }
       }
     }
+  } else {
+    lines.push(
+      "",
+      `=== 과거 V2 응답 ${data.answeredCount}개 — 현재 문항과 리비전이 달라 원문 해석 제외 ===`,
+    );
   }
 
   const metrics = getV2CoreMetrics(survey.score_profile_v2);
   if (metrics.length) {
-    lines.push("", "=== 서버 계산 V2 핵심 점수 (0~100) ===");
+    lines.push("", "=== 서버 계산 내부 상담지표 (0~100·비규준) ===");
     for (const metric of metrics) {
       lines.push(`${metric.label}: ${metric.score === null ? "정보 부족" : `${metric.score.toFixed(1)}점`}`);
-    }
-    const profile = survey.score_profile_v2;
-    if (isRecord(profile) && isRecord(profile.nkFit)) {
-      lines.push(`NK 운영 적합 단계: ${textValue(profile.nkFit.stage) ?? "확인 필요"}`);
-      const overall = numericScore(profile.nkFit.overall);
-      lines.push(`NK 운영 적합도: ${overall === null ? "정보 부족" : `${overall.toFixed(1)}점`}`);
     }
   }
   return lines.join("\n");

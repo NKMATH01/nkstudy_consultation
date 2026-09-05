@@ -129,6 +129,7 @@ export const TEACHER_SHEET_CSS = `
 
 @media print {
   @page { size: A4 portrait; margin: 10mm; }
+  .rptv2-noprint { display: none !important; }
   .tsheet {
     max-width: none;
     margin: 0;

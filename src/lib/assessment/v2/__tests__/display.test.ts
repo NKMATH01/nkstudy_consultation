@@ -31,7 +31,8 @@ const baseSurvey = {
     commitment14: "매일 오답 한 문제를 다시 풀기",
   },
   responses_v2: {
-    responses: { LT1: 4, N1: "unknown" as const },
+    instrument_revision: "v2.2-learning-disposition-60",
+    responses: { LT1: 4, FB1: "unknown" as const },
     scenarios: { C1: 3 },
     supplements: { phone_weekday: "1~2시간" },
   },
@@ -51,12 +52,25 @@ describe("설문 V2 표시 어댑터", () => {
     expect(data.answeredCount).toBe(3);
   });
 
+  it("과거 리비전 응답을 최신 60문항의 질문으로 바꾸어 표시하지 않는다", () => {
+    const data = buildSurveyV2DisplayData({
+      ...baseSurvey,
+      responses_v2: {
+        responses: { LT1: 4, N1: 5 },
+        scenarios: { C1: 3 },
+      },
+    });
+    expect(data.isCurrentRevision).toBe(false);
+    expect(data.questionGroups).toEqual([]);
+    expect(data.answeredCount).toBe(3);
+  });
+
   it("척도 문구·상황 선택지·보조 입력을 학생 설문과 같은 문구로 복원한다", () => {
     const data = buildSurveyV2DisplayData(baseSurvey);
     const questions = data.questionGroups.flatMap((group) => group.questions);
 
-    expect(questions.find((question) => question.id === "LT1")?.answer).toBe("4점 · 자주");
-    expect(questions.find((question) => question.id === "N1")?.answer).toBe("아직 잘 모르겠음");
+    expect(questions.find((question) => question.id === "LT1")?.answer).toBe("4점 · 대부분 했다");
+    expect(questions.find((question) => question.id === "FB1")?.answer).toBe("잘 모르겠음");
     expect(questions.find((question) => question.id === "C1")?.answer).toContain(
       "휴대폰을 치우고 오답 1개의 원인부터 적는다."
     );
@@ -88,7 +102,7 @@ describe("설문 V2 표시 어댑터", () => {
 
     expect(text).toContain("설문 버전: V2 학습 프로필");
     expect(text).toContain("최신 V2 문항 응답");
-    expect(text).toContain("첫 14일 실천 약속");
+    expect(text).toContain("입학 상담 우선 도움");
     expect(text).not.toContain("7-Factor");
     expect(text).not.toContain("=== 설문 응답 (1-5점) ===");
   });
@@ -98,6 +112,8 @@ describe("설문 V2 표시 어댑터", () => {
       common: {
         learningAttitude: 75,
         homeworkReliability: 62.5,
+        helpSeeking: 80,
+        feedbackExecution: 70,
         longTermPersistence: 50,
         shortTermRecovery: 87.5,
         phoneBoundary: 25,
@@ -106,12 +122,13 @@ describe("설문 V2 표시 어댑터", () => {
     });
 
     expect(metrics.map((metric) => [metric.label, metric.score])).toEqual([
-      ["학습 태도", 75],
-      ["숙제 신뢰도", 62.5],
-      ["장기 의지", 50],
-      ["단기 회복력", 87.5],
-      ["휴대폰 자기조절", 25],
-      ["학습 성실성", 64],
+      ["수업 준비·참여", 75],
+      ["숙제 시작·마무리", 62.5],
+      ["질문·도움 요청", 80],
+      ["고친 뒤 다시 해보기", 70],
+      ["계획 이어가기", 50],
+      ["틀린 뒤 다시 시작", 87.5],
+      ["공부 중 휴대폰 조절", 25],
     ]);
   });
 
@@ -167,5 +184,9 @@ describe("설문 V2 표시 어댑터", () => {
 
     expect(formatLikertResponseV2(item, 6)).toBeNull();
     expect(formatLikertResponseV2(item, "unknown")).toBeNull();
+
+    const optionalItem = getItemsForSubject("math").find((candidate) => candidate.id === "FB1");
+    if (!optionalItem || optionalItem.kind !== "likert") throw new Error("FB1 fixture missing");
+    expect(formatLikertResponseV2(optionalItem, "not_applicable")).toBe("최근에는 해당 경험 없음");
   });
 });

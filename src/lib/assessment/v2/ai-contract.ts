@@ -116,7 +116,7 @@ export function findStudentTypeViolation(
 /**
  * 자세한 총평에 들어가면 안 되는 "점수 모양" 표기.
  *
- * 숫자를 통째로 막지는 않는다. "첫 2주", "오답 1개", "10분" 같은 표현은 총평에서
+ * 숫자를 통째로 막지는 않는다. "오답 1개", "10분" 같은 표현은 총평에서
  * 자연스럽고 필요하다. 거부는 곧 규칙 기반 fallback으로 떨어진다는 뜻이라
  * 오탐 하나가 그 학생의 결과지 품질을 통째로 떨어뜨린다.
  * 그래서 점수로만 읽히는 형태(점·/5·%·소수·문항 평균)만 잡는다.
@@ -155,6 +155,15 @@ export function findScoreNotationViolation(items: string[]): string | null {
   for (const item of items ?? []) {
     const hit = item.match(CONVERTED_SCORE_RE);
     if (hit) return `100점 환산 표기 "${hit[0]}" 포함`;
+  }
+  return null;
+}
+
+/** 전체 강점·지원 영역에는 과목 모듈 내용을 섞지 않는다. */
+export function findSubjectScopeViolation(items: string[]): string | null {
+  for (const item of items ?? []) {
+    const hit = item.match(/수학|영어|math|english/i);
+    if (hit) return `과목 보조정보 "${hit[0]}" 포함`;
   }
   return null;
 }
@@ -219,6 +228,14 @@ export function validateAiInterpretation(
         ok: false,
         reason: "scoreNotation",
         detail: `${field} 계약 위반: ${violation}`,
+      };
+    }
+    const subjectViolation = findSubjectScopeViolation(items);
+    if (subjectViolation) {
+      return {
+        ok: false,
+        reason: "subject",
+        detail: `${field} 계약 위반: ${subjectViolation}`,
       };
     }
   }

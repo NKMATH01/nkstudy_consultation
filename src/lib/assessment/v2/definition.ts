@@ -1,6 +1,10 @@
-// 설문 V2 문항 정의 (typed definition).
-// 문구는 docs/prototypes/2026-07-10-learning-profile-v2/survey.js 원문을 그대로 옮긴다.
-// construct / direction / 위험축 분리는 구현 명세서 §5, §8.7 계약을 따른다.
+// 설문 V2 문항 정의 (typed definition) — v2.3 "결과지 질문 아홉 개" 구성.
+// 문항표: docs/assessment-v2.3-blueprint-2026-09-04.md §2. 문장은 그 표와 글자 그대로 일치해야 한다.
+// 공통 36문항(리커트) + 직접 질문 2개(MA5 상황형 · CR5 강제선택) + 수학 10 / 영어 10.
+//
+// ID 규칙: 공통은 두 글자 코드(LA·HW·GO·RC·MA·CR·QI·PH·PF)다. v2.2 이전의 한 글자 코드(LT·H·Q·FB·P·G·B·R·F·C)와
+// 영어 모듈(E1~)이 겹치지 않도록 한 것이다. 옛 코드는 RETIRED_ITEM_IDS에 두어 설문 도중 배포된 응답을 조용히 버린다.
+// 문항표의 A~H 글자는 문서 표기이고, 저장·채점 ID는 아래 두 글자 코드다(A→LA, B→HW, C→GO, D→RC, E→MA, F→CR, G→QI, H→PH·PF).
 
 import type {
   AssessmentItem,
@@ -13,38 +17,62 @@ import type {
 
 /**
  * 같은 v2 라우팅 안에서도 문항 구성이 달라졌음을 구분하는 운영 리비전.
- * 과거 38+11+12 응답과 새 40+10+10 응답을 통계에서 섞지 않는다.
+ * 과거 38+11+12(v2.1) · 40+10+10(v2.2) 응답과 새 36+2+10(v2.3) 응답을 통계에서 섞지 않는다.
  */
-export const INSTRUMENT_REVISION = "v2.2-learning-disposition-60" as const;
+export const INSTRUMENT_REVISION = "v2.3-nine-questions-46" as const;
 
-/** 8.7.1 고정 역채점 ID. definition.direction과 반드시 일치해야 한다. */
+/** 8.7.1 고정 역채점 ID. definition.direction과 반드시 일치해야 한다. 척도당 1개. */
 export const REVERSE_IDS: ReadonlySet<string> = new Set([
-  "LT4",
-  "P2",
-  "G4",
-  "B2",
+  "LA4",
+  "GO4",
+  "RC2",
+  "MA4",
+  "CR2",
+  "QI4",
+  "PH2",
+  "PF1",
 ]);
 
-/** 8.1 유효응답 최소 비율. 미만이면 해당 composite는 insufficient. */
+/** 8.1 유효응답 최소 비율. 미만이면 해당 composite는 insufficient(관리 수용은 예외 — scoring 참조). */
 export const MIN_VALID_RATIO = 0.75;
 
 /**
  * 폐기된 문항 ID. 정의에서는 지웠지만 이미 학생 브라우저에 저장돼 있을 수 있어
  * 제출 검증이 "허용되지 않은 문항"으로 막지 않고 조용히 버린다.
- * (설문 도중 배포되면 저장된 응답에 남아 있다.)
+ * (설문 도중 배포되면 저장된 응답에 남아 있다.) v2.1·v2.2의 공통 문항 전부가 여기 있다.
  */
 export const RETIRED_ITEM_IDS: ReadonlySet<string> = new Set([
-  "M5",
-  "M9",
-  "E8",
-  "E9",
-  "R3-1",
-  "R3-2",
-  "N1",
-  "N2",
-  "N3",
-  "N4",
+  // v2.1 → v2.2에서 폐기
+  "M5", "M9", "E8", "E9", "R3-1", "R3-2", "N1", "N2", "N3", "N4",
+  // v2.2 → v2.3에서 폐기(공통 40 + 상황문항 2 + 강제선택 R2)
+  "LT1", "LT2", "LT3", "LT4",
+  "H1", "H2", "H3", "H4",
+  "Q1", "Q2", "Q3", "Q4",
+  "FB1", "FB2", "FB3", "FB4",
+  "P1", "P2", "P3", "P4",
+  "G1", "G2", "G3", "G4",
+  "B1", "B2", "B3", "B4",
+  "R1", "R2", "R3", "R4", "R5", "R6",
+  "F1", "F2", "F3", "F4",
+  "C1", "C2",
 ]);
+
+/** 직접 질문 ID. 점수에 넣지 않고 판정에 원문 그대로 쓴다. */
+export const MANAGEMENT_DIRECT_ID = "MA5" as const;
+export const GUIDANCE_CHOICE_ID = "CR5" as const;
+
+/** 현재 학습의 어려운 점(과목별 다중선택, 최대 3). 점수 없음 — 결과지에 고른 것을 그대로 싣는다. */
+export const DIFFICULTY_TAG_OPTIONS = [
+  "개념이 이해 안 됨",
+  "아는데 문제에 못 씀",
+  "계산·풀이 실수",
+  "시간이 모자람",
+  "서술형·증명",
+  "외우기",
+  "시험만 보면 긴장",
+  "앞 학년 기초 부족",
+] as const;
+export const DIFFICULTY_TAG_MAX = 3;
 
 // 내부 헬퍼: 문구를 간결하게 유지하기 위한 Likert 팩토리.
 function likert(
@@ -52,7 +80,7 @@ function likert(
     LikertItem,
     "id" | "subject" | "construct" | "scale" | "text" | "evidenceLabel"
   > &
-    Partial<Pick<LikertItem, "weight" | "required" | "allowUnknown" | "supplement">>
+    Partial<Pick<LikertItem, "weight" | "required" | "allowUnknown" | "recall" | "supplement">>
 ): LikertItem {
   return {
     kind: "likert",
@@ -64,151 +92,130 @@ function likert(
   };
 }
 
-// ── 공통 학습성향 영역 (40문항) ──────────────────────────────────────
+// ── 공통 학습성향 영역 (36문항 + 직접 질문 2) ────────────────────────
 
+// A. 학습 태도 — 공부를 얼마나 열심히 하는가
 const LEARNING_ATTITUDE: LikertItem[] = [
-  likert({ id: "LT1", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "수업 진입", text: "수업이 시작되면 필요한 교재를 준비하고 바로 집중한다." }),
-  likert({ id: "LT2", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "핵심 포착", text: "설명을 들으며 핵심 내용이나 모르는 부분을 표시한다." }),
-  likert({ id: "LT3", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "능동 참여", text: "수업 중 예제나 문제를 직접 풀면서 설명을 따라간다." }),
-  likert({ id: "LT4", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "주의 유지", text: "이미 아는 내용이 나오면 다른 생각을 하거나 대충 듣는 편이다." }),
+  likert({ id: "LA1", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "수업 표시", text: "수업을 들으며 중요한 것을 적거나 표시한다." }),
+  likert({ id: "LA2", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "스스로 공부", text: "학교·학원 수업 말고 하루 1시간 이상 스스로 공부한다." }),
+  likert({ id: "LA3", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "그날 복습", text: "그날 배운 것을 그날 다시 본다." }),
+  likert({ id: "LA4", subject: "common", construct: "learningAttitude", scale: "frequency", evidenceLabel: "딴짓 안 함", text: "공부하다 딴짓으로 시간을 보낸다." }),
 ];
 
+// B. 숙제 태도 — 숙제를 열심히 하는가
 const HOMEWORK: LikertItem[] = [
-  likert({ id: "H1", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "시작", text: "숙제할 시간을 정하고, 그 시간에 첫 문제를 시작한다." }),
-  likert({ id: "H2", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "기한", text: "숙제를 기한 안에 낸다." }),
-  likert({ id: "H3", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "품질 확인", text: "숙제를 내기 전에 빠진 문제나 쓰지 않은 풀이가 없는지 확인한다." }),
-  likert({ id: "H4", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "마무리", text: "숙제를 다 못 한 날에는 다시 할 시간을 정해 마무리한다." }),
+  likert({ id: "HW1", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "스스로 품", text: "답을 베끼지 않고 스스로 푼다." }),
+  likert({ id: "HW2", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "기한 지킴", text: "숙제를 기한 안에 낸다." }),
+  likert({ id: "HW3", subject: "common", construct: "homeworkReliability", scale: "frequency", evidenceLabel: "제출 전 확인", text: "숙제를 내기 전에 빠진 것을 확인한다." }),
+  likert({ id: "HW4", subject: "common", construct: "homeworkReliability", scale: "frequency", allowUnknown: true, evidenceLabel: "오답 다시 풀기", text: "틀린 문제를 고쳐서 다시 푼다." }),
 ];
 
-// 질문을 잘하는 '성격'이 아니라, 막힌 지점을 정리하고 실제로 도움을 쓰는 행동을 묻는다.
-// 모든 frequency 문항의 회상 기간은 화면 안내에서 최근 2주로 통일한다.
-const HELP_SEEKING: LikertItem[] = [
-  likert({ id: "Q1", subject: "common", construct: "helpSeeking", scale: "frequency", allowUnknown: true, evidenceLabel: "도움 요청", text: "혼자 해결하기 어렵다면 선생님이나 친구에게 도움을 요청한다." }),
-  likert({ id: "Q2", subject: "common", construct: "helpSeeking", scale: "frequency", allowUnknown: true, evidenceLabel: "질문 정리", text: "질문하기 전에 무엇을 알고 무엇을 모르는지 한 문장으로 정리한다." }),
-  likert({ id: "Q3", subject: "common", construct: "helpSeeking", scale: "frequency", allowUnknown: true, evidenceLabel: "이해 확인", text: "설명을 들은 뒤, 이해한 내용을 내 말로 다시 설명해 본다." }),
-  likert({ id: "Q4", subject: "common", construct: "helpSeeking", scale: "frequency", allowUnknown: true, evidenceLabel: "질문 확인", text: "질문할 것이 있으면 수업 중이나 끝난 뒤 확인한다." }),
+// C. 목표 의식 — 구체적인 목표가 있는가
+const GOAL: LikertItem[] = [
+  likert({ id: "GO1", subject: "common", construct: "goalClarity", scale: "agreement", evidenceLabel: "목표 점수", text: "이번 시험의 목표 점수를 말할 수 있다." }),
+  likert({ id: "GO2", subject: "common", construct: "goalClarity", scale: "frequency", evidenceLabel: "주간 계획", text: "이번 주에 할 공부를 미리 정해 둔다." }),
+  likert({ id: "GO3", subject: "common", construct: "goalClarity", scale: "agreement", evidenceLabel: "공부 이유", text: "왜 공부하는지 스스로 말할 수 있다." }),
+  likert({ id: "GO4", subject: "common", construct: "goalClarity", scale: "agreement", evidenceLabel: "스스로 정함", text: "목표 없이 시키는 대로만 한다." }),
 ];
 
-// R3은 '직접 말해 주는 방식의 선호'로만 남기고, 피드백 뒤 실제 실행은 별도 4문항으로 잰다.
-const FEEDBACK_EXECUTION: LikertItem[] = [
-  likert({ id: "FB1", subject: "common", construct: "feedbackExecution", scale: "frequency", allowUnknown: true, evidenceLabel: "고칠 점 기록", text: "선생님에게 고칠 점을 들으면 그 부분을 표시하거나 적어 둔다." }),
-  likert({ id: "FB2", subject: "common", construct: "feedbackExecution", scale: "frequency", allowUnknown: true, evidenceLabel: "직접 수정", text: "고칠 점을 들은 문제는 풀이와 답을 직접 고쳐 다시 완성한다." }),
-  likert({ id: "FB3", subject: "common", construct: "feedbackExecution", scale: "frequency", allowUnknown: true, evidenceLabel: "수정 확인", text: "문제를 고친 뒤, 답이나 풀이가 맞는지 다시 확인한다." }),
-  likert({ id: "FB4", subject: "common", construct: "feedbackExecution", scale: "frequency", allowUnknown: true, evidenceLabel: "다음 문제 적용", text: "비슷한 문제를 풀 때 전에 들은 고칠 점을 적용한다." }),
+// D. 단기 회복력 — 강사가 힘들게 시켜도 따라올 것인가
+const RECOVERY: LikertItem[] = [
+  likert({ id: "RC1", subject: "common", construct: "shortTermRecovery", scale: "frequency", evidenceLabel: "스스로 시도", text: "어려워도 해설을 보기 전에 스스로 해 본다." }),
+  likert({ id: "RC2", subject: "common", construct: "shortTermRecovery", scale: "frequency", allowUnknown: true, evidenceLabel: "낮은 점수 뒤", text: "점수가 낮게 나오면 다음 공부를 미룬다." }),
+  likert({ id: "RC3", subject: "common", construct: "shortTermRecovery", scale: "frequency", allowUnknown: true, evidenceLabel: "다시 시작", text: "틀렸다는 설명을 들으면 그날 다시 시작한다." }),
+  likert({ id: "RC4", subject: "common", construct: "shortTermRecovery", scale: "frequency", evidenceLabel: "힘든 과제", text: "양이 많고 힘든 과제도 끝까지 낸다." }),
+  likert({ id: "RC5", subject: "common", construct: "shortTermRecovery", scale: "frequency", allowUnknown: true, evidenceLabel: "더 시켜도 함", text: "선생님이 더 하라고 하면 싫어도 한다." }),
 ];
 
-const PHONE: LikertItem[] = [
-  likert({ id: "P1", subject: "common", construct: "phoneBoundary", scale: "frequency", allowUnknown: true, evidenceLabel: "공부 시작", text: "공부를 시작하기 전에 휴대폰을 눈에 보이지 않는 곳에 두거나 집중 모드를 켠다." }),
-  likert({ id: "P2", subject: "common", construct: "phoneBoundary", scale: "frequency", allowUnknown: true, evidenceLabel: "자동 확인", text: "알림이 오지 않아도 공부 중 습관적으로 휴대폰을 열어본다." }),
-  likert({ id: "P3", subject: "common", construct: "phoneBoundary", scale: "frequency", allowUnknown: true, evidenceLabel: "통제 회복", text: "휴대폰을 계획보다 오래 썼다면, 다음 공부 때 사용 방법을 스스로 바꾼다." }),
-  likert({
-    id: "P4",
-    subject: "common",
-    construct: "phoneBoundary",
-    scale: "frequency",
-    allowUnknown: true,
-    evidenceLabel: "집중 복귀",
-    text: "공부하다 휴대폰을 보게 되어도 5분 안에 하던 공부로 돌아온다.",
-    supplement: {
-      title: "사용시간만으로 판단하지 않지만, 실제 생활 맥락을 함께 확인합니다.",
-      fields: [
-        { id: "phone_weekday", label: "평일 오락용 사용시간", options: ["1시간 미만", "1~2시간", "2~3시간", "3~5시간", "5시간 이상"] },
-        { id: "phone_bedtime", label: "취침 후 사용 빈도", options: ["거의 없음", "주 1일", "주 2~3일", "주 4~5일", "거의 매일"] },
-      ],
-    },
-  }),
+// E. 관리 수용 — 철저한 관리를 버틸 수 있는가
+// MA1·MA2는 "그런 상황이 있었을 때"를 기준으로 답한다. 상황이 없었으면 경험 없음(점수 분모에서 뺀다).
+const MANAGEMENT: LikertItem[] = [
+  likert({ id: "MA1", subject: "common", construct: "managementAcceptance", scale: "frequency", allowUnknown: true, recall: "ever", evidenceLabel: "남아서 함", text: "숙제를 안 해 와서 남으라고 하면 남아서 한다." }),
+  likert({ id: "MA2", subject: "common", construct: "managementAcceptance", scale: "frequency", allowUnknown: true, recall: "ever", evidenceLabel: "시험 준비", text: "매주 보는 시험 준비를 시키는 대로 했다." }),
+  likert({ id: "MA3", subject: "common", construct: "managementAcceptance", scale: "agreement", evidenceLabel: "매일 확인 필요", text: "선생님이 매일 확인해 주는 것이 나에게 필요하다." }),
+  likert({ id: "MA4", subject: "common", construct: "managementAcceptance", scale: "agreement", evidenceLabel: "검사 부담", text: "검사와 지적이 많으면 다니기 싫어진다." }),
 ];
 
-const WILL: LikertItem[] = [
-  likert({ id: "G1", subject: "common", construct: "longTermPersistence", scale: "frequency", evidenceLabel: "장기 목표", text: "이번 주 공부를 정할 때 더 큰 목표와 연결해 생각한다." }),
-  likert({ id: "G2", subject: "common", construct: "longTermPersistence", scale: "frequency", evidenceLabel: "계획 지속", text: "결과가 바로 좋아지지 않아도 정한 공부 순서를 계속 지킨다." }),
-  likert({ id: "G3", subject: "common", construct: "longTermPersistence", scale: "frequency", evidenceLabel: "반복 인내", text: "지루한 반복 연습도 필요하다고 판단하면 계속한다." }),
-  likert({ id: "G4", subject: "common", construct: "longTermPersistence", scale: "frequency", evidenceLabel: "목표 유지", text: "결과가 빨리 좋아지지 않으면 하던 공부를 그만두는 편이다." }),
-  likert({ id: "B1", subject: "common", construct: "shortTermRecovery", scale: "frequency", evidenceLabel: "난관 체류", text: "어려운 과제도 바로 해설을 보지 않고 먼저 스스로 시도한다." }),
-  likert({ id: "B2", subject: "common", construct: "shortTermRecovery", scale: "frequency", allowUnknown: true, evidenceLabel: "점수 회복", text: "예상보다 낮은 점수를 받은 뒤 다음 공부를 미루거나 피한다." }),
-  likert({ id: "B3", subject: "common", construct: "shortTermRecovery", scale: "frequency", allowUnknown: true, evidenceLabel: "재시작", text: "틀렸다는 설명을 들은 뒤 같은 날이나 다음 공부 시간에 다시 시작한다." }),
-  likert({ id: "B4", subject: "common", construct: "shortTermRecovery", scale: "frequency", evidenceLabel: "과부하 대처", text: "할 일이 갑자기 많아지면 가장 작은 단위로 나누어 하나부터 시작한다." }),
-];
-
-const RESPONSE: LikertItem[] = [
-  likert({ id: "R1", subject: "common", construct: "structureNeed", scale: "agreement", evidenceLabel: "적응 방식", text: "낯선 반이나 선생님을 만날 때 진행 방식과 규칙을 미리 알면 적응이 빨라진다." }),
-  likert({ id: "R3", subject: "common", construct: "directFeedbackAcceptance", scale: "agreement", evidenceLabel: "직접 피드백", text: "고칠 점을 바로 말해 주면 무엇을 고쳐야 하는지 알기 쉽다." }),
-  likert({ id: "R4", subject: "common", construct: "relationshipSafetyNeed", scale: "agreement", evidenceLabel: "관계 안전", text: "여러 사람 앞에서 지적받으면 고칠 내용보다 감정이 오래 남는 편이다." }),
-  likert({ id: "R5", subject: "common", construct: "autonomyNeed", scale: "agreement", evidenceLabel: "자율성", text: "공부 순서나 방법을 직접 고를 수 있을 때 더 책임감 있게 한다." }),
-  likert({ id: "R6", subject: "common", construct: "structureNeed", scale: "agreement", evidenceLabel: "구조 필요", text: "언제까지 무엇을 끝내야 하는지 분명하면 시작하기 쉽다." }),
-];
-
-/**
- * R2 강제선택. 예전에는 "혼자 생각할 시간을 가진 뒤 질문할 때 더 잘 이해한다"는 동의형이었는데
- * 대부분의 학생이 상위 2점을 골라 변별이 되지 않았다(천장 문항). 동의 여부가 아니라
- * 실제로 더 자주 하는 행동을 둘 중 하나로 고르게 바꾼다.
- */
-const REFLECTIVE_FORCED: ForcedChoiceItem[] = [
+/** E5 직접 질문. 점수에 넣지 않고 학생이 고른 답을 판정에 그대로 쓴다. */
+const MANAGEMENT_DIRECT: ScenarioItem[] = [
   {
-    id: "R2",
+    id: MANAGEMENT_DIRECT_ID,
+    kind: "scenario",
+    subject: "common",
+    evidenceLabel: "버틸 수 있는가",
+    text: "NK는 숙제 검사, 매주 테스트, 못 하면 남아서 보충하는 관리가 있어서 조금 힘들 수 있어요. 버틸 수 있겠어요?",
+    options: [
+      { index: 1, choice: "A", text: "버틸 수 있다", tags: ["endure_yes"] },
+      { index: 2, choice: "B", text: "힘들어도 해 보겠다", tags: ["endure_try"] },
+      { index: 3, choice: "C", text: "잘 모르겠다", tags: ["endure_unsure"] },
+      { index: 4, choice: "D", text: "힘들 것 같다", tags: ["endure_no"] },
+    ],
+  },
+];
+
+// F. 지도 방식 반응 — 강하게 밀어도 되는가, 차분히 다독여야 하는가
+// CR4는 세게 지적받는 것을 견디는지를 묻는다. 잘한 점을 먼저 말해 주길 바라는 쪽은 CR5 강제선택에서 본다.
+const COACHING_RESPONSE: LikertItem[] = [
+  likert({ id: "CR1", subject: "common", construct: "coachingResponse", scale: "frequency", allowUnknown: true, evidenceLabel: "세게 지적 뒤", text: "선생님이 세게 지적하면 다음에 더 열심히 한다." }),
+  likert({ id: "CR2", subject: "common", construct: "coachingResponse", scale: "frequency", allowUnknown: true, evidenceLabel: "혼난 뒤 회피", text: "크게 혼난 뒤 그 과목이 싫어져 안 하게 된다." }),
+  likert({ id: "CR3", subject: "common", construct: "coachingResponse", scale: "agreement", evidenceLabel: "바로 말해 주기", text: "고칠 점을 바로 말해 주는 게 편하다." }),
+  likert({ id: "CR4", subject: "common", construct: "coachingResponse", scale: "agreement", evidenceLabel: "기분 회복", text: "세게 지적받아도 기분이 오래 상하지 않는다." }),
+];
+
+/** F5 강제선택. 점수에 넣지 않고 "어느 선생님을 골랐는지"로만 쓴다. A=세게, B=차분히. */
+const COACHING_CHOICE: ForcedChoiceItem[] = [
+  {
+    id: GUIDANCE_CHOICE_ID,
     kind: "forcedChoice",
     subject: "common",
-    construct: "reflectiveProcessingNeed",
+    construct: "coachingChoice",
     required: true,
-    evidenceLabel: "생각 처리",
-    text: "수업 중 모르는 게 생겼을 때, 실제로 더 자주 하는 쪽은?",
+    evidenceLabel: "고른 선생님",
+    text: "두 선생님 중 누구에게 더 잘 배울 것 같아요?",
     options: [
-      { index: 1, choice: "A", text: "그 자리에서 바로 손을 들어 질문한다.", score: 0 },
-      { index: 2, choice: "B", text: "일단 표시해 두고 수업이 끝난 뒤 따로 물어본다.", score: 100 },
+      { index: 1, choice: "A", text: "틀린 것을 바로 세게 짚어 주는 선생님", score: 100 },
+      { index: 2, choice: "B", text: "먼저 잘한 점을 말하고 차분히 고쳐 주는 선생님", score: 0 },
     ],
   },
 ];
 
-const FRIENDS: LikertItem[] = [
-  likert({ id: "F1", subject: "common", construct: "peerLearningResource", scale: "agreement", evidenceLabel: "새 환경", text: "새 반에서도 필요한 때 먼저 질문할 수 있다." }),
-  likert({ id: "F2", subject: "common", construct: "peerLearningResource", scale: "agreement", evidenceLabel: "또래 자원", text: "혼자 경쟁하는 분위기보다 서로 질문하고 확인해주는 반에서 더 잘 배운다." }),
-  likert({ id: "F3", subject: "common", construct: "peerFocusBoundary", scale: "agreement", evidenceLabel: "집중 경계", text: "친한 친구와 같은 반이면 대화 때문에 해야 할 일을 늦출 때가 있다." }),
-  likert({ id: "F4", subject: "common", construct: "peerLearningResource", scale: "agreement", allowUnknown: true, evidenceLabel: "갈등 회복", text: "친구와 불편한 일이 생기면 혼자 피하기보다 도움을 요청한다." }),
+// G. 질문 성향 — 활기차게 질문하는 편인가
+const QUESTION: LikertItem[] = [
+  likert({ id: "QI1", subject: "common", construct: "questionInitiative", scale: "frequency", allowUnknown: true, evidenceLabel: "바로 손 듦", text: "모르면 바로 손을 들고 물어본다." }),
+  likert({ id: "QI2", subject: "common", construct: "questionInitiative", scale: "frequency", allowUnknown: true, evidenceLabel: "새 반 질문", text: "새 반에서도 먼저 질문한다." }),
+  likert({ id: "QI3", subject: "common", construct: "questionInitiative", scale: "frequency", evidenceLabel: "소리 내 답", text: "수업 중 답을 소리 내어 말한다." }),
+  likert({ id: "QI4", subject: "common", construct: "questionInitiative", scale: "frequency", evidenceLabel: "넘어가지 않음", text: "물어볼 것이 있어도 그냥 넘어간다." }),
 ];
 
-const COMMON_SCENARIOS: ScenarioItem[] = [
-  {
-    id: "C1",
-    kind: "scenario",
-    subject: "common",
-    evidenceLabel: "점수·핸드폰",
-    text: "연습시험 점수가 예상보다 낮고 틀린 문제를 다시 보려는데 휴대폰 알림이 계속 온다. 가장 가까운 반응은?",
-    options: [
-      { index: 1, choice: "A", text: "알림을 확인하고 기분이 나아지면 시작한다.", tags: ["phone_first", "delayed_restart", "mood_before_action"] },
-      { index: 2, choice: "B", text: "휴대폰은 치우지만 쉬운 과제부터 하며 보완을 미룬다.", tags: ["phone_removed", "easy_task_substitution", "hard_task_delay"] },
-      { index: 3, choice: "C", text: "휴대폰을 치우고 오답 1개의 원인부터 적는다.", tags: ["phone_removed", "error_cause_first", "independent_restart"] },
-      { index: 4, choice: "D", text: "선생님에게 시작 순서와 확인 시간을 요청한다.", tags: ["support_seeking", "external_structure", "scheduled_check"] },
-    ],
-  },
-  {
-    id: "C2",
-    kind: "scenario",
-    subject: "common",
-    evidenceLabel: "새 반 적응",
-    text: "새 반 첫날, 아는 친구가 없고 수업 순서를 모른다. 실제 행동과 가장 가까운 것은?",
-    options: [
-      { index: 1, choice: "A", text: "선생님에게 순서와 규칙을 먼저 물어보고 혼자 익힌다.", tags: ["structure_preview", "solo_adaptation"] },
-      { index: 2, choice: "B", text: "선생님에게 내가 무엇부터 하면 되는지 따로 묻는다.", tags: ["one_to_one_safety", "guided_question"] },
-      { index: 3, choice: "C", text: "옆 학생에게 지금 하는 순서를 물어본다.", tags: ["peer_bridge", "collaborative_entry"] },
-      { index: 4, choice: "D", text: "먼저 수업을 따라가 보고, 막히면 그때 질문한다.", tags: ["rapid_participation", "direct_question"] },
-    ],
-  },
+// H. 학습 방해 — 휴대폰 4 · 친구 3 (점수는 따로 낸다)
+const PHONE: LikertItem[] = [
+  likert({ id: "PH1", subject: "common", construct: "phoneBoundary", scale: "frequency", allowUnknown: true, evidenceLabel: "시작 전 치움", text: "공부 전에 휴대폰을 안 보이는 곳에 둔다." }),
+  likert({ id: "PH2", subject: "common", construct: "phoneBoundary", scale: "frequency", allowUnknown: true, evidenceLabel: "습관 확인", text: "공부 중에 휴대폰을 습관처럼 열어 본다." }),
+  likert({ id: "PH3", subject: "common", construct: "phoneBoundary", scale: "frequency", allowUnknown: true, evidenceLabel: "시간 정함", text: "휴대폰 쓰는 시간을 스스로 정해서 지킨다." }),
+  likert({ id: "PH4", subject: "common", construct: "phoneBoundary", scale: "frequency", allowUnknown: true, evidenceLabel: "5분 복귀", text: "휴대폰을 봐도 5분 안에 공부로 돌아온다." }),
+];
+
+const PEER: LikertItem[] = [
+  likert({ id: "PF1", subject: "common", construct: "peerFocusBoundary", scale: "frequency", evidenceLabel: "대화로 미룸", text: "친구와 이야기하느라 할 일을 미룬다." }),
+  likert({ id: "PF2", subject: "common", construct: "peerFocusBoundary", scale: "frequency", evidenceLabel: "놀자고 해도", text: "친구가 놀자고 해도 할 일을 먼저 끝낸다." }),
+  likert({ id: "PF3", subject: "common", construct: "peerFocusBoundary", scale: "frequency", evidenceLabel: "시간 지킴", text: "친구와 같이 있어도 정한 공부 시간은 지킨다." }),
 ];
 
 export const COMMON_ITEMS: AssessmentItem[] = [
   ...LEARNING_ATTITUDE,
   ...HOMEWORK,
-  ...HELP_SEEKING,
+  ...GOAL,
+  ...RECOVERY,
+  ...MANAGEMENT,
+  ...MANAGEMENT_DIRECT,
+  ...COACHING_RESPONSE,
+  ...COACHING_CHOICE,
+  ...QUESTION,
   ...PHONE,
-  ...WILL,
-  ...FEEDBACK_EXECUTION,
-  ...RESPONSE,
-  ...REFLECTIVE_FORCED,
-  ...FRIENDS,
-  ...COMMON_SCENARIOS,
+  ...PEER,
 ];
 
-// ── 수학 공부 방식 보조 모듈 (10문항) ────────────────────────────────
+// ── 수학 공부 방식 보조 모듈 (10문항) — v2.2 그대로 ─────────────────────
 
 const MATH_STRATEGY: LikertItem[] = [
   likert({ id: "M1", subject: "math", construct: "mathStrategy", scale: "frequency", evidenceLabel: "조건 정리", text: "해설을 보기 전에 주어진 조건과 구해야 할 것을 정리한다." }),
@@ -253,7 +260,7 @@ const MATH_SCENARIOS: ScenarioItem[] = [
 
 export const MATH_ITEMS: AssessmentItem[] = [...MATH_STRATEGY, ...MATH_SCENARIOS];
 
-// ── 영어 공부 방식 보조 모듈 (10문항) ────────────────────────────────
+// ── 영어 공부 방식 보조 모듈 (10문항) — v2.2 그대로 ─────────────────────
 
 const ENGLISH_STRATEGY: LikertItem[] = [
   likert({ id: "E1", subject: "english", construct: "englishStrategy", scale: "frequency", evidenceLabel: "간격 반복", text: "단어를 한 번에 몰아서 외우기보다 날짜를 나눠 반복한다." }),

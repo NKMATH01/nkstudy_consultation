@@ -108,7 +108,9 @@ export const ScoreQuestion = forwardRef<HTMLHeadingElement, Props>(
           {title}
           {likert && item.scale === "frequency" && (
             <p className="text-[12px] leading-relaxed text-muted-foreground">
-              최근 2주 동안 실제로 한 행동을 떠올려 답해주세요.
+              {item.recall === "ever"
+                ? "지금까지 그런 상황이 있었을 때를 떠올려 답해주세요. 없었으면 아래 '그런 상황이 없었음'을 고르세요."
+                : "최근 2주 동안 실제로 한 행동을 떠올려 답해주세요."}
             </p>
           )}
         </div>
@@ -141,6 +143,7 @@ function LikertOptions({
   onSelect: (value: ScoreValue, viaPointer: boolean) => void;
 }) {
   const labels = SCALE_LABELS_V2[item.scale];
+  const naLabel = item.recall === "ever" ? "그런 상황이 없었음" : "최근 2주에는 그런 경험이 없었음";
   // 숫자를 보이면 5를 '좋은 답'으로 고르기 쉬워 문장만 낮은 빈도→높은 빈도로 보여 준다.
   // 저장값은 기존과 같은 1~5다.
   return (
@@ -161,8 +164,8 @@ function LikertOptions({
           <OptionRow
             marker="–"
             selected={value === "not_applicable"}
-            label="최근 2주에는 그런 경험이 없었음"
-            ariaLabel="최근 2주에는 그런 경험이 없었음"
+            label={naLabel}
+            ariaLabel={naLabel}
             muted
             onSelect={(viaPointer) => onSelect("not_applicable", viaPointer)}
           />

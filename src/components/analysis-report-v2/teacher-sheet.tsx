@@ -1,4 +1,4 @@
-// 강사용 A4 1장 시트.
+// 강사용 A4 1장 시트 (v2.3).
 //
 // ⚠️ 직원 전용, parent-safe를 거치지 않음 — 학부모 경로에 절대 연결 금지.
 // teacherBrief·입학 상담 확인 질문·cautions·background는 parent-safe allowlist에서
@@ -8,38 +8,34 @@
 // MBTI 4글자는 넣지 않는다(강사 합의) — 행동 문장만 남긴다.
 
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
-import type { CommonScores, Score } from "@/lib/assessment/v2/types";
-import { ALL_ITEMS, isLikert } from "@/lib/assessment/v2/definition";
-import { ITEMS_BY_CONSTRUCT } from "@/lib/assessment/v2/construct-guide";
-import { SCALE_LABELS_V2 } from "@/lib/assessment/v2/display";
+import type { CommonConstruct, Score } from "@/lib/assessment/v2/types";
+import { GRADE_LABEL, gradeOf } from "@/lib/assessment/v2/scoring";
 import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
 import { SIGNAL_DESC, signalBandOf, type SignalBand } from "./signal-descriptions";
-import { AVOID_LINE, TALK_PRESCRIPTION, TALK_PRESCRIPTION_UNKNOWN } from "./teacher-guidance";
-import type { CounselorBackground } from "./counselor-report";
+import {
+  AVOID_LINE,
+  GUIDANCE_PRESCRIPTION,
+  MANAGEMENT_PRESCRIPTION,
+} from "./teacher-guidance";
+import type { CounselorBackground } from "./counselor-background";
 import { TEACHER_SHEET_CSS } from "./teacher-sheet-css";
 
-/** ① 지금 상태에 쓰는 7개 핵심 학습행동. 학부모 결과지 00 요약과 같다. */
-const STATE_KEYS: (keyof CommonScores)[] = [
+/** ① 지금 상태에 쓰는 여덟 학습행동(지도 방식 반응은 ④ 핵심 판단에서). */
+const STATE_KEYS: CommonConstruct[] = [
   "learningAttitude",
   "homeworkReliability",
-  "helpSeeking",
-  "feedbackExecution",
-  "phoneBoundary",
-  "longTermPersistence",
+  "goalClarity",
   "shortTermRecovery",
-];
-
-/** ④ 말 거는 방식에 쓰는 구인. */
-const TALK_KEYS: (keyof CommonScores)[] = [
-  "directFeedbackAcceptance",
-  "relationshipSafetyNeed",
-  "autonomyNeed",
+  "managementAcceptance",
+  "questionInitiative",
+  "phoneBoundary",
+  "peerFocusBoundary",
 ];
 
 interface Props {
   profile: ResultProfileV2;
   header: { name: string; schoolGrade: string; createdAt?: string | null };
-  /** 설문 raw 응답. ④에서 점수 대신 학생이 고른 보기를 보여 주는 데 쓴다. */
+  /** 설문 raw 응답(호환용). v2.3 시트는 문항 문장을 싣지 않아 쓰지 않는다. */
   responses?: Record<string, unknown> | null;
   background?: CounselorBackground | null;
 }
@@ -49,50 +45,27 @@ type WeakItem = { key: string; label: string; band: SignalBand; help: string };
 /** 약점 후보: 공통 학습행동만 사용한다. 과목 공부 방식은 전체 우선순위에 섞지 않는다. */
 function pickWeaknesses(profile: ResultProfileV2): WeakItem[] {
   const s = profile.scores;
-  const pool: { key: string; label: string; score: Score; desc: Record<SignalBand, { help: string }> }[] =
-    STATE_KEYS.map((k) => ({
-      key: k,
-      label: CONSTRUCT_LABEL[k],
-      score: s.common[k],
-      desc: SIGNAL_DESC[k],
-    }));
+  const pool: { key: CommonConstruct; label: string; score: Score }[] = STATE_KEYS.map((k) => ({
+    key: k,
+    label: CONSTRUCT_LABEL[k],
+    score: s.common[k],
+  }));
 
   const scored = pool.filter((p) => isNum(p.score));
   const ascending = [...scored].sort((a, b) => (a.score as number) - (b.score as number));
-  const low = ascending.filter((p) => (p.score as number) < 45);
+  const low = ascending.filter((p) => gradeOf(p.score) === "help");
   const picked = low.length > 0 ? low.slice(0, 2) : ascending.slice(0, 2);
 
   return picked.map((p) => {
     const band = (signalBandOf(p.score) ?? "mid") as SignalBand;
-    return { key: p.key, label: p.label, band, help: p.desc[band].help };
+    return { key: p.key, label: p.label, band, help: SIGNAL_DESC[p.key][band].help };
   });
 }
 
-/** 그 구인을 재는 문항들의 "근거 라벨 → 학생이 고른 보기". 점수는 만들지 않는다. */
-function responseLabels(
-  constructKey: string,
-  responses: Record<string, unknown> | null | undefined,
-): { evidenceLabel: string; answer: string }[] {
-  if (!responses) return [];
-  const ids = ITEMS_BY_CONSTRUCT[constructKey] ?? [];
-  const out: { evidenceLabel: string; answer: string }[] = [];
-
-  for (const id of ids) {
-    const item = ALL_ITEMS.find((it) => it.id === id);
-    if (!item || !isLikert(item)) continue;
-    const value = responses[id];
-    if (typeof value !== "number" || value < 1 || value > 5) continue;
-    out.push({
-      evidenceLabel: item.evidenceLabel,
-      answer: SCALE_LABELS_V2[item.scale][value - 1],
-    });
-  }
-  return out;
-}
-
-export function TeacherSheet({ profile, header, responses, background }: Props) {
+export function TeacherSheet({ profile, header, background }: Props) {
   const s = profile.scores;
   const i = profile.interpretation;
+  const v = s.verdicts;
 
   const weaknesses = pickWeaknesses(profile);
   const todo = weaknesses[0]?.help ?? "첫 수업에서 문제를 시작하고 도움을 구하는 방식을 확인해 주세요.";
@@ -100,6 +73,7 @@ export function TeacherSheet({ profile, header, responses, background }: Props) 
 
   const review = s.responseQuality.status === "review";
   const callNote = background?.prevLeaveReason || background?.prevComplaint || null;
+  const entryPriority = background?.entryPriority || background?.commitment14 || null;
 
   const meta = [header.schoolGrade, SUBJECT_LABEL[profile.subjectSelection], formatDate(profile.generatedAt)]
     .filter(Boolean)
@@ -129,15 +103,14 @@ export function TeacherSheet({ profile, header, responses, background }: Props) 
               {STATE_KEYS.map((k) => {
                 const score = s.common[k];
                 const band = signalBandOf(score);
+                const grade = gradeOf(score);
                 return (
                   <li key={k}>
                     <span className="tsheet__bar-label">{CONSTRUCT_LABEL[k]}</span>
                     <i className="tsheet__bar">
                       <b className={`is-${band ?? "none"}`} style={{ width: `${pct(score)}%` }} />
                     </i>
-                    <span className="tsheet__bar-num">
-                      {isNum(score) ? Math.round(score) : "—"}
-                    </span>
+                    <span className="tsheet__bar-num">{grade ? GRADE_LABEL[grade] : "—"}</span>
                   </li>
                 );
               })}
@@ -164,44 +137,59 @@ export function TeacherSheet({ profile, header, responses, background }: Props) 
 
         <div className="tsheet__col">
           <section className="tsheet__box">
-            <h2>④ 말 거는 방식</h2>
-            {TALK_KEYS.map((k) => {
-              const band = signalBandOf(s.common[k]);
-              const answers = responseLabels(k, responses);
-              const prescription = band
-                ? (TALK_PRESCRIPTION[k]?.[band] ?? TALK_PRESCRIPTION_UNKNOWN)
-                : TALK_PRESCRIPTION_UNKNOWN;
-              return (
-                <div key={k} className="tsheet__talk">
-                  <b>{CONSTRUCT_LABEL[k]}</b>
-                  {answers.length > 0 && (
-                    <p className="tsheet__answer">
-                      <span>본인 응답</span>
-                      {answers.map((a) => `${a.evidenceLabel}: ${a.answer}`).join(" / ")}
-                    </p>
-                  )}
-                  <p className="tsheet__do">
-                    <span>첫 수업</span>
-                    {prescription}
-                  </p>
-                </div>
-              );
-            })}
+            <h2>④ 핵심 판단</h2>
+            <div className="tsheet__talk">
+              <b>철저한 관리를 버틸 수 있는가 — {v?.management.verdict ?? "판정 보류"}</b>
+              {v?.management.directAnswer && (
+                <p className="tsheet__answer">
+                  <span>본인 답</span>
+                  {v.management.directAnswer}
+                  {v.management.basisNote ? ` · ${v.management.basisNote}` : ""}
+                </p>
+              )}
+              <p className="tsheet__do">
+                <span>첫 달</span>
+                {MANAGEMENT_PRESCRIPTION[v?.management.verdict ?? "판정 보류"]}
+              </p>
+            </div>
+            <div className="tsheet__talk">
+              <b>강하게 밀어도 되는가 — {v?.guidance.verdict ?? "판정 보류"}</b>
+              {v?.guidance.choiceText && (
+                <p className="tsheet__answer">
+                  <span>고른 선생님</span>
+                  {v.guidance.choiceText}
+                  {v.guidance.confirmInCounseling ? " · 응답과 갈려 상담에서 확인" : ""}
+                </p>
+              )}
+              <p className="tsheet__do">
+                <span>첫 수업</span>
+                {GUIDANCE_PRESCRIPTION[v?.guidance.verdict ?? "판정 보류"]}
+              </p>
+            </div>
+            {entryPriority && (
+              <div className="tsheet__talk">
+                <b>학생이 가장 도움받고 싶은 점</b>
+                <p className="tsheet__answer">
+                  <span>본인 글</span>
+                  {entryPriority}
+                </p>
+              </div>
+            )}
           </section>
 
           <section className="tsheet__box">
             <h2>⑤ 입학 상담 확인</h2>
             <ul className="tsheet__checks">
               {consultationQuestions.map((question, index) => (
-                  <li key={`${index}-${question}`}>
-                    <span className="tsheet__checkbox" aria-hidden>
-                      ☐
-                    </span>
-                    <span className="tsheet__check-body">
-                      <b>확인 질문 {index + 1}</b>
-                      <i>{question}</i>
-                    </span>
-                  </li>
+                <li key={`${index}-${question}`}>
+                  <span className="tsheet__checkbox" aria-hidden>
+                    ☐
+                  </span>
+                  <span className="tsheet__check-body">
+                    <b>확인 질문 {index + 1}</b>
+                    <i>{question}</i>
+                  </span>
+                </li>
               ))}
             </ul>
           </section>
@@ -211,10 +199,6 @@ export function TeacherSheet({ profile, header, responses, background }: Props) 
       <section className="tsheet__box tsheet__caution">
         <h2>③ 주의</h2>
         <ul>
-          {/*
-            review일 때 해석의 cautions도 같은 말을 반복한다(둘 다 응답 치우침을 근거로 만들어진다).
-            A4 한 장에서 같은 문장을 두 번 읽게 하지 않으려고 한쪽만 남긴다.
-          */}
           {review ? (
             <li>
               응답이 한쪽으로 치우쳐 있습니다. 입학 상담과 첫 수업에서 문항 뜻과 실제 경험을 다시 확인해 주세요.

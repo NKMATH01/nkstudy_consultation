@@ -391,7 +391,7 @@ ${JSON.stringify(metrics)}
 - 강점: ${interpretation.strengths.join(" / ")}
 - 성장 지원 영역: ${interpretation.growthAreas.join(" / ")}
 - 입학 상담 확인 질문: ${interpretation.verificationPlan14Days.join(" / ")}
-- NK 운영 적합: ${scores.nkFit.stage} (${scores.nkFit.overall ?? "정보 부족"}점)
+- 핵심 판단: 관리를 버틸 수 있는가 ${scores.verdicts?.management.verdict ?? "판정 보류"} / 강하게 vs 다독임 ${scores.verdicts?.guidance.verdict ?? "판정 보류"}
 - 수학 전략: ${interpretation.mathStrategy ?? "미선택 과목"}
 - 영어 전략: ${interpretation.englishStrategy ?? "미선택 과목"}
 - 응답 품질: ${scores.responseQuality.status}

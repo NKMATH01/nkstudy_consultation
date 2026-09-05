@@ -1,39 +1,21 @@
-// 학부모 공유용 V2 결과 보고서. parent-safe snapshot만 렌더한다(화이트 톤·쉬운 우리말).
-// 단일화(방향 변경): 상담자/학부모 보고서를 이 학부모 공유본 하나로 통일한다.
-// 구조: 종합 분석 → 잘 작동하는 힘 → 먼저 도울 지점 → 항목별 분석 → 학습 선호 → 과목 보조 → 상담 제안.
-// 학생 호칭은 "OO 학생"(실명+학생)으로 통일한다. 결정론 문구는 렌더가 이름을 받아 조립하고,
-// AI/fallback 해석 문구는 name-substitution이 "{{학생}}" 토큰·따님/아이 등을 치환한다.
-// parent-safe payload(allowlist)는 그대로 두고 렌더만 선별한다(§12.3, 기존 공유 snapshot 호환).
-// 항목별 특징·지원 해설은 공용 매트릭스(signal-descriptions)를 사용한다(중복 정의 금지, 낙인 표현 금지).
+// 학부모 공유용 V2 결과보고서(3판, v2.3 문항표 기준). parent-safe snapshot만 렌더한다.
+// 짜임(심리검사 보고서형): 표지 → 01 검사 개요·응답 신뢰도 → 02 핵심 판단 두 가지 → 03 프로파일
+//   → 04 질문별 해석 8 → 05 학생이 직접 적은 것 → 06 과목 공부 방식 → 07 종합 소견(MBTI 두 문장 포함)
+//   → 08 NK 지도 방향 → 09 등록 시 12주 운영 계획(안) → 10 학부모님께 여쭙니다 → 꼬리말.
+// 규칙: 유형 이름·MBTI 원인 문장·점수 숫자·문항 문장 인용 금지. 초등학생도 아는 낱말. 소견서 톤("~로 나타났습니다").
+// 설계 원본: docs/prototypes/2026-09-04-parent-report-v3/Main.dc.html
 
-import {
-  toEntranceReportWording,
-  type ParentBehaviorKey,
-  type ParentSafeProfile,
-  type ParentSafeScores,
-} from "@/lib/assessment/v2/parent-safe";
+import type { ParentSafeProfile, StudentAnswersSafe } from "@/lib/assessment/v2/parent-safe";
+import { toEntranceReportWording } from "@/lib/assessment/v2/parent-safe";
 import { studentLabel } from "@/lib/assessment/v2/name-substitution";
-import type { CommonScores, Score } from "@/lib/assessment/v2/types";
-import { CONSTRUCT_LABEL, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
+import type { CommonConstruct, Score } from "@/lib/assessment/v2/types";
+import { GRADE_LABEL, gradeOf, type GradeKey } from "@/lib/assessment/v2/scoring";
+import { C, CONSTRUCT_LABEL, CONSTRUCT_QUESTION, SUBJECT_LABEL, formatDate, isNum, pct } from "./report-theme";
 import { ReportSection } from "./report-frame";
-import { CautionFooter, VerifyLine } from "./report-sections";
-import {
-  SIGNAL_BAND_LABEL,
-  SIGNAL_DESC,
-  SIGNAL_INSUFFICIENT,
-  signalBandOf,
-  signalToneOf,
-  type BandDesc,
-  type SignalBand,
-} from "./signal-descriptions";
+import { ANSWER_LINE, SIGNAL_DESC, SIGNAL_INSUFFICIENT, SUBJECT_SIGNAL_DESC, signalBandOf } from "./signal-descriptions";
 
-function firstSentence(text: string): string {
-  const m = text.split(/(?<=[.!?。])\s+/)[0];
-  return m && m.trim() ? m.trim() : text;
-}
+// ── 문장 헬퍼 ────────────────────────────────────────────────────────────
 
-// detailedSummary(전 영역 상세 총평)를 문단으로 나눈다. AI는 빈 줄로 문단을 구분하지만,
-// 규칙 기반 fallback은 한 덩어리로 오므로 문장 2개씩 묶어 모바일 가독(문단 간격)을 확보한다.
 function splitParagraphs(text: string): string[] {
   const byPara = text
     .split(/\n\s*\n|\n/)
@@ -52,687 +34,621 @@ function splitParagraphs(text: string): string[] {
   return out.slice(0, 8);
 }
 
-// "영역별 한눈에": 전 영역을 종합 분석 안에서 한 번씩 짚는 결정론적 요약(구획당 1문장).
-// 각 구획에서 먼저 도와줄(점수가 낮은) 항목의 state 첫 문장만 뽑아 ④ 항목별 분석과 중복을 최소화한다.
-const DIGEST_INSUFFICIENT = "아직 응답이 부족해 상담에서 함께 확인할 부분이에요.";
-
-function commonState(key: keyof CommonScores, score: Score): string | null {
-  const band = signalBandOf(score);
-  const desc = SIGNAL_DESC[key];
-  return band && desc ? firstSentence(desc[band].state) : null;
-}
-
-type DigestArea = { key: string; label: string; text: string };
-type DigestCand = { state: string | null; score: Score };
-
-// 구획 안에서 점수가 가장 낮은(먼저 도와줄) 항목의 문장 1개만 남긴다.
-function lowestState(cands: DigestCand[]): string {
-  const scored = cands.filter(
-    (c): c is { state: string; score: number } => isNum(c.score) && !!c.state
-  );
-  if (scored.length === 0) return DIGEST_INSUFFICIENT;
-  scored.sort((a, b) => a.score - b.score);
-  return scored[0].state;
-}
-
-function buildAreaDigest(
-  scores: ParentSafeScores,
-): DigestArea[] {
-  const c = scores.common;
-  return [
-    {
-      key: "learning",
-      label: "수업 · 참여와 질문",
-      text: lowestState([
-        { state: commonState("learningAttitude", c.learningAttitude), score: c.learningAttitude },
-        { state: commonState("helpSeeking", c.helpSeeking), score: c.helpSeeking },
-      ]),
-    },
-    {
-      key: "homework",
-      label: "과제 · 숙제와 피드백",
-      text: lowestState([
-        { state: commonState("homeworkReliability", c.homeworkReliability), score: c.homeworkReliability },
-        { state: commonState("feedbackExecution", c.feedbackExecution), score: c.feedbackExecution },
-      ]),
-    },
-    {
-      key: "focus",
-      label: "집중 · 휴대폰 조절",
-      text: lowestState([
-        { state: commonState("phoneBoundary", c.phoneBoundary), score: c.phoneBoundary },
-      ]),
-    },
-    {
-      key: "persistence",
-      label: "꾸준함 · 의지와 회복",
-      text: lowestState([
-        { state: commonState("longTermPersistence", c.longTermPersistence), score: c.longTermPersistence },
-        { state: commonState("shortTermRecovery", c.shortTermRecovery), score: c.shortTermRecovery },
-      ]),
-    },
-  ];
-}
-
-// 규칙 기반(fallback) 강점 문자열은 "라벨: 설명 (점수점)" 꼴 → 앞부분을 소제목으로.
-// AI 생성 자유 문장(콜론 없음)은 통째로 설명으로 렌더한다.
-function splitInsight(text: string): { head: string | null; body: string } {
-  const idx = text.indexOf(":");
-  if (idx > 0 && idx < 24) {
-    return { head: text.slice(0, idx).trim(), body: text.slice(idx + 1).trim() };
-  }
-  return { head: null, body: text };
-}
-
-type LabeledScore = { label: string; score: Score };
-
-// 강점 문장에 등장하는 항목 라벨을 찾아 관련 construct 점수·밴드를 매핑한다(약점 카드와 동일 배지).
-// 매칭이 안 되면(라벨 미언급) 배지를 생략한다.
-function matchStrengthScore(text: string, items: LabeledScore[]): { score: number; band: SignalBand } | null {
-  for (const it of items) {
-    if (isNum(it.score) && text.includes(it.label)) {
-      const band = signalBandOf(it.score);
-      // 낮은 밴드를 "강점" 카드에 배지로 달면 카드와 배지가 서로 모순된다.
-      if (band && band !== "low") return { score: it.score, band };
-    }
-  }
-  return null;
-}
-
-function StrengthCards({ items, scoreItems }: { items: string[]; scoreItems: LabeledScore[] }) {
-  const shown = items.slice(0, 3);
-  return (
-    <div className="insight-cards">
-      {shown.map((t, i) => {
-        const { head, body } = splitInsight(t);
-        const matched = matchStrengthScore(t, scoreItems);
-        return (
-          <article key={i}>
-            <span className="insight-cards__idx">{String(i + 1).padStart(2, "0")}</span>
-            <div>
-              {(head || matched) && (
-                <div className="insight-cards__head">
-                  {head && <strong>{head}</strong>}
-                  {matched && (
-                    <span className="insight-cards__badge">
-                      <span className={`analysis-rows__band b-${matched.band}`}>
-                        {SIGNAL_BAND_LABEL[matched.band]}
-                      </span>
-                    </span>
-                  )}
-                </div>
-              )}
-              <p>{body}</p>
-            </div>
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-// 또래 관련 지표는 합산 축에서 뺀다.
-// "도움 받는 힘"과 "집중 흔들림"이 한 점수로 상쇄돼 뜻이 흐려지기 때문이며,
-// 대신 아래 "친구와 공부" 카드에서 문항 요지 + 학생이 고른 보기로 보여 준다.
-const RADAR_KEYS: (keyof ParentSafeScores["common"])[] = [
+/** 프로파일·질문별 해석에 쓰는 여덟 척도(지도 방식 반응은 02 핵심 판단에서만 다룬다). */
+const PROFILE_KEYS: CommonConstruct[] = [
   "learningAttitude",
   "homeworkReliability",
-  "helpSeeking",
-  "feedbackExecution",
-  "phoneBoundary",
-  "longTermPersistence",
+  "goalClarity",
   "shortTermRecovery",
+  "managementAcceptance",
+  "questionInitiative",
+  "phoneBoundary",
+  "peerFocusBoundary",
 ];
 
-type AnalysisItem = {
-  key: string;
-  label: string;
-  score: Score;
-  desc: Record<SignalBand, BandDesc>;
-  evidence?: { question: string; answerLabel: string }[];
-};
+const GRADE_TONE: Record<GradeKey, "good" | "watch" | "help"> = { good: "good", watch: "watch", help: "help" };
+const GRADE_COLOR: Record<GradeKey, string> = { good: C.teal, watch: C.brass, help: C.coral };
 
-// ④ 항목별 분석: 항목명 + 점수·밴드 배지 + 슬림 막대 + 구간별 3문장 해설.
-function ItemAnalysisRows({ items }: { items: AnalysisItem[] }) {
+function gradeTone(score: Score): "good" | "watch" | "help" | "none" {
+  const g = gradeOf(score);
+  return g ? GRADE_TONE[g] : "none";
+}
+
+/** 판정 문구 → 배지 색. 유형 이름이 아니라 방향(안정/조건부/도움)만 색으로 보인다. */
+function verdictTone(verdict: string | undefined): "good" | "watch" | "help" | "none" {
+  if (verdict === "버틸 수 있음" || verdict === "강하게 밀어도 됨") return "good";
+  if (verdict === "도움이 있으면 버팀" || verdict === "강하게 하되 다독임을 같이") return "watch";
+  if (verdict === "지금은 어려움" || verdict === "차분히 다독이며") return "help";
+  return "none";
+}
+
+// ── 그래프 부품(inline SVG · 숫자 없음) ─────────────────────────────────────
+
+function GradeBadge({ score, big = false }: { score: Score; big?: boolean }) {
+  const g = gradeOf(score);
   return (
-    <div className="analysis-rows">
-      {items.map((it) => {
-        const band = signalBandOf(it.score);
-        const tone = signalToneOf(band);
-        return (
-          <article key={it.label} className={band ? `is-${tone}` : undefined}>
-            <header>
-              <h4>{it.label}</h4>
-              <span className="analysis-rows__badge">
-                <span className={`analysis-rows__band b-${tone}`}>
-                  {band ? SIGNAL_BAND_LABEL[band] : "정보 부족"}
-                </span>
-              </span>
-            </header>
-            {band && (
-              <i>
-                <b style={{ width: `${pct(it.score)}%` }} />
-              </i>
-            )}
-            <p>
-              {band
-                ? `${it.desc[band].state} ${toEntranceReportWording(it.desc[band].help)} 입학 상담에서 학생의 실제 경험을 더 확인합니다.`
-                : SIGNAL_INSUFFICIENT}
-            </p>
-            {it.evidence && it.evidence.length > 0 && (
-              <div className="analysis-rows__evidence">
-                <b>학생 답변 근거</b>
-                <ul>
-                  {it.evidence.map((entry) => (
-                    <li key={`${entry.question}-${entry.answerLabel}`}>
-                      <span>{entry.question}</span>
-                      <strong>{entry.answerLabel}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </article>
-        );
-      })}
-    </div>
+    <span className={`pr3-badge is-${gradeTone(score)}${big ? " is-big" : ""}`}>
+      {g ? GRADE_LABEL[g] : "정보 부족"}
+    </span>
   );
 }
 
-// ③ 약점 카드: 약점 명칭 + 점수 근거 + 실제 나타남 + NK 도움.
-type Weakness = { label: string; score: number; band: SignalBand; manifest: string; help: string };
-
-function WeaknessCards({ items, relative }: { items: Weakness[]; relative: boolean }) {
-  if (items.length === 0) {
-    return (
-      <div className="weakness-cards">
-        <article className="is-none">
-          <p className="weak-manifest">
-            아직 응답만으로 우선 지원 지점을 꼽기는 일러요. 입학 상담에서 구체적인 공부 경험과 과목 테스트 결과를 함께 확인해요.
-          </p>
-        </article>
-      </div>
-    );
-  }
+/** 3구간 띠 위의 마커. 구간 폭 62.5 / 12.5 / 25. */
+function ZoneBar({ score }: { score: Score }) {
+  const g = gradeOf(score);
   return (
-    <div className="weakness-cards">
-      {relative && (
-        <p className="weakness-note">
-          뚜렷한 어려움이 확인된 것은 아니에요. 학생의 다른 응답보다 상대적으로 먼저 살펴볼 부분입니다.
-        </p>
+    <div className="pr3-zone" aria-hidden>
+      <span className="pr3-zone__help" />
+      <span className="pr3-zone__watch" />
+      <span className="pr3-zone__good" />
+      {g && (
+        <i className="pr3-zone__marker" style={{ left: `${pct(score)}%`, background: GRADE_COLOR[g] }} />
       )}
-      {items.map((w) => (
-        <article key={w.label} className={`is-${w.band}`}>
-          <header>
-            <h4>{w.label}</h4>
-            <span className="weakness-cards__badge">
-              <span className={`analysis-rows__band b-${w.band}`}>{SIGNAL_BAND_LABEL[w.band]}</span>
-            </span>
-          </header>
-          <p className="weak-manifest">{w.manifest}</p>
-          <p className="weak-help">
-            <b>등록 시 권장 도움</b> {w.help}
-          </p>
-        </article>
-      ))}
     </div>
   );
 }
 
-// 학부모와 학생에게 입학 상담에서 직접 물어볼 수 있는 기본 질문.
-const ENTRY_CONSULTATION_FALLBACK = [
-  "평소 숙제를 언제 시작하고 무엇 때문에 미루는지",
-  "공부할 때 휴대폰을 어디에 두는지",
-  "문제가 막혔을 때 누구에게 어떻게 도움을 구하는지",
-];
-
-/**
- * 학생 응답에서 먼저 확인할 지점을 입학 상담 질문으로 바꾼다.
- * 내부 확인계획은 parent-safe 금지라 쓰지 않는다.
- */
-function buildEntranceChecks(weaknesses: Weakness[]): string[] {
-  const fromWeak = weaknesses
-    .map((w) => `${w.label}: 언제 가장 어렵고 어떤 도움을 원하는지`);
-  const merged = [...new Set([...fromWeak, ...ENTRY_CONSULTATION_FALLBACK])];
-  return merged.slice(0, 3);
-}
-
-/**
- * "00 한 장 요약"의 정렬 수평 바.
- * 레이더는 축 순서가 고정돼 무엇을 먼저 도와야 할지 읽기 어려웠다.
- * 점수 내림차순 수평 바로 바꾸면 위에서부터 "잘 되는 순"이 그대로 읽힌다.
- */
-function SortedBars({ items }: { items: AnalysisItem[] }) {
-  const sorted = [...items].sort((a, b) => {
-    const av = isNum(a.score) ? (a.score as number) : -1;
-    const bv = isNum(b.score) ? (b.score as number) : -1;
-    return bv - av;
-  });
-
+/** 여덟 축 레이더. 안쪽 원 = 지켜볼 것 경계(62.5), 바깥 원 = 잘 되고 있음 경계(75). */
+function Radar({ axes }: { axes: { label: string; score: Score }[] }) {
+  const cx = 175;
+  const cy = 148;
+  const r = 88;
+  const n = axes.length;
+  const point = (i: number, value: number) => {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    const rr = (r * value) / 100;
+    return [cx + rr * Math.cos(angle), cy + rr * Math.sin(angle)] as const;
+  };
+  const poly = axes
+    .map((a, i) => point(i, isNum(a.score) ? a.score : 0))
+    .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
+    .join(" ");
   return (
-    <div className="glance-bars">
-      {sorted.map((it) => {
-        const band = signalBandOf(it.score);
-        const tone = signalToneOf(band);
+    <svg className="pr3-svg" viewBox="0 0 350 300" role="img" aria-label="여덟 행동의 모양">
+      {[25, 50, 100].map((v) => (
+        <circle key={v} cx={cx} cy={cy} r={(r * v) / 100} fill="none" stroke={C.line} strokeWidth={1} />
+      ))}
+      <circle cx={cx} cy={cy} r={(r * 62.5) / 100} fill="none" stroke={C.brass} strokeWidth={1} strokeDasharray="3 3" />
+      <circle cx={cx} cy={cy} r={(r * 75) / 100} fill="none" stroke={C.teal} strokeWidth={1} strokeDasharray="3 3" />
+      {axes.map((a, i) => {
+        const [x, y] = point(i, 100);
+        return <line key={a.label} x1={cx} y1={cy} x2={x} y2={y} stroke={C.line} strokeWidth={1} />;
+      })}
+      <polygon points={poly} fill="rgba(21,32,51,0.16)" stroke={C.navy} strokeWidth={2} strokeLinejoin="round" />
+      {axes.map((a, i) => {
+        const [x, y] = point(i, isNum(a.score) ? a.score : 0);
+        return <circle key={`p-${a.label}`} cx={x} cy={y} r={3.2} fill={C.navy} />;
+      })}
+      {axes.map((a, i) => {
+        const [x, y] = point(i, 122);
+        const anchor = Math.abs(x - cx) < 8 ? "middle" : x > cx ? "start" : "end";
         return (
-          <div key={it.label} className="glance-bars__row">
-            <span className="glance-bars__label">{it.label}</span>
-            <i className="glance-bars__track">
-              <b className={`b-${tone}`} style={{ width: `${pct(it.score)}%` }} />
-            </i>
-            <span className="glance-bars__meta">
-              <span className={`analysis-rows__band b-${tone}`}>
-                {band ? SIGNAL_BAND_LABEL[band] : "정보 부족"}
-              </span>
-            </span>
-          </div>
+          <text key={`t-${a.label}`} x={x} y={y + 4} textAnchor={anchor} fontSize={10.5} fill={C.sub} fontWeight={700}>
+            {a.label}
+          </text>
         );
       })}
+    </svg>
+  );
+}
+
+/** 지도 방식 사분면. 가로 = 세게 말해도 따라옴(지도 방식 반응), 세로 = 힘들어도 다시 시작(단기 회복력). */
+function GuidanceQuadrant({ x, y }: { x: Score; y: Score }) {
+  const left = 46;
+  const top = 20;
+  const w = 280;
+  const h = 180;
+  const px = (v: number) => left + (w * v) / 100;
+  const py = (v: number) => top + h - (h * v) / 100;
+  const hasPoint = isNum(x) && isNum(y);
+  return (
+    <svg className="pr3-svg" viewBox="0 0 340 236" role="img" aria-label="지도 방식에 대한 반응의 자리">
+      <rect x={left} y={top} width={w} height={h} fill={C.panel} stroke={C.line} />
+      <line x1={px(62.5)} y1={top} x2={px(62.5)} y2={top + h} stroke={C.brass} strokeDasharray="4 3" />
+      <line x1={left} y1={py(62.5)} x2={left + w} y2={py(62.5)} stroke={C.brass} strokeDasharray="4 3" />
+      <text x={left + w - 6} y={top + 14} textAnchor="end" fontSize={9.5} fill={C.sub} fontWeight={700}>세게 해도 되고 다시 시작함</text>
+      <text x={left + 6} y={top + 14} fontSize={9.5} fill={C.sub} fontWeight={700}>다시 시작은 하나 세게 하면 힘듦</text>
+      <text x={left + w - 6} y={top + h - 6} textAnchor="end" fontSize={9.5} fill={C.sub} fontWeight={700}>세게 해도 되나 회복이 느림</text>
+      <text x={left + 6} y={top + h - 6} fontSize={9.5} fill={C.sub} fontWeight={700}>차분히 다독이며 회복도 도움</text>
+      {hasPoint && (
+        <>
+          <circle cx={px(x)} cy={py(y)} r={9} fill="rgba(168,67,61,0.18)" />
+          <circle cx={px(x)} cy={py(y)} r={4.5} fill={C.coral} stroke="#fff" strokeWidth={1.5} />
+        </>
+      )}
+      <text x={left + w / 2} y={top + h + 16} textAnchor="middle" fontSize={10} fill={C.sub}>가로 · 세게 말해도 따라옴 →</text>
+      <text x={14} y={top + h / 2} textAnchor="middle" fontSize={10} fill={C.sub} transform={`rotate(-90 14 ${top + h / 2})`}>세로 · 힘들어도 다시 시작 →</text>
+    </svg>
+  );
+}
+
+/** 빈도 문항 응답 분포 스택 막대. */
+function DistributionBar({ counts, notApplicable, total }: { counts: number[]; notApplicable: number; total: number }) {
+  const labels = ["거의 하지 않았다", "가끔 했다", "절반쯤 했다", "대부분 했다", "할 때마다 했다"];
+  const colors = [C.coral, "#c98a7a", C.brass, "#7fa39a", C.teal];
+  const half = counts[2] ?? 0;
+  return (
+    <div className="pr3-dist">
+      <div className="pr3-dist__bar" aria-hidden>
+        {counts.map((c, i) => (
+          <span key={labels[i]} style={{ flexGrow: c, background: colors[i] }} />
+        ))}
+        {notApplicable > 0 && <span style={{ flexGrow: notApplicable, background: C.line }} />}
+      </div>
+      <ul className="pr3-dist__legend">
+        {counts.map((c, i) => (
+          <li key={labels[i]}>
+            <i style={{ background: colors[i] }} />
+            <span>{labels[i]}</span>
+            <b>{c}</b>
+          </li>
+        ))}
+        {notApplicable > 0 && (
+          <li>
+            <i style={{ background: C.line }} />
+            <span>경험 없음</span>
+            <b>{notApplicable}</b>
+          </li>
+        )}
+      </ul>
+      <p className="pr3-note">
+        {total}문항 가운데 절반쯤 했다가 {half}문항입니다. 이 검사에서 절반은 &lsquo;보통&rsquo;이 아니라 아직 습관이 되지 않은 쪽으로 봅니다.
+      </p>
     </div>
   );
 }
 
-/**
- * "친구와 공부" 카드. 점수·밴드 없이 문항 요지와 학생이 고른 보기만 보여 준다.
- * 응답 원본이 없는(예전에 발급된) 스냅샷에서는 렌더하지 않는다.
- */
-function StudentAnswerCards({
-  items,
-  note,
-}: {
-  items: NonNullable<ParentSafeProfile["peerResponses"]>;
-  note: string;
-}) {
+/** 12주 타임라인(3구간). */
+function Timeline({ phases }: { phases: { weeks: string; goal: string; actions: string[]; check: string; owner: string }[] }) {
   return (
-    <div className="analysis-rows student-answer-cards">
-      {items.map((p, i) => (
-        <article key={i}>
-          <header>
-            <h4>{p.question}</h4>
-            <span className="analysis-rows__badge">
-              <b className="analysis-rows__score">{p.answerLabel}</b>
-            </span>
-          </header>
-        </article>
-      ))}
-      <p className="report-note">{note}</p>
+    <div className="pr3-timeline">
+      <div className="pr3-timeline__strip" aria-hidden>
+        {phases.map((p, i) => (
+          <span key={p.weeks} className={`is-${i}`}>{p.weeks}</span>
+        ))}
+      </div>
+      <div className="pr3-timeline__cards">
+        {phases.map((p, i) => (
+          <article key={p.weeks} className={`is-${i}`}>
+            <b>{p.weeks}</b>
+            <dl>
+              <div><dt>목표</dt><dd>{p.goal}</dd></div>
+              <div><dt>행동</dt><dd>{p.actions.map((a) => <span key={a}>{a}</span>)}</dd></div>
+              <div><dt>확인</dt><dd>{p.check}</dd></div>
+              <div><dt>담당</dt><dd>{p.owner}</dd></div>
+            </dl>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
+
+// ── 결정론 문장(판정) ─────────────────────────────────────────────────────
+
+function managementLine(v: ParentSafeProfile["verdicts"]): { sentence: string; direct: string | null; note: string | null } {
+  const m = v?.management;
+  if (!m) return { sentence: "관리를 버틸 수 있는지는 응답이 부족해 입학 상담에서 확인합니다.", direct: null, note: null };
+  const map: Record<string, string> = {
+    "버틸 수 있음": "남아서 하라고 하면 남고, 힘든 구간에서도 다시 시작한다고 답했습니다. NK의 관리 방식을 그대로 적용해도 됩니다.",
+    "도움이 있으면 버팀": "관리를 받아들이겠다고 답했지만, 결과가 늦게 나오는 구간에서 한 번 멈추는 쪽입니다. 그 구간에서 손을 잡아 주면 버팁니다.",
+    "지금은 어려움": "검사와 지적이 많은 관리를 힘들어하고, 힘든 뒤 다시 시작하는 응답도 낮았습니다. 첫 달은 관리 강도를 조절해 시작합니다.",
+    "판정 보류": "응답이 부족해 판정을 미룹니다. 남아서 하기·매주 시험 경험을 입학 상담에서 직접 확인합니다.",
+  };
+  return { sentence: map[m.verdict] ?? map["판정 보류"], direct: m.directAnswer, note: m.basisNote };
+}
+
+function guidanceLine(v: ParentSafeProfile["verdicts"]): { sentence: string; choice: string | null; confirm: boolean } {
+  const g = v?.guidance;
+  if (!g) return { sentence: "강하게 밀어도 되는지는 응답이 부족해 입학 상담에서 확인합니다.", choice: null, confirm: false };
+  const map: Record<string, string> = {
+    "강하게 밀어도 됨": "세게 지적받으면 더 열심히 하고 기분이 오래 상하지 않는다고 답했습니다. 고칠 점을 바로 짚어 주는 방식이 맞습니다.",
+    "강하게 하되 다독임을 같이": "세게 지적받은 뒤 더 열심히 한 경험이 있지만, 크게 혼나면 그 과목을 피한 적도 있습니다. 바로 짚되 잘한 점을 먼저 말하는 방식이 맞습니다.",
+    "차분히 다독이며": "크게 혼나면 그 과목이 싫어지고 기분이 오래 남는다고 답했습니다. 잘한 점을 먼저 말한 뒤 차분히 고쳐 주는 방식이 맞습니다.",
+    "판정 보류": "응답이 부족해 판정을 미룹니다. 첫 수업에서 세게 짚었을 때의 반응을 직접 확인합니다.",
+  };
+  return { sentence: map[g.verdict] ?? map["판정 보류"], choice: g.choiceText, confirm: g.confirmInCounseling };
+}
+
+const STUDENT_ANSWER_LABEL: Record<keyof StudentAnswersSafe, string> = {
+  problemSelf: "공부할 때 스스로 느끼는 문제점은?",
+  mathDifficulty: "수학에서 가장 어려운 단원·영역",
+  englishDifficulty: "영어에서 가장 어려운 영역",
+  studyCore: "공부의 핵심이 무엇이라고 생각하나요?",
+  entryPriority: "입학 상담에서 가장 도움받고 싶은 점",
+  dream: "하고 싶은 직업 또는 목표",
+  targetUniversity: "목표 대학·계열·전공",
+  requests: "학원에 바라는 점",
+  prevComplaint: "기존 학원에서 아쉬웠던 점",
+};
+const STUDENT_ANSWER_ORDER: (keyof StudentAnswersSafe)[] = [
+  "problemSelf",
+  "mathDifficulty",
+  "englishDifficulty",
+  "studyCore",
+  "entryPriority",
+  "dream",
+  "targetUniversity",
+  "requests",
+  "prevComplaint",
+];
+
+const PARENT_QUESTIONS: { q: string; options?: string[]; blank?: string; blanks?: string[] }[] = [
+  { q: "학생에게 강한 학습(철저한 관리, 많은 숙제)을 원하시나요?", options: ["원한다", "적당히", "부담 없이"] },
+  { q: "이 결과지가 파악한 학생 모습이 학부모님 생각과 같으신가요?", options: ["같다", "대체로 같다", "다르다"], blank: "다른 점:" },
+  { q: "학원에서 연락을 얼마나 자주 받고 싶으신가요?", options: ["매주", "2주에 한 번", "한 달에 한 번", "필요할 때만"] },
+  { q: "공부 문제에서 학생이 원하는 대로 따라가 주시는 편인가요?", options: ["그렇다", "반반이다", "아니다"] },
+  { q: "좋은 대학 진학이 목표인가요?", options: ["그렇다", "아직 정하지 않았다", "다른 목표가 있다"], blank: "다른 목표:" },
+  { q: "이번 시험의 목표 점수는 몇 점인가요?", blanks: ["수학", "영어"] },
+  { q: "학생이 힘들어할 때 학원이 어떻게 해 주길 원하시나요?", options: ["강하게 밀어 주기", "다독여 주기", "학부모와 먼저 상의"] },
+  { q: "학원에 특별히 바라는 점이 있으신가요?", blank: "바라는 점:" },
+];
+
+// ── 본체 ───────────────────────────────────────────────────────────────────
 
 export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const s = data.scores;
-  // 과거에 발급된 snapshot도 입학테스트 문맥으로 표시한다.
   const rawI = data.interpretation;
   const i = {
     ...rawI,
     studentType: toEntranceReportWording(rawI.studentType),
     parentSummary: toEntranceReportWording(rawI.parentSummary),
-    detailedSummary: rawI.detailedSummary
-      ? toEntranceReportWording(rawI.detailedSummary)
-      : undefined,
-    strengths: rawI.strengths.map(toEntranceReportWording),
-    growthAreas: rawI.growthAreas.map(toEntranceReportWording),
-    initialTeachingSuggestion: rawI.initialTeachingSuggestion
-      ? toEntranceReportWording(rawI.initialTeachingSuggestion)
-      : undefined,
-    operationsConsultationNote: rawI.operationsConsultationNote
-      ? toEntranceReportWording(rawI.operationsConsultationNote)
-      : rawI.nkFitInterpretation
-        ? toEntranceReportWording(rawI.nkFitInterpretation)
-        : undefined,
-    mathStrategy: rawI.mathStrategy
-      ? toEntranceReportWording(rawI.mathStrategy)
-      : null,
-    englishStrategy: rawI.englishStrategy
-      ? toEntranceReportWording(rawI.englishStrategy)
-      : null,
+    detailedSummary: rawI.detailedSummary ? toEntranceReportWording(rawI.detailedSummary) : undefined,
+    mathStrategy: rawI.mathStrategy ? toEntranceReportWording(rawI.mathStrategy) : null,
+    englishStrategy: rawI.englishStrategy ? toEntranceReportWording(rawI.englishStrategy) : null,
   };
   const review = s.responseQualityStatus === "review";
   const genDate = formatDate(data.generatedAt);
-
-  const bandMeta = [data.display.schoolGrade, SUBJECT_LABEL[data.subjectSelection], genDate]
-    .filter(Boolean)
-    .join(" · ");
-
-
+  const who = studentLabel(data.display.name);
   const showMath = data.subjectSelection === "math" || data.subjectSelection === "both";
   const showEnglish = data.subjectSelection === "english" || data.subjectSelection === "both";
-  const hasSubjectNote = (showMath && i.mathStrategy) || (showEnglish && i.englishStrategy);
+  const subjectItemNote = [showMath ? "수학 10문항" : null, showEnglish ? "영어 10문항" : null].filter(Boolean).join(" + ");
 
-  // 01 종합 분석 본문: AI 상세 총평(문단 분할) + 전 영역 결정론적 요약.
-  // detailedSummary는 과거 공유 snapshot에 없을 수 있어 optional 처리(없으면 상세 본문 생략).
-  const summaryParas = i.detailedSummary ? splitParagraphs(i.detailedSummary) : [];
-  const areaDigest = buildAreaDigest(s);
+  const profileItems = PROFILE_KEYS.map((k) => ({ key: k, label: CONSTRUCT_LABEL[k], score: s.common[k] }));
+  const management = managementLine(data.verdicts);
+  const guidance = guidanceLine(data.verdicts);
+  const summaryParas = i.detailedSummary ? splitParagraphs(i.detailedSummary) : [i.parentSummary];
+  const answers = data.studentAnswers ?? (data.entryPriority ? { entryPriority: data.entryPriority } : {});
+  const answerEntries = STUDENT_ANSWER_ORDER.filter((k) => answers[k]).map((k) => ({ key: k, label: STUDENT_ANSWER_LABEL[k], value: answers[k] as string }));
+  const tags = data.difficultyTags ?? {};
+  const grade = (k: CommonConstruct) => gradeOf(s.common[k]);
 
-  // 결정론 UI 문구의 학생 호칭(예: "강현찬 학생"). 렌더가 이미 이름을 알고 있어 "OO 학생"으로 쓴다.
-  const who = studentLabel(data.display.name);
+  // 08 NK 지도 방향 — 판정과 등급에서 결정론적으로 만든다.
+  const gv = data.verdicts?.guidance.verdict;
+  const guidanceRows = [
+    {
+      area: "피드백 방식",
+      line: gv === "강하게 밀어도 됨" ? "고칠 점을 바로 짚어 줍니다." : gv === "차분히 다독이며" ? "잘한 점을 먼저 말한 뒤 차분히 고쳐 줍니다." : "바로 짚되 잘한 점을 먼저 말합니다.",
+      why: guidance.sentence,
+    },
+    {
+      area: "과제·계획의 틀",
+      line: grade("goalClarity") === "good" ? "학생이 세운 계획을 그대로 쓰고 한 주 단위로만 점검합니다." : "첫 달은 정해진 틀로 시작하고, 이후 선택권을 넓힙니다.",
+      why: grade("goalClarity") === "good" ? "목표와 이번 주 계획을 스스로 말할 수 있다고 답했습니다." : "이번 주 할 공부를 미리 정하는 답이 낮았습니다. 틀을 먼저 주고 4주 뒤부터 선택지를 늘립니다.",
+    },
+    {
+      area: "질문·오답 처리",
+      line: grade("questionInitiative") === "good" ? "수업 중 바로 묻게 두고, 오답은 학생이 정한 순서로 봅니다." : "강사가 먼저 묻고, 오답은 무엇부터 볼지 순서를 정해 줍니다.",
+      why: grade("questionInitiative") === "good" ? "모르면 바로 손을 들고 묻는다고 답했습니다." : "먼저 묻는 편이 아니라고 답했습니다.",
+    },
+    {
+      area: "결과가 늦을 때",
+      line: grade("shortTermRecovery") === "good" ? "힘든 구간을 따로 잡지 않아도 정규 과제로 갑니다." : "낮은 결과가 나온 직후 이틀 안에 할 일을 잘게 쪼개 줍니다.",
+      why: grade("shortTermRecovery") === "good" ? "낮은 점수 뒤에도 다시 시작한다고 답했습니다." : "낮은 점수를 받으면 다음 공부를 미루는 쪽으로 나타났습니다.",
+    },
+    {
+      area: "학부모 소통",
+      line: data.transitionPlan?.some((t) => t.concern === "성적 변화 체감 부족") ? "작은 변화 지표를 4주마다 공유합니다." : "한 달에 한 번 학습 상황을 공유합니다.",
+      why: data.transitionPlan?.some((t) => t.concern === "성적 변화 체감 부족") ? "이전 학원에서 성적 변화를 체감하지 못한 점을 골랐습니다." : "학부모 질문(10번)의 연락 빈도에 맞춰 조정합니다.",
+    },
+  ];
 
-  // 항목별 분석: 공통 핵심 7신호가 중심이고, 선택 과목은 뒤쪽 보조 정보로만 붙인다.
-  // 00 요약·강점·먼저 도울 지점에는 과목 점수를 섞지 않는다.
-  const glanceItems: AnalysisItem[] = RADAR_KEYS.map((k) => ({
-    key: k,
-    label: CONSTRUCT_LABEL[k],
-    score: s.common[k],
-    desc: SIGNAL_DESC[k],
-    evidence: data.behaviorEvidence?.[k as ParentBehaviorKey],
-  }));
-  const analysisItems: AnalysisItem[] = glanceItems;
-
-  // 약점: 낮은 점수 항목(45 미만)을 결정론적으로 뽑는다. 없으면 최하위 2개(상대적 보완점).
-  const scored = glanceItems.filter((it) => isNum(it.score));
-  const ascending = [...scored].sort((a, b) => (a.score as number) - (b.score as number));
-  const lowOnes = ascending.filter((it) => (it.score as number) < 45).slice(0, 3);
-  const relativeWeak = lowOnes.length === 0;
-  const pickedWeak = relativeWeak ? ascending.slice(0, 2) : lowOnes;
-  // 00 요약 강점 칩 — 라벨만 쓴다(점수 노출 금지, 학부모 패널 합의).
-  const strengthLabels = [...scored]
-    .filter((it) => signalBandOf(it.score) === "high")
-    .sort((a, b) => (b.score as number) - (a.score as number))
-    .slice(0, 2)
-    .map((it) => it.label);
-  const strongestEvidenceItem = [...scored]
-    .sort((a, b) => (b.score as number) - (a.score as number))
-    .find((item) => item.evidence?.length);
-  const supportEvidenceItem = ascending.find(
-    (item) => item.evidence?.length && item.key !== strongestEvidenceItem?.key,
-  );
-  const summaryEvidence: Array<{
-    tone: "strength" | "support";
-    label: string;
-    question: string;
-    answerLabel: string;
-  }> = [];
-  if (strongestEvidenceItem?.evidence?.[0]) {
-    summaryEvidence.push({
-      tone: "strength",
-      label: strongestEvidenceItem.label,
-      ...strongestEvidenceItem.evidence[0],
-    });
-  }
-  if (supportEvidenceItem?.evidence?.[0]) {
-    summaryEvidence.push({
-      tone: "support",
-      label: supportEvidenceItem.label,
-      ...supportEvidenceItem.evidence[0],
-    });
-  }
-
-  // 밴드가 첫 문장을 이미 보여 주므로 01에서는 그 뒤부터 이어 붙인다.
-  const parentSummaryRest = (() => {
-    const lead = firstSentence(i.parentSummary);
-    const rest = i.parentSummary.slice(lead.length).trim();
-    return rest;
-  })();
-
-  const weaknesses: Weakness[] = pickedWeak.map((it) => {
-    const band = signalBandOf(it.score) as SignalBand;
-    const bd = it.desc[band];
-    const manifest =
-      band === "high"
-        ? "이번 응답에서는 비교적 안정적으로 나타났어요. 다만 다른 응답보다 먼저 확인할 부분입니다."
-        : `${bd.state} 입학 상담에서 언제 가장 어려운지 더 확인합니다.`;
-    return { label: it.label, score: it.score as number, band, manifest, help: bd.help };
-  });
+  const phases = [
+    {
+      weeks: "1~4주",
+      goal: grade("shortTermRecovery") === "good" ? "학원의 관리 방식을 그대로 익힙니다." : "결과가 늦게 나오는 구간을 먼저 잡습니다.",
+      actions: [
+        grade("shortTermRecovery") === "good" ? "정규 과제와 주간 확인으로 시작합니다." : "점수가 나온 뒤 이틀 안에 할 일을 잘게 쪼개 전달합니다.",
+        grade("questionInitiative") === "good" ? "수업 중 바로 묻게 둡니다." : "수업 중 담당 강사가 먼저 막힌 곳을 묻습니다.",
+      ],
+      check: "주간 질문 횟수와 숙제 제출 전 확인 체크",
+      owner: "담당 강사",
+    },
+    {
+      weeks: "5~8주",
+      goal: "오답을 무엇부터 볼지 순서를 고정합니다.",
+      actions: ["오답 처리 순서를 정해 매주 같은 순서로 씁니다.", "고친 문제를 다시 확인하는 단계를 숙제 마무리에 넣습니다."],
+      check: "오답 노트 재확인 비율",
+      owner: "담당 강사",
+    },
+    {
+      weeks: "9~12주",
+      goal: "계획을 학생이 세우고 한 주 단위로만 점검합니다.",
+      actions: ["학생이 스스로 주간 계획을 세웁니다.", "작은 변화 지표를 학부모와 공유합니다."],
+      check: "계획 지속 여부와 변화 지표 공유 1회",
+      owner: "상담 담당 · 학부모 공유",
+    },
+  ];
 
   return (
     <>
-      {/* 카톡 전송용 컴팩트 상단 밴드 — 큰 표지 대신 열자마자 요약이 보이게 */}
-      <header className="report-v2-band">
-        <div className="report-v2-band__brand">
-          <span className="report-v2-band__mark">NK</span>
-          <span>NK 입학 학습성향 프로필</span>
+      {/* 표지 */}
+      <header className="pr3-cover" id="sec-cover">
+        <div className="pr3-cover__brand">
+          <span className="pr3-cover__mark">NK</span>
+          <span>입학 학습성향 프로필 · 결과보고서</span>
+          <em>{genDate}</em>
         </div>
-        <h1>
-          {data.display.name} 학생 <em>입학 학습성향 리포트</em>
-        </h1>
-        <div className="report-v2-band__meta">{bandMeta}</div>
-        <div className="report-evidence-strip" aria-label="결과 해석 기준">
-          <span>자료 · 학생 자기보고</span>
-          <span>목적 · 학습성향 상담</span>
-          <span>{review ? "응답 · 추가 확인 필요" : "응답 · 정상 완료"}</span>
-        </div>
-        <p className="report-v2-band__summary">{firstSentence(i.parentSummary)}</p>
+        <h1>{data.display.name} 학생</h1>
+        <p className="pr3-cover__sub">입학 학습성향 결과보고서</p>
+        <dl className="pr3-cover__info">
+          <div><dt>학년</dt><dd>{data.display.schoolGrade || "—"}</dd></div>
+          <div><dt>검사 과목</dt><dd>{SUBJECT_LABEL[data.subjectSelection]}</dd></div>
+          <div><dt>검사 형태</dt><dd>공통 36문항 + {subjectItemNote}</dd></div>
+          <div><dt>응답 방식</dt><dd>본인 자기보고(최근 2주 기준)</dd></div>
+        </dl>
       </header>
 
-      {/* ⓪ 한 장 요약 — 열자마자 "무엇을 먼저 도울지"가 보이게 */}
-      <ReportSection
-        id="sec-glance"
-        index="00"
-        title="한 장 요약"
-        caption="학생 자신의 응답 안에서 비교한 순서입니다. 또래 규준이나 능력 순위가 아닙니다."
-      >
-        <div className="glance">
-          <h3 className="glance__type">{i.studentType}</h3>
-
-          {data.entryPriority && (
-            <div className="glance__priority">
-              <span>학생이 직접 말한 가장 필요한 도움</span>
-              <strong>{data.entryPriority}</strong>
-            </div>
-          )}
-
-          {summaryEvidence.length > 0 && (
-            <div className="glance__evidence-grid" aria-label="학생 답변 한눈에">
-              {summaryEvidence.map((item) => (
-                <article key={`${item.tone}-${item.label}`} className={`is-${item.tone}`}>
-                  <span>
-                    {item.tone === "strength" ? "잘 되는 답변" : "먼저 확인할 답변"} · {item.label}
-                  </span>
-                  <p>{item.question}</p>
-                  <strong>{item.answerLabel}</strong>
-                </article>
-              ))}
-            </div>
-          )}
-
-          <SortedBars items={glanceItems} />
-
-          <div className="glance__tags">
-            {strengthLabels.length > 0 && (
-              <div className="glance__chips">
-                <b>잘 되는 부분</b>
-                {strengthLabels.map((label) => (
-                  <span key={label} className="glance__chip">
-                    {label}
-                  </span>
-                ))}
-              </div>
-            )}
-            {weaknesses.length > 0 && (
-              <p className="glance__todo">
-                먼저 도와줄 부분 {weaknesses.length}가지 — 03에서 자세히
-              </p>
-            )}
-          </div>
-
-          <p className="glance__promise">
-            이 검사의 중심은 성적이 아니라 숙제·집중·끈기·질문·회복 같은 학습성향입니다. 학업 수준과 반은 별도의 과목 입학테스트로 확인합니다.
-          </p>
-        </div>
-      </ReportSection>
-
-      {/* ① 종합 분석 — 자기보고에 근거한 잠정 해석 */}
-      <ReportSection
-        id="sec-summary"
-        index="01"
-        title="종합 분석"
-        caption={`${who}이 직접 쓴 이번 응답으로 지금의 학습 행동 가설을 정리했습니다.`}
-        aside={<b className="section-note">응답 기반 해석</b>}
-      >
-        <div className="executive-statement">
-           <span>이번 응답에서 보인 학습 모습</span>
-          <h3>{i.studentType}</h3>
-          {/* 밴드에 이미 첫 문장이 있어 여기서는 나머지부터 이어 붙인다(같은 문장 반복 방지). */}
-          <p className="executive-statement__lead">{parentSummaryRest || i.parentSummary}</p>
-          {summaryParas.length > 0 && (
-            <details className="executive-statement__detail" open={false}>
-              <summary>자세한 총평 더 보기</summary>
-              {summaryParas.map((p, idx) => (
-                <p key={idx}>{p}</p>
-              ))}
-            </details>
-          )}
-          {areaDigest.length > 0 && (
-            <div className="summary-areas">
-              <b className="summary-areas__title">영역별 한눈에</b>
-              <div className="summary-areas__grid">
-                {areaDigest.map((a) => (
-                  <article key={a.key}>
-                    <span>{a.label}</span>
-                    <p>{a.text}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          )}
-          <ul>
-            <li>막대는 학생 자신의 응답을 환산한 내부 지표이며 규준 점수가 아닙니다.</li>
-            <li>관계·수업 선호와 친구 문항은 좋고 나쁜 점수로 묶지 않고 학생이 고른 답 그대로 봅니다.</li>
-          </ul>
-        </div>
-      </ReportSection>
-
-      {/* ② OO 학생의 강점 */}
-      <ReportSection
-        id="sec-strength"
-        index="02"
-        title={`${who}에게 잘 작동하는 힘`}
-        caption="학생이 이번 설문에서 비교적 잘된다고 답한 부분입니다. 실제 경험은 입학 상담에서 확인합니다."
-      >
-        <StrengthCards items={i.strengths} scoreItems={analysisItems} />
-      </ReportSection>
-
-      {/* ③ 먼저 도울 지점 — 낙인 없이 행동 가설로 */}
-      <ReportSection
-        id="sec-weakness"
-        index="03"
-        title={`${who}을 먼저 도울 지점`}
-        caption="낮은 응답을 결함으로 부르지 않고, 입학 상담에서 먼저 물어볼 내용으로 정리했습니다."
-        aside={<b className="section-note">상담 확인 항목</b>}
-      >
-        <WeaknessCards items={weaknesses} relative={relativeWeak} />
-      </ReportSection>
-
-      {/* ④ 항목별 분석 — 상단 레이더 + 항목별 점수·밴드·3문장 해설 */}
-      <ReportSection
-        id="sec-signals"
-        index="04"
-        title="항목별 분석"
-        caption="일곱 학습행동을 상태와 학생 답변 근거로 함께 확인합니다. 과목 공부 방식은 전체 우선순위에 섞지 않습니다."
-      >
-        {/* 레이더는 00 요약의 정렬 바로 대체했다(축 순서 고정 → 우선순위가 안 읽힘). */}
-        <p className="report-note">
-          막대는 학생의 자기보고를 0~100 범위로 환산한 내부 지표입니다. 규준·백분위·능력 점수가 아니며,
-          낮은 쪽은 혼낼 부분이 아니라 입학 상담에서 먼저 확인할 부분입니다.
+      {/* 01 */}
+      <ReportSection id="sec-overview" index="01" title="검사 개요 및 응답 신뢰도">
+        <p className="pr3-lead">
+          이 검사는 학습 태도·숙제·목표·회복·관리 수용·질문·휴대폰·친구 여덟 갈래의 <b>행동 습관</b>을 학생 본인이 보고한 자료입니다.
         </p>
-        <details className="report-expandable">
-          <summary>학습행동과 답변 근거 {analysisItems.length}개 보기</summary>
-          <ItemAnalysisRows items={analysisItems} />
+        <p className="pr3-sub">성적이나 지능을 재는 검사가 아니고 성격을 나누는 검사도 아니며, 또래와 비교한 등수도 아닙니다.</p>
+        <table className="pr3-table">
+          <thead>
+            <tr><th>응답 신뢰도 지표</th><th>확인 결과</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>추가 확인 신호</b><span>응답 시간·같은 답 반복·서로 반대인 문항의 어긋남을 봅니다.</span></td>
+              <td className={review ? "is-help" : "is-good"}>{review ? "있음" : "없음"}</td>
+            </tr>
+            <tr>
+              <td><b>해석 방식</b><span>{review ? "입학 상담에서 문항 뜻과 실제 경험을 다시 확인한 뒤 해석합니다." : "응답을 그대로 해석해도 됩니다."}</span></td>
+              <td className={review ? "is-watch" : "is-good"}>{review ? "확인 후 해석" : "바로 해석"}</td>
+            </tr>
+          </tbody>
+        </table>
+        {data.responseDistribution && (
+          <>
+            <h3 className="pr3-h3">빈도 문항의 선택지 분포</h3>
+            <DistributionBar {...data.responseDistribution} />
+          </>
+        )}
+      </ReportSection>
 
-          {data.peerResponses && data.peerResponses.length > 0 && (
-            <>
-              <h3 className="report-subhead">친구와 공부</h3>
-              <StudentAnswerCards
-                items={data.peerResponses}
-                note="친구 관계는 점수로 묶지 않고, 문항별로 어떻게 답했는지 그대로 보여 드립니다."
-              />
-            </>
+      {/* 02 */}
+      <ReportSection id="sec-verdict" index="02" title="핵심 판단 두 가지">
+        <article className="pr3-verdict">
+          <span className="pr3-eyebrow">철저한 관리를 버틸 수 있는가</span>
+          <p className="pr3-verdict__q">NK는 철저한 관리로 조금 힘들 수 있는데 버틸 수 있겠니?</p>
+          <b className={`pr3-verdict__badge is-${verdictTone(data.verdicts?.management.verdict)}`}>{data.verdicts?.management.verdict ?? "판정 보류"}</b>
+          <p className="pr3-verdict__body">{management.sentence}</p>
+          {management.direct && (
+            <p className="pr3-verdict__direct"><span>학생에게 직접 물었습니다</span><b>본인 답: &ldquo;{management.direct}&rdquo;</b></p>
           )}
-        </details>
+          {management.note && <p className="pr3-note">{management.note}</p>}
+          <p className="pr3-verdict__basis">
+            <span>이 판단이 나온 곳</span>
+            <b>관리 수용 <GradeBadge score={s.common.managementAcceptance} /></b>
+            <b>단기 회복력 <GradeBadge score={s.common.shortTermRecovery} /></b>
+          </p>
+        </article>
+
+        <article className="pr3-verdict">
+          <span className="pr3-eyebrow">강하게 밀어도 되는가, 다독여야 하는가</span>
+          <p className="pr3-verdict__q">강사가 강하게 해도 버틸 수 있는 아이인가, 차분하게 다독이며 가야 하는 학생인가?</p>
+          <b className={`pr3-verdict__badge is-${verdictTone(data.verdicts?.guidance.verdict)}`}>{data.verdicts?.guidance.verdict ?? "판정 보류"}</b>
+          <p className="pr3-verdict__body">{guidance.sentence}</p>
+          {guidance.choice && (
+            <p className="pr3-verdict__direct"><span>두 선생님 중 고르게 했습니다</span><b>본인 선택: {guidance.choice}</b></p>
+          )}
+          <GuidanceQuadrant x={s.common.coachingResponse} y={s.common.shortTermRecovery} />
+          <p className="pr3-note">
+            점선은 지켜볼 것이 시작되는 경계입니다.{" "}
+            {guidance.confirm ? "본인이 고른 선생님과 응답이 갈려 첫 상담에서 실제 사례를 확인합니다." : "본인 선택과 응답이 같은 방향입니다."}
+          </p>
+        </article>
       </ReportSection>
 
-      {/* ⑤ 학습 선호 — 좋고 나쁜 점수로 만들지 않고 원응답을 먼저 보여 준다. */}
-      <ReportSection
-        id="sec-preference"
-        index="05"
-        title="학습할 때 편한 방식"
-        caption="직접·개별 피드백, 정해진 틀과 선택권처럼 학생이 편하게 배우는 조건을 고른 답 그대로 보여 드립니다."
-      >
-        {data.preferenceResponses && data.preferenceResponses.length > 0 ? (
-          <details className="report-expandable">
-            <summary>학생이 고른 답 {data.preferenceResponses.length}개 보기</summary>
-            <StudentAnswerCards
-              items={data.preferenceResponses}
-              note="이 답은 수업 방식에 대한 상담 질문입니다. 능력 점수나 고정 성격 유형이 아닙니다."
-            />
-          </details>
-        ) : (
-          <p className="report-note">저장된 원응답이 없어 입학 상담에서 직접 확인합니다.</p>
-        )}
-        {data.mbti && (
-          <div className="report-v2-band__mbti">
-            <span className="mbti-pill">{data.mbti.type}</span>
-            <span className="mbti-caption">학생이 적은 비공식 메모 · 점수와 추천에 미반영</span>
+      {/* 03 */}
+      <ReportSection id="sec-profile" index="03" title="프로파일">
+        <h3 className="pr3-h3">여덟 행동의 모양</h3>
+        <Radar axes={profileItems.map((it) => ({ label: it.label, score: it.score }))} />
+        <p className="pr3-note">안쪽 점선 원이 지켜볼 것의 경계, 바깥 점선 원이 잘 되고 있음의 경계입니다. 바깥으로 갈수록 습관이 자리 잡은 쪽입니다.</p>
+        <ul className="pr3-legend" aria-label="등급 범례">
+          <li><i style={{ background: C.coral }} />먼저 도울 것</li>
+          <li><i style={{ background: C.brass }} />지켜볼 것</li>
+          <li><i style={{ background: C.teal }} />잘 되고 있음</li>
+        </ul>
+        <div className="pr3-rows">
+          {profileItems.map((it) => (
+            <div key={it.key} className="pr3-rows__row">
+              <div className="pr3-rows__head"><h4>{it.label}</h4><GradeBadge score={it.score} /></div>
+              <ZoneBar score={it.score} />
+            </div>
+          ))}
+          {(showMath || showEnglish) && <span className="pr3-rows__divider">과목 공부 방식 · 보조</span>}
+          {showMath && s.math && (
+            <div className="pr3-rows__row">
+              <div className="pr3-rows__head"><h4>수학 공부 방식</h4><GradeBadge score={s.math.mathStrategy} /></div>
+              <ZoneBar score={s.math.mathStrategy} />
+            </div>
+          )}
+          {showEnglish && s.english && (
+            <div className="pr3-rows__row">
+              <div className="pr3-rows__head"><h4>영어 공부 방식</h4><GradeBadge score={s.english.englishStrategy} /></div>
+              <ZoneBar score={s.english.englishStrategy} />
+            </div>
+          )}
+        </div>
+        <p className="pr3-note">막대는 학생 본인의 응답을 환산한 내부 지표입니다. 또래 규준·백분위·능력 점수가 아닙니다.</p>
+      </ReportSection>
+
+      {/* 04 */}
+      <ReportSection id="sec-questions" index="04" title="질문별 해석" caption="묻고 싶은 것마다 답을 한 줄로 먼저 적었습니다.">
+        <div className="pr3-qs">
+          {profileItems.map((it, idx) => {
+            const band = signalBandOf(it.score);
+            const g = gradeOf(it.score);
+            const desc = band ? SIGNAL_DESC[it.key][band] : null;
+            const isMgmt = it.key === "managementAcceptance";
+            return (
+              <article key={it.key} className={`pr3-q is-${gradeTone(it.score)}`}>
+                <header>
+                  <span className="pr3-q__num">{idx + 1}</span>
+                  <div>
+                    <h4>{it.label}</h4>
+                    <p className="pr3-q__question">{CONSTRUCT_QUESTION[it.key]}</p>
+                  </div>
+                  <GradeBadge score={it.score} />
+                </header>
+                <p className="pr3-q__answer">{g && band ? ANSWER_LINE[it.key][band] : SIGNAL_INSUFFICIENT}</p>
+                {desc && <p className="pr3-q__state">{desc.state} {desc.example}</p>}
+                {isMgmt && management.direct && (
+                  <p className="pr3-q__direct">본인 답: &ldquo;{management.direct}&rdquo;</p>
+                )}
+                {desc && (
+                  <p className="pr3-q__help"><span>학원에서는</span>{desc.help}</p>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </ReportSection>
+
+      {/* 05 */}
+      <ReportSection id="sec-answers" index="05" title="학생이 직접 적은 것" caption="현재 학습의 어려운 점은 무엇인가?">
+        {(tags.math?.length || tags.english?.length) ? (
+          <div className="pr3-chips-block">
+            {tags.math?.length ? (
+              <div><span className="pr3-eyebrow">수학에서 고른 어려운 점</span><div className="pr3-chips">{tags.math.map((t) => <span key={t}>{t}</span>)}</div></div>
+            ) : null}
+            {tags.english?.length ? (
+              <div><span className="pr3-eyebrow">영어에서 고른 어려운 점</span><div className="pr3-chips">{tags.english.map((t) => <span key={t}>{t}</span>)}</div></div>
+            ) : null}
+            <p className="pr3-note">여덟 개 가운데 최대 세 개까지 고르게 했습니다.</p>
           </div>
+        ) : null}
+        {answerEntries.length > 0 ? (
+          <dl className="pr3-answers">
+            {answerEntries.map((a) => (
+              <div key={a.key}>
+                <dt>{a.label}</dt>
+                <dd>&ldquo;{a.value}&rdquo;</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="pr3-note">학생이 적은 문장이 없습니다.</p>
         )}
+        <p className="pr3-note">학생이 적은 문장을 고치지 않고 그대로 옮겼습니다. 학원 이름은 싣지 않습니다.</p>
       </ReportSection>
 
-      {/* ⑥ 과목별 공부 방식 — 전체 학습성향 뒤에 두는 10문항 보조 정보 */}
-      {hasSubjectNote && (
-        <ReportSection
-          id="sec-subject"
-          index="06"
-          title="과목별 공부 방식"
-          caption="과목별 10문항으로 본 보조 정보입니다. 수학·영어 실력이나 반 배치 점수가 아닙니다."
-        >
-          <div className="subject-notes">
-            {showMath && i.mathStrategy && (
+      {/* 06 */}
+      {(showMath || showEnglish) && (
+        <ReportSection id="sec-subject" index="06" title="과목 공부 방식" caption="과목 실력이 아니라 공부하는 방식에 대한 응답입니다. 실력은 별도의 입학테스트로 봅니다.">
+          <div className="pr3-subjects">
+            {showMath && s.math && (
               <article>
-                <span>수학</span>
-                <p>{i.mathStrategy}</p>
+                <header><h4>수학</h4><GradeBadge score={s.math.mathStrategy} /></header>
+                <ZoneBar score={s.math.mathStrategy} />
+                <p>{i.mathStrategy ?? (signalBandOf(s.math.mathStrategy) ? SUBJECT_SIGNAL_DESC.math[signalBandOf(s.math.mathStrategy)!].state : SIGNAL_INSUFFICIENT)}</p>
               </article>
             )}
-            {showEnglish && i.englishStrategy && (
+            {showEnglish && s.english && (
               <article>
-                <span>영어</span>
-                <p>{i.englishStrategy}</p>
+                <header><h4>영어</h4><GradeBadge score={s.english.englishStrategy} /></header>
+                <ZoneBar score={s.english.englishStrategy} />
+                <p>{i.englishStrategy ?? (signalBandOf(s.english.englishStrategy) ? SUBJECT_SIGNAL_DESC.english[signalBandOf(s.english.englishStrategy)!].state : SIGNAL_INSUFFICIENT)}</p>
               </article>
             )}
           </div>
         </ReportSection>
       )}
 
-      {/* ⑥ 입학 상담 제안 — 초기 수업 방향 + 이전 경험 반영 + 상담 질문 */}
-      <ReportSection
-        id="sec-plan"
-        index="07"
-        title="입학 상담·초기 수업 제안"
-        caption="학생의 응답과 이전 학습환경을 바탕으로 상담에서 함께 결정할 내용입니다. 등록 전 확정 계획은 아닙니다."
-      >
-        <div className="plan-intro">
-          <span>등록한다면 권장할 시작 방식</span>
-          <p>{
-            i.initialTeachingSuggestion ??
-            i.operationsConsultationNote ??
-            "학생이 답한 숙제·집중·질문·피드백 습관을 상담에서 확인한 뒤, 등록 시 시작 방식을 제안합니다."
-          }</p>
+      {/* 07 */}
+      <ReportSection id="sec-summary" index="07" title="종합 소견" caption={`${who}이 직접 쓴 응답을 바탕으로 정리했습니다.`}>
+        <div className="pr3-summary">
+          {summaryParas.map((p, idx) => (
+            <p key={idx}>{p}</p>
+          ))}
+          {data.mbti && (
+            <p className="pr3-summary__mbti">
+              학생이 적은 MBTI는 {data.mbti.type}입니다. 공식 검사가 아니라 점수·등급에 반영하지 않으며, 상담에서 참고만 합니다.
+            </p>
+          )}
         </div>
-        {data.transitionPlan && data.transitionPlan.length > 0 && (
-          <div className="transition-contract">
-            <header>
-              <span>이전 경험 반영</span>
-              <h3>입학 상담에서 합의할 운영 조건</h3>
-              <p>이전 학원명이나 원문은 공유하지 않고, 같은 불편을 줄이기 위해 상담할 조건만 남겼습니다.</p>
-            </header>
-            <div className="transition-contract__grid">
-              {data.transitionPlan.map((item, index) => (
-                <article key={`${item.concern}-${index}`}>
-                  <span>{item.concern}</span>
-                  <h4>{item.title}</h4>
-                  <p>{toEntranceReportWording(item.commitment)}</p>
-                  <small><b>등록 시 적용 후보</b> {toEntranceReportWording(item.check)}</small>
-                </article>
-              ))}
-            </div>
-          </div>
-        )}
-        <VerifyLine items={buildEntranceChecks(weaknesses)} />
       </ReportSection>
 
-      {/* ⑦ 읽는 안내 + 생성일 */}
-      <CautionFooter review={review} />
-      <p className="report-v2-genstamp">생성일 {genDate} · NK EDUCATION</p>
+      {/* 08 */}
+      <ReportSection id="sec-guidance" index="08" title="NK 지도 방향">
+        <p className="pr3-lead pr3-lead--navy">
+          {gv === "강하게 밀어도 됨" ? "틀을 정해 주고 고칠 점을 바로 짚으며" : gv === "차분히 다독이며" ? "잘한 점을 먼저 말하고 차분히 고치며" : "틀을 먼저 주고 바로 짚되 잘한 점을 먼저 말하며"}, 막힌 곳은 강사가 먼저 묻고, 결과가 늦게 나오는 구간을 잡아 주는 방향으로 시작합니다.
+        </p>
+        <table className="pr3-table pr3-table--guidance">
+          <tbody>
+            {guidanceRows.map((r) => (
+              <tr key={r.area}>
+                <th>{r.area}</th>
+                <td><b>{r.line}</b><span>{r.why}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="pr3-note">지도 방향은 등록 후 첫 상담에서 학생·보호자와 확인해 조정합니다.</p>
+      </ReportSection>
+
+      {/* 09 */}
+      <ReportSection id="sec-plan" index="09" title="등록 시 12주 운영 계획(안)">
+        {data.transitionPlan && data.transitionPlan.length > 0 && (
+          <div className="pr3-transition">
+            <span className="pr3-eyebrow">학생이 고른 이전 학원 경험</span>
+            <ul>
+              {data.transitionPlan.map((t, idx) => (
+                <li key={`${t.concern}-${idx}`}><b>{t.concern}</b><span>{t.title}</span></li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Timeline phases={phases} />
+        <p className="pr3-note">등록 후 입학 상담에서 합의해 확정합니다. 학생 일정에 맞춰 조정합니다.</p>
+      </ReportSection>
+
+      {/* 10 */}
+      <ReportSection id="sec-parent" index="10" title="학부모님께 여쭙니다" caption="상담 전에 표시해 주시면 상담이 빨라집니다.">
+        <ol className="pr3-parent">
+          {PARENT_QUESTIONS.map((pq, idx) => (
+            <li key={pq.q}>
+              <span className="pr3-parent__num">{idx + 1}</span>
+              <div>
+                <p>{pq.q}</p>
+                {pq.options && (
+                  <div className="pr3-parent__opts">{pq.options.map((o) => <span key={o}>{o}</span>)}</div>
+                )}
+                {pq.blank && <p className="pr3-parent__blank"><span>{pq.blank}</span><i /></p>}
+                {pq.blanks && (
+                  <div className="pr3-parent__blanks">
+                    {pq.blanks.map((b) => <p key={b}><span>{b}</span><i /><em>점</em></p>)}
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="pr3-note">표시해 주신 답은 입학 상담에서 함께 봅니다.</p>
+      </ReportSection>
+
+      {/* 꼬리말 */}
+      <footer className="report-v2-caution">
+        <strong>이 결과보고서에 대하여</strong>
+        <p>
+          학생 본인의 자기보고 응답을 정리한 것입니다. 성적·지능·성격 유형을 재는 검사가 아닙니다. 또래 규준이 없는 검사이며, 등급은 학원 내부 기준으로 나눈 것입니다. 답한 날의 상태에 따라 달라질 수 있어, 등원 후 4주 시점에 실제 모습과 다시 맞춰 봅니다.
+          {review ? " 응답에 추가 확인 신호가 있어, 입학 상담에서 문항 뜻과 학생의 실제 경험을 다시 확인해야 합니다." : ""}
+        </p>
+      </footer>
+      <p className="report-v2-genstamp">NK EDUCATION · 학습성향 프로필 · 결과보고서 3판 · 생성일 {genDate}</p>
     </>
   );
 }

@@ -44,7 +44,7 @@ src/
   components/
     analyses/             # 분석 상세/목록 클라이언트 컴포넌트
     assessment-v2/        # V2 학생 설문 UI (인테이크 화면, 문항 응답, 진행 클라이언트)
-    analysis-report-v2/   # V2 결과 보고서 (학부모용/상담자용/강사 시트)
+    analysis-report-v2/   # V2 결과 보고서 (학부모용 3판 parent-report.tsx / 강사 시트 teacher-sheet.tsx)
     chat/                 # AI 채팅 비서 UI (챗 클라이언트, 제안 확인 카드)
     common/               # 공통 UI (DateFilter, EmptyState, SearchInput, StatusBadge)
     consultations/        # 상담 상세/목록/폼/텍스트파싱 컴포넌트
@@ -71,7 +71,7 @@ src/
       withdrawal.ts       # 퇴원생 CRUD
       progress.ts         # 진도 현황 조회/갱신
     assessment/v2/        # V2 설문 정의·점수 엔진·해석·직렬화
-      definition.ts       # 문항 정의 (공통 38 + 수학 11 / 영어 12)
+      definition.ts       # 문항 정의 v2.3 (공통 리커트 36 + 직접 질문 2(MA5·CR5) + 수학 10 / 영어 10)
       scoring.ts          # 축·요인 점수 계산 엔진
       interpretation.ts   # 점수 → 해석 텍스트
       serializer.ts       # 응답 JSONB 직렬화/역직렬화
@@ -134,7 +134,7 @@ npm install
 npm run dev          # 개발 서버 (http://localhost:3000)
 npm run build        # 프로덕션 빌드
 npm run lint         # ESLint 검사
-npm test             # 단위 테스트 (vitest run, 현재 533건)
+npm test             # 단위 테스트 (vitest run, 현재 642건)
 npm run test:e2e     # E2E 테스트 (node e2e/run.mjs)
 ```
 
@@ -155,7 +155,7 @@ npm run test:e2e     # E2E 테스트 (node e2e/run.mjs)
 
 ## 공개 페이지
 
-- `/survey` - 학생용 공개 설문 페이지 (인증 불필요, V2 입학 학습성향 프로필: 공통 40문항 + 수학 10 / 영어 10)
+- `/survey` - 학생용 공개 설문 페이지 (인증 불필요, V2.3 입학 학습성향 프로필: 공통 36문항 + 직접 질문 2 + 수학 10 / 영어 10 = 한 과목 48)
 - `/booking` - 상담 예약 페이지 (인증 불필요)
 - `/report/[token]` - 학부모 보고서 (인증 불필요, 토큰 기반)
 - `/feedback/[token]` - 설문 피드백 (인증 불필요, 토큰 기반)

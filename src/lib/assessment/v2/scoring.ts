@@ -1,10 +1,15 @@
 // 결정론적 점수 엔진. 순수 함수만 포함한다.
 // 모든 숫자는 이 모듈에서만 만들며 AI·클라이언트가 점수를 생성하지 않는다.
-// 구현 명세서 §8.1~§8.7 계약을 그대로 구현한다.
+//
+// v2.3(2026-09-04): 공통 아홉 척도 + 핵심 판단 두 가지(관리를 버틸 수 있는가 · 강하게 vs 다독임).
+// 등급 구간은 잘 되고 있음 ≥75 / 지켜볼 것 62.5~75 / 먼저 도울 것 <62.5 — 3점(절반쯤)은 50점이라 '먼저 도울 것'.
+// 판정 규칙: docs/assessment-v2.3-blueprint-2026-09-04.md §4.
 
 import {
   ALL_ITEMS,
+  GUIDANCE_CHOICE_ID,
   INSTRUMENT_REVISION,
+  MANAGEMENT_DIRECT_ID,
   MIN_VALID_RATIO,
   REVERSE_IDS,
   getItemsForSubject,
@@ -13,32 +18,27 @@ import {
   isScenario,
 } from "./definition";
 import type {
-  AxisScore,
   Band,
   CommonScores,
   Construct,
-  CoachingProfile,
   EnglishScores,
-  ForcedChoiceItem,
+  GuidanceVerdict,
+  GuidanceVerdictResult,
   LikertItem,
+  ManagementDirectAnswer,
+  ManagementVerdict,
+  ManagementVerdictResult,
   MathScores,
-  MbtiAxes,
-  MbtiConfidence,
-  MbtiInput,
-  NkFeature,
-  NkFit,
-  NkFitArea,
-  NkFitStage,
   ResponseMap,
   ResponseQuality,
   ResponseQualityReason,
-  ScenarioResponseMap,
   Score,
   ScoreProfile,
   ScoringInput,
   ScoringMeta,
   SituationEvidence,
   SubjectSelection,
+  Verdicts,
 } from "./types";
 
 // ── 기본 수치 헬퍼 ───────────────────────────────────────────────────
@@ -61,6 +61,15 @@ function isNumericResponse(value: unknown): value is number {
   return typeof value === "number" && !Number.isNaN(value);
 }
 
+function isNum(score: Score): score is number {
+  return typeof score === "number";
+}
+
+/** Score를 저장·표시용으로 반올림한다. insufficient는 그대로 둔다. */
+function display(score: Score): Score {
+  return isNum(score) ? round1(score) : score;
+}
+
 // ── composite 계산 ──────────────────────────────────────────────────
 
 // construct → Likert 문항 목록. definition을 단일 원천으로 삼아 그룹화한다.
@@ -75,7 +84,7 @@ const LIKERT_BY_CONSTRUCT = ((): Record<string, LikertItem[]> => {
 
 /**
  * 주어진 문항 집합의 가중 평균을 full precision으로 계산한다.
- * 유효 응답(숫자, unknown 제외)이 전체의 75% 미만이면 "insufficient".
+ * 유효 응답(숫자, unknown·경험 없음 제외)이 전체의 75% 미만이면 "insufficient".
  */
 function rawComposite(items: LikertItem[], responses: ResponseMap): Score {
   let weightedSum = 0;
@@ -84,7 +93,7 @@ function rawComposite(items: LikertItem[], responses: ResponseMap): Score {
 
   for (const item of items) {
     const value = responses[item.id];
-    if (!isNumericResponse(value)) continue; // unknown / 결측 제외
+    if (!isNumericResponse(value)) continue; // unknown / 경험 없음 / 결측 제외
     const normalized = normalizeResponse(value, item.direction === "reverse");
     weightedSum += normalized * item.weight;
     weightTotal += item.weight;
@@ -101,369 +110,179 @@ function scoreByConstruct(construct: Construct, responses: ResponseMap): Score {
   return rawComposite(LIKERT_BY_CONSTRUCT[construct] ?? [], responses);
 }
 
-// construct → 강제선택 문항 목록.
-const FORCED_BY_CONSTRUCT = ((): Record<string, ForcedChoiceItem[]> => {
-  const map: Record<string, ForcedChoiceItem[]> = {};
-  for (const item of ALL_ITEMS) {
-    if (!isForcedChoice(item)) continue;
-    (map[item.construct] ??= []).push(item);
-  }
-  return map;
-})();
-
 /**
- * 강제선택 문항만으로 만드는 점수. 선택지 score(0/100)의 평균이다.
- *
- * 리커트와 달리 MIN_VALID_RATIO를 적용하지 않는다 — 문항이 한두 개뿐이라
- * 하나만 빠져도 남은 값으로 평균을 내면 그 학생의 값이 아니게 된다. 전부 응답해야 산출한다.
+ * 관리 수용 전용 계산. 학원을 처음 다니는 학생은 MA1·MA2(남아서 하기·매주 시험 준비)에
+ * '경험 없음'으로 답하므로, 유효 응답 최소 비율을 적용하지 않고 답한 문항만으로 평균을 낸다.
+ * 답한 문항이 2개 미만이면 insufficient. 답한 문항 수를 함께 돌려 결과지에 "두 문항 기준"을 표시한다.
  */
-function scoreByForcedChoice(
-  construct: Construct,
-  choices: ScenarioResponseMap
-): Score {
-  const items = FORCED_BY_CONSTRUCT[construct] ?? [];
-  if (items.length === 0) return "insufficient";
-
+export function lenientComposite(
+  items: LikertItem[],
+  responses: ResponseMap,
+): { score: Score; answered: number } {
   let sum = 0;
+  let answered = 0;
   for (const item of items) {
-    const answer = choices[item.id];
-    const option = isNumericResponse(answer)
-      ? item.options.find((o) => o.index === answer)
-      : undefined;
-    if (!option) return "insufficient";
-    sum += option.score;
+    const value = responses[item.id];
+    if (!isNumericResponse(value)) continue;
+    sum += normalizeResponse(value, item.direction === "reverse");
+    answered += 1;
   }
-  return clamp(sum / items.length);
+  if (answered < 2) return { score: "insufficient", answered };
+  return { score: clamp(sum / answered), answered };
 }
 
-/**
- * 구 설문 폴백. R2가 리커트였던 시절에 제출된 응답을 강제선택 값으로 옮긴다.
- *
- * 옛 문항은 "혼자 생각할 시간을 가진 뒤 1:1로 질문할 때 더 잘 이해한다"였다.
- * 그렇다(4·5)는 지금의 B(끝난 뒤 따로 물어본다)=100, 아니다(1·2)는 A(바로 질문)=0에 해당한다.
- * 중간(3)은 어느 쪽이라고 말할 근거가 없어 판단하지 않는다 — 모르는 것을 지우지 않는다.
- */
-export function legacyReflectiveScore(responses: ResponseMap): Score {
-  const value = responses.R2;
-  if (!isNumericResponse(value)) return "insufficient";
-  if (value <= 2) return 0;
-  if (value >= 4) return 100;
-  return "insufficient";
-}
+// ── 등급 ────────────────────────────────────────────────────────────
 
-function isNum(score: Score): score is number {
-  return typeof score === "number";
-}
+/** 등급 경계. 잘 되고 있음 ≥ good / 지켜볼 것 ≥ watch / 그 아래 먼저 도울 것. */
+export const GRADE_THRESHOLD = { good: 75, watch: 62.5 } as const;
 
-/** Score를 저장·표시용으로 반올림한다. insufficient는 그대로 둔다. */
-function display(score: Score): Score {
-  return isNum(score) ? round1(score) : score;
-}
+export type GradeKey = "good" | "watch" | "help";
 
-// ── 8.3 학습 성실성 ─────────────────────────────────────────────────
-
-/**
- * conscientiousness = 0.30·LA + 0.45·HR + 0.25·LTP.
- * 세 구성요소 중 하나라도 insufficient면 insufficient이며 재정규화하지 않는다.
- */
-export function deriveConscientiousness(
-  learningAttitude: Score,
-  homeworkReliability: Score,
-  longTermPersistence: Score
-): Score {
-  if (
-    !isNum(learningAttitude) ||
-    !isNum(homeworkReliability) ||
-    !isNum(longTermPersistence)
-  ) {
-    return "insufficient";
-  }
-  return clamp(
-    0.3 * learningAttitude + 0.45 * homeworkReliability + 0.25 * longTermPersistence
-  );
-}
-
-// ── 8.4 지도 방식 분류 ──────────────────────────────────────────────
-
-export function band(score: Score): Band | null {
-  if (!isNum(score)) return null;
-  if (score >= 60) return "high";
-  if (score <= 40) return "low";
-  return "mixed";
-}
-
-/** directFeedbackAcceptance × relationshipSafetyNeed 4분면. */
-export function classifyCoaching(
-  challengeBand: Band | null,
-  safetyBand: Band | null
-): string {
-  if (
-    !challengeBand ||
-    !safetyBand ||
-    challengeBand === "mixed" ||
-    safetyBand === "mixed"
-  ) {
-    return "입학 상담 확인 필요";
-  }
-  if (challengeBand === "high" && safetyBand === "high") return "따뜻한 도전형";
-  if (challengeBand === "high" && safetyBand === "low") return "직접 도전형";
-  if (challengeBand === "low" && safetyBand === "high") return "안전 기반 점진형";
-  return "낮은 압력의 차분한 확인형";
-}
-
-/**
- * autonomyNeed × structureNeed 분류. 명세는 둘 다 high일 때 "구조 속 선택권"만
- * 명시하므로 나머지 조합은 보수적으로 이름 붙였다(보고서에서 문구 조정 가능).
- */
-export function classifyAutonomyStructure(
-  autonomyBand: Band | null,
-  structureBand: Band | null
-): string {
-  if (
-    !autonomyBand ||
-    !structureBand ||
-    autonomyBand === "mixed" ||
-    structureBand === "mixed"
-  ) {
-    return "입학 상담 확인 필요";
-  }
-  if (autonomyBand === "high" && structureBand === "high") return "구조 속 선택권";
-  if (autonomyBand === "high" && structureBand === "low") return "자기 주도 우선형";
-  if (autonomyBand === "low" && structureBand === "high") return "명확한 구조 우선형";
-  return "낮은 압력의 점진 확인형";
-}
-
-/** 8.7.1 설명용 해석 band. 접근·등록 판정에 사용하지 않는다. */
-export function interpretBand(score: Score): string {
-  if (!isNum(score)) return "정보 부족·상담 확인 필요";
-  if (score >= 75) return "이번 응답에서 비교적 안정적으로 나타남";
-  if (score >= 60) return "이번 응답에서 대체로 잘된다고 나타났으나 조건의 영향을 받을 수 있음";
-  if (score >= 40) return "이번 응답에서 상황에 따른 차이가 나타남";
-  return "이번 응답에서는 시작을 돕는 구조가 필요하다고 나타남";
-}
-
-// ── 8.5 / 8.7.4 MBTI 보조축 ─────────────────────────────────────────
-
-/**
- * MBTI 가중치는 전부 0이다 — 지도 선호 축의 최종값은 학생의 설문 응답(raw)만으로 정한다.
- *
- * 예전에는 high 0.08 / medium 0.04로 축을 살짝 밀었는데, 그 결과 화면에 보이는 위치가
- * "학생이 실제로 답한 위치"가 아니게 됐다. MBTI는 학생이 적어 낸 참고 정보일 뿐이므로
- * 위치를 정하지 않고, 결과지에는 비공식 자기메모로만 분리해 표시한다.
- *
- * 타입·저장 구조(AxisScore.raw/delta/final, applied)는 하위호환을 위해 유지한다.
- * 가중치가 0이므로 delta는 항상 0, final === raw, applied === false가 된다.
- */
-export const MBTI_CONFIDENCE_WEIGHT: Record<MbtiConfidence, number> = {
-  high: 0,
-  medium: 0,
-  low: 0,
-  none: 0,
+export const GRADE_LABEL: Record<GradeKey, string> = {
+  good: "잘 되고 있음",
+  watch: "지켜볼 것",
+  help: "먼저 도울 것",
 };
 
-const MBTI_PATTERN = /^[EI][SN][TF][JP]$/;
+export const GRADE_INSUFFICIENT_LABEL = "정보 부족";
 
-export function isValidMbti(type: string | null | undefined): boolean {
-  return typeof type === "string" && MBTI_PATTERN.test(type.toUpperCase());
+export function gradeOf(score: Score): GradeKey | null {
+  if (!isNum(score)) return null;
+  if (score >= GRADE_THRESHOLD.good) return "good";
+  if (score >= GRADE_THRESHOLD.watch) return "watch";
+  return "help";
+}
+
+export function gradeLabelOf(score: Score): string {
+  const grade = gradeOf(score);
+  return grade ? GRADE_LABEL[grade] : GRADE_INSUFFICIENT_LABEL;
+}
+
+/** Band는 등급의 별칭이다(high=good, mixed=watch, low=help). 기존 호출부 호환용. */
+export function band(score: Score): Band | null {
+  const grade = gradeOf(score);
+  if (!grade) return null;
+  return grade === "good" ? "high" : grade === "watch" ? "mixed" : "low";
+}
+
+/** 설명용 해석 문구. 접근·등록 판정에 사용하지 않는다. */
+export function interpretBand(score: Score): string {
+  if (!isNum(score)) return "정보 부족·상담 확인 필요";
+  if (score >= GRADE_THRESHOLD.good) return "이번 응답에서 잘 되고 있다고 나타남";
+  if (score >= GRADE_THRESHOLD.watch) return "이번 응답에서 대체로 되지만 지켜볼 것으로 나타남";
+  return "이번 응답에서 먼저 도울 것으로 나타남";
+}
+
+// ── 핵심 판단 두 가지 ────────────────────────────────────────────────
+
+/** MA5 보기 순서 = 이 배열 순서. */
+export const MANAGEMENT_DIRECT_ANSWERS: readonly ManagementDirectAnswer[] = [
+  "버틸 수 있다",
+  "힘들어도 해 보겠다",
+  "잘 모르겠다",
+  "힘들 것 같다",
+];
+
+function managementBasisNote(answered: number): string | null {
+  if (answered >= 4) return null;
+  if (answered === 3) return "학원 경험이 적어 세 문항 기준입니다";
+  return "학원 경험이 없어 두 문항 기준입니다";
 }
 
 /**
- * 8.5 보조식: finalAxis = clamp(raw + (target - raw) * weight, 0, 100).
- * raw axis 50, target 100 → 높음 54.0 / 보통 52.0 / 낮음·모름 50.0.
+ * ★ 철저한 관리를 버틸 수 있는가 (§4.1).
+ * - 버틸 수 있음: 관리 수용 ≥75 그리고 본인 답이 "버틸 수 있다/힘들어도 해 보겠다" 그리고 단기 회복력 ≥62.5
+ * - 지금은 어려움: 본인 답이 "힘들 것 같다" 이거나 (관리 수용 <62.5 그리고 단기 회복력 <62.5)
+ * - 도움이 있으면 버팀: 그 밖의 전부
+ * - 판정 보류: 점수가 나오지 않았을 때(본인 답이 "힘들 것 같다"면 보류 대신 지금은 어려움)
  */
-export function adjustAxis(
-  raw: number,
-  target: 0 | 100,
-  confidence: MbtiConfidence
-): number {
-  const weight = MBTI_CONFIDENCE_WEIGHT[confidence];
-  return clamp(raw + (target - raw) * weight);
-}
-
-function axisFromRaw(
-  raw: Score,
-  target: 0 | 100 | null,
-  confidence: MbtiConfidence,
-  lowEvidence = false
-): AxisScore {
-  if (!isNum(raw)) {
-    return { raw, delta: null, final: raw, ...(lowEvidence ? { lowEvidence } : {}) };
-  }
-  // 유효 MBTI/확신도가 없으면 target null → delta 0, final = raw.
-  if (target === null || MBTI_CONFIDENCE_WEIGHT[confidence] === 0) {
-    return {
-      raw: round1(raw),
-      delta: 0,
-      final: round1(raw),
-      ...(lowEvidence ? { lowEvidence } : {}),
-    };
-  }
-  const final = adjustAxis(raw, target, confidence);
-  return {
-    raw: round1(raw),
-    delta: round1(final - raw),
-    final: round1(final),
-    ...(lowEvidence ? { lowEvidence } : {}),
-  };
-}
-
-/** 지도 선호 축을 만드는 데 쓰는 구인 점수. 원응답이 아니라 구인 단위로 받는다. */
-interface AxisConstructs {
-  reflectiveProcessingNeed: Score;
-  directFeedbackAcceptance: Score;
-  relationshipSafetyNeed: Score;
-}
-
-function computeMbtiAxes(
-  responses: ResponseMap,
-  constructs: AxisConstructs,
-  mbti: MbtiInput | null | undefined
-): MbtiAxes {
-  const r1 = responses.R1;
-  const r5 = responses.R5;
-  const r6 = responses.R6;
-
-  const norm = (v: unknown) => normalizeResponse(v as number, false);
-
-  // interactionAxis: raw = 100 - 숙고 처리 선호(R2 강제선택).
-  // A(그 자리에서 질문)=0 → 축 100(함께 이야기), B(끝난 뒤 따로)=100 → 축 0(혼자 정리).
-  // R2가 이분 응답이므로 이 축도 0 또는 100이며 중간값이 없다.
-  const reflective = constructs.reflectiveProcessingNeed;
-  const interactionRaw: Score = isNum(reflective)
-    ? clamp(100 - reflective)
-    : "insufficient";
-
-  // conceptAxis: 직접 관찰 문항 없음 → raw=50 + lowEvidence (결측 대체가 아닌 설계값).
-  const conceptRaw: Score = 50;
-
-  // relationalFeedbackAxis: raw = mean(관계 안전 요구, 100 - 직접 피드백 수용).
-  //
-  // R3은 직접 말해 주는 방식에 대한 선호, R4는 관계 안전에 대한 선호다.
-  // 둘 다 단일문항이라 공개 점수나 성격유형으로 쓰지 않고 구형 내부 필드만 유지한다.
-  const relationalRaw: Score =
-    isNum(constructs.relationshipSafetyNeed) && isNum(constructs.directFeedbackAcceptance)
-      ? clamp(
-          (constructs.relationshipSafetyNeed +
-            (100 - constructs.directFeedbackAcceptance)) /
-            2
-        )
-      : "insufficient";
-
-  // flexibilityAxis: raw = mean(100-normalize(R1), normalize(R5), 100-normalize(R6)).
-  const flexibilityRaw: Score =
-    isNumericResponse(r1) && isNumericResponse(r5) && isNumericResponse(r6)
-      ? clamp((100 - norm(r1) + norm(r5) + (100 - norm(r6))) / 3)
-      : "insufficient";
-
-  const valid = isValidMbti(mbti?.type);
-  const type = valid ? mbti!.type.toUpperCase() : "";
-  const confidence: MbtiConfidence = valid ? mbti!.confidence : "none";
-  const applied = valid && MBTI_CONFIDENCE_WEIGHT[confidence] > 0;
-
-  // target: E/N/F/P=100, I/S/T/J=0.
-  const targetFor = (letter: string, high: string): 0 | 100 | null =>
-    !valid ? null : letter === high ? 100 : 0;
-
-  return {
-    interactionAxis: axisFromRaw(interactionRaw, targetFor(type[0], "E"), confidence),
-    conceptAxis: axisFromRaw(conceptRaw, targetFor(type[1], "N"), confidence, true),
-    relationalFeedbackAxis: axisFromRaw(relationalRaw, targetFor(type[2], "F"), confidence),
-    flexibilityAxis: axisFromRaw(flexibilityRaw, targetFor(type[3], "P"), confidence),
-    applied,
-    confidenceWeight: valid ? MBTI_CONFIDENCE_WEIGHT[confidence] : 0,
-  };
-}
-
-// ── 8.6 NK 적합도 ───────────────────────────────────────────────────
-
-function preferenceFrom(value: unknown): number | null {
-  return isNumericResponse(value) ? clamp(normalizeResponse(value, false)) : null;
-}
-
-function blend(a: Score, b: Score): number | null {
-  return isNum(a) && isNum(b) ? clamp(0.5 * a + 0.5 * b) : null;
-}
-
-function buildArea(preference: number | null, readiness: number | null): NkFitArea {
-  const featureFit =
-    preference !== null && readiness !== null
-      ? clamp(0.6 * preference + 0.4 * readiness)
+export function judgeManagement(params: {
+  managementAcceptance: Score;
+  answeredItems: number;
+  shortTermRecovery: Score;
+  directAnswerIndex: number | null | undefined;
+}): ManagementVerdictResult {
+  const idx = params.directAnswerIndex;
+  const directAnswer: ManagementDirectAnswer | null =
+    isNumericResponse(idx) && idx >= 1 && idx <= MANAGEMENT_DIRECT_ANSWERS.length
+      ? MANAGEMENT_DIRECT_ANSWERS[idx - 1]
       : null;
-  const gap =
-    preference !== null && readiness !== null
-      ? Math.abs(preference - readiness)
-      : null;
-  return {
-    preference: preference === null ? null : round1(preference),
-    readiness: readiness === null ? null : round1(readiness),
-    featureFit: featureFit === null ? null : round1(featureFit),
-    gap: gap === null ? null : round1(gap),
-  };
-}
+  const basisNote = params.answeredItems > 0 ? managementBasisNote(params.answeredItems) : null;
 
-function computeNkFit(
-  responses: ResponseMap,
-  common: {
-    learningAttitude: Score;
-    homeworkReliability: Score;
-    shortTermRecovery: Score;
-    directFeedbackAcceptance: Score;
-    structureNeed: Score;
-  },
-  clinicAvailability: NkFitArea["readiness"],
-  priorityFeatures: NkFeature[]
-): NkFit {
-  const areas: Record<NkFeature, NkFitArea> = {
-    clinic: buildArea(preferenceFrom(responses.N1), clinicAvailability),
-    weeklyTest: buildArea(
-      preferenceFrom(responses.N2),
-      blend(common.learningAttitude, common.shortTermRecovery)
-    ),
-    homework: buildArea(
-      preferenceFrom(responses.N3),
-      isNum(common.homeworkReliability) ? round1(common.homeworkReliability) : null
-    ),
-    immediateFeedback: buildArea(
-      preferenceFrom(responses.N4),
-      blend(common.directFeedbackAcceptance, common.structureNeed)
-    ),
-  };
+  let verdict: ManagementVerdict;
+  const ma = params.managementAcceptance;
+  const rc = params.shortTermRecovery;
 
-  const validAreas = (Object.values(areas) as NkFitArea[]).filter(
-    (a) => a.preference !== null && a.readiness !== null && a.featureFit !== null
-  );
-
-  let overall: number | null = null;
-  let stage: NkFitStage;
-
-  if (validAreas.length < 3) {
-    stage = "상담 확인 필요";
+  if (directAnswer === "힘들 것 같다") {
+    verdict = "지금은 어려움";
+  } else if (!isNum(ma) || !isNum(rc)) {
+    verdict = "판정 보류";
+  } else if (
+    ma >= GRADE_THRESHOLD.good &&
+    (directAnswer === "버틸 수 있다" || directAnswer === "힘들어도 해 보겠다") &&
+    rc >= GRADE_THRESHOLD.watch
+  ) {
+    verdict = "버틸 수 있음";
+  } else if (ma < GRADE_THRESHOLD.watch && rc < GRADE_THRESHOLD.watch) {
+    verdict = "지금은 어려움";
   } else {
-    overall = round1(
-      validAreas.reduce((sum, a) => sum + (a.featureFit as number), 0) /
-        validAreas.length
-    );
-    const allReadinessOk = validAreas.every((a) => (a.readiness as number) >= 50);
-    const maxGap = Math.max(...validAreas.map((a) => a.gap as number));
-    if (overall >= 75 && allReadinessOk && maxGap < 20) {
-      stage = "자연스러운 일치";
-    } else if (overall >= 60) {
-      stage = "지원 전제 일치";
-    } else {
-      stage = "조건 조율 필요";
-    }
+    verdict = "도움이 있으면 버팀";
   }
 
-  // 우선 선택한 기능의 featureFit이 60 미만이면 총점과 별개로 상담 질문에 올린다.
-  const priorityConcerns = priorityFeatures.filter((feature) => {
-    const fit = areas[feature].featureFit;
-    return fit !== null && fit < 60;
-  });
+  return { verdict, directAnswer, basisItems: params.answeredItems, basisNote };
+}
 
-  return { areas, overall, stage, priorityConcerns };
+/**
+ * ★ 강하게 밀어도 되는가, 차분히 다독여야 하는가 (§4.2).
+ * 지도 방식 반응 ≥75 강하게 밀어도 됨 / 62.5~75 강하게 하되 다독임을 같이 / <62.5 차분히 다독이며.
+ * CR5 본인 선택이 점수와 반대면 한 단계 가운데로 당기고 상담에서 확인을 붙인다.
+ * 가운데 판정에서 선택이 있으면 그대로 두고 상담에서 확인만 붙인다.
+ */
+export function judgeGuidance(params: {
+  coachingResponse: Score;
+  choiceIndex: number | null | undefined;
+  choiceTexts: { A: string; B: string };
+}): GuidanceVerdictResult {
+  const idx = params.choiceIndex;
+  const choice: "A" | "B" | null = idx === 1 ? "A" : idx === 2 ? "B" : null;
+  const choiceText = choice ? params.choiceTexts[choice] : null;
+  const cr = params.coachingResponse;
+
+  if (!isNum(cr)) {
+    return { verdict: "판정 보류", choice, choiceText, confirmInCounseling: false };
+  }
+
+  let verdict: GuidanceVerdict =
+    cr >= GRADE_THRESHOLD.good
+      ? "강하게 밀어도 됨"
+      : cr >= GRADE_THRESHOLD.watch
+        ? "강하게 하되 다독임을 같이"
+        : "차분히 다독이며";
+  let confirmInCounseling = false;
+
+  if (choice === "A" && cr < GRADE_THRESHOLD.watch) {
+    verdict = "강하게 하되 다독임을 같이";
+    confirmInCounseling = true;
+  } else if (choice === "B" && cr >= GRADE_THRESHOLD.good) {
+    verdict = "강하게 하되 다독임을 같이";
+    confirmInCounseling = true;
+  } else if (verdict === "강하게 하되 다독임을 같이" && choice !== null) {
+    confirmInCounseling = true;
+  }
+
+  return { verdict, choice, choiceText, confirmInCounseling };
 }
 
 // ── 8.7.5 응답 품질 ─────────────────────────────────────────────────
+
+/** 서로 반대 방향을 묻는 문항 쌍(정방향, 역방향). 환산 차이가 크면 확인 신호. */
+const OPPOSITE_PAIRS: Array<[string, string]> = [
+  ["PH1", "PH2"],
+  ["QI1", "QI4"],
+  ["RC3", "RC2"],
+  ["PF2", "PF1"],
+  ["CR1", "CR2"],
+];
 
 function computeResponseQuality(
   responses: ResponseMap,
@@ -515,18 +334,10 @@ function computeResponseQuality(
   }
 
   // opposite_pair_review: positive 환산 pair 절대차가 임계 이상인 쌍이 2개 이상.
-  //
-  // 임계 75는 5점 척도에서 사실상 양 끝(1↔5)만 잡아내, 실제 제출 29건 중 1건(3%)에서만
-  // 걸렸다. 50이면 두 칸 차이부터 잡아 21%가 검토 대상이 된다 — 상담 전에 "이 부분은
-  // 직접 물어보라"고 알려주는 게 목적이므로 놓치는 쪽보다 한 번 더 확인하는 쪽을 택한다.
+  // 임계 50 = 두 칸 차이부터. 상담 전에 "이 부분은 직접 물어보라"고 알려주는 게 목적이다.
   const OPPOSITE_PAIR_GAP = 50;
-  const pairs: Array<[string, string]> = [
-    ["P1", "P2"],
-    ["G2", "G4"],
-    ["B3", "B2"],
-  ];
   let bigGaps = 0;
-  for (const [a, b] of pairs) {
+  for (const [a, b] of OPPOSITE_PAIRS) {
     const va = responses[a];
     const vb = responses[b];
     if (!isNumericResponse(va) || !isNumericResponse(vb)) continue;
@@ -586,7 +397,6 @@ function collectSituations(
 function computeMath(responses: ResponseMap): MathScores {
   return {
     mathStrategy: display(scoreByConstruct("mathStrategy", responses)),
-    mathSelfEfficacy: display(scoreByConstruct("mathSelfEfficacy", responses)),
     mathNoveltyAvoidance: display(scoreByConstruct("mathNoveltyAvoidance", responses)),
     mathTestInterference: display(scoreByConstruct("mathTestInterference", responses)),
   };
@@ -595,7 +405,6 @@ function computeMath(responses: ResponseMap): MathScores {
 function computeEnglish(responses: ResponseMap): EnglishScores {
   return {
     englishStrategy: display(scoreByConstruct("englishStrategy", responses)),
-    englishSelfEfficacy: display(scoreByConstruct("englishSelfEfficacy", responses)),
     englishReadingAvoidance: display(scoreByConstruct("englishReadingAvoidance", responses)),
     englishTestInterference: display(scoreByConstruct("englishTestInterference", responses)),
   };
@@ -604,112 +413,73 @@ function computeEnglish(responses: ResponseMap): EnglishScores {
 // ── 최상위 오케스트레이터 ────────────────────────────────────────────
 
 export function computeScoreProfile(input: ScoringInput): ScoreProfile {
-  const { subjectSelection, responses, mbti } = input;
+  const { subjectSelection, responses } = input;
   const scenarioResponses = input.scenarioResponses ?? {};
 
   // 공통 composite (full precision 원천값 유지).
   const learningAttitude = scoreByConstruct("learningAttitude", responses);
   const homeworkReliability = scoreByConstruct("homeworkReliability", responses);
-  const helpSeeking = scoreByConstruct("helpSeeking", responses);
-  const feedbackExecution = scoreByConstruct("feedbackExecution", responses);
-  const phoneBoundary = scoreByConstruct("phoneBoundary", responses);
-  const longTermPersistence = scoreByConstruct("longTermPersistence", responses);
+  const goalClarity = scoreByConstruct("goalClarity", responses);
   const shortTermRecovery = scoreByConstruct("shortTermRecovery", responses);
-  const peerLearningResource = scoreByConstruct("peerLearningResource", responses);
+  const management = lenientComposite(
+    LIKERT_BY_CONSTRUCT.managementAcceptance ?? [],
+    responses,
+  );
+  const managementAcceptance = management.score;
+  const coachingResponse = scoreByConstruct("coachingResponse", responses);
+  const questionInitiative = scoreByConstruct("questionInitiative", responses);
+  const phoneBoundary = scoreByConstruct("phoneBoundary", responses);
   const peerFocusBoundary = scoreByConstruct("peerFocusBoundary", responses);
-  // 숙고 처리 선호는 R2 강제선택 하나로만 잰다(리커트 문항 없음).
-  // 강제선택 응답이 없으면 R2가 리커트였던 시절의 응답을 옮겨 쓴다(구 설문 재채점).
-  const forcedReflective = scoreByForcedChoice(
-    "reflectiveProcessingNeed",
-    scenarioResponses
-  );
-  const reflectiveProcessingNeed = isNum(forcedReflective)
-    ? forcedReflective
-    : legacyReflectiveScore(responses);
-  const directFeedbackAcceptance = scoreByConstruct("directFeedbackAcceptance", responses);
-  const relationshipSafetyNeed = scoreByConstruct("relationshipSafetyNeed", responses);
-  const autonomyNeed = scoreByConstruct("autonomyNeed", responses);
-  const structureNeed = scoreByConstruct("structureNeed", responses);
-  const conscientiousness = deriveConscientiousness(
-    learningAttitude,
-    homeworkReliability,
-    longTermPersistence
-  );
 
   const common: CommonScores = {
     learningAttitude: display(learningAttitude),
     homeworkReliability: display(homeworkReliability),
-    helpSeeking: display(helpSeeking),
-    feedbackExecution: display(feedbackExecution),
-    phoneBoundary: display(phoneBoundary),
-    longTermPersistence: display(longTermPersistence),
+    goalClarity: display(goalClarity),
     shortTermRecovery: display(shortTermRecovery),
-    peerLearningResource: display(peerLearningResource),
+    managementAcceptance: display(managementAcceptance),
+    coachingResponse: display(coachingResponse),
+    questionInitiative: display(questionInitiative),
+    phoneBoundary: display(phoneBoundary),
     peerFocusBoundary: display(peerFocusBoundary),
-    reflectiveProcessingNeed: display(reflectiveProcessingNeed),
-    directFeedbackAcceptance: display(directFeedbackAcceptance),
-    relationshipSafetyNeed: display(relationshipSafetyNeed),
-    autonomyNeed: display(autonomyNeed),
-    structureNeed: display(structureNeed),
-    conscientiousness: display(conscientiousness),
   };
 
-  const challengeBand = band(directFeedbackAcceptance);
-  const safetyBand = band(relationshipSafetyNeed);
-  const autonomyBand = band(autonomyNeed);
-  const structureBand = band(structureNeed);
-  const coaching: CoachingProfile = {
-    challenge: display(directFeedbackAcceptance),
-    safety: display(relationshipSafetyNeed),
-    challengeBand,
-    safetyBand,
-    coachingType: classifyCoaching(challengeBand, safetyBand),
-    autonomy: display(autonomyNeed),
-    structure: display(structureNeed),
-    autonomyBand,
-    structureBand,
-    autonomyStructureType: classifyAutonomyStructure(autonomyBand, structureBand),
+  // 핵심 판단 두 가지.
+  const guidanceItem = ALL_ITEMS.find(
+    (item) => item.id === GUIDANCE_CHOICE_ID && isForcedChoice(item),
+  );
+  const choiceTexts =
+    guidanceItem && isForcedChoice(guidanceItem)
+      ? { A: guidanceItem.options[0].text, B: guidanceItem.options[1].text }
+      : { A: "", B: "" };
+  const verdicts: Verdicts = {
+    management: judgeManagement({
+      managementAcceptance,
+      answeredItems: management.answered,
+      shortTermRecovery,
+      directAnswerIndex: scenarioResponses[MANAGEMENT_DIRECT_ID],
+    }),
+    guidance: judgeGuidance({
+      coachingResponse,
+      choiceIndex: scenarioResponses[GUIDANCE_CHOICE_ID],
+      choiceTexts,
+    }),
   };
 
   const includeMath = subjectSelection === "math" || subjectSelection === "both";
   const includeEnglish = subjectSelection === "english" || subjectSelection === "both";
-
-  const mbtiAxes = computeMbtiAxes(
-    responses,
-    { reflectiveProcessingNeed, directFeedbackAcceptance, relationshipSafetyNeed },
-    mbti
-  );
-
-  const nkFit = computeNkFit(
-    responses,
-    {
-      learningAttitude,
-      homeworkReliability,
-      shortTermRecovery,
-      directFeedbackAcceptance,
-      structureNeed,
-    },
-    input.clinicAvailability ?? null,
-    input.priorityFeatures ?? []
-  );
 
   // insufficient 목록(응답 품질 정보용).
   const insufficientConstructs: string[] = [];
   const commonEntries: Array<[string, Score]> = [
     ["learningAttitude", learningAttitude],
     ["homeworkReliability", homeworkReliability],
-    ["helpSeeking", helpSeeking],
-    ["feedbackExecution", feedbackExecution],
-    ["phoneBoundary", phoneBoundary],
-    ["longTermPersistence", longTermPersistence],
+    ["goalClarity", goalClarity],
     ["shortTermRecovery", shortTermRecovery],
-    ["peerLearningResource", peerLearningResource],
+    ["managementAcceptance", managementAcceptance],
+    ["coachingResponse", coachingResponse],
+    ["questionInitiative", questionInitiative],
+    ["phoneBoundary", phoneBoundary],
     ["peerFocusBoundary", peerFocusBoundary],
-    ["reflectiveProcessingNeed", reflectiveProcessingNeed],
-    ["directFeedbackAcceptance", directFeedbackAcceptance],
-    ["relationshipSafetyNeed", relationshipSafetyNeed],
-    ["autonomyNeed", autonomyNeed],
-    ["structureNeed", structureNeed],
   ];
   for (const [name, score] of commonEntries) {
     if (!isNum(score)) insufficientConstructs.push(name);
@@ -727,11 +497,9 @@ export function computeScoreProfile(input: ScoringInput): ScoreProfile {
     instrumentRevision: INSTRUMENT_REVISION,
     subjectSelection,
     common,
-    coaching,
     math: includeMath ? computeMath(responses) : null,
     english: includeEnglish ? computeEnglish(responses) : null,
-    mbtiAxes,
-    nkFit,
+    verdicts,
     situations: collectSituations(subjectSelection, scenarioResponses),
     responseQuality,
   };

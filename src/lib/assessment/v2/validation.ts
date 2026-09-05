@@ -8,6 +8,8 @@
 import { z } from "zod";
 import { GRADES } from "@/types";
 import {
+  DIFFICULTY_TAG_MAX,
+  DIFFICULTY_TAG_OPTIONS,
   INSTRUMENT_REVISION,
   RETIRED_ITEM_IDS,
   getItemsForSubject,
@@ -17,7 +19,6 @@ import {
 import type {
   ClinicAvailability,
   MbtiConfidence,
-  NkFeature,
   ScoreProfile,
   ScoringInput,
   SubjectSelection,
@@ -31,6 +32,7 @@ export {
   PREVIOUS_ACADEMY_CONCERN_MAX,
   PREVIOUS_ACADEMY_CONCERN_OPTIONS,
 } from "./transition-plan";
+export { DIFFICULTY_TAG_MAX, DIFFICULTY_TAG_OPTIONS } from "./definition";
 
 // ── 선택지 상수 (UI·서버 공유) ───────────────────────────────────────
 
@@ -54,14 +56,6 @@ export const NK_EXPECTATION_OPTIONS = [
 ] as const;
 
 export const NK_EXPECTATION_MAX = 3;
-
-/** §6.3 기대 항목 → §8.6 NK 운영 영역(featureFit 계산 대상)만 매핑. 나머지는 매핑 없음. */
-const EXPECTATION_TO_FEATURE: Partial<Record<string, NkFeature>> = {
-  "클리닉·보완학습": "clinic",
-  "주간 테스트·재보완": "weeklyTest",
-  "철저한 숙제 관리": "homework",
-  "진도·과제 즉시 확인": "immediateFeedback",
-};
 
 /** §6.4 희망 수업 요일. */
 export const PREFERRED_DAYS_V2 = [
@@ -217,6 +211,15 @@ export const intakeSchema = z.object({
   problem_self: optStr,
   math_difficulty: optStr,
   english_difficulty: optStr,
+  // v2.3 현재 학습의 어려운 점(과목별 다중선택, 최대 3). 점수 없음.
+  math_difficulty_tags: z
+    .array(z.enum(DIFFICULTY_TAG_OPTIONS))
+    .max(DIFFICULTY_TAG_MAX, `최대 ${DIFFICULTY_TAG_MAX}개까지 선택할 수 있습니다`)
+    .default([]),
+  english_difficulty_tags: z
+    .array(z.enum(DIFFICULTY_TAG_OPTIONS))
+    .max(DIFFICULTY_TAG_MAX, `최대 ${DIFFICULTY_TAG_MAX}개까지 선택할 수 있습니다`)
+    .default([]),
   health_note: optStr,
   requests: optStr,
 
@@ -369,16 +372,6 @@ export type V2SubmissionData = z.output<typeof v2SubmissionSchema>;
 
 // ── 파생 helper ──────────────────────────────────────────────────────
 
-/** §6.3 우선 선택 기대 → §8.6 priorityConcerns 대상 NkFeature. 중복 제거. */
-export function expectationsToFeatures(expectations: string[]): NkFeature[] {
-  const out: NkFeature[] = [];
-  for (const exp of expectations) {
-    const feature = EXPECTATION_TO_FEATURE[exp];
-    if (feature && !out.includes(feature)) out.push(feature);
-  }
-  return out;
-}
-
 export function isValidMbtiString(type: string | undefined | null): boolean {
   return typeof type === "string" && MBTI_PATTERN.test(type.trim().toUpperCase());
 }
@@ -397,8 +390,6 @@ export function buildScoringInput(data: V2SubmissionData): ScoringInput {
     mbti: validMbti
       ? { type: intake.mbti, confidence: intake.mbti_confidence }
       : null,
-    clinicAvailability: clinicAvailabilityFromLabel(intake.clinic_condition),
-    priorityFeatures: expectationsToFeatures(intake.nk_expectations),
     meta: {
       activeSeconds: data.meta?.activeSeconds,
       firstSelectDelays: data.meta?.firstSelectDelays,
@@ -458,7 +449,7 @@ export function buildV2InsertPayload(
     intake_v2: {
       subject_selection: intake.subject_selection,
       profile_notice_acknowledged: true,
-      profile_notice_version: "2026-09-01",
+      profile_notice_version: "2026-09-04",
       profile_notice_acknowledged_at: new Date().toISOString(),
       prev_academy: orNull(intake.prev_academy),
       prev_academy_duration: orNull(intake.prev_academy_duration),
@@ -482,6 +473,8 @@ export function buildV2InsertPayload(
       problem_self: orNull(intake.problem_self),
       math_difficulty: orNull(intake.math_difficulty),
       english_difficulty: orNull(intake.english_difficulty),
+      math_difficulty_tags: intake.math_difficulty_tags,
+      english_difficulty_tags: intake.english_difficulty_tags,
       health_note: orNull(intake.health_note),
       requests: orNull(intake.requests),
       mbti: intake.mbti || null,

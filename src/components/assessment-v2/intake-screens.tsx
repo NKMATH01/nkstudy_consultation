@@ -15,6 +15,8 @@ import {
   PREFERRED_DAYS_V2,
   REFERRAL_OPTIONS,
   SUBJECT_OPTIONS,
+  DIFFICULTY_TAG_MAX,
+  DIFFICULTY_TAG_OPTIONS,
 } from "@/lib/assessment/v2/validation";
 
 export interface IntakeState {
@@ -47,6 +49,8 @@ export interface IntakeState {
   problem_self: string;
   math_difficulty: string;
   english_difficulty: string;
+  math_difficulty_tags: string[];
+  english_difficulty_tags: string[];
   health_note: string;
   requests: string;
   mbti: string;
@@ -84,6 +88,8 @@ export function emptyIntake(): IntakeState {
     problem_self: "",
     math_difficulty: "",
     english_difficulty: "",
+    math_difficulty_tags: [],
+    english_difficulty_tags: [],
     health_note: "",
     requests: "",
     mbti: "",
@@ -150,6 +156,8 @@ const SCREEN_FIELDS: Record<number, (keyof IntakeState)[]> = {
     "problem_self",
     "math_difficulty",
     "english_difficulty",
+    "math_difficulty_tags",
+    "english_difficulty_tags",
     "health_note",
     "requests",
   ],
@@ -482,10 +490,16 @@ export function IntakeScreen({ index, state, update }: IntakeProps) {
           <TextField id="v2-target-univ" label="목표 대학·계열·전공" value={state.target_university} onChange={(v) => update({ target_university: v })} placeholder="예: 공대, 의예과" />
         </div>
         {includeMath && (
+          <>
           <TextArea id="v2-math-diff" label="수학에서 가장 어려운 단원·영역" value={state.math_difficulty} onChange={(v) => update({ math_difficulty: v })} placeholder="예: 함수, 도형" />
+          <DifficultyTags label="수학에서 어려운 점 (최대 3개)" selected={state.math_difficulty_tags} onChange={(next) => update({ math_difficulty_tags: next })} />
+          </>
         )}
         {includeEnglish && (
+          <>
           <TextArea id="v2-eng-diff" label="영어에서 가장 어려운 영역" value={state.english_difficulty} onChange={(v) => update({ english_difficulty: v })} placeholder="예: 독해, 문법" />
+          <DifficultyTags label="영어에서 어려운 점 (최대 3개)" selected={state.english_difficulty_tags} onChange={(next) => update({ english_difficulty_tags: next })} />
+          </>
         )}
         <OptionalExtras>
           <TextArea id="v2-study-core" label="공부의 핵심이 무엇이라고 생각하나요?" value={state.study_core} onChange={(v) => update({ study_core: v })} placeholder="예: 꾸준한 복습" />
@@ -654,6 +668,56 @@ function PreviousAcademyConcerns({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** v2.3 현재 학습의 어려운 점(과목별 최대 3개). 점수를 만들지 않고 결과지에 고른 것을 그대로 싣는다. */
+function DifficultyTags({
+  label,
+  selected,
+  onChange,
+}: {
+  label: string;
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const atMax = selected.length >= DIFFICULTY_TAG_MAX;
+  const toggle = (opt: string) => {
+    if (selected.includes(opt)) {
+      onChange(selected.filter((value) => value !== opt));
+      return;
+    }
+    if (!atMax) onChange([...selected, opt]);
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[13px] font-semibold text-foreground">{label}</p>
+      <div className="grid grid-cols-2 gap-2">
+        {DIFFICULTY_TAG_OPTIONS.map((opt) => {
+          const isOn = selected.includes(opt);
+          const disabled = !isOn && atMax;
+          return (
+            <button
+              key={opt}
+              type="button"
+              aria-pressed={isOn}
+              disabled={disabled}
+              onClick={() => toggle(opt)}
+              className={`min-h-[44px] rounded-xl border-2 px-3 py-2 text-left text-[13px] font-medium transition-colors ${
+                isOn
+                  ? "border-primary bg-primary/[0.06] text-primary"
+                  : disabled
+                    ? "cursor-not-allowed border-border bg-muted/40 text-muted-foreground/50"
+                    : "border-border bg-card text-foreground hover:border-primary/40"
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

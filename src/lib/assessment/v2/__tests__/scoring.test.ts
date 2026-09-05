@@ -1,18 +1,23 @@
 import { describe, it, expect } from "vitest";
 import {
   ALL_ITEMS,
+  GUIDANCE_CHOICE_ID,
+  MANAGEMENT_DIRECT_ID,
+  RETIRED_ITEM_IDS,
   REVERSE_IDS,
   getItemsForSubject,
   isLikert,
+  isScenario,
+  isForcedChoice,
 } from "../definition";
 import {
-  adjustAxis,
-  MBTI_CONFIDENCE_WEIGHT,
   band,
-  classifyCoaching,
   computeScoreProfile,
-  deriveConscientiousness,
-  legacyReflectiveScore,
+  gradeLabelOf,
+  gradeOf,
+  judgeGuidance,
+  judgeManagement,
+  lenientComposite,
   normalizeResponse,
 } from "../scoring";
 import type { LikertItem, ResponseMap, ScenarioResponseMap } from "../types";
@@ -35,41 +40,55 @@ function uniformResponses(value: number): ResponseMap {
   return r;
 }
 
-// 상황문항 + 강제선택(R2). 둘 다 선택지 index로 답한다.
+// 직접 질문(MA5 4지선다·CR5 강제선택) + 과목 상황문항. 전부 선택지 index로 답한다.
 const ALL_SCENARIOS: ScenarioResponseMap = {
-  R2: 2,
-  C1: 1,
-  C2: 1,
+  [MANAGEMENT_DIRECT_ID]: 2,
+  [GUIDANCE_CHOICE_ID]: 2,
   MS1: 1,
   MS2: 1,
   ES1: 1,
   ES2: 1,
 };
 
-// ── definition 무결성 ────────────────────────────────────────────────
+const CHOICE_TEXTS = { A: "틀린 것을 바로 세게 짚어 주는 선생님", B: "먼저 잘한 점을 말하고 차분히 고쳐 주는 선생님" };
+
+// ── definition 무결성 (v2.3 문항표) ──────────────────────────────────
 
 describe("definition 무결성", () => {
-  // 학습성향 중심 리비전: 공통 40 + 과목별 공부 방식 10씩.
-  it("문항 수: 공통 40 / 수학 10 / 영어 10", () => {
+  it("문항 수: 공통 리커트 36 + 직접 질문 2 / 수학 10 / 영어 10", () => {
     const common = ALL_ITEMS.filter((i) => i.subject === "common");
-    const math = ALL_ITEMS.filter((i) => i.subject === "math");
-    const english = ALL_ITEMS.filter((i) => i.subject === "english");
-    expect(common).toHaveLength(40);
-    expect(math).toHaveLength(10);
-    expect(english).toHaveLength(10);
+    expect(common.filter(isLikert)).toHaveLength(36);
+    expect(common.filter(isScenario).map((i) => i.id)).toEqual([MANAGEMENT_DIRECT_ID]);
+    expect(common.filter(isForcedChoice).map((i) => i.id)).toEqual([GUIDANCE_CHOICE_ID]);
+    expect(ALL_ITEMS.filter((i) => i.subject === "math")).toHaveLength(10);
+    expect(ALL_ITEMS.filter((i) => i.subject === "english")).toHaveLength(10);
   });
 
-  it("선택 과목에 따라 수학 50 / 영어 50 / 둘 다 60문항을 제공한다", () => {
-    expect(getItemsForSubject("math")).toHaveLength(50);
-    expect(getItemsForSubject("english")).toHaveLength(50);
-    expect(getItemsForSubject("both")).toHaveLength(60);
+  it("선택 과목에 따라 수학 48 / 영어 48 / 둘 다 58문항을 제공한다", () => {
+    expect(getItemsForSubject("math")).toHaveLength(48);
+    expect(getItemsForSubject("english")).toHaveLength(48);
+    expect(getItemsForSubject("both")).toHaveLength(58);
   });
 
-  it("direction=reverse인 문항은 정확히 REVERSE_IDS와 일치한다", () => {
-    const reverse = LIKERT_ITEMS.filter((i) => i.direction === "reverse")
-      .map((i) => i.id)
-      .sort();
-    expect(reverse).toEqual([...REVERSE_IDS].sort());
+  it("척도별 문항 수: 학습 태도4·숙제4·목표4·회복5·관리4·지도 반응4·질문4·휴대폰4·친구3", () => {
+    const count = (c: string) => LIKERT_ITEMS.filter((i) => i.construct === c).length;
+    expect(count("learningAttitude")).toBe(4);
+    expect(count("homeworkReliability")).toBe(4);
+    expect(count("goalClarity")).toBe(4);
+    expect(count("shortTermRecovery")).toBe(5);
+    expect(count("managementAcceptance")).toBe(4);
+    expect(count("coachingResponse")).toBe(4);
+    expect(count("questionInitiative")).toBe(4);
+    expect(count("phoneBoundary")).toBe(4);
+    expect(count("peerFocusBoundary")).toBe(3);
+  });
+
+  it("direction=reverse인 문항은 정확히 REVERSE_IDS와 일치하고 척도당 최대 1개다", () => {
+    const reverse = LIKERT_ITEMS.filter((i) => i.direction === "reverse");
+    expect(reverse.map((i) => i.id).sort()).toEqual([...REVERSE_IDS].sort());
+    const perConstruct = new Map<string, number>();
+    for (const item of reverse) perConstruct.set(item.construct, (perConstruct.get(item.construct) ?? 0) + 1);
+    for (const [construct, n] of perConstruct) expect(n, construct).toBeLessThanOrEqual(1);
   });
 
   it("M6/M10/E7/E10은 역채점하지 않는다(원방향 위험축)", () => {
@@ -79,68 +98,58 @@ describe("definition 무결성", () => {
       expect(REVERSE_IDS.has(id)).toBe(false);
     }
   });
+
+  it("관리 수용 경험 문항(MA1·MA2)은 '지금까지' 기준이고 경험 없음을 허용한다", () => {
+    for (const id of ["MA1", "MA2"]) {
+      const item = LIKERT_ITEMS.find((i) => i.id === id)!;
+      expect(item.recall).toBe("ever");
+      expect(item.allowUnknown).toBe(true);
+    }
+  });
+
+  it("옛 공통 문항 ID는 전부 폐기 목록에 있다(설문 도중 배포 관용)", () => {
+    for (const id of ["LT1", "H1", "Q1", "FB1", "P1", "G1", "B1", "R2", "R3", "F1", "C1", "N1", "M5"]) {
+      expect(RETIRED_ITEM_IDS.has(id), id).toBe(true);
+    }
+    // 새 ID는 폐기 목록에 없다.
+    for (const item of ALL_ITEMS) expect(RETIRED_ITEM_IDS.has(item.id), item.id).toBe(false);
+  });
 });
 
-// ── 8.1 기본 환산 / clamp ────────────────────────────────────────────
+// ── 8.1 기본 환산 ────────────────────────────────────────────────────
 
 describe("정방향/역방향 환산", () => {
   it("정방향 1~5 → 0/25/50/75/100", () => {
-    expect([1, 2, 3, 4, 5].map((v) => normalizeResponse(v, false))).toEqual([
-      0, 25, 50, 75, 100,
-    ]);
+    expect([1, 2, 3, 4, 5].map((v) => normalizeResponse(v, false))).toEqual([0, 25, 50, 75, 100]);
   });
 
   it("역채점 1~5 → 100/75/50/25/0", () => {
-    expect([1, 2, 3, 4, 5].map((v) => normalizeResponse(v, true))).toEqual([
-      100, 75, 50, 25, 0,
-    ]);
-  });
-
-  it("환산값은 0~100 범위를 벗어나지 않는다", () => {
-    for (let v = 1; v <= 5; v++) {
-      const p = normalizeResponse(v, false);
-      const n = normalizeResponse(v, true);
-      expect(p).toBeGreaterThanOrEqual(0);
-      expect(p).toBeLessThanOrEqual(100);
-      expect(n).toBeGreaterThanOrEqual(0);
-      expect(n).toBeLessThanOrEqual(100);
-    }
+    expect([1, 2, 3, 4, 5].map((v) => normalizeResponse(v, true))).toEqual([100, 75, 50, 25, 0]);
   });
 });
 
-// ── 8.7.6 fixture 1, 2 ───────────────────────────────────────────────
+// ── 극단값 fixture ───────────────────────────────────────────────────
 
 describe("고정 fixture — 극단값", () => {
-  it("정방향=5·역문항=1이면 핵심 composite와 conscientiousness가 100.0", () => {
+  it("정방향=5·역문항=1이면 공통 아홉 척도가 전부 100.0", () => {
     const p = computeScoreProfile({
       subjectSelection: "both",
       responses: positiveMaxResponses(),
       scenarioResponses: ALL_SCENARIOS,
     });
-    expect(p.common.learningAttitude).toBe(100.0);
-    expect(p.common.homeworkReliability).toBe(100.0);
-    expect(p.common.helpSeeking).toBe(100.0);
-    expect(p.common.feedbackExecution).toBe(100.0);
-    expect(p.common.phoneBoundary).toBe(100.0);
-    expect(p.common.longTermPersistence).toBe(100.0);
-    expect(p.common.shortTermRecovery).toBe(100.0);
-    expect(p.common.conscientiousness).toBe(100.0);
+    for (const value of Object.values(p.common)) expect(value).toBe(100.0);
   });
 
-  it("모든 Likert=3이면 정·역 모두 50.0이고 conscientiousness도 50.0", () => {
+  it("모든 Likert=3이면 정·역 모두 50.0이고, 3점은 '먼저 도울 것'이다", () => {
     const p = computeScoreProfile({
       subjectSelection: "both",
       responses: uniformResponses(3),
       scenarioResponses: ALL_SCENARIOS,
     });
-    expect(p.common.learningAttitude).toBe(50.0);
-    expect(p.common.homeworkReliability).toBe(50.0);
-    expect(p.common.helpSeeking).toBe(50.0);
-    expect(p.common.feedbackExecution).toBe(50.0);
-    expect(p.common.phoneBoundary).toBe(50.0);
-    expect(p.common.longTermPersistence).toBe(50.0);
-    expect(p.common.shortTermRecovery).toBe(50.0);
-    expect(p.common.conscientiousness).toBe(50.0);
+    for (const value of Object.values(p.common)) {
+      expect(value).toBe(50.0);
+      expect(gradeOf(value)).toBe("help");
+    }
   });
 });
 
@@ -148,601 +157,295 @@ describe("고정 fixture — 극단값", () => {
 
 describe("유효응답 비율과 unknown 처리", () => {
   it("유효응답 75% 미만이면 insufficient (2/4)", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { LT1: 5, LT2: 5 },
-    });
+    const p = computeScoreProfile({ subjectSelection: "math", responses: { LA1: 5, LA2: 5 } });
     expect(p.common.learningAttitude).toBe("insufficient");
   });
 
   it("정확히 75%(3/4)면 점수를 산출한다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { LT1: 5, LT2: 5, LT3: 5 },
-    });
+    const p = computeScoreProfile({ subjectSelection: "math", responses: { LA1: 5, LA2: 5, LA3: 5 } });
     expect(p.common.learningAttitude).toBe(100.0);
   });
 
   it("unknown은 0점이 아니라 계산에서 제외한다", () => {
-    // LT1~3=5(각 100), LT4=unknown → 유효 3/4, 평균 100 (unknown을 0으로 넣으면 75가 됨)
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { LT1: 5, LT2: 5, LT3: 5, LT4: "unknown" },
+      responses: { LA1: 5, LA2: 5, LA3: 5, LA4: "unknown" },
     });
     expect(p.common.learningAttitude).toBe(100.0);
   });
 });
 
-// ── 장기 의지 vs 단기 회복 분리 ──────────────────────────────────────
+// ── 등급 ─────────────────────────────────────────────────────────────
 
-describe("장기 의지와 단기 회복 분리", () => {
-  it("G/B 문항이 서로 다른 composite로 분리된다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {
-        // longTermPersistence 높음
-        G1: 5,
-        G2: 5,
-        G3: 5,
-        G4: 1, // reverse → 100
-        // shortTermRecovery 낮음
-        B1: 1,
-        B2: 5, // reverse → 0
-        B3: 1,
-        B4: 1,
-      },
-    });
-    expect(p.common.longTermPersistence).toBe(100.0);
-    expect(p.common.shortTermRecovery).toBe(0.0);
-  });
-});
-
-// ── 8.3 성실성 파생식 ───────────────────────────────────────────────
-
-describe("학습 성실성 파생식", () => {
-  it("conscientiousness = 0.30·LA + 0.45·HR + 0.25·LTP", () => {
-    expect(deriveConscientiousness(100, 0, 50)).toBe(42.5);
-    expect(deriveConscientiousness(80, 60, 40)).toBe(0.3 * 80 + 0.45 * 60 + 0.25 * 40);
+describe("등급: 잘 되고 있음 ≥75 / 지켜볼 것 ≥62.5 / 먼저 도울 것", () => {
+  it("경계값", () => {
+    expect(gradeOf(100)).toBe("good");
+    expect(gradeOf(75)).toBe("good");
+    expect(gradeOf(74.9)).toBe("watch");
+    expect(gradeOf(62.5)).toBe("watch");
+    expect(gradeOf(62.4)).toBe("help");
+    expect(gradeOf(50)).toBe("help");
+    expect(gradeOf("insufficient")).toBeNull();
   });
 
-  it("구성요소가 하나라도 insufficient면 insufficient (재정규화 없음)", () => {
-    expect(deriveConscientiousness(100, "insufficient", 50)).toBe("insufficient");
-    expect(deriveConscientiousness("insufficient", 50, 50)).toBe("insufficient");
-  });
-
-  it("HR이 insufficient면 프로필의 conscientiousness도 insufficient", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {
-        LT1: 5, LT2: 5, LT3: 5, LT4: 1,
-        H1: 5, H2: 5, // 2/4 → insufficient
-        G1: 5, G2: 5, G3: 5, G4: 1,
-      },
-    });
-    expect(p.common.conscientiousness).toBe("insufficient");
-  });
-});
-
-// ── 8.4 지도 유형 4분면 ─────────────────────────────────────────────
-
-describe("지도 유형 4분면", () => {
-  it("band: high>=60, low<=40, 사이는 mixed", () => {
-    expect(band(60)).toBe("high");
-    expect(band(40)).toBe("low");
-    expect(band(50)).toBe("mixed");
+  it("band는 등급의 별칭이다", () => {
+    expect(band(80)).toBe("high");
+    expect(band(70)).toBe("mixed");
+    expect(band(50)).toBe("low");
     expect(band("insufficient")).toBeNull();
   });
 
-  it("4분면 이름 매핑", () => {
-    expect(classifyCoaching("high", "high")).toBe("따뜻한 도전형");
-    expect(classifyCoaching("high", "low")).toBe("직접 도전형");
-    expect(classifyCoaching("low", "high")).toBe("안전 기반 점진형");
-    expect(classifyCoaching("low", "low")).toBe("낮은 압력의 차분한 확인형");
+  it("등급 라벨", () => {
+    expect(gradeLabelOf(80)).toBe("잘 되고 있음");
+    expect(gradeLabelOf(70)).toBe("지켜볼 것");
+    expect(gradeLabelOf(50)).toBe("먼저 도울 것");
+    expect(gradeLabelOf("insufficient")).toBe("정보 부족");
+  });
+});
+
+// ── 관리 수용 예외 규칙 ──────────────────────────────────────────────
+
+describe("관리 수용 — 학원 경험이 없는 학생", () => {
+  const MA_ITEMS = LIKERT_ITEMS.filter((i) => i.construct === "managementAcceptance");
+
+  it("MA1·MA2가 경험 없음이면 남은 두 문항으로 평균을 낸다", () => {
+    const { score, answered } = lenientComposite(MA_ITEMS, {
+      MA1: "not_applicable",
+      MA2: "not_applicable",
+      MA3: 5,
+      MA4: 1, // 역 → 100
+    });
+    expect(score).toBe(100);
+    expect(answered).toBe(2);
   });
 
-  it("한 축이라도 mixed면 입학 상담 확인 필요", () => {
-    expect(classifyCoaching("mixed", "high")).toBe("입학 상담 확인 필요");
-    expect(classifyCoaching("high", "mixed")).toBe("입학 상담 확인 필요");
-    expect(classifyCoaching(null, "high")).toBe("입학 상담 확인 필요");
+  it("답한 문항이 하나뿐이면 insufficient", () => {
+    const { score, answered } = lenientComposite(MA_ITEMS, { MA3: 5 });
+    expect(score).toBe("insufficient");
+    expect(answered).toBe(1);
   });
 
-  it("프로필에서 직접 피드백 선호 R3와 관계 선호 R4로 구형 coachingType을 결정한다", () => {
+  it("프로필에 두 문항 기준 안내가 붙는다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { R3: 5, R4: 5 },
-    });
-    expect(p.coaching.coachingType).toBe("따뜻한 도전형");
-  });
-});
-
-// ── MBTI 가중 폐기: 지도 선호 축은 학생 설문 응답(raw)만으로 정한다 ────
-// [스펙 변경] 예전에는 확신도에 따라 축을 4~8% 밀었다. 그러면 화면에 보이는 위치가
-// "학생이 실제로 답한 위치"가 아니게 돼, MBTI가 위치를 정하지 않도록 가중치를 0으로 고정했다.
-// 아래 테스트는 기능 유지가 아니라 "MBTI가 축을 움직이지 않음"을 지킨다.
-
-describe("MBTI 보조축 가중 폐기", () => {
-  it("어떤 확신도에서도 raw를 움직이지 않는다", () => {
-    for (const conf of ["high", "medium", "low", "none"] as const) {
-      expect(adjustAxis(50, 100, conf), `${conf}/target100`).toBe(50.0);
-      expect(adjustAxis(50, 0, conf), `${conf}/target0`).toBe(50.0);
-    }
-  });
-
-  it("모든 확신도 가중치가 0이다", () => {
-    for (const conf of ["high", "medium", "low", "none"] as const) {
-      expect(MBTI_CONFIDENCE_WEIGHT[conf], conf).toBe(0);
-    }
-  });
-
-  it("clamp 경계에서도 raw 그대로", () => {
-    expect(adjustAxis(100, 100, "high")).toBe(100.0);
-    expect(adjustAxis(0, 0, "high")).toBe(0.0);
-  });
-});
-
-// ── MBTI가 핵심 행동점수에 영향을 주지 않음 (fixture 3) ───────────────
-
-describe("MBTI는 핵심 행동점수에 무영향", () => {
-  it("행동 응답이 같으면 MBTI만 바꿔도 core/과목/NK readiness가 동일", () => {
-    const responses = positiveMaxResponses();
-    const base = {
-      subjectSelection: "both" as const,
-      responses,
+      responses: { ...positiveMaxResponses(), MA1: "not_applicable", MA2: "not_applicable" },
       scenarioResponses: ALL_SCENARIOS,
-      clinicAvailability: 100 as const,
-    };
-    const none = computeScoreProfile({ ...base, mbti: null });
-    const enfp = computeScoreProfile({
-      ...base,
-      mbti: { type: "ENFP", confidence: "high" },
     });
-    const istj = computeScoreProfile({
-      ...base,
-      mbti: { type: "ISTJ", confidence: "high" },
-    });
+    expect(p.common.managementAcceptance).toBe(100);
+    expect(p.verdicts?.management.basisItems).toBe(2);
+    expect(p.verdicts?.management.basisNote).toContain("두 문항");
+  });
+});
 
-    expect(enfp.common).toEqual(none.common);
-    expect(istj.common).toEqual(none.common);
-    expect(enfp.coaching).toEqual(none.coaching);
-    expect(enfp.math).toEqual(none.math);
-    expect(enfp.english).toEqual(none.english);
-    for (const key of ["clinic", "weeklyTest", "homework", "immediateFeedback"] as const) {
-      expect(enfp.nkFit.areas[key].readiness).toBe(none.nkFit.areas[key].readiness);
-      expect(istj.nkFit.areas[key].readiness).toBe(none.nkFit.areas[key].readiness);
-    }
+// ── ★ 판정 1: 철저한 관리를 버틸 수 있는가 ──────────────────────────
 
-    // MBTI는 축도 움직이지 않는다(가중 폐기) — applied는 항상 false.
-    expect(enfp.mbtiAxes.applied).toBe(false);
-    expect(none.mbtiAxes.applied).toBe(false);
-    expect(enfp.mbtiAxes.interactionAxis.final).toBe(enfp.mbtiAxes.interactionAxis.raw);
-    expect(enfp.mbtiAxes.interactionAxis.delta).toBe(0);
+describe("판정 — 관리를 버틸 수 있는가", () => {
+  const base = { answeredItems: 4 };
+
+  it("관리 수용 ≥75, 본인 답 허용, 회복 ≥62.5 → 버틸 수 있음", () => {
+    const v = judgeManagement({ ...base, managementAcceptance: 80, shortTermRecovery: 70, directAnswerIndex: 1 });
+    expect(v.verdict).toBe("버틸 수 있음");
+    expect(v.directAnswer).toBe("버틸 수 있다");
+    const v2 = judgeManagement({ ...base, managementAcceptance: 80, shortTermRecovery: 70, directAnswerIndex: 2 });
+    expect(v2.verdict).toBe("버틸 수 있음");
   });
 
-  it("conceptAxis는 lowEvidence로 표시된다", () => {
+  it("본인이 '힘들 것 같다'고 답하면 점수와 무관하게 지금은 어려움", () => {
+    const v = judgeManagement({ ...base, managementAcceptance: 100, shortTermRecovery: 100, directAnswerIndex: 4 });
+    expect(v.verdict).toBe("지금은 어려움");
+  });
+
+  it("관리 수용 <62.5 그리고 회복 <62.5 → 지금은 어려움", () => {
+    const v = judgeManagement({ ...base, managementAcceptance: 50, shortTermRecovery: 50, directAnswerIndex: 2 });
+    expect(v.verdict).toBe("지금은 어려움");
+  });
+
+  it("그 밖은 도움이 있으면 버팀(본인 답 없음·잘 모르겠다 포함)", () => {
+    expect(judgeManagement({ ...base, managementAcceptance: 100, shortTermRecovery: 100, directAnswerIndex: null }).verdict).toBe("도움이 있으면 버팀");
+    expect(judgeManagement({ ...base, managementAcceptance: 80, shortTermRecovery: 70, directAnswerIndex: 3 }).verdict).toBe("도움이 있으면 버팀");
+    expect(judgeManagement({ ...base, managementAcceptance: 69, shortTermRecovery: 55, directAnswerIndex: 2 }).verdict).toBe("도움이 있으면 버팀");
+  });
+
+  it("점수가 없으면 판정 보류", () => {
+    const v = judgeManagement({ ...base, managementAcceptance: "insufficient", shortTermRecovery: 70, directAnswerIndex: 2 });
+    expect(v.verdict).toBe("판정 보류");
+  });
+
+  it("basisNote는 4문항 미만일 때만 붙는다", () => {
+    expect(judgeManagement({ answeredItems: 4, managementAcceptance: 80, shortTermRecovery: 80, directAnswerIndex: 1 }).basisNote).toBeNull();
+    expect(judgeManagement({ answeredItems: 3, managementAcceptance: 80, shortTermRecovery: 80, directAnswerIndex: 1 }).basisNote).toContain("세 문항");
+    expect(judgeManagement({ answeredItems: 2, managementAcceptance: 80, shortTermRecovery: 80, directAnswerIndex: 1 }).basisNote).toContain("두 문항");
+  });
+});
+
+// ── ★ 판정 2: 강하게 밀어도 되는가, 다독여야 하는가 ─────────────────
+
+describe("판정 — 강하게 vs 다독임", () => {
+  it("점수 구간 그대로: ≥75 강하게 / 62.5~75 가운데 / <62.5 다독임", () => {
+    expect(judgeGuidance({ coachingResponse: 80, choiceIndex: 1, choiceTexts: CHOICE_TEXTS }).verdict).toBe("강하게 밀어도 됨");
+    expect(judgeGuidance({ coachingResponse: 69, choiceIndex: null, choiceTexts: CHOICE_TEXTS }).verdict).toBe("강하게 하되 다독임을 같이");
+    expect(judgeGuidance({ coachingResponse: 50, choiceIndex: 2, choiceTexts: CHOICE_TEXTS }).verdict).toBe("차분히 다독이며");
+  });
+
+  it("본인 선택이 점수와 반대면 한 단계 가운데로 당기고 상담에서 확인한다", () => {
+    const a = judgeGuidance({ coachingResponse: 50, choiceIndex: 1, choiceTexts: CHOICE_TEXTS });
+    expect(a.verdict).toBe("강하게 하되 다독임을 같이");
+    expect(a.confirmInCounseling).toBe(true);
+    const b = judgeGuidance({ coachingResponse: 80, choiceIndex: 2, choiceTexts: CHOICE_TEXTS });
+    expect(b.verdict).toBe("강하게 하되 다독임을 같이");
+    expect(b.confirmInCounseling).toBe(true);
+  });
+
+  it("같은 방향이면 확인 표시를 붙이지 않는다", () => {
+    expect(judgeGuidance({ coachingResponse: 80, choiceIndex: 1, choiceTexts: CHOICE_TEXTS }).confirmInCounseling).toBe(false);
+    expect(judgeGuidance({ coachingResponse: 50, choiceIndex: 2, choiceTexts: CHOICE_TEXTS }).confirmInCounseling).toBe(false);
+  });
+
+  it("가운데 판정에 선택이 있으면 확인만 붙인다", () => {
+    const v = judgeGuidance({ coachingResponse: 69, choiceIndex: 2, choiceTexts: CHOICE_TEXTS });
+    expect(v.verdict).toBe("강하게 하되 다독임을 같이");
+    expect(v.confirmInCounseling).toBe(true);
+    expect(v.choice).toBe("B");
+    expect(v.choiceText).toContain("차분히");
+  });
+
+  it("점수가 없으면 판정 보류", () => {
+    expect(judgeGuidance({ coachingResponse: "insufficient", choiceIndex: 1, choiceTexts: CHOICE_TEXTS }).verdict).toBe("판정 보류");
+  });
+});
+
+describe("computeScoreProfile — 판정 통합", () => {
+  it("전부 최고 응답 + 버틸 수 있다 + 세게 짚어 주는 선생님 → 두 판정 모두 최고", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
       responses: positiveMaxResponses(),
-      mbti: { type: "ENFP", confidence: "high" },
+      scenarioResponses: { [MANAGEMENT_DIRECT_ID]: 1, [GUIDANCE_CHOICE_ID]: 1, MS1: 1, MS2: 1 },
     });
-    expect(p.mbtiAxes.conceptAxis.lowEvidence).toBe(true);
-    expect(p.mbtiAxes.conceptAxis.raw).toBe(50.0);
+    expect(p.verdicts?.management.verdict).toBe("버틸 수 있음");
+    expect(p.verdicts?.management.directAnswer).toBe("버틸 수 있다");
+    expect(p.verdicts?.guidance.verdict).toBe("강하게 밀어도 됨");
+    expect(p.verdicts?.guidance.choice).toBe("A");
   });
 
-  it("원천 문항이 결측이면 해당 축은 insufficient (50 대체 없음)", () => {
+  it("전부 3점 + 힘들 것 같다 → 지금은 어려움 / 차분히 다독이며", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: {}, // R1/R3/R4 등 없음, R2 강제선택도 미응답
-      mbti: { type: "ENFP", confidence: "high" },
+      responses: uniformResponses(3),
+      scenarioResponses: { [MANAGEMENT_DIRECT_ID]: 4, [GUIDANCE_CHOICE_ID]: 2, MS1: 1, MS2: 1 },
     });
-    expect(p.mbtiAxes.interactionAxis.raw).toBe("insufficient");
-    expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe("insufficient");
-    expect(p.mbtiAxes.flexibilityAxis.raw).toBe("insufficient");
-    // conceptAxis는 결측이 아니라 설계값 50.
-    expect(p.mbtiAxes.conceptAxis.raw).toBe(50.0);
+    expect(p.verdicts?.management.verdict).toBe("지금은 어려움");
+    expect(p.verdicts?.guidance.verdict).toBe("차분히 다독이며");
+  });
+
+  it("직접 질문에 답하지 않아도 프로필은 만들어진다", () => {
+    const p = computeScoreProfile({ subjectSelection: "math", responses: positiveMaxResponses() });
+    expect(p.verdicts?.management.directAnswer).toBeNull();
+    expect(p.verdicts?.management.verdict).toBe("도움이 있으면 버팀");
+    expect(p.verdicts?.guidance.choice).toBeNull();
   });
 });
 
-// ── 8.6 NK 선호/준비도 간극 (fixture 5) ─────────────────────────────
-
-describe("NK 적합도", () => {
-  it("N1~N4가 모두 unknown이면 전체 숫자 대신 상담 확인 필요", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {
-        ...positiveMaxResponses(),
-        N1: "unknown",
-        N2: "unknown",
-        N3: "unknown",
-        N4: "unknown",
-      },
-    });
-    expect(p.nkFit.stage).toBe("상담 확인 필요");
-    expect(p.nkFit.overall).toBeNull();
-  });
-
-  it("선호-준비도 간극이 크면 자연스러운 일치로 올라가지 않는다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {
-        ...positiveMaxResponses(), // LA/STR/HR/DFA/structure 모두 100
-        N1: 5,
-        N2: 5,
-        N3: 5,
-        N4: 5,
-      },
-      clinicAvailability: 25, // clinic readiness 25 → 큰 간극
-    });
-    expect(p.nkFit.areas.clinic.gap).toBe(75.0);
-    expect(p.nkFit.stage).toBe("지원 전제 일치");
-  });
-
-  it("readiness 원천이 insufficient면 readiness와 featureFit이 null", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { N3: 5 }, // homework readiness = homeworkReliability(insufficient)
-    });
-    expect(p.nkFit.areas.homework.preference).toBe(100.0);
-    expect(p.nkFit.areas.homework.readiness).toBeNull();
-    expect(p.nkFit.areas.homework.featureFit).toBeNull();
-  });
-});
-
-// ── 8.7.6 fixture 6 — 과목 분기 ──────────────────────────────────────
+// ── 과목 분기 ────────────────────────────────────────────────────────
 
 describe("과목 분기", () => {
   it("수학 선택은 영어 점수를 만들지 않는다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: positiveMaxResponses(),
-    });
+    const p = computeScoreProfile({ subjectSelection: "math", responses: positiveMaxResponses() });
     expect(p.math).not.toBeNull();
     expect(p.english).toBeNull();
   });
 
-  it("영어 선택은 수학 점수를 만들지 않는다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "english",
-      responses: positiveMaxResponses(),
-    });
-    expect(p.english).not.toBeNull();
-    expect(p.math).toBeNull();
-  });
-
   it("복합 선택은 두 프로필을 모두 만든다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "both",
-      responses: positiveMaxResponses(),
-    });
-    expect(p.math).not.toBeNull();
-    expect(p.english).not.toBeNull();
+    const p = computeScoreProfile({ subjectSelection: "both", responses: positiveMaxResponses() });
     expect(p.math!.mathStrategy).toBe(100.0);
     expect(p.english!.englishStrategy).toBe(100.0);
   });
 
   it("위험축(M6/M10/E7/E10)은 전략 점수와 분리되어 원방향으로 계산된다", () => {
-    const responses: ResponseMap = { ...positiveMaxResponses() };
-    // 위험 문항만 최대(=위험 신호 큼)로, 전략 문항은 최대 유지
-    responses.M6 = 5;
-    responses.M10 = 5;
+    const responses: ResponseMap = { ...positiveMaxResponses(), M6: 5, M10: 5 };
     const p = computeScoreProfile({ subjectSelection: "math", responses });
-    expect(p.math!.mathNoveltyAvoidance).toBe(100.0); // 원방향: 5 → 100
+    expect(p.math!.mathNoveltyAvoidance).toBe(100.0);
     expect(p.math!.mathTestInterference).toBe(100.0);
-    expect(p.math!.mathStrategy).toBe(100.0); // 전략은 위험축에 섞이지 않음
+    expect(p.math!.mathStrategy).toBe(100.0);
   });
 });
 
-// ── 8.7.6 fixture 7 — 상황문항 무영향 ────────────────────────────────
+// ── 상황문항 evidence ────────────────────────────────────────────────
 
 describe("상황문항 semantic evidence", () => {
-  it("option을 A→D로 바꿔도 숫자 composite는 동일하고 태그만 바뀐다", () => {
-    const responses = positiveMaxResponses();
-    const pA = computeScoreProfile({
-      subjectSelection: "both",
-      responses,
-      scenarioResponses: { C1: 1, C2: 1, MS1: 1, MS2: 1, ES1: 1, ES2: 1 },
-    });
-    const pD = computeScoreProfile({
-      subjectSelection: "both",
-      responses,
-      scenarioResponses: { C1: 4, C2: 4, MS1: 4, MS2: 4, ES1: 4, ES2: 4 },
-    });
-
-    expect(pD.common).toEqual(pA.common);
-    expect(pD.math).toEqual(pA.math);
-    expect(pD.english).toEqual(pA.english);
-    expect(pD.nkFit).toEqual(pA.nkFit);
-
-    expect(pA.situations.C1.choice).toBe("A");
-    expect(pA.situations.C1.tags).toEqual([
-      "phone_first",
-      "delayed_restart",
-      "mood_before_action",
-    ]);
-    expect(pD.situations.C1.choice).toBe("D");
-    expect(pD.situations.C1.tags).toEqual([
-      "support_seeking",
-      "external_structure",
-      "scheduled_check",
-    ]);
-    expect(pA.situations.C1.tags).not.toEqual(pD.situations.C1.tags);
+  it("직접 질문 MA5는 점수 없이 태그만 남고, 선택지에 따라 태그가 달라진다", () => {
+    const a = computeScoreProfile({ subjectSelection: "math", responses: positiveMaxResponses(), scenarioResponses: { [MANAGEMENT_DIRECT_ID]: 1 } });
+    const d = computeScoreProfile({ subjectSelection: "math", responses: positiveMaxResponses(), scenarioResponses: { [MANAGEMENT_DIRECT_ID]: 4 } });
+    expect(a.common).toEqual(d.common);
+    expect(a.situations[MANAGEMENT_DIRECT_ID].tags).toEqual(["endure_yes"]);
+    expect(d.situations[MANAGEMENT_DIRECT_ID].tags).toEqual(["endure_no"]);
   });
 
-  it("상황문항은 숫자 점수를 만들지 않는다(태그 배열만)", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: positiveMaxResponses(),
-      scenarioResponses: { MS1: 3 },
-    });
+  it("과목 상황문항은 숫자 점수를 만들지 않는다(태그 배열만)", () => {
+    const p = computeScoreProfile({ subjectSelection: "math", responses: positiveMaxResponses(), scenarioResponses: { MS1: 3 } });
     expect(p.situations.MS1.tags).toEqual(["hint_then_retry"]);
-    expect(typeof p.situations.MS1.choice).toBe("string");
   });
 });
 
-// ── 8.7.5 응답 품질 ─────────────────────────────────────────────────
+// ── 응답 품질 ────────────────────────────────────────────────────────
 
 describe("응답 품질 flag", () => {
   it("동일 응답이 90% 이상이면 straight_line이며 status=review", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "both",
-      responses: uniformResponses(3), // 54개 Likert 전부 동일
-    });
-    const codes = p.responseQuality.reasons.map((r) => r.code);
-    expect(codes).toContain("straight_line");
+    const p = computeScoreProfile({ subjectSelection: "both", responses: uniformResponses(3) });
+    expect(p.responseQuality.reasons.map((r) => r.code)).toContain("straight_line");
     expect(p.responseQuality.status).toBe("review");
   });
 
   it("반대 문항쌍 강한 불일치 2개 이상이면 opposite_pair_review", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: {
-        // P1↔P2(R): 5 vs 5 → 100 vs 0, 차이 100
-        P1: 5,
-        P2: 5,
-        // G2↔G4(R): 5 vs 5 → 100 vs 0, 차이 100
-        G2: 5,
-        G4: 5,
-      },
+      responses: { PH1: 5, PH2: 5, QI1: 5, QI4: 5 },
     });
-    const codes = p.responseQuality.reasons.map((r) => r.code);
-    expect(codes).toContain("opposite_pair_review");
+    expect(p.responseQuality.reasons.map((r) => r.code)).toContain("opposite_pair_review");
     expect(p.responseQuality.status).toBe("review");
   });
 
+  it("두 칸 차이(환산 50)가 2쌍이면 review, 한 칸 차이는 아니다", () => {
+    const two = computeScoreProfile({ subjectSelection: "math", responses: { PH1: 5, PH2: 3, QI1: 5, QI4: 3 } });
+    expect(two.responseQuality.reasons.map((r) => r.code)).toContain("opposite_pair_review");
+    const one = computeScoreProfile({ subjectSelection: "math", responses: { PH1: 5, PH2: 2, QI1: 5, QI4: 2 } });
+    expect(one.responseQuality.reasons.map((r) => r.code)).not.toContain("opposite_pair_review");
+  });
+
   it("insufficient 사유는 status를 review로 만들지 않는다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { LT1: 5, LT2: 4, LT3: 3 }, // 대부분 결측 → insufficient 다수, 그러나 review 아님
-    });
-    const codes = p.responseQuality.reasons.map((r) => r.code);
-    expect(codes).toContain("insufficient");
+    const p = computeScoreProfile({ subjectSelection: "math", responses: { LA1: 5, LA2: 4, LA3: 3 } });
+    expect(p.responseQuality.reasons.map((r) => r.code)).toContain("insufficient");
     expect(p.responseQuality.status).toBe("normal");
   });
 
   it("meta 활성시간이 임계값 미만이면 too_fast", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: positiveMaxResponses(),
-      meta: { activeSeconds: 120 }, // 단일과목 임계 180초 미만
-    });
-    const codes = p.responseQuality.reasons.map((r) => r.code);
-    expect(codes).toContain("too_fast");
-    expect(p.responseQuality.status).toBe("review");
+    const p = computeScoreProfile({ subjectSelection: "math", responses: positiveMaxResponses(), meta: { activeSeconds: 120 } });
+    expect(p.responseQuality.reasons.map((r) => r.code)).toContain("too_fast");
   });
 });
 
-// ── Phase 3 문항 1차 패키지 ──────────────────────────────────────────
+// ── MBTI 무영향 ──────────────────────────────────────────────────────
 
-describe("R2 강제선택 채점", () => {
-  it("A(그 자리에서 질문)는 0, B(끝난 뒤 따로)는 100이며 중간값이 없다", () => {
-    const a = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {},
-      scenarioResponses: { R2: 1 },
-    });
-    const b = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {},
-      scenarioResponses: { R2: 2 },
-    });
-    expect(a.common.reflectiveProcessingNeed).toBe(0);
-    expect(b.common.reflectiveProcessingNeed).toBe(100);
-  });
-
-  // [스펙 변경] 예전에는 responses.R2(리커트)를 무시했다. 구 설문을 다시 채점할 때
-  // "정보 부족"이 되지 않도록, 강제선택 응답이 없을 때만 옛 리커트 응답을 옮겨 쓴다.
-  it("강제선택 응답이 있으면 옛 리커트 응답보다 우선한다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      // 옛 리커트로는 100 쪽이지만 강제선택은 A(=0)를 골랐다.
-      responses: { R2: 5 } as never,
-      scenarioResponses: { R2: 1 },
-    });
-    expect(p.common.reflectiveProcessingNeed).toBe(0);
-  });
-
-  it("interactionAxis는 R2의 반대편이며 0 또는 100만 나온다", () => {
-    const a = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {},
-      scenarioResponses: { R2: 1 },
-    });
-    const b = computeScoreProfile({
-      subjectSelection: "math",
-      responses: {},
-      scenarioResponses: { R2: 2 },
-    });
-    // A(바로 질문) → 함께 이야기 쪽 100, B(나중에 따로) → 혼자 정리 쪽 0.
-    expect(a.mbtiAxes.interactionAxis.raw).toBe(100);
-    expect(b.mbtiAxes.interactionAxis.raw).toBe(0);
-  });
-
-  it("R2 미응답이면 숙고 처리 선호와 interactionAxis 모두 insufficient", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: positiveMaxResponses(),
-      scenarioResponses: {},
-    });
-    expect(p.common.reflectiveProcessingNeed).toBe("insufficient");
-    expect(p.mbtiAxes.interactionAxis.raw).toBe("insufficient");
+describe("MBTI는 점수·판정에 무영향", () => {
+  it("행동 응답이 같으면 MBTI만 바꿔도 공통 점수와 판정이 동일", () => {
+    const responses = positiveMaxResponses();
+    const none = computeScoreProfile({ subjectSelection: "both", responses, scenarioResponses: ALL_SCENARIOS, mbti: null });
+    const enfp = computeScoreProfile({ subjectSelection: "both", responses, scenarioResponses: ALL_SCENARIOS, mbti: { type: "ENFP", confidence: "high" } });
+    expect(enfp.common).toEqual(none.common);
+    expect(enfp.verdicts).toEqual(none.verdicts);
+    expect(enfp.math).toEqual(none.math);
   });
 });
 
-describe("직접 피드백 선호와 피드백 실행 분리", () => {
-  it("R3은 방식 선호 한 문항, FB1~FB4는 실행 행동 네 문항으로 따로 계산한다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { R3: 5, FB1: 5, FB2: 3, FB3: 1, FB4: 3 },
-    });
-    expect(p.common.directFeedbackAcceptance).toBe(100.0);
-    expect(p.coaching.challenge).toBe(100.0);
-    expect(p.common.feedbackExecution).toBe(50.0);
-  });
+// ── 폐기 문항 관용 ───────────────────────────────────────────────────
 
-  it("피드백 실행은 4문항 중 3문항부터 산출한다", () => {
+describe("옛 문항 관용", () => {
+  it("옛 응답(LT1·M5)이 남아 있어도 점수를 흔들지 않는다", () => {
     const p = computeScoreProfile({
       subjectSelection: "math",
-      responses: { FB1: 5, FB2: 5, FB3: 5 },
-    });
-    expect(p.common.feedbackExecution).toBe(100.0);
-  });
-
-  it("피드백 실행 두 문항만 답하면 75% 미만이라 insufficient", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { FB1: 5, FB2: 5 },
-    });
-    expect(p.common.feedbackExecution).toBe("insufficient");
-  });
-});
-
-describe("M5 폐기", () => {
-  it("mathStrategy는 M5 없이 계산된다", () => {
-    const items = ALL_ITEMS.filter((i) => i.id === "M5");
-    expect(items).toHaveLength(0);
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: positiveMaxResponses(),
+      responses: { ...positiveMaxResponses(), LT1: 1, M5: 1 } as ResponseMap,
       scenarioResponses: ALL_SCENARIOS,
     });
+    expect(p.common.learningAttitude).toBe(100.0);
     expect(p.math?.mathStrategy).toBe(100.0);
-  });
-
-  it("옛 응답에 M5가 남아 있어도 점수를 흔들지 않는다", () => {
-    const withM5 = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { ...positiveMaxResponses(), M5: 1 },
-      scenarioResponses: ALL_SCENARIOS,
-    });
-    expect(withM5.math?.mathStrategy).toBe(100.0);
-  });
-});
-
-describe("반대 문항쌍 임계 50", () => {
-  it("두 칸 차이(환산 50)가 2쌍이면 review로 올린다", () => {
-    // P1=5(100) vs P2=3(reverse→50) → 차이 50. G2=5(100) vs G4=3(reverse→50) → 차이 50.
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { P1: 5, P2: 3, G2: 5, G4: 3 },
-    });
-    const codes = p.responseQuality.reasons.map((r) => r.code);
-    expect(codes).toContain("opposite_pair_review");
-    expect(p.responseQuality.status).toBe("review");
-  });
-
-  it("한 칸 차이(환산 25)만 있으면 올리지 않는다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { P1: 5, P2: 2, G2: 5, G4: 2 },
-    });
-    const codes = p.responseQuality.reasons.map((r) => r.code);
-    expect(codes).not.toContain("opposite_pair_review");
-  });
-
-  it("임계를 넘는 쌍이 하나뿐이면 올리지 않는다(2쌍 조건 유지)", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { P1: 5, P2: 5 },
-    });
-    const codes = p.responseQuality.reasons.map((r) => r.code);
-    expect(codes).not.toContain("opposite_pair_review");
-  });
-});
-
-// ── P4-C 정합 잔무 ──────────────────────────────────────────────────
-
-describe("relationalFeedbackAxis 구인 전환", () => {
-  // 라벨은 "결과 중심 ↔ 관계 중심". 높을수록 관계 중심(F)이다.
-  it("관계 안전이 높고 직접 피드백 수용이 낮으면 관계 중심 쪽(높음)", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { R4: 5, R3: 1 },
-      scenarioResponses: { R2: 1 },
-    });
-    expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe(100);
-  });
-
-  it("관계 안전이 낮고 직접 피드백 수용이 높으면 결과 중심 쪽(낮음)", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { R4: 1, R3: 5 },
-      scenarioResponses: { R2: 1 },
-    });
-    expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe(0);
-  });
-
-  it("R3 단일 선호 공식과 같은 값이 나온다", () => {
-    // 이전 공식: mean(normalize(R4), 100 - normalize(R3))
-    for (const [r4, r3] of [
-      [5, 2],
-      [3, 4],
-      [2, 2],
-    ]) {
-      const p = computeScoreProfile({
-        subjectSelection: "math",
-        responses: { R4: r4, R3: r3 },
-        scenarioResponses: { R2: 1 },
-      });
-      const legacy =
-        (normalizeResponse(r4, false) + (100 - normalizeResponse(r3, false))) / 2;
-      expect(p.mbtiAxes.relationalFeedbackAxis.raw, `R4=${r4} R3=${r3}`).toBe(legacy);
-    }
-  });
-
-  it("관계 안전 또는 직접 피드백 선호가 빠지면 축을 만들지 않는다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { R4: 5 },
-      scenarioResponses: { R2: 1 },
-    });
-    expect(p.mbtiAxes.relationalFeedbackAxis.raw).toBe("insufficient");
-  });
-});
-
-describe("구 설문 R2 리커트 폴백", () => {
-  it("동의(4·5)는 100, 비동의(1·2)는 0으로 옮긴다", () => {
-    expect(legacyReflectiveScore({ R2: 5 })).toBe(100);
-    expect(legacyReflectiveScore({ R2: 4 })).toBe(100);
-    expect(legacyReflectiveScore({ R2: 2 })).toBe(0);
-    expect(legacyReflectiveScore({ R2: 1 })).toBe(0);
-  });
-
-  it("중간(3)은 어느 쪽으로도 옮기지 않는다", () => {
-    expect(legacyReflectiveScore({ R2: 3 })).toBe("insufficient");
-  });
-
-  it("R2가 없거나 unknown이면 판단하지 않는다", () => {
-    expect(legacyReflectiveScore({})).toBe("insufficient");
-    expect(legacyReflectiveScore({ R2: "unknown" })).toBe("insufficient");
-  });
-
-  it("구 설문을 다시 채점해도 숙고 처리 선호가 정보 부족이 되지 않는다", () => {
-    const p = computeScoreProfile({
-      subjectSelection: "math",
-      responses: { ...positiveMaxResponses(), R2: 5 } as never,
-      scenarioResponses: {}, // 강제선택 응답 없음(구 설문)
-    });
-    expect(p.common.reflectiveProcessingNeed).toBe(100);
-    // 축도 함께 살아난다(반대 방향).
-    expect(p.mbtiAxes.interactionAxis.raw).toBe(0);
   });
 });

@@ -132,7 +132,7 @@ export async function analyzeSurveyV2(surveyId: string) {
     return {
       success: false,
       error:
-        "과거 문항 구성의 응답입니다. 현재 60문항 기준으로 다시 분석할 수 없습니다. 기존 결과를 보존해 주세요.",
+        "과거 문항 구성의 응답입니다. 현재 문항 기준(v2.3)으로 다시 분석할 수 없습니다. 기존 결과를 보존해 주세요.",
     };
   }
 

@@ -20,7 +20,7 @@ import {
 } from "@/lib/analysis-alimtalk";
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import { REPORT_PREMIUM_CSS, ReportToolbar, ReportSheet, ReportDock } from "./report-frame";
-import type { CounselorBackground } from "./counselor-report";
+import type { CounselorBackground } from "./counselor-background";
 // NOTE(단일화): CounselorReport 렌더는 중단됨. 복원하려면 audience 토글과 <CounselorReport/>를 되살린다.
 import { ParentReport } from "./parent-report";
 

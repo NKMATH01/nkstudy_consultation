@@ -11,12 +11,12 @@ describe("pruneToSubjectScope", () => {
     const englishOnly = [...idsFor("english")].filter((id) => !mathIds.has(id));
     expect(englishOnly.length).toBeGreaterThan(0);
 
-    const values: Record<string, number> = { LT1: 4, LT2: 3 };
+    const values: Record<string, number> = { LA1: 4, LA2: 3 };
     for (const id of englishOnly) values[id] = 2;
 
     const result = pruneToSubjectScope(values, "math");
 
-    expect(result.kept).toEqual({ LT1: 4, LT2: 3 });
+    expect(result.kept).toEqual({ LA1: 4, LA2: 3 });
     expect(result.removed.sort()).toEqual([...englishOnly].sort());
   });
 
@@ -31,9 +31,9 @@ describe("pruneToSubjectScope", () => {
   });
 
   it("정의에 없는 키도 제거 대상으로 본다", () => {
-    const result = pruneToSubjectScope({ LT1: 5, unknown_item: 1 }, "math");
+    const result = pruneToSubjectScope({ LA1: 5, unknown_item: 1 }, "math");
 
-    expect(result.kept).toEqual({ LT1: 5 });
+    expect(result.kept).toEqual({ LA1: 5 });
     expect(result.removed).toEqual(["unknown_item"]);
   });
 

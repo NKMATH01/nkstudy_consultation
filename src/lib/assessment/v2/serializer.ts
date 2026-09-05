@@ -426,15 +426,9 @@ export function buildV2AnalysisPrompt(input: AiSafeInput): string {
     instrumentVersion: input.scores.instrumentVersion,
     instrumentRevision: input.scores.instrumentRevision,
     subjectSelection: input.scores.subjectSelection,
-    common: {
-      learningAttitude: input.scores.common.learningAttitude,
-      homeworkReliability: input.scores.common.homeworkReliability,
-      helpSeeking: input.scores.common.helpSeeking,
-      feedbackExecution: input.scores.common.feedbackExecution,
-      phoneBoundary: input.scores.common.phoneBoundary,
-      longTermPersistence: input.scores.common.longTermPersistence,
-      shortTermRecovery: input.scores.common.shortTermRecovery,
-    },
+    common: input.scores.common,
+    /** 서버가 정한 핵심 판단 두 가지. AI는 이 결론을 바꾸지 않고 서술만 맞춘다. */
+    verdicts: input.scores.verdicts ?? null,
     math: input.scores.math
       ? { mathStrategy: input.scores.math.mathStrategy }
       : null,
@@ -459,9 +453,10 @@ export function buildV2AnalysisPrompt(input: AiSafeInput): string {
 [검사 상황 — 매우 중요]
 - 학생은 아직 NK 수업을 시작하지 않았습니다. 이 응답은 입학테스트와 입학 상담 전에 작성한 자기보고입니다.
 - 미래의 수업 행동을 이미 관찰한 것처럼 쓰지 말고, 입학 상담 질문과 등록 시 권장할 초기 지도 방식만 제안하세요.
-- 이 검사의 중심은 숙제, 수업 태도, 집중, 꾸준함, 회복, 질문·도움 요청, 피드백 실행 등 학습 성향입니다.
+- 이 검사의 중심은 학습 태도, 숙제 태도, 목표 의식, 단기 회복력, 관리 수용, 지도 방식 반응, 질문 성향, 휴대폰·친구 조절의 아홉 가지 학습 성향입니다.
 - 수학·영어 각 10문항은 과목 실력 점검이 아니라 해당 과목을 공부하는 방식을 보는 보조 자료입니다. 학생 유형·전체 강점·최우선 지원 지점을 과목 점수로 결정하지 마세요.
 - 학업 수준·반 배치는 이 설문이 아니라 별도의 과목 입학테스트 결과와 상담 내용을 함께 보고 정합니다.
+- scores.verdicts 는 서버가 정한 핵심 판단 두 가지입니다 — management(철저한 관리를 버틸 수 있는가)와 guidance(강하게 밀어도 되는가, 차분히 다독여야 하는가). 이 결론을 바꾸거나 반대로 서술하지 말고, coreObservation·recommendedCoaching·teacherBrief가 이 결론과 같은 방향이 되게 쓰세요. confirmInCounseling 이 true 면 상담에서 실제 사례를 확인한다고 덧붙이세요.
 
 [매우 중요 — 반드시 지킬 규칙]
 - 숫자 점수를 새로 만들거나 바꾸지 마세요. 모든 수치는 이미 서버가 계산했습니다.
@@ -513,7 +508,7 @@ ${buildNamingRules()}
 ${buildStudentTypeRule()}
 
 [근거 점수 인용]
-- 강점·개선 영역은 공통의 일곱 학습행동에서 고르고, 과목 전략은 각 과목 필드에서만 다루세요. 특징을 말할 때는 근거 점수를 함께 밝히세요.
+- 강점·개선 영역은 공통의 아홉 학습행동에서 고르고, 과목 전략은 각 과목 필드에서만 다루세요. 특징을 말할 때는 근거 점수를 함께 밝히세요.
 - 자세한 총평(detailedSummary)에는 숫자를 쓰지 않습니다(아래 총평 작성 규칙 참조).
 - 점수는 반드시 입력에 준 서버 값에서만 가져오고, 새 숫자를 만들거나 바꾸지 마세요.
 - 점수 필드(scores 등)를 JSON에 새로 만들지 마세요. 수치는 오직 서술 문장 안에 인용만 합니다.

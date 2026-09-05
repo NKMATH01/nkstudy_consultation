@@ -1,25 +1,25 @@
-// 학부모 공유용 parent-safe snapshot (§12.3).
+// 학부모 공유용 parent-safe snapshot (§12.3) — v2.3.
 // deny-by-default allowlist: 이 모듈은 result_profile_v2에서 명시적으로 허용된 값만
 // 골라 별도 객체를 "새로 조립"한다(spread/얕은 복사 금지). 따라서 아래 금지 항목은
-// payload 자체에서 물리적으로 제외된다(CSS 숨김 방식 아님, §12.3).
+// payload 자체에서 물리적으로 제외된다(CSS 숨김 방식 아님).
 //
 // 제외(절대 포함 금지):
-//   - 연락처(학생/학부모 전화번호), DB id, report token
+//   - 연락처(학생/학부모 전화번호), DB id, report token, 학원명(prev_academy)
 //   - 내부 확인질문·교사 brief(teacherBrief)·근거 코드(crossEvidence)·운영 메모(cautions)
 //   - 상황문항 raw evidence 코드·태그(situations)
-//   - 상담자용 원인·내부 확인 질문(coreObservation, operatingCause,
-//     verificationPlan14Days). recommendedCoaching은 쉬운 문장으로 정리해 초기 수업 제안만 허용한다.
-//   ※ detailedSummary(상세 총평)는 학부모용으로 허용한다: "쉬운 한국어" 프롬프트로 생성되어
-//     전 영역(태도·숙제·휴대폰·의지·회복·친구·과목·NK 적합)을 아우르므로 01 종합 분석 본문에 쓴다.
+//   - 상담자용 원인·내부 확인 질문(coreObservation, operatingCause, verificationPlan14Days)
 //   - 응답 품질 상세 사유(reasons) — status만 중립 문구로 전달
+//   - 과목 위험축(낯선 유형 회피·시험 긴장) — 공부 방식 점수만
 //
-// 이 함수는 순수 함수다. 클라이언트(상담자 화면의 학부모 미리보기 토글)와
-// 서버(공유 token snapshot 생성)가 동일 함수를 호출하므로 두 화면이 항상 일치한다.
+// 포함(학부모가 볼 것):
+//   - 공통 아홉 척도 점수(등급 표시용 내부 지표), 핵심 판단 두 가지, 학생이 직접 적은 답(이름·연락처 지움),
+//     어려운 점 선택, MBTI(확신도 high/medium만), 이전 학원 경험 → 운영 조건, 해석 문장(쉬운 말)
+//
+// 이 함수는 순수 함수다. 클라이언트(상담자 화면)와 서버(공유 token snapshot 생성)가 동일 함수를 호출한다.
 
 import type { ResultProfileV2 } from "./interpretation";
+import { getItemsForSubject, isLikert } from "./definition";
 import { applyStudentNameToInterpretation } from "./name-substitution";
-import { ALL_ITEMS, isChoiceItem, isLikert } from "./definition";
-import { SCALE_LABELS_V2 } from "./display";
 import { redactNarrative } from "./serializer";
 import {
   buildTransitionPlan,
@@ -27,34 +27,41 @@ import {
   type TransitionPlanItem,
 } from "./transition-plan";
 import type {
+  CommonConstruct,
   CommonScores,
   EnglishScores,
-  LikertItem,
+  GuidanceVerdict,
+  ManagementDirectAnswer,
+  ManagementVerdict,
   MathScores,
   Score,
   SubjectSelection,
 } from "./types";
 
-type ParentSafeCommonScores = Pick<
-  CommonScores,
-  | "learningAttitude"
-  | "homeworkReliability"
-  | "helpSeeking"
-  | "feedbackExecution"
-  | "phoneBoundary"
-  | "longTermPersistence"
-  | "shortTermRecovery"
->;
 type ParentSafeMathScores = Pick<MathScores, "mathStrategy">;
 type ParentSafeEnglishScores = Pick<EnglishScores, "englishStrategy">;
 
 /** 학부모 공유용 점수 subset. PII·근거 코드·상황 태그를 포함하지 않는다. */
 export interface ParentSafeScores {
-  common: ParentSafeCommonScores;
+  common: CommonScores;
   math: ParentSafeMathScores | null;
   english: ParentSafeEnglishScores | null;
   /** 상세 사유(reasons)는 제외하고 상태만 전달. review면 UI가 중립 문구로 표시. */
   responseQualityStatus: "normal" | "review";
+}
+
+/** ★ 핵심 판단 두 가지(학부모 공개용). */
+export interface ParentSafeVerdicts {
+  management: {
+    verdict: ManagementVerdict;
+    directAnswer: ManagementDirectAnswer | null;
+    basisNote: string | null;
+  };
+  guidance: {
+    verdict: GuidanceVerdict;
+    choiceText: string | null;
+    confirmInCounseling: boolean;
+  };
 }
 
 /** 학부모 공유용 해석 subset. 상담자 전용 필드는 포함하지 않는다. */
@@ -65,7 +72,7 @@ export interface ParentSafeInterpretation {
   detailedSummary?: string;
   strengths: string[];
   growthAreas: string[];
-  /** 입학 상담에서 설명할 수 있는 등록 후 초기 수업 제안. 과거 snapshot에는 없을 수 있다. */
+  /** 등록 시 권장할 초기 수업 제안. */
   initialTeachingSuggestion?: string;
   /** 입학 전 운영 조건 상담 메모. */
   operationsConsultationNote?: string;
@@ -75,34 +82,43 @@ export interface ParentSafeInterpretation {
   englishStrategy: string | null;
 }
 
-/**
- * "친구와 공부" 카드용 문항 응답.
- * 또래 관련 문항은 합산 점수로 묶으면 뜻이 흐려져(도움 받는 힘 + 집중 흔들림이 상쇄)
- * 문항 요지와 학생이 고른 보기만 그대로 보여 준다. **점수·밴드는 담지 않는다.**
- */
-export interface PeerResponseSafe {
-  /** 문항이 묻는 내용(정의 원문) */
-  question: string;
-  /** 학생이 고른 보기 문구(예: "대체로 맞다") */
-  answerLabel: string;
+/** 학생이 직접 적은 답(이름·연락처·링크는 지운 뒤). 비어 있으면 키 자체를 넣지 않는다. */
+export interface StudentAnswersSafe {
+  /** 공부할 때 스스로 느끼는 문제점은? */
+  problemSelf?: string;
+  /** 공부의 핵심이 무엇이라고 생각하나요? */
+  studyCore?: string;
+  /** 하고 싶은 직업 또는 목표 */
+  dream?: string;
+  /** 목표 대학·계열·전공 */
+  targetUniversity?: string;
+  /** 학원에 바라는 점 */
+  requests?: string;
+  /** 수학에서 가장 어려운 단원·영역 */
+  mathDifficulty?: string;
+  /** 영어에서 가장 어려운 영역 */
+  englishDifficulty?: string;
+  /** 입학 상담에서 가장 도움받고 싶은 점 */
+  entryPriority?: string;
+  /** 기존 학원에서 아쉬웠던 점(학원명은 싣지 않는다 — 원문에 학원명이 있으면 상담자가 지운다). */
+  prevComplaint?: string;
 }
 
-/** 점수로 확대하지 않고 학생이 고른 문장 그대로 보여 주는 응답 근거. */
-export type ResponseEvidenceSafe = PeerResponseSafe;
-
-export const PARENT_BEHAVIOR_KEYS = [
+export const PARENT_BEHAVIOR_KEYS: readonly CommonConstruct[] = [
   "learningAttitude",
   "homeworkReliability",
-  "helpSeeking",
-  "feedbackExecution",
-  "phoneBoundary",
-  "longTermPersistence",
+  "goalClarity",
   "shortTermRecovery",
+  "managementAcceptance",
+  "coachingResponse",
+  "questionInitiative",
+  "phoneBoundary",
+  "peerFocusBoundary",
 ] as const;
-export type ParentBehaviorKey = (typeof PARENT_BEHAVIOR_KEYS)[number];
+export type ParentBehaviorKey = CommonConstruct;
 
 /**
- * 학생이 스스로 적어 낸 MBTI. 점수를 만들지 않으며 지도 방식 참고용으로만 쓴다.
+ * 학생이 스스로 적어 낸 MBTI. 점수를 만들지 않으며 종합 소견 한두 문장에만 쓴다.
  * 확신도가 low/none이면 결과지에 아예 표시하지 않으므로 여기에도 담지 않는다.
  */
 export interface MbtiSafe {
@@ -112,108 +128,42 @@ export interface MbtiSafe {
 
 export interface ParentSafeProfile {
   instrumentVersion: "v2";
+  /** 어떤 문항 구성으로 나온 결과인지. 과거 snapshot에는 없다. */
+  instrumentRevision?: string;
   subjectSelection: SubjectSelection;
   generatedAt: string;
   /** 표시용 이름·학교급/학년(연락처 없음). 이름은 자녀 본인이므로 공유 허용. */
   display: { name: string; schoolGrade: string };
   scores: ParentSafeScores;
+  /** 핵심 판단 두 가지. 과거 snapshot에는 없다. */
+  verdicts?: ParentSafeVerdicts;
   interpretation: ParentSafeInterpretation;
-  /**
-   * 또래 문항 응답(F1~F4). 응답 원본이 없으면 생략된다.
-   * 기존에 발급된 공유 토큰에는 이 필드가 없으므로 화면은 없을 때도 동작해야 한다.
-   */
-  peerResponses?: PeerResponseSafe[];
-  /** 단일·소수 문항인 지도 선호는 점수축 대신 원문 응답으로만 공개한다. */
-  preferenceResponses?: ResponseEvidenceSafe[];
-  /** 핵심 학습행동별로 학생 답변 근거를 최대 2개씩 그대로 보여 준다. */
-  behaviorEvidence?: Partial<Record<ParentBehaviorKey, ResponseEvidenceSafe[]>>;
-  /** 학생이 마지막에 자기 말로 적은 입학 상담 우선 도움. */
+  /** 빈도 문항 응답 분포(1~5 선택 수 + 경험 없음). 과거 snapshot에는 없다. */
+  responseDistribution?: { counts: number[]; notApplicable: number; total: number };
+  /** 학생이 직접 적은 답. */
+  studentAnswers?: StudentAnswersSafe;
+  /** 과목별 현재 학습의 어려운 점(고른 것). */
+  difficultyTags?: { math?: string[]; english?: string[] };
+  /** 과거 snapshot 하위호환(새 snapshot은 studentAnswers.entryPriority). */
   entryPriority?: string;
-  /** 확신도 high/medium일 때만 존재. 없으면 화면에서 MBTI 블록 자체를 렌더하지 않는다. */
+  /** 확신도 high/medium일 때만 존재. 없으면 종합 소견에서 MBTI 문장을 렌더하지 않는다. */
   mbti?: MbtiSafe;
   /** 학원명·서술 원문 없이 고정 문구로 만든 입학 상담용 운영 원칙. */
   transitionPlan?: TransitionPlanItem[];
 }
 
-/** "친구와 공부" 카드에 쓰는 또래 문항. 점수로 묶지 않고 네 답을 각각 보여 준다. */
-const PEER_ITEM_IDS = ["F1", "F2", "F3", "F4"] as const;
-const PREFERENCE_ITEM_IDS = ["R2", "R3", "R4", "R5", "R6"] as const;
-
-function buildResponseEvidence(
-  responses: Record<string, unknown> | null | undefined,
-  ids: readonly string[],
-): ResponseEvidenceSafe[] {
-  if (!responses) return [];
-  const result: ResponseEvidenceSafe[] = [];
-  for (const id of ids) {
-    const item = ALL_ITEMS.find((candidate) => candidate.id === id);
-    if (!item) continue;
-    const value = responses[id];
-
-    if (isLikert(item) && typeof value === "number" && value >= 1 && value <= 5) {
-      result.push({
-        question: item.text,
-        answerLabel: SCALE_LABELS_V2[item.scale][value - 1],
-      });
-      continue;
-    }
-
-    if (isChoiceItem(item) && typeof value === "number") {
-      const option = item.options.find((candidate) => candidate.index === value);
-      if (option) result.push({ question: item.text, answerLabel: option.text });
-    }
-  }
-  return result;
-}
-
-/**
- * 또래 문항의 "문항 요지 + 고른 보기"만 뽑는다.
- * 숫자는 담지 않으므로 학부모 화면에서 점수로 오해될 여지가 없다.
- */
-export function buildPeerResponses(
-  responses: Record<string, unknown> | null | undefined,
-): PeerResponseSafe[] {
-  return buildResponseEvidence(responses, PEER_ITEM_IDS);
-}
-
-/**
- * 각 핵심 행동에서 중간 응답(3)보다 멀리 떨어진 답을 최대 2개 고른다.
- * 점수·방향을 새로 해석하지 않고 문항과 보기만 전달해 결론의 근거를 확인하게 한다.
- */
-export function buildBehaviorEvidence(
-  responses: Record<string, unknown> | null | undefined,
-): Partial<Record<ParentBehaviorKey, ResponseEvidenceSafe[]>> {
-  if (!responses) return {};
-  const out: Partial<Record<ParentBehaviorKey, ResponseEvidenceSafe[]>> = {};
-
-  for (const key of PARENT_BEHAVIOR_KEYS) {
-    const answered: Array<{ item: LikertItem; order: number; value: number }> = [];
-    ALL_ITEMS.forEach((item, order) => {
-      if (!isLikert(item) || item.construct !== key) return;
-      const value = responses[item.id];
-      if (typeof value !== "number" || value < 1 || value > 5) return;
-      answered.push({ item, order, value });
-    });
-
-    const evidence = answered
-      .sort(
-        (a, b) => Math.abs(b.value - 3) - Math.abs(a.value - 3) || a.order - b.order,
-      )
-      .slice(0, 2)
-      .map(({ item, value }) => ({
-        question: item.text,
-        answerLabel: SCALE_LABELS_V2[item.scale][value - 1],
-      }));
-    if (evidence.length > 0) out[key] = evidence;
-  }
-
-  return out;
-}
-
 export interface ParentReportContextInput extends TransitionPlanInput {
-  /** 새 이름. 저장된 과거 데이터는 아래 legacy 키를 사용한다. */
+  /** 입학 상담에서 가장 도움받고 싶은 점. 저장된 과거 데이터는 commitment14 키를 쓴다. */
   entryPriority?: string | null;
   commitment14?: string | null;
+  problemSelf?: string | null;
+  studyCore?: string | null;
+  dream?: string | null;
+  targetUniversity?: string | null;
+  mathDifficulty?: string | null;
+  englishDifficulty?: string | null;
+  mathDifficultyTags?: string[] | null;
+  englishDifficultyTags?: string[] | null;
 }
 
 /** 내부 환산점수는 규준처럼 보일 수 있어 학부모 서술에서는 행동 문장만 남긴다. */
@@ -240,16 +190,26 @@ export function toEntranceReportWording(text: string): string {
     .replace(/첫\s*2주간/g, "입학 상담에서")
     .replace(/첫\s*2주/g, "입학 상담")
     .replace(/처음\s*몇\s*주간/g, "입학 상담에서")
-    .replace(/\s{2,}/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
 
 function parentScore(value: Score | undefined): Score {
   return typeof value === "number" && Number.isFinite(value)
     ? value
-    : value === "insufficient"
-      ? value
-      : "insufficient";
+    : "insufficient";
+}
+
+/** 학생이 적은 문장을 이름·연락처 없이, 비어 있으면 undefined로. */
+function safeText(value: string | null | undefined, name: string): string | undefined {
+  const cleaned = redactNarrative(value, name);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+function safeTags(values: string[] | null | undefined): string[] | undefined {
+  if (!Array.isArray(values)) return undefined;
+  const out = values.filter((v): v is string => typeof v === "string" && v.trim().length > 0).slice(0, 3);
+  return out.length > 0 ? out : undefined;
 }
 
 /**
@@ -259,29 +219,66 @@ function parentScore(value: Score | undefined): Score {
 export function buildParentSafeProfile(
   full: ResultProfileV2,
   display: { name: string; schoolGrade: string },
-  /** 또래 문항 응답 원본(선택). 없으면 "친구와 공부" 카드가 생략된다. */
+  /** 설문 raw 응답(선택). 문항 문장은 싣지 않고 빈도 문항의 선택지 분포만 센다. */
   responses?: Record<string, unknown> | null,
   /** 학생이 적어 낸 MBTI(선택). 확신도 high/medium만 통과시킨다. */
   mbtiInput?: { type?: string | null; confidence?: string | null } | null,
-  /** 이전 학원 경험(선택). 공개본에는 고정된 운영 약속만 통과시킨다. */
-  transitionInput?: ParentReportContextInput | null,
+  /** 학생이 직접 적은 답·이전 학원 경험(선택). 공개본에는 이름·연락처·학원명 없이 통과시킨다. */
+  context?: ParentReportContextInput | null,
 ): ParentSafeProfile {
   const s = full.scores;
   // 저장 경로(analysis-v2)에서 이미 치환됐더라도, 미저장·프리뷰 렌더까지 일관되게
   // 학생 호칭을 실제 이름으로 확정한다(멱등: 토큰·따님/아이가 없으면 그대로).
   const i = applyStudentNameToInterpretation(full.interpretation, display.name);
-  const peerResponses = buildPeerResponses(responses);
-  const preferenceResponses = buildResponseEvidence(responses, PREFERENCE_ITEM_IDS);
-  const behaviorEvidence = buildBehaviorEvidence(responses);
   const mbti = buildMbtiSafe(mbtiInput);
-  const transitionPlan = buildTransitionPlan(transitionInput);
-  const entryPriority = redactNarrative(
-    transitionInput?.entryPriority ?? transitionInput?.commitment14,
-    display.name,
-  );
+  const transitionPlan = buildTransitionPlan(context);
+  const name = display.name;
+  const responseDistribution = buildResponseDistribution(responses, full.subjectSelection);
+
+  const studentAnswers: StudentAnswersSafe = {};
+  const entryPriority = safeText(context?.entryPriority ?? context?.commitment14, name);
+  if (entryPriority) studentAnswers.entryPriority = entryPriority;
+  const problemSelf = safeText(context?.problemSelf, name);
+  if (problemSelf) studentAnswers.problemSelf = problemSelf;
+  const studyCore = safeText(context?.studyCore, name);
+  if (studyCore) studentAnswers.studyCore = studyCore;
+  const dream = safeText(context?.dream, name);
+  if (dream) studentAnswers.dream = dream;
+  const targetUniversity = safeText(context?.targetUniversity, name);
+  if (targetUniversity) studentAnswers.targetUniversity = targetUniversity;
+  const requests = safeText(context?.requests, name);
+  if (requests) studentAnswers.requests = requests;
+  const mathDifficulty = safeText(context?.mathDifficulty, name);
+  if (mathDifficulty) studentAnswers.mathDifficulty = mathDifficulty;
+  const englishDifficulty = safeText(context?.englishDifficulty, name);
+  if (englishDifficulty) studentAnswers.englishDifficulty = englishDifficulty;
+  const prevComplaint = safeText(context?.prevComplaint, name);
+  if (prevComplaint) studentAnswers.prevComplaint = prevComplaint;
+
+  const difficultyTags: { math?: string[]; english?: string[] } = {};
+  const mathTags = safeTags(context?.mathDifficultyTags);
+  if (mathTags) difficultyTags.math = mathTags;
+  const englishTags = safeTags(context?.englishDifficultyTags);
+  if (englishTags) difficultyTags.english = englishTags;
+
+  const verdicts: ParentSafeVerdicts | undefined = s.verdicts
+    ? {
+        management: {
+          verdict: s.verdicts.management.verdict,
+          directAnswer: s.verdicts.management.directAnswer,
+          basisNote: s.verdicts.management.basisNote,
+        },
+        guidance: {
+          verdict: s.verdicts.guidance.verdict,
+          choiceText: s.verdicts.guidance.choiceText,
+          confirmInCounseling: s.verdicts.guidance.confirmInCounseling,
+        },
+      }
+    : undefined;
 
   return {
     instrumentVersion: "v2",
+    ...(s.instrumentRevision ? { instrumentRevision: s.instrumentRevision } : {}),
     subjectSelection: full.subjectSelection,
     generatedAt: full.generatedAt,
     display: {
@@ -292,16 +289,19 @@ export function buildParentSafeProfile(
       common: {
         learningAttitude: parentScore(s.common.learningAttitude),
         homeworkReliability: parentScore(s.common.homeworkReliability),
-        helpSeeking: parentScore(s.common.helpSeeking),
-        feedbackExecution: parentScore(s.common.feedbackExecution),
-        phoneBoundary: parentScore(s.common.phoneBoundary),
-        longTermPersistence: parentScore(s.common.longTermPersistence),
+        goalClarity: parentScore(s.common.goalClarity),
         shortTermRecovery: parentScore(s.common.shortTermRecovery),
+        managementAcceptance: parentScore(s.common.managementAcceptance),
+        coachingResponse: parentScore(s.common.coachingResponse),
+        questionInitiative: parentScore(s.common.questionInitiative),
+        phoneBoundary: parentScore(s.common.phoneBoundary),
+        peerFocusBoundary: parentScore(s.common.peerFocusBoundary),
       },
       math: s.math ? { mathStrategy: parentScore(s.math.mathStrategy) } : null,
       english: s.english ? { englishStrategy: parentScore(s.english.englishStrategy) } : null,
       responseQualityStatus: s.responseQuality.status,
     },
+    ...(verdicts ? { verdicts } : {}),
     interpretation: {
       studentType: toEntranceReportWording(i.studentType),
       parentSummary: toEntranceReportWording(i.parentSummary),
@@ -327,9 +327,9 @@ export function buildParentSafeProfile(
         ? toEntranceReportWording(stripInternalScoreNotation(i.englishStrategy))
         : null,
     },
-    ...(peerResponses.length > 0 ? { peerResponses } : {}),
-    ...(preferenceResponses.length > 0 ? { preferenceResponses } : {}),
-    ...(Object.keys(behaviorEvidence).length > 0 ? { behaviorEvidence } : {}),
+    ...(Object.keys(studentAnswers).length > 0 ? { studentAnswers } : {}),
+    ...(Object.keys(difficultyTags).length > 0 ? { difficultyTags } : {}),
+    ...(responseDistribution ? { responseDistribution } : {}),
     ...(entryPriority ? { entryPriority } : {}),
     ...(mbti ? { mbti } : {}),
     ...(transitionPlan.length > 0 ? { transitionPlan } : {}),
@@ -337,9 +337,34 @@ export function buildParentSafeProfile(
 }
 
 /**
+ * 빈도 문항(최근 2주 행동)의 선택지 분포. 문항 문장은 싣지 않고 숫자만 센다.
+ * 동의 문항은 라벨이 달라 섞지 않는다. 응답이 없으면 undefined.
+ */
+export function buildResponseDistribution(
+  responses: Record<string, unknown> | null | undefined,
+  subject: SubjectSelection,
+): { counts: number[]; notApplicable: number; total: number } | undefined {
+  if (!responses) return undefined;
+  const counts = [0, 0, 0, 0, 0];
+  let notApplicable = 0;
+  let total = 0;
+  for (const item of getItemsForSubject(subject)) {
+    if (!isLikert(item) || item.scale !== "frequency") continue;
+    const v = responses[item.id];
+    if (typeof v === "number" && v >= 1 && v <= 5) {
+      counts[v - 1] += 1;
+      total += 1;
+    } else if (v === "not_applicable") {
+      notApplicable += 1;
+      total += 1;
+    }
+  }
+  return total > 0 ? { counts, notApplicable, total } : undefined;
+}
+
+/**
  * MBTI를 학부모 화면에 실어도 되는지 판정한다.
- * 4글자 형식이 맞고 확신도가 high/medium일 때만 통과 — low/none/미입력은 표시하지 않는다
- * ("잘 모르겠다"고 답한 정보를 결과지에 실으면 근거 없는 단정이 된다).
+ * 4글자 형식이 맞고 확신도가 high/medium일 때만 통과 — low/none/미입력은 표시하지 않는다.
  */
 export function buildMbtiSafe(
   input?: { type?: string | null; confidence?: string | null } | null,
@@ -368,15 +393,16 @@ export const PARENT_FORBIDDEN_KEYS = [
   "nkFit",
   "nkFitInterpretation",
   "mbtiAxes",
-  "mathSelfEfficacy",
   "mathNoveltyAvoidance",
   "mathTestInterference",
-  "englishSelfEfficacy",
   "englishReadingAvoidance",
   "englishTestInterference",
   "situations",
   "reasons",
   "priorityConcerns",
+  "basisItems",
+  "prevAcademy",
+  "prev_academy",
   "studentPhone",
   "parentPhone",
   "student_phone",

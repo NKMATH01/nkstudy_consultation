@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getItemsForSubject } from "../definition";
+import { INSTRUMENT_REVISION, MANAGEMENT_DIRECT_ID, getItemsForSubject } from "../definition";
 import {
   buildSurveyV2DisplayData,
   buildV2IntakeSections,
@@ -26,72 +26,55 @@ const baseSurvey = {
     clinic_condition: "요일·시간이 맞으면 가능",
     math_difficulty: "도형",
     english_difficulty: "독해",
+    math_difficulty_tags: ["서술형·증명", "시간이 모자람"],
     mbti: "ISTJ",
     mbti_confidence: "high" as const,
     commitment14: "매일 오답 한 문제를 다시 풀기",
   },
   responses_v2: {
-    instrument_revision: "v2.2-learning-disposition-60",
-    responses: { LT1: 4, FB1: "unknown" as const },
-    scenarios: { C1: 3 },
-    supplements: { phone_weekday: "1~2시간" },
+    instrument_revision: INSTRUMENT_REVISION,
+    responses: { LA1: 4, HW4: "unknown" as const },
+    scenarios: { [MANAGEMENT_DIRECT_ID]: 3 },
+    supplements: {},
   },
 };
 
 describe("설문 V2 표시 어댑터", () => {
   it("현재 typed definition의 과목별 전체 문항을 그대로 사용한다", () => {
     const data = buildSurveyV2DisplayData(baseSurvey);
-
     expect(data.subjectLabel).toBe("수학+영어");
     expect(data.questionCount).toBe(getItemsForSubject("both").length);
-    expect(data.questionGroups.map((group) => group.subject)).toEqual([
-      "common",
-      "math",
-      "english",
-    ]);
+    expect(data.questionGroups.map((group) => group.subject)).toEqual(["common", "math", "english"]);
     expect(data.answeredCount).toBe(3);
   });
 
-  it("과거 리비전 응답을 최신 60문항의 질문으로 바꾸어 표시하지 않는다", () => {
+  it("과거 리비전 응답을 최신 문항의 질문으로 바꾸어 표시하지 않는다", () => {
     const data = buildSurveyV2DisplayData({
       ...baseSurvey,
-      responses_v2: {
-        responses: { LT1: 4, N1: 5 },
-        scenarios: { C1: 3 },
-      },
+      responses_v2: { instrument_revision: "v2.2-learning-disposition-60", responses: { LT1: 4, N1: 5 }, scenarios: { C1: 3 } },
     });
     expect(data.isCurrentRevision).toBe(false);
     expect(data.questionGroups).toEqual([]);
     expect(data.answeredCount).toBe(3);
   });
 
-  it("척도 문구·상황 선택지·보조 입력을 학생 설문과 같은 문구로 복원한다", () => {
+  it("척도 문구·직접 질문 선택지를 학생 설문과 같은 문구로 복원한다", () => {
     const data = buildSurveyV2DisplayData(baseSurvey);
     const questions = data.questionGroups.flatMap((group) => group.questions);
-
-    expect(questions.find((question) => question.id === "LT1")?.answer).toBe("4점 · 대부분 했다");
-    expect(questions.find((question) => question.id === "FB1")?.answer).toBe("잘 모르겠음");
-    expect(questions.find((question) => question.id === "C1")?.answer).toContain(
-      "휴대폰을 치우고 오답 1개의 원인부터 적는다."
-    );
-    expect(questions.find((question) => question.id === "P4")?.supplements).toContainEqual({
-      id: "phone_weekday",
-      label: "평일 오락용 사용시간",
-      value: "1~2시간",
-    });
+    expect(questions.find((q) => q.id === "LA1")?.answer).toBe("4점 · 대부분 했다");
+    expect(questions.find((q) => q.id === "HW4")?.answer).toBe("잘 모르겠음");
+    expect(questions.find((q) => q.id === MANAGEMENT_DIRECT_ID)?.answer).toContain("잘 모르겠다");
   });
 
   it("V2 사전정보의 새 필드를 빠뜨리지 않고 과목에 맞게 표시한다", () => {
     const sections = buildV2IntakeSections(baseSurvey);
     const values = Object.fromEntries(
-      sections.flatMap((section) => section.fields.map((item) => [item.key, item.value]))
+      sections.flatMap((section) => section.fields.map((item) => [item.key, item.value])),
     );
-
     expect(values.prev_academy_duration).toBe("1년");
-    expect(values.prev_leave_reason).toBe("개별 관리 필요");
     expect(values.nk_expectations).toBe("철저한 숙제 관리, 주간 테스트·재보완");
-    expect(values.preferred_days).toBe("주말 집중");
     expect(values.math_difficulty).toBe("도형");
+    expect(values.math_difficulty_tags).toBe("서술형·증명, 시간이 모자람");
     expect(values.english_difficulty).toBe("독해");
     expect(values.mbti_confidence).toBe("높음");
     expect(values.commitment14).toBe("매일 오답 한 문제를 다시 풀기");
@@ -99,36 +82,36 @@ describe("설문 V2 표시 어댑터", () => {
 
   it("등록안내용 텍스트에 V1 35문항/7-Factor를 섞지 않는다", () => {
     const text = surveyV2ToText(baseSurvey);
-
     expect(text).toContain("설문 버전: V2 학습 프로필");
     expect(text).toContain("최신 V2 문항 응답");
     expect(text).toContain("입학 상담 우선 도움");
     expect(text).not.toContain("7-Factor");
-    expect(text).not.toContain("=== 설문 응답 (1-5점) ===");
   });
 
-  it("V2 핵심 점수는 0~100 서버 점수를 그대로 읽는다", () => {
+  it("V2 핵심 점수는 아홉 척도의 0~100 서버 점수를 그대로 읽는다", () => {
     const metrics = getV2CoreMetrics({
       common: {
         learningAttitude: 75,
         homeworkReliability: 62.5,
-        helpSeeking: 80,
-        feedbackExecution: 70,
-        longTermPersistence: 50,
+        goalClarity: 50,
         shortTermRecovery: 87.5,
+        managementAcceptance: 70,
+        coachingResponse: 68.75,
+        questionInitiative: 50,
         phoneBoundary: 25,
-        conscientiousness: 64,
+        peerFocusBoundary: 58.3,
       },
     });
-
     expect(metrics.map((metric) => [metric.label, metric.score])).toEqual([
-      ["수업 준비·참여", 75],
-      ["숙제 시작·마무리", 62.5],
-      ["질문·도움 요청", 80],
-      ["고친 뒤 다시 해보기", 70],
-      ["계획 이어가기", 50],
-      ["틀린 뒤 다시 시작", 87.5],
+      ["학습 태도", 75],
+      ["숙제 태도", 62.5],
+      ["목표 의식", 50],
+      ["단기 회복력", 87.5],
+      ["관리 수용", 70],
+      ["지도 방식 반응", 68.75],
+      ["질문 성향", 50],
       ["공부 중 휴대폰 조절", 25],
+      ["친구와 있을 때 조절", 58.3],
     ]);
   });
 
@@ -138,22 +121,21 @@ describe("설문 V2 표시 어댑터", () => {
       score_profile_v2: {
         common: {
           learningAttitude: 75,
-          conscientiousness: 64,
+          goalClarity: 64,
           homeworkReliability: 62.5,
-          longTermPersistence: 50,
-          peerLearningResource: 81.25,
-          structureNeed: 87.5,
+          shortTermRecovery: 50,
+          peerFocusBoundary: 81.25,
+          managementAcceptance: 87.5,
         },
       },
     });
-
-    expect(scores.map(({ label, value, scale }) => [label, value, scale])).toEqual([
-      ["태도", 75, 100],
-      ["자주", 64, 100],
-      ["과제", 62.5, 100],
-      ["의지", 50, 100],
-      ["사회", 81.25, 100],
-      ["관리", 87.5, 100],
+    expect(scores.map(({ label, value, scale, highIsRisk }) => [label, value, scale, highIsRisk])).toEqual([
+      ["태도", 75, 100, false],
+      ["자주", 64, 100, false],
+      ["과제", 62.5, 100, false],
+      ["의지", 50, 100, false],
+      ["사회", 81.25, 100, false],
+      ["관리", 87.5, 100, false],
     ]);
   });
 
@@ -167,26 +149,19 @@ describe("설문 V2 표시 어댑터", () => {
       factor_social: 3.5,
       factor_management: 4.5,
     });
-
     expect(scores.map(({ value, scale }) => [value, scale])).toEqual([
-      [4.2, 5],
-      [3.8, 5],
-      [4.4, 5],
-      [4, 5],
-      [3.5, 5],
-      [4.5, 5],
+      [4.2, 5], [3.8, 5], [4.4, 5], [4, 5], [3.5, 5], [4.5, 5],
     ]);
   });
 
   it("잘못된 척도 응답은 점수를 꾸며내지 않고 미응답 처리한다", () => {
-    const item = getItemsForSubject("math").find((candidate) => candidate.id === "LT1");
-    if (!item || item.kind !== "likert") throw new Error("LT1 fixture missing");
-
+    const item = getItemsForSubject("math").find((candidate) => candidate.id === "LA1");
+    if (!item || item.kind !== "likert") throw new Error("LA1 fixture missing");
     expect(formatLikertResponseV2(item, 6)).toBeNull();
     expect(formatLikertResponseV2(item, "unknown")).toBeNull();
 
-    const optionalItem = getItemsForSubject("math").find((candidate) => candidate.id === "FB1");
-    if (!optionalItem || optionalItem.kind !== "likert") throw new Error("FB1 fixture missing");
+    const optionalItem = getItemsForSubject("math").find((candidate) => candidate.id === "HW4");
+    if (!optionalItem || optionalItem.kind !== "likert") throw new Error("HW4 fixture missing");
     expect(formatLikertResponseV2(optionalItem, "not_applicable")).toBe("최근에는 해당 경험 없음");
   });
 });

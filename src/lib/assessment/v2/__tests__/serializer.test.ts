@@ -28,9 +28,8 @@ function profileFor(selection: SubjectSelection): ScoreProfile {
   return computeScoreProfile({
     subjectSelection: selection,
     responses: fillResponses(4),
-    scenarioResponses: { C1: 3, C2: 2, MS1: 4, MS2: 3, ES1: 3, ES2: 4 },
+    scenarioResponses: { MA5: 2, CR5: 2, MS1: 4, MS2: 3, ES1: 3, ES2: 4 },
     mbti: { type: "INTP", confidence: "high" },
-    clinicAvailability: 100,
   });
 }
 
@@ -229,7 +228,7 @@ describe("자세한 총평 프롬프트 규칙", () => {
   });
 
   it("점수 인용은 강점·개선 영역·과목 전략에만 남긴다", () => {
-    expect(prompt).toContain("강점·개선 영역은 공통의 일곱 학습행동에서 고르고");
+    expect(prompt).toContain("강점·개선 영역은 공통의 아홉 학습행동에서 고르고");
     expect(prompt).toContain("과목 전략은 각 과목 필드에서만 다루세요");
     // [스펙 변경] 예전에는 총평에도 점수를 인용하라고 지시했다.
     expect(prompt).not.toContain("총평·강점·약점·과목 전략에서 특징을 말할 때는");
@@ -282,7 +281,7 @@ describe("규칙 기반 fallback 총평도 무점수 계약을 지킨다", () =>
   it("응답이 부족한 프로필에서도 총평에 점수 표기가 없다", () => {
     const sparse = computeScoreProfile({
       subjectSelection: "math",
-      responses: { LT1: 5 },
+      responses: { LA1: 5 },
       scenarioResponses: {},
     });
     const interp = buildFallbackInterpretation(sparse);

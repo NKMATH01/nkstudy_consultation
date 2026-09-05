@@ -2,7 +2,7 @@ import { getAnalysis } from "@/lib/actions/analysis";
 import { getClasses, getTeachers } from "@/lib/actions/settings";
 import { AnalysisDetailClient } from "@/components/analyses/analysis-detail-client";
 import { AnalysisDetailV2Client } from "@/components/analyses/analysis-detail-v2-client";
-import type { CounselorBackground } from "@/components/analysis-report-v2/counselor-report";
+import type { CounselorBackground } from "@/components/analysis-report-v2/counselor-background";
 import { ClassRecommendationSection } from "@/components/analyses/class-recommendation-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
@@ -39,6 +39,8 @@ function toBackground(intake: Record<string, unknown> | null): CounselorBackgrou
     problemSelf: s("problem_self"),
     mathDifficulty: s("math_difficulty"),
     englishDifficulty: s("english_difficulty"),
+    mathDifficultyTags: Array.isArray(intake.math_difficulty_tags) ? (intake.math_difficulty_tags as string[]) : null,
+    englishDifficultyTags: Array.isArray(intake.english_difficulty_tags) ? (intake.english_difficulty_tags as string[]) : null,
     healthNote: s("health_note"),
     requests: s("requests"),
     entryPriority: s("commitment14"),

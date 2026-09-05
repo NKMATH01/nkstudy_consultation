@@ -23,8 +23,7 @@ function makeAnalysis(): Analysis {
   const scores = computeScoreProfile({
     subjectSelection: "both",
     responses,
-    scenarioResponses: { C1: 3, C2: 2, MS1: 4, MS2: 3, ES1: 3, ES2: 4 },
-    clinicAvailability: 75,
+    scenarioResponses: { MA5: 2, CR5: 2, MS1: 4, MS2: 3, ES1: 3, ES2: 4 },
   });
   const result = buildResultProfileV2({
     scoreProfile: scores,
@@ -77,7 +76,7 @@ describe("V2 등록안내 연동", () => {
         page1: {
           profileSummary: "요약",
           sixFactorScores: [
-            { factor: "수업 준비·참여", score: 999, grade: "천재", insight: "맞춤 인사이트" },
+            { factor: "학습 태도", score: 999, grade: "천재", insight: "맞춤 인사이트" },
           ],
           managementGuide: [],
         },
@@ -87,7 +86,7 @@ describe("V2 등록안내 연동", () => {
     );
     const page1 = normalized.page1 as ReportTemplateData["page1"];
     const serverScore = analysis.result_profile_v2!.scores.common.learningAttitude;
-    const attitude = page1.sixFactorScores?.find((row) => row.factor === "수업 준비·참여");
+    const attitude = page1.sixFactorScores?.find((row) => row.factor === "학습 태도");
 
     expect(normalized.instrumentVersion).toBe("v2");
     expect(attitude?.score).toBe(serverScore);

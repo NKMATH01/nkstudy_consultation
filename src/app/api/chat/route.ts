@@ -124,7 +124,7 @@ function mapSurveyForPrompt(s: Record<string, unknown>) {
 
   const intake = recordValue(s.intake_v2);
   const profile = recordValue(s.score_profile_v2);
-  const nkFit = recordValue(profile.nkFit);
+  const verdicts = recordValue(profile.verdicts);
   const quality = recordValue(profile.responseQuality);
   const subject = getSurveyV2Subject(s);
   const metrics = Object.fromEntries(
@@ -165,7 +165,7 @@ function mapSurveyForPrompt(s: Record<string, unknown>) {
       입학상담_우선도움: intake.commitment14,
     },
     핵심점수_0_100: metrics,
-    NK운영적합: { 단계: nkFit.stage, 점수: nkFit.overall },
+    핵심판단: { 관리를_버틸_수_있는가: recordValue(verdicts.management).verdict, 강하게_vs_다독임: recordValue(verdicts.guidance).verdict },
     응답품질: quality.status,
     날짜: stringValue(s.created_at)?.split("T")[0],
   };
@@ -191,7 +191,7 @@ function mapAnalysisForPrompt(a: Record<string, unknown>) {
   const result = recordValue(a.result_profile_v2);
   const scores = recordValue(result.scores);
   const coaching = recordValue(scores.coaching);
-  const nkFit = recordValue(scores.nkFit);
+  const verdicts = recordValue(scores.verdicts);
   const quality = recordValue(scores.responseQuality);
   return {
     버전: "V2 학습 프로필 분석",
@@ -204,7 +204,7 @@ function mapAnalysisForPrompt(a: Record<string, unknown>) {
     ),
     지도유형: coaching.coachingType,
     자율구조유형: coaching.autonomyStructureType,
-    NK운영적합: { 단계: nkFit.stage, 점수: nkFit.overall },
+    핵심판단: { 관리를_버틸_수_있는가: recordValue(verdicts.management).verdict, 강하게_vs_다독임: recordValue(verdicts.guidance).verdict },
     응답품질: quality.status,
     날짜: stringValue(a.created_at)?.split("T")[0],
   };
@@ -377,7 +377,7 @@ NK EDUCATION은 수학/영어 학원입니다.
 - 상담 결과: none(미결정) → registered(등록) / hold(고민중) / other(미등록)
 - 상담 결과 한국어 매핑: "등록"→registered, "고민"/"고민중"→hold, "미등록"→other, "미결정"/"미정"→none
 - 설문/분석은 버전 구분이 필수입니다. V1 과거 자료만 7-Factor(1~5점)를 사용합니다.
-- V2 최신 학습 프로필은 입학테스트 전에 학생이 작성한 자기보고입니다. 0~100 서버 내부 지표, 학생이 우선 도움받고 싶은 점, 과목 입학테스트와 입학 상담 내용을 함께 사용합니다. V2를 V1 지표로 바꾸거나 설문만으로 반 배치·등록 적합을 단정하지 마세요.
+- V2 최신 학습 프로필은 입학테스트 전에 학생이 작성한 자기보고입니다. 0~100 서버 내부 지표(학습 태도·숙제 태도·목표 의식·단기 회복력·관리 수용·지도 방식 반응·질문 성향·휴대폰·친구 조절), 핵심 판단 두 가지(관리를 버틸 수 있는가, 강하게 vs 다독임), 학생이 우선 도움받고 싶은 점, 과목 입학테스트와 입학 상담 내용을 함께 사용합니다. V2를 V1 지표로 바꾸거나 설문만으로 반 배치·등록 적합을 단정하지 마세요.
 
 ## 데이터 한계
 - 재원생: 전체 (is_active=true)

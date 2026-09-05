@@ -22,7 +22,7 @@ import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
 import { AnalysisReportV2Client } from "@/components/analysis-report-v2/analysis-report-v2-client";
 import { TeacherSheet } from "@/components/analysis-report-v2/teacher-sheet";
-import type { CounselorBackground } from "@/components/analysis-report-v2/counselor-report";
+import type { CounselorBackground } from "@/components/analysis-report-v2/counselor-background";
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import type { Analysis, Class, Teacher } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";

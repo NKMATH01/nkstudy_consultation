@@ -82,23 +82,23 @@ function surveyTests(baseURL, browser) {
           await fillScreen0(page, "수학");
           await enterScorePhase(page);
           const total = await getScoreTotal(page);
-          assertEqual(total, 50, "수학 단일 선택 점수형 문항 수");
+          assertEqual(total, 48, "수학 단일 선택 점수형 문항 수");
         } finally {
           await context.close();
         }
       },
     },
     {
-      name: "수학만 50문항 전 문항 진행 + 제출 직전 도달",
+      name: "수학만 48문항 전 문항 진행 + 제출 직전 도달",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
           await goSurvey(page, baseURL);
           await fillScreen0(page, "수학");
           await enterScorePhase(page);
-          assertEqual(await getScoreTotal(page), 50, "수학 문항 수(진입)");
+          assertEqual(await getScoreTotal(page), 48, "수학 문항 수(진입)");
           const answered = await answerAllScore(page);
-          assertEqual(answered, 50, "수학 응답 문항 수");
+          assertEqual(answered, 48, "수학 응답 문항 수");
           assert(await page.locator("#v2-entry-priority").isVisible(), "입학 상담 우선 도움 화면 도달");
         } finally {
           await context.close();
@@ -106,30 +106,30 @@ function surveyTests(baseURL, browser) {
       },
     },
     {
-      name: "영어만 50문항 전 문항 진행",
+      name: "영어만 48문항 전 문항 진행",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
           await goSurvey(page, baseURL);
           await fillScreen0(page, "영어");
           await enterScorePhase(page);
-          assertEqual(await getScoreTotal(page), 50, "영어 문항 수(진입)");
-          assertEqual(await answerAllScore(page), 50, "영어 응답 문항 수");
+          assertEqual(await getScoreTotal(page), 48, "영어 문항 수(진입)");
+          assertEqual(await answerAllScore(page), 48, "영어 응답 문항 수");
         } finally {
           await context.close();
         }
       },
     },
     {
-      name: "수학+영어 60문항 + 상담 우선 도움 입력 전 제출 차단 + 제출 버튼 존재(SKIP: 실제 제출)",
+      name: "수학+영어 58문항 + 상담 우선 도움 입력 전 제출 차단 + 제출 버튼 존재(SKIP: 실제 제출)",
       fn: async () => {
         const { context, page } = await newPage(browser);
         try {
           await goSurvey(page, baseURL);
           await fillScreen0(page, "수학+영어");
           await enterScorePhase(page);
-          assertEqual(await getScoreTotal(page), 60, "수학+영어 문항 수(진입)");
-          assertEqual(await answerAllScore(page), 60, "수학+영어 응답 문항 수");
+          assertEqual(await getScoreTotal(page), 58, "수학+영어 문항 수(진입)");
+          assertEqual(await answerAllScore(page), 58, "수학+영어 응답 문항 수");
           // 상담 우선 도움 입력 전: 제출 버튼 비활성.
           assert(await submitBtn(page).isVisible(), "제출 버튼 존재");
           assert(await submitBtn(page).isDisabled(), "약속 입력 전 제출 차단(비활성)");
@@ -179,32 +179,6 @@ function surveyTests(baseURL, browser) {
           await page.waitForTimeout(700);
           assertEqual(await currentHeading(page), q1, "기존 답 수정 시 자동 이탈 없음");
           assert(await nextBtn(page).isVisible(), "수정 시 다음 버튼 노출");
-        } finally {
-          await context.close();
-        }
-      },
-    },
-    {
-      name: "보조 선택 문항(P4)은 주 선택만으로 자동 이동하지 않음",
-      fn: async () => {
-        const { context, page } = await newPage(browser);
-        try {
-          await goSurvey(page, baseURL);
-          await fillScreen0(page, "수학");
-          await enterScorePhase(page);
-          // LT1~Q4~P3(15문항) 키보드 진행 → 16번째가 P4(보조 선택 보유).
-          for (let i = 0; i < 15; i++) {
-            await radios(page).first().focus();
-            await page.keyboard.press("Enter");
-            await nextBtn(page).click();
-          }
-          assert(await page.locator("#sup-phone_weekday").isVisible(), "P4 보조 선택 필드 존재");
-          const p4 = await currentHeading(page);
-          await radios(page).first().click(); // 주 선택 포인터
-          await page.waitForTimeout(700);
-          assertEqual(await currentHeading(page), p4, "보조 선택 문항은 자동 이동하지 않음");
-          await nextBtn(page).click();
-          assert((await currentHeading(page)) !== p4, "다음 버튼으로만 진행");
         } finally {
           await context.close();
         }

@@ -139,7 +139,7 @@ async function main() {
         await fillScreen0(page);
         for (let i = 0; i < 5; i++) await nextBtn(page).click();
         const answered = await answerAllScore(page);
-        assertEqual(answered, 60, "수학+영어 응답 문항 수");
+        assertEqual(answered, 58, "수학+영어 응답 문항 수");
         await page.fill("#v2-entry-priority", "E2E 검증용: 오답 공부 방법을 도움받고 싶음");
         await submitBtn(page).click();
         // 성공 화면 또는 중복 방어 메시지.

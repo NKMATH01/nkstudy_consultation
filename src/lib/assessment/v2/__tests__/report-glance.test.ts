@@ -1,121 +1,67 @@
 import { describe, expect, it } from "vitest";
-import { CONSTRUCT_LABEL, dockItemsFor } from "@/components/analysis-report-v2/report-theme";
-import { signalBandOf } from "@/components/analysis-report-v2/signal-descriptions";
+import { CONSTRUCT_LABEL, dockItemsFor, positiveBand } from "@/components/analysis-report-v2/report-theme";
+import { ANSWER_LINE, signalBandOf } from "@/components/analysis-report-v2/signal-descriptions";
 import type { CommonScores } from "../types";
 
-// 00 한 장 요약이 의존하는 규칙을 고정한다.
-// (컴포넌트 렌더 대신 규칙만 검증 — 렌더 스모크는 배포 후 브라우저로 확인)
+// 결과지 3판이 의존하는 규칙을 고정한다.
 
-/** 00 요약 정렬 바에 쓰는 7개 핵심 학습행동. 또래·과목 점수는 섞지 않는다. */
-const GLANCE_KEYS: (keyof CommonScores)[] = [
+/** 03 프로파일·04 질문별 해석에 쓰는 여덟 척도. 지도 방식 반응은 02 핵심 판단에서만 다룬다. */
+const PROFILE_KEYS: (keyof CommonScores)[] = [
   "learningAttitude",
   "homeworkReliability",
-  "helpSeeking",
-  "feedbackExecution",
-  "phoneBoundary",
-  "longTermPersistence",
+  "goalClarity",
   "shortTermRecovery",
+  "managementAcceptance",
+  "questionInitiative",
+  "phoneBoundary",
+  "peerFocusBoundary",
 ];
 
-function sortDesc(items: { label: string; score: number | null }[]) {
-  return [...items].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
-}
-
-describe("00 한 장 요약 — 정렬 바", () => {
-  it("합산 축은 또래·과목을 제외한 7개 학습행동이다", () => {
-    expect(GLANCE_KEYS).toHaveLength(7);
-    expect(GLANCE_KEYS).not.toContain("peerLearningResource");
-    expect(GLANCE_KEYS).not.toContain("peerFocusBoundary");
+describe("03 프로파일 — 여덟 척도", () => {
+  it("지도 방식 반응을 제외한 여덟 척도다", () => {
+    expect(PROFILE_KEYS).toHaveLength(8);
+    expect(PROFILE_KEYS).not.toContain("coachingResponse");
   });
 
-  it("각 축에 화면 한글 라벨이 있다", () => {
-    for (const k of GLANCE_KEYS) {
+  it("각 척도에 화면 한글 라벨과 등급별 한 줄 답이 있다", () => {
+    for (const k of PROFILE_KEYS) {
       expect(CONSTRUCT_LABEL[k], k).toBeTruthy();
+      expect(ANSWER_LINE[k].high, k).toBeTruthy();
+      expect(ANSWER_LINE[k].mid, k).toBeTruthy();
+      expect(ANSWER_LINE[k].low, k).toBeTruthy();
     }
   });
-
-  it("점수 내림차순으로 정렬해 위에서부터 잘 되는 순으로 읽힌다", () => {
-    const sorted = sortDesc([
-      { label: "a", score: 40 },
-      { label: "b", score: 80 },
-      { label: "c", score: 60 },
-    ]);
-    expect(sorted.map((x) => x.label)).toEqual(["b", "c", "a"]);
-  });
-
-  it("정보 부족(null)은 맨 뒤로 보낸다", () => {
-    const sorted = sortDesc([
-      { label: "none", score: null },
-      { label: "low", score: 10 },
-    ]);
-    expect(sorted.map((x) => x.label)).toEqual(["low", "none"]);
-  });
 });
 
-describe("00 한 장 요약 — 강점 칩 / 도와줄 부분", () => {
-  // 강점 칩은 high 밴드만, 최대 2개, 라벨만(점수 노출 금지 — 학부모 패널 합의).
-  function strengthLabels(items: { label: string; score: number }[]) {
-    return items
-      .filter((it) => signalBandOf(it.score) === "high")
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 2)
-      .map((it) => it.label);
-  }
-
-  it("high 밴드만 강점 칩으로 뽑는다", () => {
-    const labels = strengthLabels([
-      { label: "높음", score: 80 },
-      { label: "중간", score: 50 },
-      { label: "낮음", score: 20 },
-    ]);
-    expect(labels).toEqual(["높음"]);
-  });
-
-  it("최대 2개까지만 노출한다", () => {
-    const labels = strengthLabels([
-      { label: "1등", score: 90 },
-      { label: "2등", score: 85 },
-      { label: "3등", score: 80 },
-    ]);
-    expect(labels).toEqual(["1등", "2등"]);
-  });
-
-  it("high가 없으면 칩을 만들지 않는다", () => {
-    expect(strengthLabels([{ label: "중간", score: 50 }])).toEqual([]);
-  });
-});
-
-describe("밴드 기준(signalBandOf) — 학부모 화면 단일 기준", () => {
-  it("65 이상 high / 45 이상 mid / 그 미만 low", () => {
+describe("등급 기준 — 학부모 화면 단일 기준", () => {
+  it("75 이상 잘 되고 있음 / 62.5 이상 지켜볼 것 / 그 미만 먼저 도울 것", () => {
     expect(signalBandOf(80)).toBe("high");
-    expect(signalBandOf(65)).toBe("high");
-    expect(signalBandOf(64)).toBe("mid");
-    expect(signalBandOf(45)).toBe("mid");
-    expect(signalBandOf(44)).toBe("low");
+    expect(signalBandOf(75)).toBe("high");
+    expect(signalBandOf(74.9)).toBe("mid");
+    expect(signalBandOf(62.5)).toBe("mid");
+    expect(signalBandOf(62.4)).toBe("low");
+    expect(signalBandOf(50)).toBe("low");
   });
 
-  it("점수가 산출되지 않으면 밴드도 없다", () => {
+  it("3점(50)은 '보통'이 아니라 먼저 도울 것이다", () => {
+    expect(positiveBand(50).label).toBe("먼저 도울 것");
+    expect(positiveBand(68.75).label).toBe("지켜볼 것");
+    expect(positiveBand(81.25).label).toBe("잘 되고 있음");
+  });
+
+  it("점수가 산출되지 않으면 등급도 없다", () => {
     expect(signalBandOf("insufficient")).toBeNull();
+    expect(positiveBand("insufficient").label).toBe("정보 부족");
   });
 });
 
 describe("dockItemsFor — 실제 렌더 섹션과 일치", () => {
-  it("00 요약이 첫 항목이다", () => {
-    expect(dockItemsFor(false)[0].id).toBe("sec-glance");
-  });
-
-  it("과목 섹션이 없으면 과목 항목을 넣지 않는다", () => {
-    const ids = dockItemsFor(false).map((d) => d.id);
-    expect(ids).not.toContain("sec-subject");
+  it("02 핵심 판단이 첫 항목이다", () => {
+    expect(dockItemsFor(false)[0].id).toBe("sec-verdict");
   });
 
   it("모바일 dock은 핵심 네 섹션만 둔다", () => {
-    expect(dockItemsFor(false).map((d) => d.id)).toEqual([
-      "sec-glance",
-      "sec-strength",
-      "sec-weakness",
-      "sec-plan",
-    ]);
+    expect(dockItemsFor(false).map((d) => d.id)).toEqual(["sec-verdict", "sec-profile", "sec-questions", "sec-plan"]);
   });
 
   it("과목 유무와 관계없이 모바일 dock은 간결하게 유지한다", () => {
@@ -124,17 +70,17 @@ describe("dockItemsFor — 실제 렌더 섹션과 일치", () => {
 
   it("모든 dock 항목이 결과지에 실제로 있는 섹션 id를 가리킨다", () => {
     const rendered = new Set([
-      "sec-glance",
-      "sec-summary",
-      "sec-strength",
-      "sec-weakness",
-      "sec-signals",
+      "sec-overview",
+      "sec-verdict",
+      "sec-profile",
+      "sec-questions",
+      "sec-answers",
       "sec-subject",
-      "sec-preference",
+      "sec-summary",
+      "sec-guidance",
       "sec-plan",
+      "sec-parent",
     ]);
-    for (const d of dockItemsFor(true)) {
-      expect(rendered.has(d.id), d.id).toBe(true);
-    }
+    for (const d of dockItemsFor(true)) expect(rendered.has(d.id), d.id).toBe(true);
   });
 });

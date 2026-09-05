@@ -1,14 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ALL_ITEMS, isLikert } from "@/lib/assessment/v2/definition";
+import { ALL_ITEMS, GUIDANCE_CHOICE_ID, MANAGEMENT_DIRECT_ID, isLikert } from "@/lib/assessment/v2/definition";
 import { computeScoreProfile } from "@/lib/assessment/v2/scoring";
-import {
-  buildFallbackInterpretation,
-  buildResultProfileV2,
-} from "@/lib/assessment/v2/interpretation";
+import { buildFallbackInterpretation, buildResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import { buildParentSafeProfile } from "@/lib/assessment/v2/parent-safe";
 import type { LikertItem, ResponseMap, SubjectSelection } from "@/lib/assessment/v2/types";
-import { CounselorReport } from "../counselor-report";
 import { ParentReport } from "../parent-report";
 
 const LIKERT = ALL_ITEMS.filter(isLikert) as LikertItem[];
@@ -19,12 +15,13 @@ function fill(value: number): ResponseMap {
   return r;
 }
 
+const SCENARIOS = { [MANAGEMENT_DIRECT_ID]: 2, [GUIDANCE_CHOICE_ID]: 2, MS1: 4, MS2: 2, ES1: 1, ES2: 4 };
+
 function resultFor(sel: SubjectSelection, value = 4) {
   const sp = computeScoreProfile({
     subjectSelection: sel,
     responses: fill(value),
-    scenarioResponses: { C1: 1, C2: 3, MS1: 4, MS2: 2, ES1: 1, ES2: 4 },
-    clinicAvailability: 100,
+    scenarioResponses: SCENARIOS,
     mbti: { type: "ISTJ", confidence: "high" },
   });
   return buildResultProfileV2({
@@ -34,106 +31,105 @@ function resultFor(sel: SubjectSelection, value = 4) {
   });
 }
 
-describe("V2 결과 보고서 렌더 smoke", () => {
-  it("상담자 보고서가 14 섹션 골격을 오류 없이 렌더한다", () => {
-    const profile = resultFor("both");
-    const html = renderToStaticMarkup(
-      <CounselorReport
-        profile={profile}
-        header={{ name: "가상학생", schoolGrade: "중2", createdAt: "2026-07-11" }}
-        background={{ prevAcademy: "가상학원", dream: "의사", nkExpectations: ["철저한 숙제 관리"] }}
-        contacts={{ studentPhone: "010-1234-5678", parentPhone: "010-2222-3333" }}
-      />
-    );
-    expect(html).toContain("학습 운영 프로필");
-    expect(html).toContain("학생 분석 총평");
-    expect(html).toContain("핵심 지도 판정");
-    expect(html).toContain("선생님 메모");
-    expect(html).toContain("MBTI");
-    expect(html).toContain("입학 상담 확인 질문");
-    expect(html).toContain("읽는 원칙");
-    // 연락처는 마스킹되어 원본 뒷자리가 노출되지 않는다.
-    expect(html).not.toContain("010-1234-5678");
+const DISPLAY = { name: "가상학생", schoolGrade: "중2" };
+
+describe("학부모 결과보고서 3판 렌더 smoke", () => {
+  const profile = resultFor("both");
+  const safe = buildParentSafeProfile(profile, DISPLAY, fill(4), { type: "ISTJ", confidence: "high" }, {
+    prevConcerns: ["질문·오답 피드백 부족", "성적 변화 체감 부족"],
+    entryPriority: "숙제를 미루지 않고 시작하는 방법",
+    problemSelf: "집중이 오래 안 가요",
+    mathDifficultyTags: ["서술형·증명"],
+  });
+  const html = renderToStaticMarkup(<ParentReport data={safe} />);
+
+  it("열 섹션 골격을 오류 없이 렌더한다", () => {
+    for (const title of [
+      "검사 개요 및 응답 신뢰도",
+      "핵심 판단 두 가지",
+      "프로파일",
+      "질문별 해석",
+      "학생이 직접 적은 것",
+      "과목 공부 방식",
+      "종합 소견",
+      "NK 지도 방향",
+      "12주 운영 계획(안)",
+      "학부모님께 여쭙니다",
+    ]) {
+      expect(html, title).toContain(title);
+    }
     expect(html).toContain("가상학생");
   });
 
-  it("수학+영어는 두 과목 전략을 모두 렌더한다", () => {
-    const html = renderToStaticMarkup(
-      <CounselorReport
-        profile={resultFor("both")}
-        header={{ name: "가상학생", schoolGrade: "고1" }}
-      />
-    );
-    expect(html).toContain("수학 학습전략");
-    expect(html).toContain("영어 학습전략");
+  it("핵심 판단 두 가지를 판정·본인 답과 함께 보여 준다", () => {
+    expect(html).toContain("철저한 관리를 버틸 수 있는가");
+    expect(html).toContain("도움이 있으면 버팀");
+    expect(html).toContain("힘들어도 해 보겠다");
+    expect(html).toContain("강하게 하되 다독임을 같이");
+    expect(html).toContain("차분히 고쳐 주는 선생님");
   });
 
-  it("수학만 선택이면 영어 전략 카드가 없다", () => {
-    const html = renderToStaticMarkup(
-      <CounselorReport profile={resultFor("math")} header={{ name: "가상", schoolGrade: "중3" }} />
-    );
-    expect(html).toContain("수학 학습전략");
-    expect(html).not.toContain("영어 학습전략");
+  it("사용자 질문 아홉 개 중 여덟 개가 질문별 해석의 부제로 들어간다", () => {
+    for (const q of [
+      "공부를 얼마나 열심히 하는가?",
+      "숙제를 열심히 하는가?",
+      "구체적인 목표가 있는가?",
+      "강사가 힘들게 시켜도 따라올 것인가?",
+      "철저한 관리를 버틸 수 있는가?",
+      "활기차게 질문하는 스타일인가, 아닌가?",
+      "휴대폰 때문에 공부를 제대로 못 하는가?",
+      "친구 때문에 공부를 제대로 못 하는가?",
+    ]) {
+      expect(html, q).toContain(q);
+    }
   });
 
-  it("학부모 보고서는 상담자 전용 문구를 포함하지 않는다", () => {
-    const profile = resultFor("both");
-    const safe = buildParentSafeProfile(
-      profile,
-      { name: "가상학생", schoolGrade: "중2" },
-      null,
-      null,
-      {
-        prevConcerns: ["질문·오답 피드백 부족"],
-        entryPriority: "숙제를 미루지 않고 시작하는 방법",
-      },
-    );
-    const html = renderToStaticMarkup(<ParentReport data={safe} />);
-    // 재설계: 선별된 종합 분석 구조(지원 섹션 포함).
-    expect(html).toContain("종합 분석");
-    expect(html).toContain("학생에게 잘 작동하는 힘");
-    expect(html).toContain("학생을 먼저 도울 지점");
-    expect(html).toContain("학생이 직접 말한 가장 필요한 도움");
+  it("학생이 직접 적은 답·어려운 점 선택·이전 학원 운영 조건을 싣는다", () => {
     expect(html).toContain("숙제를 미루지 않고 시작하는 방법");
-    // AI/fallback의 "{{학생}}" 토큰이 렌더에 그대로 노출되지 않는다.
-    expect(html).not.toContain("{{학생}}");
-    // 강점 카드에도 관련 construct 점수 배지가 붙는다(약점 카드와 동일 스타일).
-    expect(html).toContain("insight-cards__badge");
-    // 학부모 본문에는 규준처럼 보이는 가짜 정밀 점수를 노출하지 않는다.
-    expect(html).not.toMatch(/\d+\.\d+\s*(?:점|\/\s*5)/);
-    expect(html).toContain("항목별 분석");
-    expect(html).toContain("입학 상담·초기 수업 제안");
-    expect(html).not.toContain("12주 운영 초안");
-    expect(html).toContain("입학 상담에서 합의할 운영 조건");
+    expect(html).toContain("집중이 오래 안 가요");
+    expect(html).toContain("서술형·증명");
     expect(html).toContain("질문과 오답을 남기지 않기");
-    // 상담자 전용 블록이 학부모 화면에 없다.
-    expect(html).not.toContain("선생님 메모");
-    expect(html).not.toContain("핵심 지도 판정");
-    expect(html).not.toContain("상담 배경과 학생이 쓴 이야기");
-    // 상담자용 MBTI 조정 패널(축 보정 수치)은 학부모 화면에 없다.
-    // MBTI 자기라벨은 지도 선호 축 위에도 놓지 않는다.
-    expect(html).not.toContain("MBTI 조정");
-    expect(html).not.toContain("confidenceWeight");
-    expect(html).not.toContain("spectrum__mbti");
+    expect(html).toContain("작은 변화 지표를 4주마다 공유합니다.");
   });
 
-  it("응답 품질 review이면 중립 확인 문구를 표시한다", () => {
-    // 모든 Likert 동일값 → straight_line → review.
-    const sp = computeScoreProfile({
-      subjectSelection: "math",
-      responses: fill(3),
-      scenarioResponses: { C1: 1, C2: 1, MS1: 1, MS2: 1 },
-      clinicAvailability: 100,
-    });
-    const profile = buildResultProfileV2({
-      scoreProfile: sp,
-      interpretation: buildFallbackInterpretation(sp),
-      source: "fallback",
-    });
-    const html = renderToStaticMarkup(
-      <CounselorReport profile={profile} header={{ name: "가상", schoolGrade: "중2" }} />
-    );
-    expect(html).not.toContain("첫 14일");
-    expect(html).toContain("입학 상담");
+  it("학부모 질문 여덟 개가 맨 아래에 있다", () => {
+    expect(html).toContain("강한 학습(철저한 관리, 많은 숙제)을 원하시나요?");
+    expect(html).toContain("학원에 특별히 바라는 점이 있으신가요?");
+    expect(html.match(/pr3-parent__num/g) ?? []).toHaveLength(8);
+  });
+
+  it("MBTI는 종합 소견 한 문장으로만 쓰고 원인 문장·유형 이름·점수 숫자는 없다", () => {
+    expect(html).toContain("학생이 적은 MBTI는 ISTJ입니다");
+    expect(html).not.toContain("MBTI 성향");
+    expect(html).not.toMatch(/\d+\.\d+\s*(?:점|\/\s*5)/);
+    expect(html).not.toContain("{{학생}}");
+    expect(html).not.toContain("선생님 메모");
+    expect(html).not.toContain("입학 상담에서 확인할 것");
+  });
+
+  it("문항 문장을 그대로 싣지 않는다", () => {
+    for (const item of LIKERT.slice(0, 36)) {
+      expect(html, item.id).not.toContain(item.text);
+    }
+  });
+
+  it("수학만 선택이면 영어 공부 방식을 렌더하지 않는다", () => {
+    const mathOnly = renderToStaticMarkup(<ParentReport data={buildParentSafeProfile(resultFor("math"), DISPLAY)} />);
+    expect(mathOnly).toContain("수학 공부 방식");
+    expect(mathOnly).not.toContain("영어 공부 방식");
+  });
+
+  it("응답 품질 review이면 확인 후 해석으로 표시한다", () => {
+    const sp = computeScoreProfile({ subjectSelection: "math", responses: fill(3), scenarioResponses: SCENARIOS });
+    const reviewProfile = buildResultProfileV2({ scoreProfile: sp, interpretation: buildFallbackInterpretation(sp), source: "fallback" });
+    const out = renderToStaticMarkup(<ParentReport data={buildParentSafeProfile(reviewProfile, DISPLAY)} />);
+    expect(out).toContain("확인 후 해석");
+    expect(out).not.toContain("첫 14일");
+  });
+
+  it("과거 snapshot(판정 없음)도 깨지지 않고 판정 보류로 렌더한다", () => {
+    const legacy = { ...safe, verdicts: undefined, responseDistribution: undefined, studentAnswers: undefined, difficultyTags: undefined };
+    const out = renderToStaticMarkup(<ParentReport data={legacy} />);
+    expect(out).toContain("판정 보류");
   });
 });

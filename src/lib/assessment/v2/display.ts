@@ -127,39 +127,36 @@ const MANAGEMENT_FACTOR_CONFIG = [
     key: "self_directed",
     label: "자주",
     legacyField: "factor_self_directed",
-    v2Field: "conscientiousness",
-    v2SourceLabel: "학습 성실성",
+    v2Field: "goalClarity",
+    v2SourceLabel: "목표 의식",
   },
   {
     key: "assignment",
     label: "과제",
     legacyField: "factor_assignment",
     v2Field: "homeworkReliability",
-    v2SourceLabel: "숙제 신뢰도",
+    v2SourceLabel: "숙제 태도",
   },
   {
     key: "willingness",
     label: "의지",
     legacyField: "factor_willingness",
-    v2Field: "longTermPersistence",
-    v2SourceLabel: "장기 의지",
+    v2Field: "shortTermRecovery",
+    v2SourceLabel: "단기 회복력",
   },
   {
     key: "social",
     label: "사회",
     legacyField: "factor_social",
-    v2Field: "peerLearningResource",
-    v2SourceLabel: "또래 학습 자원",
+    v2Field: "peerFocusBoundary",
+    v2SourceLabel: "친구와 있을 때 조절",
   },
   {
     key: "management",
     label: "관리",
     legacyField: "factor_management",
-    v2Field: "structureNeed",
-    v2SourceLabel: "구조·관리 필요",
-    // V2 structureNeed는 "관리가 얼마나 필요한가"라서 높을수록 부담이 크다.
-    // V1 factor_management(관리 선호도)는 반대 방향이므로 V2에서만 반전한다.
-    v2HighIsRisk: true,
+    v2Field: "managementAcceptance",
+    v2SourceLabel: "관리 수용",
   },
 ] as const;
 
@@ -240,9 +237,11 @@ export function buildV2IntakeSections(survey: SurveyV2Source): DisplaySectionV2[
   ];
   if (subject === "math" || subject === "both") {
     futureFields.push(field("math_difficulty", "수학에서 가장 어려운 단원·영역", i.math_difficulty));
+    futureFields.push({ key: "math_difficulty_tags", label: "수학에서 어려운 점(고른 것)", value: listValue(i.math_difficulty_tags) });
   }
   if (subject === "english" || subject === "both") {
     futureFields.push(field("english_difficulty", "영어에서 가장 어려운 영역", i.english_difficulty));
+    futureFields.push({ key: "english_difficulty_tags", label: "영어에서 어려운 점(고른 것)", value: listValue(i.english_difficulty_tags) });
   }
   futureFields.push(
     field("health_note", "건강·특이사항", i.health_note),
@@ -411,13 +410,15 @@ export function getV2CoreMetrics(profile: ScoreProfile | Record<string, unknown>
   if (!isRecord(profile) || !isRecord(profile.common)) return [];
   const common = profile.common as Record<string, unknown>;
   return [
-    { key: "learningAttitude", label: "수업 준비·참여", score: numericScore(common.learningAttitude) },
-    { key: "homeworkReliability", label: "숙제 시작·마무리", score: numericScore(common.homeworkReliability) },
-    { key: "helpSeeking", label: "질문·도움 요청", score: numericScore(common.helpSeeking) },
-    { key: "feedbackExecution", label: "고친 뒤 다시 해보기", score: numericScore(common.feedbackExecution) },
-    { key: "longTermPersistence", label: "계획 이어가기", score: numericScore(common.longTermPersistence) },
-    { key: "shortTermRecovery", label: "틀린 뒤 다시 시작", score: numericScore(common.shortTermRecovery) },
+    { key: "learningAttitude", label: "학습 태도", score: numericScore(common.learningAttitude) },
+    { key: "homeworkReliability", label: "숙제 태도", score: numericScore(common.homeworkReliability) },
+    { key: "goalClarity", label: "목표 의식", score: numericScore(common.goalClarity) },
+    { key: "shortTermRecovery", label: "단기 회복력", score: numericScore(common.shortTermRecovery) },
+    { key: "managementAcceptance", label: "관리 수용", score: numericScore(common.managementAcceptance) },
+    { key: "coachingResponse", label: "지도 방식 반응", score: numericScore(common.coachingResponse) },
+    { key: "questionInitiative", label: "질문 성향", score: numericScore(common.questionInitiative) },
     { key: "phoneBoundary", label: "공부 중 휴대폰 조절", score: numericScore(common.phoneBoundary) },
+    { key: "peerFocusBoundary", label: "친구와 있을 때 조절", score: numericScore(common.peerFocusBoundary) },
   ];
 }
 
@@ -440,7 +441,7 @@ export function getSurveyManagementFactorScores(
       value: numericScore(common[factor.v2Field]),
       scale: 100 as const,
       sourceLabel: factor.v2SourceLabel,
-      highIsRisk: "v2HighIsRisk" in factor && factor.v2HighIsRisk === true,
+      highIsRisk: false,
     }));
   }
 
@@ -456,10 +457,9 @@ export function getSurveyManagementFactorScores(
 
 export function v2PositiveBandLabel(score: number | null): string {
   if (score === null) return "확인 필요";
-  if (score >= 75) return "안정적";
-  if (score >= 60) return "대체로 잘 됨";
-  if (score >= 40) return "들쭉날쭉";
-  return "먼저 도와줄 부분";
+  if (score >= 75) return "잘 되고 있음";
+  if (score >= 62.5) return "지켜볼 것";
+  return "먼저 도울 것";
 }
 
 /** 등록안내 생성 등 서버 프롬프트에서 V1 q1~q35를 섞지 않도록 하는 V2 전용 직렬화. */

@@ -191,23 +191,23 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
           href={item.href}
           {...(item.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           title={item.label}
-          className={`sidebar-item group relative mb-1 flex w-full items-center overflow-hidden rounded-lg ${
-            isCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3.5 py-2.5"
+          className={`sidebar-item group relative mb-1 flex min-h-[38px] w-full items-center overflow-hidden rounded-full ${
+            isCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"
           } ${
             isActive
-              ? "is-active bg-nk-navy-soft text-nk-navy shadow-[inset_3px_0_0_rgb(var(--wr-navy))]"
+              ? "is-active bg-[#16304F] text-white"
               : "text-nk-ink-sub"
           }`}
-          style={{ fontSize: "13px", fontWeight: isActive ? 700 : 600 }}
+          style={{ fontSize: "14px", fontWeight: 500 }}
         >
           <span
-            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${
+            className={`flex h-[17px] w-[17px] flex-shrink-0 items-center justify-center ${
               isActive
-                ? "bg-nk-navy text-nk-navy-ink"
-                : "bg-nk-sunken text-nk-ink-hint group-hover:bg-nk-navy-soft group-hover:text-nk-navy"
+                ? "text-white"
+                : "text-nk-ink-hint"
             }`}
           >
-            <item.icon className="h-[15px] w-[15px]" />
+            <item.icon className="h-[17px] w-[17px]" />
           </span>
           {!isCollapsed && (
             <span className="truncate transition-colors duration-200">{item.label}</span>
@@ -263,7 +263,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
         inSheet
           ? "flex h-full w-full flex-shrink-0 flex-col border-r border-nk-line bg-nk-surface print:hidden"
           : `hidden h-full flex-shrink-0 flex-col border-r border-nk-line bg-nk-surface transition-[width] duration-200 md:flex print:hidden ${
-              isCollapsed ? "w-[64px]" : "w-[246px]"
+              isCollapsed ? "w-[64px]" : "w-[200px]"
             }`
       }
     >
@@ -377,7 +377,7 @@ export function Sidebar({ currentTeacher, inSheet = false }: SidebarProps) {
       ) : (
         <div className="mx-3 mb-2 rounded-lg border border-nk-line bg-nk-sunken px-3 py-2">
           <div className="mb-1.5 flex items-center gap-2 border-b border-nk-line-soft pb-1.5">
-            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-nk-navy text-[10px] font-bold text-nk-navy-ink">
+            <div className="flex h-[17px] w-[17px] flex-shrink-0 items-center justify-center bg-nk-navy text-[10px] font-bold text-nk-navy-ink">
               NK
             </div>
             <span className="truncate text-[11px] font-bold text-nk-ink" style={{ letterSpacing: "-0.01em" }}>

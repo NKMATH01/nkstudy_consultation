@@ -870,3 +870,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* NK menu alignment — 2026-09-08, staff shell only. */
+.nk-gnb { height:64px; gap:16px; padding:0 16px; background:#0D2037; }
+.nk-gnb__apps { min-width:0; gap:2px; }
+.nk-gnb__app { height:32px; padding:0 8px; gap:6px; border:0; border-radius:8px; background:transparent; color:rgb(var(--wr-nav-muted)); font-size:12px; font-weight:500; }
+.nk-gnb__app:not(.nk-gnb__app--active):hover { background:rgb(var(--wr-nav-fill)); color:rgb(var(--wr-nav-ink)); }
+.nk-gnb__app--active { background:rgb(var(--wr-nav-ink)); color:#0D2037; font-weight:700; }
+.nk-gnb__right { gap:12px; }
+.nk-gnb__app > svg { width:14px; height:14px; flex-shrink:0; }
+@media(min-width:1536px) { .nk-gnb { gap:24px; padding:0 24px; } .nk-gnb__right { gap:16px; } }

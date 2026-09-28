@@ -87,6 +87,15 @@ export type ReportTokenView =
       createdAt: string | null;
       expired: boolean;
       revoked: boolean;
+    }
+  | {
+      // 입학테스트 답안 분석지. data 는 JSON.parse 결과(깨졌으면 null) — 검증은 ExamReport 가 zod 로 한다.
+      kind: "exam_v1";
+      data: unknown;
+      name: string | null;
+      createdAt: string | null;
+      expired: boolean;
+      revoked: boolean;
     };
 
 interface RawTokenRow {
@@ -146,6 +155,24 @@ export async function getReportByToken(
     return {
       kind: "v2",
       profile,
+      name: row.name,
+      createdAt: row.created_at,
+      expired,
+      revoked,
+    };
+  }
+
+  // exam_v1: HTML 이 아니라 JSON 데이터로 저장된다(시험지 사진에서 읽은 내용 → React 가 이스케이프해 그림).
+  if (row.report_type === "exam_v1") {
+    let data: unknown = null;
+    try {
+      data = JSON.parse(row.report_html);
+    } catch {
+      data = null; // 깨진 데이터 → ExamReport 가 "불러올 수 없습니다" 안내를 그린다.
+    }
+    return {
+      kind: "exam_v1",
+      data,
       name: row.name,
       createdAt: row.created_at,
       expired,

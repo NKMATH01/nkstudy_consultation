@@ -1,0 +1,80 @@
+
+> nk-consultation@0.1.0 lint
+> eslint
+
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\scripts\add-math2-columns.mjs
+  15:11  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\scripts\check-rls2.mjs
+  10:7  warning  'admin' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  29:7  warning  'policiesUrl' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\scripts\check-supabase-data.mjs
+  47:7  warning  'aStudents' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  48:7  warning  'aTeachers' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  49:7  warning  'aClasses' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\scripts\debug-jwt.mjs
+  40:15  warning  'rpcCreate' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  40:33  warning  'rpcCreateErr' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\app\layout.tsx
+  56:9  warning  Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags  @next/next/no-css-tags
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\analysis-report-v2\report-theme.ts
+  141:30  warning  '_hasSubject' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\consultations\consultation-list-client.tsx
+  193:3  warning  'initialPagination' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\onboarding\onboarding-list-client.tsx
+  120:10  warning  'isPending' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  120:21  warning  'startTransition' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\registrations\registration-detail-client.tsx
+    6:29  warning  'FileText' is defined but never used                @typescript-eslint/no-unused-vars
+    6:39  warning  'Printer' is defined but never used                 @typescript-eslint/no-unused-vars
+   16:54  warning  'updateRegistrationHtml' is defined but never used  @typescript-eslint/no-unused-vars
+   43:10  warning  'isEditing' is assigned a value but never used      @typescript-eslint/no-unused-vars
+   44:10  warning  'editHtml' is assigned a value but never used       @typescript-eslint/no-unused-vars
+   44:20  warning  'setEditHtml' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  155:9   warning  'handlePrint' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\registrations\registration-list-client.tsx
+  31:10  warning  'stripHtml' is defined but never used  @typescript-eslint/no-unused-vars
+  37:10  warning  'truncate' is defined but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\settings\student-form-client.tsx
+  125:25  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\settings\student-form-client.tsx:125:25
+  123 |
+  124 |   // 선택된 학년에 맞는 반 목록 필터링 (override가 있으면 그 학년 기준)
+> 125 |   const selectedGrade = form.watch("grade");
+      |                         ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  126 |   const classBaseGrade = classGradeOverride ?? selectedGrade;
+  127 |   const filteredClasses = useMemo(() => {
+  128 |     if (!classBaseGrade) return classes;  react-hooks/incompatible-library
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\withdrawals\withdrawal-dashboard-client.tsx
+  143:10  warning  'CustomTooltipContent' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\withdrawals\withdrawal-form-client.tsx
+  14:10  warning  'Input' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\components\withdrawals\withdrawal-list-client.tsx
+   31:3  warning  'GraduationCap' is defined but never used       @typescript-eslint/no-unused-vars
+  383:9  warning  'mathCount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  384:9  warning  'engCount' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\lib\actions\registration.ts
+  42:10  warning  'parseClassDaysOnly' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\lib\logger.ts
+  38:11  warning  'request_id' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 30 problems (0 errors, 30 warnings)
+

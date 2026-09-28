@@ -1,0 +1,89 @@
+{
+  "run": "2026-09-28-exam-analysis",
+  "size": "L",
+  "goal": "입학테스트 답안 분석 기능 — 사진 업로드 → 로컬 분석 → 분석지 → 학부모 발송",
+  "restorePoint": "f6dee83",
+  "uncommittedAtStart": 15,
+  "nodes": [
+    {
+      "id": "advisor",
+      "role": "자문(Fable)",
+      "task": "Storage·RLS·토큰·서비스롤·개인정보 설계 검토",
+      "status": "done",
+      "retries": 0,
+      "tokens": null
+    },
+    {
+      "id": "impl-db",
+      "role": "구현",
+      "task": "supabase/migrations/20260928100000_exam_analyses.sql — 테이블 + RLS + Storage 버킷/정책",
+      "status": "done",
+      "retries": 0,
+      "tokens": null
+    },
+    {
+      "id": "impl-scripts",
+      "role": "구현",
+      "task": "scripts/exam-pull.mjs · exam-push.mjs + package.json 스크립트 + .gitignore",
+      "status": "done",
+      "retries": 1,
+      "tokens": null
+    },
+    {
+      "id": "impl-ui",
+      "role": "구현",
+      "task": "서버액션 + 화면 3개(/exams, /exams/new, /exams/[id]) + 메뉴 추가",
+      "status": "done",
+      "retries": 2,
+      "tokens": null
+    },
+    {
+      "id": "impl-report",
+      "role": "구현",
+      "task": "exam_v1 JSON 스키마 + React 렌더 + /report 분기",
+      "status": "done",
+      "retries": 1,
+      "tokens": null
+    },
+    {
+      "id": "review",
+      "role": "검토(Fable)",
+      "task": "요구 카드 + git diff 새 눈 검토",
+      "status": "done",
+      "retries": 0,
+      "tokens": null
+    },
+    {
+      "id": "checker",
+      "role": "입장 점검",
+      "task": "강사 눈으로 화면 흐름 점검",
+      "status": "done",
+      "retries": 0,
+      "tokens": null
+    },
+    {
+      "id": "gate",
+      "role": "팀장",
+      "task": "tsc·lint·test·build 재실행 + 실제 화면 클릭 검증",
+      "status": "done",
+      "retries": 0,
+      "tokens": null
+    },
+    {
+      "id": "lead-finish",
+      "role": "팀장 직접",
+      "task": "검증 일치(계약 테스트 32) · 링크 취소 · 상태 필터 · 토큰 타입 · 카톡/링크 복사 · 대기 안내",
+      "status": "done",
+      "retries": 0,
+      "tokens": null
+    }
+  ],
+  "findings": [
+    "알림톡: 기존 analysis_result 템플릿은 변수(이름·학교·검사일·토큰)가 그대로 맞지만 제목이 'NK EDUCATION 학습성향 검사 결과'로 특정됨 → 시험 분석지용 새 템플릿 신청 필요(카카오 승인 대기 발생). 5단계 발송은 승인 후.",
+    "메뉴 단일 출처는 src/lib/menu-sectors.ts 의 analysisItems(60~64행). sidebar.tsx 는 건드리지 않는다.",
+    "미커밋 15건(SSO v2·nbrain)과 겹치는 파일 없음 — sidebar.tsx 변경은 md:flex→lg:flex 한 줄뿐.",
+    "설계 변경: 분석지를 HTML 대신 JSON 저장 + React 렌더로 바꿈 — report-viewer-client.tsx:26 innerHTML 주입 경로 때문(학생 시험지 사진에서 읽은 내용은 신뢰 불가). 덤으로 학생마다 디자인이 통일된다.",
+    "제가 실측해 기우로 판명: 익명 전체조회(막혀 있음·353행 중 0행 반환) · innerHTML 2건(주석) · storage DELETE 정책(있음) · students 테이블(457명)."
+  ],
+  "result": "게이트 통과: tsc 0 · lint 0 error · test 683/683 · build 성공 · 화면 3개 실검증. 마이그레이션 적용 대기."
+}

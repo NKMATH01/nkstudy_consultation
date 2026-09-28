@@ -4,6 +4,7 @@ import { getReportByToken } from "@/lib/actions/report-token";
 import { ReportViewer } from "./report-viewer-client";
 import { ExpiredReport } from "./expired";
 import { ParentReportPublicClient } from "@/components/analysis-report-v2/parent-report-public-client";
+import { ExamReport } from "@/components/exam-report/exam-report";
 
 // 공개 token 보고서: 검색엔진 노출 금지·캐시 금지(§14).
 export const dynamic = "force-dynamic";
@@ -40,6 +41,11 @@ export default async function ReportPage({
   if (report.kind === "v2") {
     // 공개 화면은 parent-safe snapshot만 렌더한다. 상담자 전환 경로 없음.
     return <ParentReportPublicClient profile={report.profile} createdAt={report.createdAt} />;
+  }
+
+  if (report.kind === "exam_v1") {
+    // 입학테스트 답안 분석: JSON 데이터를 React 로 렌더(innerHTML 경로 사용 안 함).
+    return <ExamReport data={report.data} />;
   }
 
   return (

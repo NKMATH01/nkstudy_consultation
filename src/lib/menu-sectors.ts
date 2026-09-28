@@ -20,6 +20,7 @@ import {
   Shield,
   BookOpenCheck,
   MessageSquareHeart,
+  FileSearch,
 } from "lucide-react";
 import type { CurrentTeacherInfo } from "@/types";
 
@@ -60,6 +61,7 @@ export const consultItems: MenuItem[] = [
 export const analysisItems: MenuItem[] = [
   { href: "/surveys", label: "설문/분석", icon: ClipboardList },
   { href: "/drip-responses", label: "설문 피드백", icon: MessageSquareHeart },
+  { href: "/exams", label: "입학테스트 분석", icon: FileSearch },
   { href: "/onboarding", label: "등록 관리", icon: FileText },
 ];
 

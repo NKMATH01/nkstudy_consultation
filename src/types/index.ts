@@ -210,6 +210,7 @@ export const ALL_MENU_ITEMS = [
   { href: "/surveys", label: "설문 현황" },
   { href: "/analyses", label: "성향분석 결과" },
   { href: "/registrations", label: "등록 안내" },
+  { href: "/exams", label: "입학테스트 분석" },
   { href: "/onboarding", label: "신입생 등록" },
   { href: "/progress", label: "진도 현황" },
   { href: "/withdrawals", label: "퇴원생 현황" },

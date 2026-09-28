@@ -60,3 +60,6 @@ supabase/.temp/
 
 # 라이브 E2E가 기록하는 운영 테스트데이터 id(커밋 제외)
 e2e/.live-ids.json
+
+# 입학테스트 답안 사진 작업 폴더(개인정보, 커밋 제외)
+nk-exam-work/

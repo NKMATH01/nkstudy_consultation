@@ -109,3 +109,31 @@ tsc 0 · lint 0 error(경고 30, 변동 없음) · vitest 683/683 · build 성�
 
 ### 되돌릴 지점
 `6d9a868`. 운영 DB 되돌리기가 필요하면 `drop table public.exam_analyses;` + 버킷 `exam-papers` 비우고 삭제 + storage 정책 4개 drop (기존 표에는 영향 없음). 박서진 분석 1건과 사진 7장은 **실제 데이터로 남겨 둠**.
+
+## 2026-09-28 15:57 KST · 운영 배포 — 17커밋 (입학테스트 분석 + v2.3 검사 개편 + 보안 P0 코드)
+
+**사용자 지시** — "계속 진행해" (앞 보고에서 "올려라고 하시면 시간대와 순서를 확인하고 올리겠습니다"에 대한 답).
+
+### 배포 전 점검 (팀장 실측)
+| 점검 | 결과 |
+|---|---|
+| 시간대 — 월 15:49 KST(영업 시간) | 오늘 설문 제출 0건 · 오늘·내일 상담 예약 0건 · 다음 예약 수 15:00 → 진행 |
+| **커밋된 코드만으로** 검증 (미커밋 15건 제외, `git worktree` 깨끗한 사본) | tsc 0 · vitest 44 files / 674 tests · `npm install` 후 build 성공 |
+| `package-lock.json` 불일치(`npm ci` 실패, @emnapi) | **기존 문제** — 현재 배포본(origin/master)도 동일. Vercel 은 `npm install` 이라 영향 없음. 별도 정리 과제 |
+| Vercel `SUPABASE_SERVICE_ROLE_KEY` | Development · Preview · **Production** 설정됨 → 보안 P0 신뢰 경로 동작 조건 충족 |
+
+※ 첫 빌드 시도는 `node_modules` 를 junction 으로 연결해 Turbopack 이 "Symlink … points out of the filesystem root" 로 거부 — 코드 문제 아님. junction 은 `cmd /c rmdir` 로 **링크만** 제거(원본 무사 확인) 후 실제 설치로 재빌드. **worktree 에 복사한 `.env.local` 은 검사 직후 worktree 째 삭제.**
+
+### 배포
+`git push origin master` → `98078af..048f5fb` → Vercel **Ready 약 1분**.
+
+### 운영 확인 — 6 / 6 통과 (비로그인 · 390px)
+- 새 분석지 `/report/392f1ec6…`(박서진 exam_v1) — HTTP 200 · 날것 데이터 0 · 가로 스크롤 0 · 오류 0
+- **기존 보고서 회귀** — analysis_v2 최근 1건 · registration 최근 1건 모두 정상
+- 인증 관문 — `/exams` · `/exams/new` 비로그인 시 로그인으로 이동
+- 공개 설문 `/survey`(v2.3) — HTTP 200 · 오류 0 (제출은 하지 않음)
+
+### 남은 것
+- **보안 P0 4단계 중 3·4단계 미실행** — ③ 운영 설문 제출 1건에서 폴백 경고가 없는지 ④ `20260905100000_surveys_rls_lockdown.sql` 적용. ④는 **기존 `surveys` 표의 정책을 바꾸는 일**이라 "기존 건드리지 말 것" 지시와 충돌 → 사용자 확인 필요
+- 박서진 분석지 **학부모 발송은 사용자 몫** — `/exams/6c1123c8…` 의 카카오톡·링크 복사
+- `package-lock.json` 재동기화(`npm install` 후 lock 커밋) — 별도 과제

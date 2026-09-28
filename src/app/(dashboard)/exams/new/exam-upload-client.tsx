@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -9,8 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
-import { createExamAnalysis } from "@/lib/actions/exam-analysis";
-import type { Student } from "@/types";
+import {
+  createExamAnalysis,
+  searchExamConsultations,
+  type ExamConsultationOption,
+} from "@/lib/actions/exam-analysis";
 
 const EXAM_PAPERS_BUCKET = "exam-papers";
 const MAX_PAPER_FILES = 40;
@@ -121,10 +124,23 @@ function FilePicker({
   );
 }
 
-export function ExamUploadClient({ students }: { students: Student[] }) {
+function consultationLine(c: ExamConsultationOption): string {
+  const date = c.consult_date ? `상담 ${c.consult_date.slice(0, 10)}` : null;
+  return [c.name, c.school, c.grade, date].filter(Boolean).join(" · ");
+}
+
+export function ExamUploadClient({
+  recentConsultations,
+}: {
+  recentConsultations: ExamConsultationOption[];
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [student, setStudent] = useState<Student | null>(null);
+  const [student, setStudent] = useState<ExamConsultationOption | null>(null);
+  const [matches, setMatches] = useState<ExamConsultationOption[]>(recentConsultations);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0);
   const [examTitle, setExamTitle] = useState("");
   const [examDate, setExamDate] = useState(todayIso);
   const [subject, setSubject] = useState("수학");
@@ -134,17 +150,41 @@ export function ExamUploadClient({ students }: { students: Student[] }) {
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState("");
 
-  const matches = useMemo(() => {
-    const q = query.trim();
-    if (!q) return [];
-    return students
-      .filter((s) => s.name.includes(q) || (s.school ?? "").includes(q))
-      .slice(0, 20);
-  }, [query, students]);
+  // 입력이 멈추면(250ms) 서버에서 상담 기록을 검색한다. 늦게 도착한 옛 응답은 버린다.
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const q = value.trim();
+    const seq = ++searchSeq.current;
+    if (!q) {
+      setMatches(recentConsultations);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const result = await searchExamConsultations(q);
+        if (seq === searchSeq.current) setMatches(result);
+      } catch (err) {
+        console.error("[ExamAnalysis]", {
+          action: "searchConsultations.client",
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // 이전 검색 결과가 남아 있으면 엉뚱한 학생을 고를 수 있다. 비우고 알린다.
+        if (seq === searchSeq.current) {
+          setMatches([]);
+          toast.error("상담 학생 검색에 실패했습니다. 잠시 뒤 다시 입력해 주세요.");
+        }
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    }, 250);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!student) return toast.error("학생을 선택하세요");
+    if (!student) return toast.error("상담 학생을 선택하세요");
     if (!examTitle.trim()) return toast.error("시험명을 입력하세요");
     if (!examDate) return toast.error("시험일을 입력하세요");
     if (!subject.trim()) return toast.error("과목을 입력하세요");
@@ -182,7 +222,7 @@ export function ExamUploadClient({ students }: { students: Student[] }) {
 
       const result = await createExamAnalysis({
         id: examId,
-        student_id: student.id,
+        consultationId: student.id,
         exam_title: examTitle.trim(),
         exam_date: examDate,
         subject: subject.trim(),
@@ -222,17 +262,12 @@ export function ExamUploadClient({ students }: { students: Student[] }) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* ① 학생 선택 */}
+        {/* ① 상담 학생 선택 — 신입생은 등록 전이라 상담 기록에서 고른다 */}
         <section className="space-y-3 rounded-2xl border border-nk-line bg-nk-surface p-4">
-          <h2 className="text-sm font-bold text-nk-ink">① 학생 선택</h2>
+          <h2 className="text-sm font-bold text-nk-ink">① 상담 학생 선택</h2>
           {student ? (
             <div className="flex items-center justify-between rounded-xl bg-nk-navy-soft px-3 py-2 text-sm text-nk-navy-ink">
-              <span>
-                <span className="font-bold">{student.name}</span>
-                <span className="ml-1.5 text-xs">
-                  {[student.school, student.grade].filter(Boolean).join(" ")}
-                </span>
-              </span>
+              <span className="font-bold">{consultationLine(student)}</span>
               <Button
                 type="button"
                 variant="ghost"
@@ -249,36 +284,39 @@ export function ExamUploadClient({ students }: { students: Student[] }) {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-nk-ink-hint" />
                 <Input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="학생 이름 또는 학교로 검색"
+                  onChange={(e) => handleQueryChange(e.target.value)}
+                  placeholder="상담 학생 이름 또는 학교로 검색"
                   className="pl-9"
                 />
+                {searching && (
+                  <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-nk-ink-hint" />
+                )}
               </div>
-              {query.trim() && (
-                <ul className="max-h-60 overflow-y-auto rounded-xl border border-nk-line-soft">
-                  {matches.length === 0 ? (
-                    <li className="px-3 py-2 text-xs text-nk-ink-hint">검색 결과가 없습니다</li>
-                  ) : (
-                    matches.map((s) => (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStudent(s);
-                            setQuery("");
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm text-nk-ink hover:bg-nk-hover"
-                        >
-                          <span className="font-bold">{s.name}</span>
-                          <span className="ml-1.5 text-xs text-nk-ink-hint">
-                            {[s.school, s.grade, s.assigned_class].filter(Boolean).join(" · ")}
-                          </span>
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
+              {!query.trim() && (
+                <p className="text-xs text-nk-ink-hint">최근 상담 순으로 보여 줍니다.</p>
               )}
+              <ul className="max-h-60 overflow-y-auto rounded-xl border border-nk-line-soft">
+                {matches.length === 0 ? (
+                  <li className="px-3 py-2 text-xs text-nk-ink-hint">
+                    {searching ? "검색 중입니다" : "검색 결과가 없습니다"}
+                  </li>
+                ) : (
+                  matches.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudent(c);
+                          handleQueryChange("");
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-nk-ink hover:bg-nk-hover"
+                      >
+                        {consultationLine(c)}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
             </>
           )}
         </section>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { revokeReportToken } from "@/lib/actions/report-token";
+import { escapeLikePattern } from "@/lib/student-identity";
 
 /** 시험지·매쓰플랫 사진이 올라가는 비공개 Storage 버킷. */
 const EXAM_PAPERS_BUCKET = "exam-papers";
@@ -13,6 +14,7 @@ export type ExamAnalysisStatus = "pending" | "analyzing" | "done" | "sent";
 export interface ExamAnalysis {
   id: string;
   student_id: string | null;
+  consultation_id: string | null;
   student_name: string;
   school: string | null;
   grade: string | null;
@@ -42,6 +44,7 @@ function mapRow(row: Record<string, unknown>): ExamAnalysis {
   return {
     id: String(row.id ?? ""),
     student_id: str(row.student_id),
+    consultation_id: str(row.consultation_id),
     student_name: String(row.student_name ?? ""),
     school: str(row.school),
     grade: str(row.grade),
@@ -100,11 +103,55 @@ export async function getExamAnalysis(id: string): Promise<ExamAnalysis | null> 
   return data ? mapRow(data as Record<string, unknown>) : null;
 }
 
+/** 입학테스트 대상 고르기용 상담 요약. 연락처는 싣지 않는다. */
+export interface ExamConsultationOption {
+  id: string;
+  name: string;
+  school: string | null;
+  grade: string | null;
+  consult_date: string | null;
+}
+
+/**
+ * 상담 기록에서 입학테스트 대상 학생을 찾는다(신입생은 등록 전이라 students 에 없다).
+ * 최근 상담부터, 이름·학교 부분 일치, 최대 20건. 검색어가 비면 최근 상담 20건.
+ */
+export async function searchExamConsultations(query: string): Promise<ExamConsultationOption[]> {
+  const auth = await requireAuthenticated();
+  if (!auth.ok) return [];
+
+  // PostgREST or() 문법을 깨는 문자(, ( ) " \)와 like 에서 % 로 취급되는 * 는 버리고,
+  // LIKE 와일드카드(% _)는 이스케이프한다.
+  const q = escapeLikePattern(String(query ?? "").replace(/[,()"\\*]/g, " ").trim().slice(0, 50));
+
+  const supabase = await createClient();
+  let request = supabase
+    .from("consultations")
+    .select("id, name, school, grade, consult_date")
+    .order("consult_date", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (q) request = request.or(`name.ilike.%${q}%,school.ilike.%${q}%`);
+
+  const { data, error } = await request;
+  if (error) {
+    console.error("[ExamAnalysis]", { action: "searchConsultations", error: error.message });
+    return [];
+  }
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    name: String(row.name ?? ""),
+    school: row.school ?? null,
+    grade: row.grade ?? null,
+    consult_date: row.consult_date ?? null,
+  }));
+}
+
 const createExamAnalysisSchema = z
   .object({
     /** 클라이언트가 미리 만든 id. Storage 경로(<id>/<uuid>.<ext>)의 폴더명과 같아야 한다. */
     id: z.uuid("잘못된 요청입니다"),
-    student_id: z.string().min(1, "학생을 선택하세요"),
+    consultationId: z.uuid("상담 학생을 선택하세요"),
     exam_title: z.string().trim().min(1, "시험명을 입력하세요").max(200),
     exam_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "시험일을 입력하세요"),
     subject: z.string().trim().min(1, "과목을 입력하세요").max(50),
@@ -139,29 +186,31 @@ export async function createExamAnalysis(
 
     const supabase = await createClient();
 
-    // 학생 이름·학교·학년은 클라이언트 값을 믿지 않고 students 테이블에서 다시 읽는다.
-    const { data: student, error: studentError } = await supabase
-      .from("students")
+    // 신입생은 등록 전이라 students 에 없다. 이름·학교·학년은 클라이언트 값을 믿지 않고
+    // consultations 에서 다시 읽는다. student_id 는 등록 후 연결할 자리라 비워 둔다.
+    const { data: consultation, error: consultationError } = await supabase
+      .from("consultations")
       .select("id, name, school, grade")
-      .eq("id", value.student_id)
+      .eq("id", value.consultationId)
       .maybeSingle();
-    if (studentError || !student) {
+    if (consultationError || !consultation) {
       console.error("[ExamAnalysis]", {
-        action: "create.student",
-        student_id: value.student_id,
-        error: studentError?.message,
+        action: "create.consultation",
+        consultation_id: value.consultationId,
+        error: consultationError?.message,
       });
-      return { success: false, error: "학생 정보를 찾을 수 없습니다" };
+      return { success: false, error: "상담 학생 정보를 찾을 수 없습니다" };
     }
 
     const { data, error } = await supabase
       .from("exam_analyses")
       .insert({
         id: value.id,
-        student_id: student.id,
-        student_name: student.name,
-        school: student.school ?? null,
-        grade: student.grade ?? null,
+        student_id: null,
+        consultation_id: consultation.id,
+        student_name: consultation.name,
+        school: consultation.school ?? null,
+        grade: consultation.grade ?? null,
         exam_title: value.exam_title,
         exam_date: value.exam_date,
         subject: value.subject,

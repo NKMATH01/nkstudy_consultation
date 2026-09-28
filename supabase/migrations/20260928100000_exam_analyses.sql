@@ -8,7 +8,8 @@
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.exam_analyses (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id      uuid REFERENCES public.students(id) ON DELETE SET NULL,
+  student_id      uuid REFERENCES public.students(id) ON DELETE SET NULL,  -- 등록 후 연결할 자리. 업로드 화면은 채우지 않는다.
+  consultation_id uuid REFERENCES public.consultations(id) ON DELETE SET NULL,  -- 신입생은 등록 전이라 상담 기록으로 고른다.
   student_name    text NOT NULL,
   school          text,
   grade           text,
@@ -35,6 +36,8 @@ CREATE INDEX IF NOT EXISTS exam_analyses_created_at_idx
   ON public.exam_analyses (created_at DESC);
 CREATE INDEX IF NOT EXISTS exam_analyses_student_id_idx
   ON public.exam_analyses (student_id);
+CREATE INDEX IF NOT EXISTS exam_analyses_consultation_id_idx
+  ON public.exam_analyses (consultation_id);
 
 -- ─────────────────────────────────────────────
 -- 2) RLS

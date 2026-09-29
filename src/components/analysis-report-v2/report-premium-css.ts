@@ -44,7 +44,7 @@ export const REPORT_PREMIUM_CSS = `
 
 /* ── 상단 툴바 ─────────────────────────────────────────────── */
 .report-v2-toolbar {
-  position: sticky; z-index: 80; top: 0;
+  position: sticky; z-index: 40; top: 0; /* Dialog(z-50)·Select 팝오버보다 아래, 대시보드 머리(z-10)·본문보다 위 */
   background: rgba(255,255,255,0.97);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(18px);
@@ -571,7 +571,7 @@ export const REPORT_PREMIUM_CSS = `
 
 /* ── 하단 고정 dock(얇은 다크 필) ──────────────────────────── */
 .report-dock {
-  position: fixed; z-index: 120; bottom: max(14px, env(safe-area-inset-bottom)); left: 50%;
+  position: fixed; z-index: 45; /* Dialog(z-50)·Select 팝오버보다 아래, 대시보드 머리(z-10)·본문보다 위 */ bottom: max(14px, env(safe-area-inset-bottom)); left: 50%;
   width: min(660px, calc(100% - 24px)); padding: 5px;
   /* 항목 수가 6~7개로 늘어 auto-fit으로 바꾼다(과목 섹션 유무에 따라 가변). */
   display: grid; grid-template-columns: repeat(auto-fit, minmax(0,1fr)); gap: 4px;

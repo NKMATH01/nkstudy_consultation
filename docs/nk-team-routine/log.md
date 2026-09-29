@@ -214,3 +214,10 @@ Claude: 리서치 37,104 · 코드 지도 210,042 · 자문 49,007 · T1 127,414
 - 배포 확인: `/api/cron/recordings` 가 307(/login) → **61초 뒤 401**(새 middleware·CRON_SECRET) 로 바뀜.
 - 운영 확인(비로그인): prod-verify 6/6(새 분석지·기존 analysis_v2·registration 보고서·/exams·/exams/new 인증 관문·/survey) + `/api/recordings`·`/consultations/[id]`·`/exams/new?consultation=` → /login, cron 틀린 비밀번호 401.
 - 남은 것: 카카오 템플릿 `exam_report` 심사(원장) → 승인 후 템플릿 번호 입력 · 첫 cron 실행(매일 18:00 UTC = 03:00 KST) 로그 확인 · iOS 실기기 녹음 · 반 "끝낸 단원" 세부 비교(단원 순서표) · 등록 폼 위 공유 막대 겹침(기존 문제).
+
+## 2026-09-30 03:13 KST · S · 등록 안내 창 겹침 수정 + 운영 배포 (`43156de..67ef771`)
+- 증상: 설문 분석 화면 "등록 안내 생성" 창(Dialog z-50) 위로 보고서 툴바(sticky z-80)·하단 dock(fixed z-120)이 겹쳐 학년·과목 칸을 가림(기존 문제, 반 배정 도우미가 이 창 안이라 수정).
+- 수정: `report-premium-css.ts` 툴바 40·dock 45(Dialog·Select 팝오버보다 아래, 대시보드 머리 z-10 보다 위). 저장소 z 사용은 z-10·z-50 뿐임을 확인.
+- 확인: 로컬(1280·390px) 창 위 elementFromPoint = 창(정상) · tsc 0 · report-v2 테스트 23 통과 · 운영 배포 99초 뒤 반영 · prod-verify 6/6 · 공개 학습성향 보고서에서 툴바·dock 여전히 맨 위.
+- 같은 새벽: 첫 cron `/api/cron/recordings` 03:00:34 KST 200(지울 녹음 0).
+- 토큰: 구현 16,182.

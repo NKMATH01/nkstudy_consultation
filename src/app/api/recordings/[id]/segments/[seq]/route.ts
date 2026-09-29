@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const auth = await authorizeRecording(id, "mutate");
   if (!auth.ok) return jsonError(auth.status, auth.error);
   const seq = parseSeq(seqRaw);
-  if (seq == null || seq < 1 || seq > MAX_SEGMENT_SEQ) return jsonError(400, "잘못된 조각 순번");
+  if (seq == null || seq < 1 || seq > MAX_SEGMENT_SEQ) return jsonError(400, "잘못된 부분 순번");
   const body = await readJson(req);
   try {
     const r = await completeSegmentUpload(auth.admin, id, seq, parseDuration(body.durationSec));
@@ -22,6 +22,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return jsonOk({ ok: true });
   } catch (e) {
     console.error("[recording] 조각 완료 기록 실패", { recordingId: id, seq, error: e instanceof Error ? e.message : "unknown" });
-    return jsonError(500, "조각 완료 기록 실패");
+    return jsonError(500, "부분 완료 기록 실패");
   }
 }

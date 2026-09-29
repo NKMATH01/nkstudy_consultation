@@ -59,8 +59,8 @@ export async function completeSegmentUpload(
     .eq("recording_id", recordingId)
     .eq("seq", seq)
     .maybeSingle();
-  if (error) return { ok: false, status: 500, error: "조각 조회 실패" };
-  if (!seg) return { ok: false, status: 404, error: "발급되지 않은 조각입니다." };
+  if (error) return { ok: false, status: 500, error: "부분 조회 실패" };
+  if (!seg) return { ok: false, status: 404, error: "발급되지 않은 부분입니다." };
   const { data: recRow } = await admin.from(REC).select("status").eq("id", recordingId).maybeSingle();
   if (!recRow || (recRow as { status: string }).status === "deleting") {
     return { ok: false, status: 409, error: "삭제 중인 녹음입니다." };
@@ -84,7 +84,7 @@ export async function completeSegmentUpload(
     })
     .eq("id", row.id)
     .eq("status", "pending");
-  if (upErr) return { ok: false, status: 500, error: "조각 기록 실패" };
+  if (upErr) return { ok: false, status: 500, error: "부분 기록 실패" };
   return { ok: true };
 }
 
@@ -127,7 +127,7 @@ export async function finalizeRecording(
       return {
         ok: false,
         status: 409,
-        error: `아직 올라가지 않은 조각(${plan.missingSeqs.join(", ")}번)이 있습니다. 녹음한 기기에서 먼저 '복구 업로드'를 해 주세요.`,
+        error: `아직 올라가지 않은 부분(${plan.missingSeqs.join(", ")}번)이 있습니다. 녹음한 기기에서 먼저 '복구 업로드'를 해 주세요.`,
         missingSeqs: plan.missingSeqs,
       };
     }
@@ -149,7 +149,7 @@ export async function finalizeRecording(
       segment_count: count,
       duration_sec: durationSec != null ? Math.max(0, Math.round(durationSec)) : null,
       finalized_at: nowIso,
-      error: count === 0 ? "저장된 녹음 조각이 없습니다." : null,
+      error: count === 0 ? "저장된 녹음 부분이 없습니다." : null,
     })
     .eq("id", recordingId)
     .eq("status", "recording")
@@ -241,6 +241,7 @@ export async function transcribeSegment(
         error: null,
       })
       .eq("id", seg.id)
+      .eq("status", "transcribing")
       .eq("locked_at", lockIso);
     if (saveErr) throw new Error(`전사 저장 실패: ${saveErr.message}`);
     const ready = await completeTranscriptionIfReady(admin, recordingId);
@@ -252,6 +253,7 @@ export async function transcribeSegment(
       .from(SEG)
       .update({ status: "failed", error: message, locked_at: null })
       .eq("id", seg.id)
+      .eq("status", "transcribing")
       .eq("locked_at", lockIso);
     return { claimed: true, ok: false, error: message };
   }
@@ -281,6 +283,31 @@ export async function pickPendingSegment(
 }
 
 // ───────────── 분석 ─────────────
+
+/**
+ * 분석 결과(성공·실패) 저장. 우리가 선점한 상태(status='analyzing' + 같은 locked_at)일 때만 쓴다.
+ * 그 사이 삭제가 시작돼 'deleting' 이 됐거나 다른 요청이 재선점했으면 0행 → 조용히 false(로그 1줄).
+ */
+export async function saveAnalysisOutcome(
+  admin: SupabaseClient,
+  recordingId: string,
+  lockIso: string,
+  patch: Record<string, unknown>,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from(REC)
+    .update(patch)
+    .eq("id", recordingId)
+    .eq("status", "analyzing")
+    .eq("locked_at", lockIso)
+    .select("id");
+  if (error) throw new Error(`분석 저장 실패: ${error.message}`);
+  if (!data || data.length === 0) {
+    console.warn("[recording] 분석 저장 건너뜀(선점 상실 또는 삭제 중)", { recordingId });
+    return false;
+  }
+  return true;
+}
 
 export type AnalyzeJobResult =
   | { claimed: false; reason: string }
@@ -320,28 +347,22 @@ export async function analyzeRecording(
       model: env.GEMINI_CONSULT_MODEL,
       fetchImpl: deps.fetchImpl,
     });
-    const { error: saveErr } = await admin
-      .from(REC)
-      .update({
-        status: "analyzed",
-        analysis,
-        transcript: lines,
-        analyzed_at: new Date().toISOString(),
-        locked_at: null,
-        error: null,
-      })
-      .eq("id", recordingId)
-      .eq("locked_at", lockIso);
-    if (saveErr) throw new Error(`분석 저장 실패: ${saveErr.message}`);
+    const saved = await saveAnalysisOutcome(admin, recordingId, lockIso, {
+      status: "analyzed",
+      analysis,
+      transcript: lines,
+      analyzed_at: new Date().toISOString(),
+      locked_at: null,
+      error: null,
+    });
+    if (!saved) return { claimed: false, reason: "lost_claim" };
     return { claimed: true, ok: true };
   } catch (e) {
     const message = errMsg(e);
     console.error("[recording] 분석 실패", { recordingId, error: message });
-    await admin
-      .from(REC)
-      .update({ status: "failed", error: message, locked_at: null })
-      .eq("id", recordingId)
-      .eq("locked_at", lockIso);
+    await saveAnalysisOutcome(admin, recordingId, lockIso, { status: "failed", error: message, locked_at: null }).catch(
+      () => false,
+    );
     return { claimed: true, ok: false, error: message };
   }
 }

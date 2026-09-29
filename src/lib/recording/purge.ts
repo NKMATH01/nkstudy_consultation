@@ -151,7 +151,8 @@ export function createSupabaseDeleteStore(admin: SupabaseClient): DeleteRecordin
     async markDeleting(recordingId) {
       const { error } = await admin
         .from("consultation_recordings")
-        .update({ status: "deleting", deleting_at: new Date().toISOString() })
+        // 잠금도 함께 푼다 — 진행 중인 분석·전사 저장은 status 조건('analyzing'/'transcribing')에서 0행이 된다.
+        .update({ status: "deleting", deleting_at: new Date().toISOString(), locked_at: null })
         .eq("id", recordingId);
       if (error) throw new Error(error.message);
     },
@@ -186,6 +187,8 @@ export async function deleteRecordingsForConsultation(
 // ───────────── 고아 폴더 정리(cron) ─────────────
 
 export const ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
+export const ORPHAN_PAGE_SIZE = 1000;
+export const ORPHAN_MAX_PAGES = 20;
 
 export interface OrphanStore {
   /** 버킷 최상위 폴더 이름(= 녹음 id). */
@@ -259,9 +262,18 @@ export function createSupabaseOrphanStore(admin: SupabaseClient): OrphanStore {
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return {
     async listTopFolders() {
-      const { data, error } = await admin.storage.from(RECORDING_BUCKET).list("", { limit: 1000 });
-      if (error) throw new Error(`list_top_failed: ${error.message}`);
-      return (data ?? []).filter((o) => o.id === null && UUID_RE.test(o.name)).map((o) => o.name);
+      // 1,000개씩 페이지를 넘기며 모두 모은다(안전 상한 ORPHAN_MAX_PAGES 페이지).
+      const names: string[] = [];
+      for (let page = 0; page < ORPHAN_MAX_PAGES; page++) {
+        const { data, error } = await admin.storage
+          .from(RECORDING_BUCKET)
+          .list("", { limit: ORPHAN_PAGE_SIZE, offset: page * ORPHAN_PAGE_SIZE });
+        if (error) throw new Error(`list_top_failed: ${error.message}`);
+        const rows = data ?? [];
+        names.push(...rows.filter((o) => o.id === null && UUID_RE.test(o.name)).map((o) => o.name));
+        if (rows.length < ORPHAN_PAGE_SIZE) break;
+      }
+      return names;
     },
     async getRows(ids) {
       if (ids.length === 0) return [];

@@ -15,7 +15,7 @@ export function validateUploadRequest(input: {
 }): UploadCheck {
   const { seq, recordingStatus, existing } = input;
   if (!Number.isInteger(seq) || seq < 1 || seq > MAX_SEGMENT_SEQ) {
-    return { ok: false, status: 400, error: `조각 순번은 1~${MAX_SEGMENT_SEQ} 사이여야 합니다.` };
+    return { ok: false, status: 400, error: `부분 순번은 1~${MAX_SEGMENT_SEQ} 사이여야 합니다.` };
   }
   if (input.audioDeletedAt) {
     return { ok: false, status: 410, error: "원본 오디오가 이미 삭제된 녹음입니다." };
@@ -31,7 +31,7 @@ export function validateUploadRequest(input: {
     return { ok: false, status: 409, error: "이미 마감된 녹음입니다." };
   }
   if (existing && existing.status !== "pending") {
-    return { ok: false, status: 409, error: "이미 올라간 조각입니다." };
+    return { ok: false, status: 409, error: "이미 올라간 부분입니다." };
   }
   return { ok: true };
 }

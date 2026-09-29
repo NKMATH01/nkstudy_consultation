@@ -21,7 +21,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .eq("recording_id", id)
     .eq("seq", seq ?? -1)
     .maybeSingle();
-  if (error) return jsonError(500, "조각 조회 실패");
+  if (error) return jsonError(500, "부분 조회 실패");
 
   const check = validateUploadRequest({
     seq: seq ?? NaN,
@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .insert({ recording_id: id, seq, path, status: "pending" });
     if (insErr) {
       // unique(recording_id, seq) 충돌 = 동시에 같은 순번 요청 → 거부
-      return jsonError(409, "이미 요청된 조각입니다.");
+      return jsonError(409, "이미 요청된 부분입니다.");
     }
   }
 

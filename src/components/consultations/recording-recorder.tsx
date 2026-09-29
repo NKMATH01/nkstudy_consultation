@@ -87,7 +87,7 @@ export function RecordingRecorder({ rec }: { rec: ReturnType<typeof useRecorder>
             </span>
             <span className="font-mono text-[18px] font-bold text-nk-ink">{hhmmss(rec.elapsedSec)}</span>
             <span className="text-[12.5px] text-nk-ink-sub">
-              저장된 조각 {rec.savedSegments}개{rec.uploading > 0 ? ` · 올리는 중 ${rec.uploading}` : ""}
+              저장된 부분 {rec.savedSegments}개{rec.uploading > 0 ? ` · 올리는 중 ${rec.uploading}` : ""}
             </span>
           </div>
           <p className="text-[12.5px] font-semibold text-nk-ink">
@@ -126,7 +126,7 @@ export function RecordingRecorder({ rec }: { rec: ReturnType<typeof useRecorder>
       {rec.phase === "idle" && rec.recovery.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-nk-warn bg-nk-warn-soft px-3 py-2.5">
           <span className="text-[12.5px] font-semibold text-nk-warn">
-            이 기기에 올리지 못한 녹음 조각 {rec.recovery.length}개가 있습니다.
+            이 기기에 올리지 못한 녹음 부분 {rec.recovery.length}개가 있습니다.
           </span>
           <Button
             type="button"
@@ -144,7 +144,7 @@ export function RecordingRecorder({ rec }: { rec: ReturnType<typeof useRecorder>
             variant="ghost"
             disabled={rec.recovering}
             onClick={() => {
-              if (window.confirm("이 기기에 남은 녹음 조각을 지웁니다. 되돌릴 수 없습니다. 계속할까요?")) {
+              if (window.confirm("이 기기에 남은 녹음 부분을 지웁니다. 되돌릴 수 없습니다. 계속할까요?")) {
                 void rec.discardRecovery();
               }
             }}

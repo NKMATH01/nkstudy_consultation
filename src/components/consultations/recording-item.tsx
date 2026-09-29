@@ -128,7 +128,7 @@ export function RecordingItem({
       if (res.status === 409 && j.missingSeqs && j.missingSeqs.length > 0) {
         // A: 서버에 없는 조각이 있음 → 녹음한 기기에서 복구하는 게 먼저. 사용자가 명시적으로 고를 때만 버리고 마감.
         const discard = window.confirm(
-          `${j.missingSeqs.join(", ")}번 조각이 서버에 없습니다. 녹음한 기기에서 '복구 업로드'를 먼저 해 주세요.\n\n그 조각을 영구히 버리고 지금 마감하려면 [확인]을 누르세요.`,
+          `${j.missingSeqs.join(", ")}번 부분이 서버에 없습니다. 녹음한 기기에서 '복구 업로드'를 먼저 해 주세요.\n\n그 부분을 영구히 버리고 지금 마감하려면 [확인]을 누르세요.`,
         );
         if (!discard) throw new Error(j.error ?? "마감하지 않았습니다.");
         ({ res, j } = await callFinalize(true));
@@ -191,7 +191,7 @@ export function RecordingItem({
 
       {(r.error || failedSegErrors.length > 0) && r.displayStatus === "failed" && (
         <p className="rounded-lg bg-nk-late-soft px-3 py-2 text-[12px] text-nk-late">
-          {r.error ?? `${failedSegErrors.map((s) => `${s.seq}번 조각`).join(", ")} 전사 실패`}
+          {r.error ?? `${failedSegErrors.map((s) => `${s.seq}번 부분`).join(", ")} 전사 실패`}
         </p>
       )}
       {actionError && <p className="text-[12px] font-semibold text-nk-late">{actionError}</p>}
@@ -237,7 +237,7 @@ export function RecordingItem({
       </div>
       {canMutate && r.status === "recording" && !isActiveLocally && hasLocalParts && (
         <p className="text-[12px] text-nk-warn">
-          이 기기에 아직 올리지 못한 조각이 있습니다. 위의 &apos;복구 업로드&apos;를 먼저 해 주세요(복구가 끝나면 자동으로 마감됩니다).
+          이 기기에 아직 올리지 못한 부분이 있습니다. 위의 &apos;복구 업로드&apos;를 먼저 해 주세요(복구가 끝나면 자동으로 마감됩니다).
         </p>
       )}
 
@@ -246,7 +246,7 @@ export function RecordingItem({
           {playback.map((p) =>
             p.url ? (
               <div key={p.seq} className="flex items-center gap-2">
-                <span className="w-14 shrink-0 text-[11.5px] text-nk-ink-hint">{p.seq}번 조각</span>
+                <span className="w-14 shrink-0 text-[11.5px] text-nk-ink-hint">{p.seq}번 부분</span>
                 <audio controls preload="none" src={p.url} className="h-9 w-full" />
               </div>
             ) : null,

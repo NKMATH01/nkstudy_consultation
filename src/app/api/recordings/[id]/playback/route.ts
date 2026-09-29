@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .eq("recording_id", id)
     .neq("status", "pending")
     .order("seq", { ascending: true });
-  if (error) return jsonError(500, "조각 조회 실패");
+  if (error) return jsonError(500, "부분 조회 실패");
   const segs = (data ?? []) as { seq: number; path: string }[];
   try {
     const urls = await createPlaybackUrls(auth.admin, segs.map((s) => s.path));

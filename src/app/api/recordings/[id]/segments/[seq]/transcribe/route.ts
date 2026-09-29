@@ -14,7 +14,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const auth = await authorizeRecording(id, "mutate");
   if (!auth.ok) return jsonError(auth.status, auth.error);
   const seq = parseSeq(seqRaw);
-  if (seq == null || seq < 1 || seq > MAX_SEGMENT_SEQ) return jsonError(400, "잘못된 조각 순번");
+  if (seq == null || seq < 1 || seq > MAX_SEGMENT_SEQ) return jsonError(400, "잘못된 부분 순번");
 
   const result = await transcribeSegment(auth.admin, id, seq);
   if (result.claimed && !result.ok) return jsonOk({ ...result }, 502);

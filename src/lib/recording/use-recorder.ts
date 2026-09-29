@@ -339,8 +339,8 @@ export function useRecorder(opts: { userKey: string; consultationId: string; onC
       if (!ok) {
         setWarning(
           seg.idbFailed
-            ? `${seg.seq}번째 조각을 올리지 못했고 이 기기 임시 저장도 실패했습니다. 화면을 닫지 말고 '녹음 마치기'로 다시 올려 주세요.`
-            : `${seg.seq}번째 조각을 올리지 못했습니다. '녹음 마치기' 때 다시 올리고, 그래도 안 되면 '복구 업로드'를 써 주세요.`,
+            ? `${seg.seq}번째 부분을 올리지 못했고 이 기기 임시 저장도 실패했습니다. 화면을 닫지 말고 '녹음 마치기'로 다시 올려 주세요.`
+            : `${seg.seq}번째 부분을 올리지 못했습니다. '녹음 마치기' 때 다시 올리고, 그래도 안 되면 '복구 업로드'를 써 주세요.`,
         );
       }
     },
@@ -408,7 +408,7 @@ export function useRecorder(opts: { userKey: string; consultationId: string; onC
           }).catch(() => {
             seg.idbFailed = true;
             setWarning(
-              "이 기기에 녹음 백업을 저장하지 못했습니다(저장 공간 확인). 녹음은 계속되며, 조각이 끝나는 즉시 올립니다. 화면을 닫지 마세요.",
+              "이 기기에 녹음 백업을 저장하지 못했습니다(저장 공간 확인). 녹음은 계속되며, 부분이 끝나는 즉시 올립니다. 화면을 닫지 마세요.",
             );
           }),
         );
@@ -568,7 +568,7 @@ export function useRecorder(opts: { userKey: string; consultationId: string; onC
     if (unsentRef.current.size > 0) {
       updatePhase("interrupted");
       setError(
-        `올리지 못한 조각(${[...unsentRef.current.keys()].join(", ")}번)이 있습니다. 인터넷 연결을 확인하고 '녹음 마치기'를 다시 눌러 주세요.`,
+        `올리지 못한 부분(${[...unsentRef.current.keys()].join(", ")}번)이 있습니다. 인터넷 연결을 확인하고 '녹음 마치기'를 다시 눌러 주세요.`,
       );
       return;
     }
@@ -576,7 +576,7 @@ export function useRecorder(opts: { userKey: string; consultationId: string; onC
     // 재작업2-3: IndexedDB 읽기가 실패해도 멈추지 않는다 — 경고만 하고 메모리 기준으로 마무리·잠금 해제.
     const { parts: localParts, readFailed } = await readLeftoverParts(() => listParts(userKey));
     if (readFailed) {
-      setWarning("이 기기 임시 저장소를 읽지 못했습니다. 올라간 조각 기준으로 마무리합니다.");
+      setWarning("이 기기 임시 저장소를 읽지 못했습니다. 올라간 부분 기준으로 마무리합니다.");
     }
     const leftover = localParts.filter((p) => p.recordingId === recordingId);
     if (leftover.length > 0) {
@@ -587,7 +587,7 @@ export function useRecorder(opts: { userKey: string; consultationId: string; onC
       releaseLockRef.current?.();
       releaseLockRef.current = null;
       updatePhase("idle");
-      setWarning("아직 올라가지 않은 조각이 있습니다. '복구 업로드'를 눌러 마저 올려 주세요.");
+      setWarning("아직 올라가지 않은 부분이 있습니다. '복구 업로드'를 눌러 마저 올려 주세요.");
       await refreshRecovery();
       onChangedRef.current?.();
       return;
@@ -645,7 +645,7 @@ export function useRecorder(opts: { userKey: string; consultationId: string; onC
             await deleteParts(g.parts.map((p) => p.key));
             kickTranscribe(g.recordingId, g.seq, onChangedRef.current);
           } catch {
-            failed.push(`${g.seq}번째 조각`);
+            failed.push(`${g.seq}번째 부분`);
           }
         }
         const stillLocal = (await listParts(userKey)).some((p) => p.recordingId === recordingId);
@@ -673,7 +673,7 @@ export function useRecorder(opts: { userKey: string; consultationId: string; onC
       if (failed.length > 0) {
         setError(`${failed.join(", ")}을(를) 올리지 못했습니다. 이미 마감되었거나 보관 기간이 지난 녹음이면 올릴 수 없습니다.`);
       } else if (skippedActive > 0) {
-        setWarning("다른 탭에서 녹음 중인 조각은 건너뛰었습니다.");
+        setWarning("다른 탭에서 녹음 중인 부분은 건너뛰었습니다.");
       } else {
         setWarning(null);
       }

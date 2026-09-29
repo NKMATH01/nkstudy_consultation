@@ -208,3 +208,9 @@ Claude: 리서치 37,104 · 코드 지도 210,042 · 자문 49,007 · T1 127,414
 - 코덱스 재검 3: 🔴 해결·정상 경로 유지 확인, 🟡 1 잔존(매번 처음부터 최대 2만 폴더 조회 — 원본 30일 삭제라 유효 폴더가 2만 개를 넘을 수 없어 팀장 판정 수용).
 - 팀장 재실검증: 합성 음성 40초 녹음 → 전사 → 분석(analyzed) → 원본 듣기(200) → 삭제(행·조각·파일 0).
 - Vercel Production 에 `CRON_SECRET` 추가(무작위 32바이트, 값 출력 없음, Encrypted).
+
+### 2026-09-29 19:34 KST · 운영 배포 (`78a9cd1..dd3b252`)
+- 배포 전: 화 19:29 KST · 오늘 설문 0 · 오늘 예약 0(다음 수 15:00) · 최근 40분 `/survey` 접속 0. **SSO·nbrain 미커밋 15건을 뺀 깨끗한 사본**(`git worktree`, OneDrive 밖) — npm install · tsc 0 · vitest 53 files / 737 tests · build 성공 → 사본(.env.local 포함) 삭제.
+- 배포 확인: `/api/cron/recordings` 가 307(/login) → **61초 뒤 401**(새 middleware·CRON_SECRET) 로 바뀜.
+- 운영 확인(비로그인): prod-verify 6/6(새 분석지·기존 analysis_v2·registration 보고서·/exams·/exams/new 인증 관문·/survey) + `/api/recordings`·`/consultations/[id]`·`/exams/new?consultation=` → /login, cron 틀린 비밀번호 401.
+- 남은 것: 카카오 템플릿 `exam_report` 심사(원장) → 승인 후 템플릿 번호 입력 · 첫 cron 실행(매일 18:00 UTC = 03:00 KST) 로그 확인 · iOS 실기기 녹음 · 반 "끝낸 단원" 세부 비교(단원 순서표) · 등록 폼 위 공유 막대 겹침(기존 문제).

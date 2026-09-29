@@ -49,6 +49,7 @@ export async function middleware(request: NextRequest) {
     // 넘어온 사람이 세션을 세우기도 전에 /login 으로 튕겨, 연동이 통째로 죽는다.
     // 대신 인가는 그 라우트가 직접 한다(서명·만료·app 키·직원 계정 유일 매칭).
     !request.nextUrl.pathname.startsWith("/api/sso/")
+    && !request.nextUrl.pathname.startsWith("/api/cron/")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

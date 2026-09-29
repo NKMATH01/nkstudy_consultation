@@ -1,36 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Clock, ExternalLink, ImageOff, Link2, Loader2, MessageCircle, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Clock,
+  ExternalLink,
+  FileText,
+  ImageOff,
+  Link2,
+  Loader2,
+  MessageCircle,
+  Send,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { deleteExamAnalysis, type ExamAnalysis } from "@/lib/actions/exam-analysis";
+import { AlimtalkSendDialog } from "@/components/alimtalk/alimtalk-send-dialog";
+import {
+  deleteExamAnalysis,
+  markExamReportSent,
+  prepareExamReportAlimtalk,
+  type ExamAnalysis,
+} from "@/lib/actions/exam-analysis";
 import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
 import { ExamStatusBadge, formatExamDate } from "../exams-list-client";
 
 function PhotoGrid({
   title,
   urls,
+  paths = [],
   onOpen,
 }: {
   title: string;
   urls: (string | null)[];
+  /** 저장 경로. .pdf 면 사진 대신 새 탭으로 여는 카드로 보여 준다(매쓰플랫 결과지). */
+  paths?: string[];
   onOpen: (url: string, label: string) => void;
 }) {
   return (
     <section className="space-y-2 rounded-2xl border border-nk-line bg-nk-surface p-4">
       <h2 className="text-sm font-bold text-nk-ink">
-        {title} <span className="text-xs font-normal text-nk-ink-hint">({urls.length}장)</span>
+        {title} <span className="text-xs font-normal text-nk-ink-hint">({urls.length}개)</span>
       </h2>
       {urls.length === 0 ? (
         <p className="text-xs text-nk-ink-hint">올린 사진이 없습니다.</p>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {urls.map((url, i) =>
-            url ? (
+            url && paths[i]?.toLowerCase().endsWith(".pdf") ? (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex aspect-[3/4] flex-col items-center justify-center gap-1 rounded-lg border border-nk-line-soft bg-nk-sunken text-xs font-bold text-nk-ink-sub hover:bg-nk-hover"
+              >
+                <FileText className="h-6 w-6" />
+                PDF {i + 1}
+                <span className="text-[10px] font-normal text-nk-ink-hint">새 탭에서 열기</span>
+              </a>
+            ) : url ? (
               <button
                 key={i}
                 type="button"
@@ -121,6 +153,28 @@ export function ExamDetailClient({
     }
   };
 
+  // 알림톡: 발송 인자는 서버가 만든다(학부모 번호·회수 확인·링크 기간 연장).
+  // 다이얼로그는 성공 콜백이 없으므로, 닫힐 때 서버가 실제 발송 기록을 확인한 경우에만 'sent' 로 바꾼다.
+  const [alimtalkOpen, setAlimtalkOpen] = useState(false);
+  const [kakaoPending, setKakaoPending] = useState(false);
+  const prepareAlimtalk = useCallback(async () => {
+    const result = await prepareExamReportAlimtalk(analysis.id);
+    if (!result.success) {
+      toast.error(result.error);
+      return null;
+    }
+    setKakaoPending(result.templatePending);
+    return result.data;
+  }, [analysis.id]);
+
+  const handleAlimtalkOpenChange = (open: boolean) => {
+    setAlimtalkOpen(open);
+    if (open) return;
+    void markExamReportSent(analysis.id).then((result) => {
+      if (result.success && result.marked) router.refresh();
+    });
+  };
+
   const handleCopy = async () => {
     if (!reportUrl) return;
     try {
@@ -161,6 +215,10 @@ export function ExamDetailClient({
                 <Link2 className="h-4 w-4" />
                 링크 복사
               </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setAlimtalkOpen(true)}>
+                <Send className="h-4 w-4" />
+                알림톡 보내기
+              </Button>
             </>
           )}
           <Button
@@ -176,6 +234,17 @@ export function ExamDetailClient({
           </Button>
         </div>
       </div>
+
+      {kakaoPending && (
+        <div className="rounded-md border border-nk-warn bg-nk-warn-soft px-4 py-3 text-sm text-nk-ink">
+          <p className="font-bold text-nk-warn">입학테스트 알림톡은 카카오 심사 대기 중입니다.</p>
+          <p className="mt-0.5 text-nk-ink-sub">승인 전에는 보낼 수 없습니다. 그동안은 카카오톡 공유나 링크 복사로 보내 주세요.</p>
+        </div>
+      )}
+
+      {analysis.sent_at && (
+        <p className="text-xs text-nk-ink-sub">알림톡 보낸 날: {formatExamDate(analysis.sent_at)}</p>
+      )}
 
       {(analysis.status === "pending" || analysis.status === "analyzing") && (
         <div className="flex items-start gap-3 rounded-md border border-nk-line bg-nk-sunken px-4 py-3">
@@ -206,7 +275,16 @@ export function ExamDetailClient({
       <PhotoGrid
         title="매쓰플랫 결과보고서"
         urls={mathflexUrls}
+        paths={analysis.mathflex_paths}
         onOpen={(url, label) => setZoom({ url, label })}
+      />
+
+      <AlimtalkSendDialog
+        open={alimtalkOpen}
+        onOpenChange={handleAlimtalkOpenChange}
+        prepare={prepareAlimtalk}
+        targetLabel={analysis.student_name}
+        title="입학테스트 리포트 알림톡 발송"
       />
 
       <Dialog open={zoom !== null} onOpenChange={(open) => !open && setZoom(null)}>

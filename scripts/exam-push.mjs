@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { validateExamReportV1 } from "./lib/exam-report-validate.mjs";
+import { buildExamScoreSummary } from "./lib/exam-score-summary.mjs";
 
 const DEFAULT_BASE_URL = "https://nkstudy-consultation.vercel.app"; // src/lib/academy.ts 와 동일
 const PHOTO_RE = /^(paper|mathflex)-\d+\.[a-z0-9]+$/i;
@@ -51,6 +52,18 @@ if (!verdict.ok) {
   process.exit(1);
 }
 
+// ── 점수 칸(exam_analyses.score_*) ─────────────────────────────────────
+// 등록 화면이 바로 읽는 값. 요약 규칙은 scripts/lib/exam-score-summary.mjs 한 곳(앱과 공유).
+const scoreFields = {
+  score_raw: report.score.raw,
+  score_max: report.score.max,
+  score_grade:
+    report.score.grade === undefined || String(report.score.grade).trim() === ""
+      ? null
+      : String(report.score.grade).trim(),
+  score_summary: buildExamScoreSummary(report.units),
+};
+
 // ── 날짜 ────────────────────────────────────────────────────────────────
 const addDays = (n) => {
   const d = new Date();
@@ -69,6 +82,10 @@ if (dryRun) {
   console.log("[dry-run] 검증 통과 — DB 변경·사진 삭제 없음");
   console.log(`  report_tokens INSERT: report_type=exam_v1, name=${report.student.name}, expires_at=${expiresAt}`);
   console.log(`  exam_analyses UPDATE id=${id}: status=done, analyzed_at=now, retain_until=${retainUntil}`);
+  console.log(
+    `    score_raw=${scoreFields.score_raw}, score_max=${scoreFields.score_max}, score_grade=${scoreFields.score_grade ?? "(없음)"}`,
+  );
+  console.log(`    score_summary=${scoreFields.score_summary ?? "(없음)"}`);
   console.log(`  성공 시 작업 폴더 통째로 삭제(사진 ${photos.length}장 포함): ${workDir}`);
   process.exit(0);
 }
@@ -112,19 +129,30 @@ if (!token) {
 // 쿼리 2: exam_analyses UPDATE
 // status 필터: 이미 발송(sent)된 건을 done 으로 되돌리지 않는다.
 // 0행이면 아래 롤백 경로가 돌아 방금 만든 토큰을 지운다.
-const upd = await fetch(
-  `${url}/rest/v1/exam_analyses?id=eq.${id}&status=in.(pending,analyzing)&select=id`,
-  {
+const baseUpdate = {
+  status: "done",
+  report_token: token,
+  analyzed_at: new Date().toISOString(),
+  retain_until: retainUntil,
+};
+const patchExam = (body) =>
+  fetch(`${url}/rest/v1/exam_analyses?id=eq.${id}&status=in.(pending,analyzing)&select=id`, {
     method: "PATCH",
     headers,
-    body: JSON.stringify({
-      status: "done",
-      report_token: token,
-      analyzed_at: new Date().toISOString(),
-      retain_until: retainUntil,
-    }),
-  },
-);
+    body: JSON.stringify(body),
+  });
+let upd = await patchExam({ ...baseUpdate, ...scoreFields });
+// 점수 칸 마이그레이션(20260929100000) 적용 전이면 PostgREST 가 PGRST204(없는 칸)로 거부한다.
+// 이때만 점수 칸을 빼고 한 번 더 저장한다 — 분석지 올리기 자체는 막지 않는다.
+if (!upd.ok && upd.status === 400) {
+  const text = await upd.text();
+  if (/PGRST204/.test(text) && /score_/.test(text)) {
+    console.error("[exam-push] 경고: exam_analyses 에 score_* 칸이 없어 점수 없이 저장합니다(마이그레이션 20260929100000 적용 필요).");
+    upd = await patchExam(baseUpdate);
+  } else {
+    upd = new Response(text, { status: upd.status });
+  }
+}
 const updRows = upd.ok ? await upd.json() : null;
 if (!upd.ok || !Array.isArray(updRows) || updRows.length !== 1) {
   const detail = upd.ok ? `갱신된 행 ${updRows?.length ?? 0}건` : `HTTP ${upd.status}: ${await upd.text()}`;

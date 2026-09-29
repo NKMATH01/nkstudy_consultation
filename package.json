@@ -11,7 +11,8 @@
     "test:e2e": "node e2e/run.mjs",
     "test:e2e:live": "node e2e/live-v2.mjs",
     "exam:pull": "node scripts/exam-pull.mjs",
-    "exam:push": "node scripts/exam-push.mjs"
+    "exam:push": "node scripts/exam-push.mjs",
+    "exam:orphans": "node scripts/exam-orphans.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.68",

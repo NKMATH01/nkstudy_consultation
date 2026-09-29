@@ -1,54 +1,105 @@
 {
-  "run": "2026-09-29-exam-report-cover",
-  "size": "M",
-  "goal": "입학테스트 분석지(exam_v1) 제목 → '수학 정밀 진단 리포트', 표지 A 진단서형, 본문 카드 다듬기. 내용·데이터 불변",
-  "userPicks": {
-    "title": "① 수학 정밀 진단 리포트",
-    "cover": "A 진단서형"
+  "run": "2026-09-29-exam-registration-placement-recording",
+  "size": "L",
+  "goal": "R1 한 화면 업로드 · R2 등록 점수 자동 · R3 반 배정 도우미 · R4 상담 녹음→Gemini 전사→Gemini 3.8 Flash 분석 · R5 평가서 버튼 · R6 알림톡",
+  "userDecisions": {
+    "analysis": "Gemini 3.8 Flash 자동(Claude 아님)",
+    "audioRetention": "30일 뒤 자동 삭제",
+    "access": "principal·admin 전부, teacher 는 담당 반 학생만",
+    "prodDb": "팀장 직접(연습 후 적용)",
+    "codex": "아스트라 참여(설계·코드 교차 점검)"
   },
-  "mockup": "https://claude.ai/artifact/DmWd9pkN2hs7uYZjrDegXv",
-  "restorePoint": "74313d4",
+  "restorePoint": "99957b0",
   "uncommittedAtStart": 15,
-  "overlap": "없음 (미커밋 15건은 SSO·nbrain, 이번 대상 exam-report.tsx · exam-detail-client.tsx 와 무관)",
+  "design": "evidence/design-l-2026-09-29.md",
+  "research": "evidence/research-stt-2026-09-29.md",
   "nodes": [
     {
-      "id": "impl",
-      "role": "구현",
+      "id": "research",
+      "role": "리서치",
+      "agent": "nk-rt-researcher",
+      "status": "done",
+      "tokens": 37104
+    },
+    {
+      "id": "map",
+      "role": "코드 지도",
+      "agent": "Explore",
+      "status": "done",
+      "tokens": 210042
+    },
+    {
+      "id": "advise",
+      "role": "설계 자문(Fable)",
+      "agent": "nk-rt-advisor",
+      "status": "done",
+      "tokens": 49007
+    },
+    {
+      "id": "codex-design",
+      "role": "설계 교차 점검(Codex Astra)",
+      "status": "done"
+    },
+    {
+      "id": "T1",
+      "role": "구현 R1+R6",
       "agent": "nk-rt-implementer",
       "status": "done",
-      "retries": 1,
-      "tokens": 61439
+      "tokens": 127414,
+      "retries": 2
+    },
+    {
+      "id": "T2",
+      "role": "구현 R2+R3+R5",
+      "agent": "nk-rt-implementer",
+      "status": "done",
+      "tokens": 144704,
+      "retries": 1
+    },
+    {
+      "id": "T3",
+      "role": "구현 R4",
+      "agent": "nk-rt-implementer",
+      "status": "done",
+      "tokens": 260884,
+      "retries": 2
     },
     {
       "id": "review",
-      "role": "새 눈 검토",
-      "agent": "nk-rt-reviewer",
+      "role": "검토(Fable)",
+      "agent": "nk-rt-advisor",
       "status": "done",
-      "retries": 1,
-      "tokens": 37465
+      "tokens": 317948
+    },
+    {
+      "id": "codex-code",
+      "role": "코드 교차 점검(Codex Astra)",
+      "status": "done"
     },
     {
       "id": "check",
-      "role": "입장 점검(학부모·원장)",
+      "role": "입장 점검",
       "agent": "nk-rt-checker",
       "status": "done",
-      "retries": 0,
-      "tokens": 41323
+      "tokens": 52869
+    },
+    {
+      "id": "db",
+      "role": "운영 DB 적용(팀장)",
+      "status": "done"
     },
     {
       "id": "screen",
-      "role": "팀장 화면 확인 390px",
+      "role": "화면 확인(팀장)",
       "status": "done"
     },
     {
       "id": "gate",
-      "role": "팀장 게이트 tsc·lint·test·build",
+      "role": "게이트(팀장)",
       "status": "done"
     }
   ],
-  "tokensTotal": 140227,
-  "evidence": [
-    "evidence/impl-cover.txt",
-    "evidence/gate-cover.txt"
-  ]
+  "codexTokens": 327795,
+  "tokensTotal": 1199972,
+  "pending": "코덱스 3차 🔴1(분석 저장이 deleting 덮어씀)·🟡1(고아 목록 페이지) + 문구 \"조각\"→\"부분\" — 재작업 상한 초과로 사용자 확인 대기"
 }

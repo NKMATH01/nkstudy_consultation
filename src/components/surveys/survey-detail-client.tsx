@@ -3,7 +3,7 @@
 import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Brain, Loader2, Sparkles, MessageSquareText } from "lucide-react";
+import { ArrowLeft, Trash2, Brain, Loader2, Sparkles, MessageSquareText, FileText, ExternalLink, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { deleteSurvey } from "@/lib/actions/survey";
 import { analyzeSurvey } from "@/lib/actions/analysis";
 import { analyzeSurveyV2 } from "@/lib/actions/analysis-v2";
 import { SurveyV2ResponseView } from "@/components/surveys/survey-v2-response-view";
+import { examReportTarget, type EntranceExam } from "@/lib/class-placement";
 
 import type { Survey } from "@/types";
 import { SURVEY_QUESTIONS, FACTOR_LABELS } from "@/types";
@@ -28,6 +29,8 @@ interface Props {
   analysisReportHtml?: string | null;
   analysisId?: string | null;
   consultationId?: string | null;
+  /** 상담에 연결된 최신 입학테스트(서버 조회) — "입학테스트 평가서" 버튼 */
+  entranceExam?: EntranceExam | null;
 }
 
 const FACTOR_COLORS: Record<string, { bar: string; bg: string; text: string }> = {
@@ -60,7 +63,7 @@ function ScoreBar({ value, label, factorKey }: { value: number | null; label: st
   );
 }
 
-export function SurveyDetailClient({ survey, analysisReportHtml, analysisId, consultationId }: Props) {
+export function SurveyDetailClient({ survey, analysisReportHtml, analysisId, consultationId, entranceExam = null }: Props) {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
@@ -102,6 +105,7 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId, con
   const baseFKeys = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
   const factorKeys = survey.factor_emotion != null ? [...baseFKeys, "emotion" as const] : baseFKeys;
   const isV2 = survey.instrument_version === "v2";
+  const examTarget = examReportTarget(entranceExam, consultationId);
 
   return (
     <div className="space-y-5 max-w-4xl fade-in">
@@ -138,6 +142,26 @@ export function SurveyDetailClient({ survey, analysisReportHtml, analysisId, con
                 <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
                 상담 보기
               </Link>
+            </Button>
+          )}
+          {examTarget && (
+            <Button variant="outline" size="sm" asChild className="rounded-[7px]">
+              {examTarget.newTab ? (
+                <a href={examTarget.href} target="_blank" rel="noopener noreferrer">
+                  <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  {examTarget.label}
+                  <ExternalLink className="ml-1 h-3 w-3" />
+                </a>
+              ) : (
+                <Link href={examTarget.href}>
+                  {examTarget.kind === "upload" ? (
+                    <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  ) : (
+                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {examTarget.label}
+                </Link>
+              )}
             </Button>
           )}
           {(survey.analysis_id || analysisId) ? (

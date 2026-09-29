@@ -1,0 +1,53 @@
+== vitest recording
+ RUN  v4.1.10 C:/Users/nk_ma/OneDrive/01. 클로드 코워크/26. 수파베이스 통합/24.NK 신입생상담관리/nk-consultation
+
+
+ Test Files  4 passed (4)
+      Tests  27 passed (27)
+   Start at  16:46:35
+   Duration  973ms (transform 385ms, setup 0ms, import 959ms, tests 50ms, environment 2ms)
+
+== vitest all
+
+ Test Files  51 passed (51)
+      Tests  732 passed (732)
+   Start at  16:46:39
+   Duration  7.30s (transform 10.92s, setup 0ms, import 19.07s, tests 723ms, environment 7ms)
+
+== token literal check (hex/white/black/rgb numeric)
+none
+== rework1 (2026-09-29)
+== tsc: 0 errors
+== eslint changed files: 0 errors (1 pre-existing warning consultation-list-client.tsx:193 initialPagination)
+== vitest recording
+
+ Test Files  5 passed (5)
+      Tests  33 passed (33)
+   Start at  17:06:08
+   Duration  915ms (transform 557ms, setup 0ms, import 1.45s, tests 62ms, environment 0ms)
+
+== vitest all
+ Test Files  52 passed (52)
+      Tests  740 passed (740)
+   Start at  17:06:14
+   Duration  6.65s (transform 4.52s, setup 0ms, import 11.13s, tests 1.24s, environment 19ms)
+
+== token literal check
+none
+== rework2 (2026-09-29)
+== tsc: 0 errors; eslint recording files: 0
+== vitest recording
+
+ Test Files  6 passed (6)
+      Tests  37 passed (37)
+   Start at  17:18:31
+   Duration  1.41s (transform 1.14s, setup 0ms, import 2.21s, tests 80ms, environment 1ms)
+
+== vitest all
+ Test Files  53 passed (53)
+      Tests  744 passed (744)
+   Start at  17:18:39
+   Duration  8.38s (transform 5.80s, setup 0ms, import 14.05s, tests 1.57s, environment 21ms)
+
+== token literal check
+none

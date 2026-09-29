@@ -17,6 +17,7 @@ import {
 import { deleteAnalysis, regenerateAnalysisReport } from "@/lib/actions/analysis";
 import { generateRegistration } from "@/lib/actions/registration";
 import { RegistrationForm } from "@/components/registrations/registration-form-client";
+import type { EntranceExam } from "@/lib/class-placement";
 import type { Analysis, Class, Teacher, ResultStatus } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
 import { FACTOR_LABELS, RESULT_STATUS_LABELS } from "@/types";
@@ -40,6 +41,8 @@ interface Props {
   studentPhone?: string | null;
   parentPhone?: string | null;
   consultationId?: string | null;
+  /** 상담에 연결된 최신 입학테스트 — 등록 폼으로 전달만 한다. */
+  entranceExam?: EntranceExam | null;
 }
 
 function ratingClass(score: number) {
@@ -51,7 +54,7 @@ function ratingClass(score: number) {
 
 const STEP_COLORS = ["bg-nk-progress", "bg-nk-cat-3", "bg-nk-warn", "bg-nk-done"];
 
-export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, consultationData, existingRegistrationId, studentPhone, parentPhone, consultationId }: Props) {
+export function AnalysisDetailClient({ analysis, classes, teachers, consultationResultStatus, consultationData, existingRegistrationId, studentPhone, parentPhone, consultationId, entranceExam }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDelete, setShowDelete] = useState(false);
@@ -532,6 +535,7 @@ export function AnalysisDetailClient({ analysis, classes, teachers, consultation
         classes={classes}
         teachers={teachers}
         consultationData={consultationData}
+        entranceExam={entranceExam}
       />
 
       {/* 삭제 확인 */}

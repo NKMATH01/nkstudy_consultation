@@ -1,5 +1,7 @@
 // 입학테스트 답안 분석 — 사진 내려받기 (로컬 분석용)
 // 사용: node scripts/exam-pull.mjs --id <exam_analysis_id>
+//       매쓰플랫 결과지가 PDF 면 변환 없이 그대로 mathflex-01.pdf 로 저장한다(Claude 가 PDF 를 직접 읽는다).
+//       meta.json 의 formats 에 파일별 형식(image|pdf)을 적는다.
 //       --id 없으면 status='pending' 목록만 출력하고 종료한다.
 // ★ 작업 폴더가 OneDrive 동기화 경로면 중단한다(학생 시험지 사진이 MS 클라우드로 복제되는 것 방지).
 import { readFileSync, mkdirSync, writeFileSync, readdirSync, rmSync } from "node:fs";
@@ -66,7 +68,7 @@ if (!id) {
     const who = r.student_name ?? "";
     const exam = `${r.exam_title ?? ""} ${r.exam_date ?? ""}`.trim();
     const photos = (r.paper_paths?.length ?? 0) + (r.mathflex_paths?.length ?? 0);
-    console.log(`- ${r.id}  ${who}  ${exam}  사진 ${photos}장  ${r.created_at ?? ""}`);
+    console.log(`- ${r.id}  ${who}  ${exam}  파일 ${photos}개  ${r.created_at ?? ""}`);
   }
   console.log("\n내려받기: node scripts/exam-pull.mjs --id <id>");
   process.exit(0);
@@ -116,12 +118,14 @@ async function download(path, fileName) {
 const pad = (n) => String(n).padStart(2, "0");
 const extOf = (p) => (extname(p) || ".jpg").toLowerCase();
 const saved = [];
+const formats = {}; // 파일명 → "image" | "pdf"
 try {
   for (const [kind, paths] of [["paper", row.paper_paths ?? []], ["mathflex", row.mathflex_paths ?? []]]) {
     for (let i = 0; i < paths.length; i++) {
       const name = `${kind}-${pad(i + 1)}${extOf(paths[i])}`;
       await download(paths[i], name);
       saved.push(name);
+      formats[name] = name.toLowerCase().endsWith(".pdf") ? "pdf" : "image";
     }
   }
 } catch (e) {
@@ -133,7 +137,7 @@ try {
 const meta = Object.fromEntries(
   Object.entries(row).filter(([k]) => k !== "paper_paths" && k !== "mathflex_paths"),
 );
-writeFileSync(join(dir, "meta.json"), JSON.stringify({ ...meta, files: saved }, null, 2), "utf8");
+writeFileSync(join(dir, "meta.json"), JSON.stringify({ ...meta, files: saved, formats }, null, 2), "utf8");
 
 const upd = await fetch(`${url}/rest/v1/exam_analyses?id=eq.${id}`, {
   method: "PATCH",
@@ -146,5 +150,6 @@ if (!upd.ok) {
 }
 
 // 4) 작업 폴더 절대경로
-console.log(`사진 ${saved.length}장 저장, status=analyzing`);
+const pdfCount = Object.values(formats).filter((f) => f === "pdf").length;
+console.log(`파일 ${saved.length}개 저장(PDF ${pdfCount}개), status=analyzing`);
 console.log(dir);

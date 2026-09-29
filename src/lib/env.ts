@@ -27,6 +27,12 @@ const envSchema = z.object({
    *   평소대로 돌아야 하기 때문이다(전화번호 로그인은 이 키와 무관하다).
    */
   NK_SSO_SECRET: z.string().optional().default(""),
+  /** 상담 녹음 전사 모델(Interactions API). 기존 GEMINI_MODEL(설문)과 별개. */
+  GEMINI_TRANSCRIBE_MODEL: z.string().optional().default("gemini-3.5-transcribe"),
+  /** 상담 녹음 분석 모델(전사문 → 요약·정리 JSON). */
+  GEMINI_CONSULT_MODEL: z.string().optional().default("gemini-3.8-flash"),
+  /** Vercel Cron 인증값. 비어 있으면 /api/cron/recordings 는 503 으로 아무것도 하지 않는다. */
+  CRON_SECRET: z.string().optional().default(""),
 });
 
 function validateEnv() {

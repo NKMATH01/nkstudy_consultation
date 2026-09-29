@@ -688,6 +688,13 @@ export async function updateConsultation(
 
 export async function deleteConsultation(id: string) {
   try {
+    // D7: 녹음이 있으면 원본 삭제 확인 → 녹음 행 삭제를 먼저 끝낸다. 실패하면 상담 삭제 중단.
+    const { prepareConsultationDelete } = await import("@/lib/recording/consultation-delete");
+    const recordingCleanup = await prepareConsultationDelete(id);
+    if (!recordingCleanup.ok) {
+      return { success: false, error: recordingCleanup.error };
+    }
+
     const supabase = await createClient();
     const actorLabel = await getActorLabel();
     const { data, error } = await supabase.rpc(

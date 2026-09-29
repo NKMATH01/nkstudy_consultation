@@ -1,0 +1,25 @@
+== tsc
+tsc exit 0
+== eslint
+eslint exit 0
+== vitest
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  16:38:29
+   Duration  1.09s (transform 51ms, setup 0ms, import 125ms, tests 9ms, environment 0ms)
+
+== rework1 tsc
+tsc exit 0
+== eslint
+eslint exit 0
+== vitest
+
+ Test Files  51 passed (51)
+      Tests  734 passed (734)
+   Start at  16:51:38
+   Duration  7.33s (transform 14.83s, setup 0ms, import 22.65s, tests 707ms, environment 6ms)
+
+== rework2 tsc
+tsc exit 0
+eslint exit 0

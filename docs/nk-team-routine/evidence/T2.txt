@@ -1,0 +1,35 @@
+# T2 검증 Tue Sep 29 16:38:41     2026
+## tsc --noEmit
+=== tsc ===
+exit=0
+## eslint (소유 파일)
+
+C:\Users\nk_ma\OneDrive\01. 클로드 코워크\26. 수파베이스 통합\24.NK 신입생상담관리\nk-consultation\src\lib\actions\registration.ts
+  42:10  warning  'parseClassDaysOnly' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+
+## vitest 전체
+
+ RUN  v4.1.10 C:/Users/nk_ma/OneDrive/01. 클로드 코워크/26. 수파베이스 통합/24.NK 신입생상담관리/nk-consultation
+
+
+ Test Files  51 passed (51)
+      Tests  732 passed (732)
+   Start at  16:38:56
+   Duration  5.90s (transform 3.52s, setup 0ms, import 11.65s, tests 1.12s, environment 15ms)
+
+## node --check exam-push
+ok
+
+# 재작업 1회차 Tue Sep 29 16:50:31     2026
+## tsc
+tsc exit=0
+## eslint
+eslint exit=0
+## vitest
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  16:51:38
+   Duration  821ms (transform 161ms, setup 0ms, import 393ms, tests 41ms, environment 0ms)
+

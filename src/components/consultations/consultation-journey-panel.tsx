@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   CalendarClock,
   ClipboardCheck,
+  FileUp,
   FileText,
   History,
   MessageSquareText,
@@ -253,7 +254,16 @@ export function ConsultationJourneyPanel({
             <p className="text-[10px] font-black tracking-[0.18em] text-nk-progress">STUDENT JOURNEY</p>
             <h2 className="mt-0.5 text-[15px] font-extrabold text-nk-ink">학생 여정</h2>
           </div>
-          <p className="text-[10px] font-medium text-nk-ink-hint">완료된 단계를 눌러 바로 이동</p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-[10px] font-medium text-nk-ink-hint sm:block">완료된 단계를 눌러 바로 이동</p>
+            <Link
+              href={`/exams/new?consultation=${consultation.id}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-nk-line bg-nk-surface px-3 py-1.5 text-[12px] font-bold text-nk-ink hover:bg-nk-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-nk-progress"
+            >
+              <FileUp className="h-3.5 w-3.5" />
+              입학테스트 올리기
+            </Link>
+          </div>
         </div>
         <div className="overflow-x-auto px-5 py-5">
           <div className="flex min-w-max items-stretch gap-2.5">

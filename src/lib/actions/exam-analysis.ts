@@ -5,6 +5,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { revokeReportToken } from "@/lib/actions/report-token";
 import { escapeLikePattern } from "@/lib/student-identity";
+import {
+  EXAM_REPORT_TEMPLATE_CODE,
+  buildExamReportVars,
+  extendReportExpiry,
+  isExamTemplatePending,
+  isValidExamUploadPath,
+  reportTokenSendBlock,
+} from "@/lib/exam-alimtalk";
 
 /** 시험지·매쓰플랫 사진이 올라가는 비공개 Storage 버킷. */
 const EXAM_PAPERS_BUCKET = "exam-papers";
@@ -147,6 +155,34 @@ export async function searchExamConsultations(query: string): Promise<ExamConsul
   }));
 }
 
+/**
+ * `/exams/new?consultation=<id>` 로 들어왔을 때 미리 고를 상담 1건. searchExamConsultations 와 같은 형식.
+ * 없거나 잘못된 id 면 null(화면은 검색 칸을 그대로 보여 준다).
+ */
+export async function getExamConsultationOption(id: string): Promise<ExamConsultationOption | null> {
+  if (!z.uuid().safeParse(id).success) return null;
+  const auth = await requireAuthenticated();
+  if (!auth.ok) return null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("consultations")
+    .select("id, name, school, grade, consult_date")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error("[ExamAnalysis]", { action: "getConsultationOption", id, error: error.message });
+    return null;
+  }
+  return {
+    id: String(data.id),
+    name: String(data.name ?? ""),
+    school: data.school ?? null,
+    grade: data.grade ?? null,
+    consult_date: data.consult_date ?? null,
+  };
+}
+
 const createExamAnalysisSchema = z
   .object({
     /** 클라이언트가 미리 만든 id. Storage 경로(<id>/<uuid>.<ext>)의 폴더명과 같아야 한다. */
@@ -157,16 +193,14 @@ const createExamAnalysisSchema = z
     subject: z.string().trim().min(1, "과목을 입력하세요").max(50),
     note: z.string().trim().max(2000).optional(),
     paper_paths: z.array(z.string()).min(1, "시험지 사진을 1장 이상 올려주세요").max(40),
-    mathflex_paths: z.array(z.string()).max(10),
+    mathflex_paths: z.array(z.string()).max(2, "매쓰플랫 결과지는 최대 2개까지 올릴 수 있습니다"),
   })
   .superRefine((value, ctx) => {
-    const pattern = new RegExp(`^${value.id}/[0-9a-f-]{36}\\.[a-z0-9]{1,5}$`, "i");
-    for (const path of [...value.paper_paths, ...value.mathflex_paths]) {
-      if (!pattern.test(path)) {
-        ctx.addIssue({ code: "custom", message: "업로드 경로가 올바르지 않습니다" });
-        return;
-      }
-    }
+    // PDF 는 매쓰플랫 결과지에만 허용한다(exam-alimtalk.ts 규칙).
+    const ok =
+      value.paper_paths.every((p) => isValidExamUploadPath(value.id, p, "paper")) &&
+      value.mathflex_paths.every((p) => isValidExamUploadPath(value.id, p, "mathflex"));
+    if (!ok) ctx.addIssue({ code: "custom", message: "업로드 경로가 올바르지 않습니다" });
   });
 
 export type CreateExamAnalysisInput = z.input<typeof createExamAnalysisSchema>;
@@ -320,5 +354,194 @@ export async function deleteExamAnalysis(
       error: e instanceof Error ? e.message : String(e),
     });
     return { success: false, error: "시험지 삭제 중 오류가 발생했습니다" };
+  }
+}
+
+// ─── R6 입학테스트 리포트 알림톡 ─────────────────────────────────
+
+export interface ExamReportAlimtalkArgs {
+  templateCode: string;
+  phone: string;
+  vars: Record<string, string>;
+  subjectType: "exam_analysis";
+  subjectId: string;
+}
+
+export type PrepareExamReportAlimtalkResult =
+  | { success: true; data: ExamReportAlimtalkArgs; templatePending: boolean }
+  | { success: false; error: string };
+
+/**
+ * AlimtalkSendDialog 의 prepare() 용 발송 인자.
+ * 로그인 → 시험·상담 학부모 번호 → 리포트 링크(report_tokens) 회수 여부 확인 →
+ * 템플릿이 승인된 경우에만 만료를 greatest(expires_at, now+14일) 로 늘린다.
+ * report_tokens 는 authenticated UPDATE 정책이 있어(20260711150000) 서비스 롤이 필요 없다.
+ * 상태(sent)는 여기서 바꾸지 않는다 — 발송 성공 뒤 markExamReportSent 가 바꾼다.
+ */
+export async function prepareExamReportAlimtalk(
+  examId: string,
+): Promise<PrepareExamReportAlimtalkResult> {
+  try {
+    const auth = await requireAuthenticated();
+    if (!auth.ok) return { success: false, error: auth.error };
+    if (!z.uuid().safeParse(examId).success) return { success: false, error: "잘못된 요청입니다" };
+
+    const supabase = await createClient();
+    const { data: exam, error: examError } = await supabase
+      .from("exam_analyses")
+      .select("id, consultation_id, student_name, exam_date, status, report_token")
+      .eq("id", examId)
+      .maybeSingle();
+    if (examError || !exam) {
+      console.error("[ExamAnalysis]", { action: "alimtalk.exam", examId, error: examError?.message });
+      return { success: false, error: "시험 기록을 찾을 수 없습니다" };
+    }
+    if (exam.status !== "done" && exam.status !== "sent") {
+      return { success: false, error: "분석이 끝난 뒤에 보낼 수 있습니다" };
+    }
+    const token = typeof exam.report_token === "string" ? exam.report_token : "";
+    if (!token) return { success: false, error: "리포트 링크가 아직 없습니다" };
+    if (!exam.consultation_id) return { success: false, error: "연결된 상담 기록이 없습니다" };
+
+    const [{ data: consultation, error: consultationError }, { data: tokenRow, error: tokenError }, { data: template, error: templateError }] =
+      await Promise.all([
+        supabase.from("consultations").select("parent_phone").eq("id", exam.consultation_id).maybeSingle(),
+        supabase.from("report_tokens").select("token, expires_at, revoked_at").eq("token", token).maybeSingle(),
+        supabase
+          .from("nkc_alimtalk_templates")
+          .select("kakao_status")
+          .eq("template_code", EXAM_REPORT_TEMPLATE_CODE)
+          .maybeSingle(),
+      ]);
+
+    if (consultationError || tokenError || templateError) {
+      console.error("[ExamAnalysis]", {
+        action: "alimtalk.lookup",
+        examId,
+        error: consultationError?.message ?? tokenError?.message ?? templateError?.message,
+      });
+      return { success: false, error: "발송 정보를 불러오지 못했습니다" };
+    }
+    if (!template) {
+      return { success: false, error: "입학테스트 알림톡 템플릿이 아직 등록되지 않았습니다" };
+    }
+    const phone = String(consultation?.parent_phone ?? "").trim();
+    if (!phone) return { success: false, error: "상담 기록에 학부모 연락처가 없습니다" };
+
+    const block = reportTokenSendBlock(
+      tokenRow ? { revoked_at: (tokenRow.revoked_at as string | null) ?? null } : null,
+    );
+    if (block) return { success: false, error: block };
+
+    const templatePending = isExamTemplatePending(template.kakao_status as string | null);
+    // 심사 대기 중이면 어차피 못 보내니 링크를 늘리지 않는다.
+    if (!templatePending) {
+      const current = (tokenRow!.expires_at as string | null) ?? null;
+      const next = extendReportExpiry(current, new Date());
+      if (next !== current) {
+        const { error: extendError } = await supabase
+          .from("report_tokens")
+          .update({ expires_at: next })
+          .eq("token", token)
+          .is("revoked_at", null);
+        if (extendError) {
+          console.error("[ExamAnalysis]", { action: "alimtalk.extend", examId, error: extendError.message });
+          return { success: false, error: "리포트 링크 기간을 늘리지 못했습니다" };
+        }
+      }
+    }
+
+    return {
+      success: true,
+      templatePending,
+      data: {
+        templateCode: EXAM_REPORT_TEMPLATE_CODE,
+        phone,
+        vars: buildExamReportVars(
+          { student_name: String(exam.student_name ?? ""), exam_date: (exam.exam_date as string | null) ?? null },
+          token,
+        ),
+        subjectType: "exam_analysis",
+        subjectId: String(exam.id),
+      },
+    };
+  } catch (e) {
+    console.error("[ExamAnalysis]", {
+      action: "alimtalk.prepare",
+      examId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return { success: false, error: "알림톡 발송 준비 중 오류가 발생했습니다" };
+  }
+}
+
+/**
+ * 발송 성공 뒤에만 status='sent'·sent_at 기록.
+ * 다이얼로그는 성공 콜백이 없으므로, 닫힐 때 호출하고 서버가 실제 발송 기록
+ * (nkc_scheduled_messages: subject_type='exam_analysis', status='sent')이 있을 때만 바꾼다.
+ */
+export async function markExamReportSent(
+  examId: string,
+): Promise<{ success: true; marked: boolean } | { success: false; error: string }> {
+  try {
+    const auth = await requireAuthenticated();
+    if (!auth.ok) return { success: false, error: auth.error };
+    if (!z.uuid().safeParse(examId).success) return { success: false, error: "잘못된 요청입니다" };
+
+    const supabase = await createClient();
+    const { data: sent, error: sentError } = await supabase
+      .from("nkc_scheduled_messages")
+      .select("id, updated_at")
+      .eq("subject_type", "exam_analysis")
+      .eq("subject_id", examId)
+      .eq("template_code", EXAM_REPORT_TEMPLATE_CODE)
+      .eq("status", "sent")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sentError) {
+      console.error("[ExamAnalysis]", { action: "markSent.lookup", examId, error: sentError.message });
+      return { success: false, error: "발송 기록을 확인하지 못했습니다" };
+    }
+    if (!sent) return { success: true, marked: false };
+
+    const sentAt = (sent.updated_at as string | null) ?? new Date().toISOString();
+    const { data: current } = await supabase
+      .from("exam_analyses")
+      .select("status, sent_at")
+      .eq("id", examId)
+      .maybeSingle();
+    // 이미 이 발송(또는 더 뒤 발송)이 기록돼 있으면 다시 쓰지 않는다.
+    if (
+      current?.status === "sent" &&
+      current.sent_at &&
+      new Date(current.sent_at as string).getTime() >= new Date(sentAt).getTime()
+    ) {
+      return { success: true, marked: false };
+    }
+    const { data: updated, error } = await supabase
+      .from("exam_analyses")
+      .update({ status: "sent", sent_at: sentAt })
+      .eq("id", examId)
+      .in("status", ["done", "sent"])
+      .select("id");
+    if (error) {
+      console.error("[ExamAnalysis]", { action: "markSent", examId, error: error.message });
+      return { success: false, error: "발송 상태를 저장하지 못했습니다" };
+    }
+
+    const marked = (updated ?? []).length > 0;
+    if (marked) {
+      revalidatePath("/exams");
+      revalidatePath(`/exams/${examId}`);
+    }
+    return { success: true, marked };
+  } catch (e) {
+    console.error("[ExamAnalysis]", {
+      action: "markSent",
+      examId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return { success: false, error: "발송 상태 저장 중 오류가 발생했습니다" };
   }
 }

@@ -12,6 +12,7 @@ import {
   getConsultationByLink,
   getConsultationByName,
 } from "@/lib/actions/consultation";
+import { getLatestExamForConsultation } from "@/lib/actions/exam-lookup";
 
 function toBackground(intake: Record<string, unknown> | null): CounselorBackground | null {
   if (!intake) return null;
@@ -106,6 +107,12 @@ export default async function AnalysisDetailPage({
     consultationData = consultation as unknown as Record<string, string | null>;
   }
 
+  // 상담에 연결된 최신 입학테스트 — 등록 폼 자동 입력·평가서 버튼용. 서버에서 조회해 props 로 넘긴다(D8).
+  const examConsultationId = consultation?.id ?? null;
+  const entranceExam = examConsultationId
+    ? await getLatestExamForConsultation(examConsultationId)
+    : null;
+
   // 등록 안내문 존재 여부
   const { data: existingReg } = await supabase
     .from("registrations")
@@ -134,6 +141,8 @@ export default async function AnalysisDetailPage({
           existingRegistrationId={existingReg?.id || null}
           consultationId={linkedConsultation?.id ?? null}
           initialTeacherView={teacherView}
+          entranceExam={entranceExam}
+          examConsultationId={examConsultationId}
         />
         <ClassRecommendationSection
           analysisId={analysis.id}
@@ -157,6 +166,7 @@ export default async function AnalysisDetailPage({
         studentPhone={studentPhone}
         parentPhone={parentPhone}
         consultationId={linkedConsultation?.id ?? null}
+        entranceExam={entranceExam}
       />
       <ClassRecommendationSection
         analysisId={analysis.id}

@@ -487,7 +487,7 @@ export function ConsultationListClient({
       startTransition(async () => {
         const result = await deleteConsultation(id);
         if (!result.success) {
-          toast.error("삭제 실패");
+          toast.error(result.error || "삭제 실패");
           router.refresh();
         } else {
           toast.success("삭제되었습니다");

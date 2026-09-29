@@ -34,12 +34,15 @@ import {
   updateConsultationStatus,
   updateConsultationField,
 } from "@/lib/actions/consultation";
+import { RecordingPanel, type RecordingPanelProps } from "@/components/consultations/recording-panel";
 import type { Consultation, ConsultationStatus, ResultStatus } from "@/types";
 import { STATUS_LABELS, RESULT_STATUS_LABELS } from "@/types";
 
 interface Props {
   consultation: Consultation;
   journey: ConsultationJourneyData;
+  /** 상담 녹음 패널(권한 있는 사람에게만 값이 온다). */
+  recordingPanel?: RecordingPanelProps | null;
 }
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
@@ -53,7 +56,7 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
-export function ConsultationDetailClient({ consultation, journey }: Props) {
+export function ConsultationDetailClient({ consultation, journey, recordingPanel }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showEdit, setShowEdit] = useState(false);
@@ -158,7 +161,7 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
         toast.success("상담이 삭제되었습니다");
         router.push("/consultations");
       } else {
-        toast.error("삭제에 실패했습니다");
+        toast.error(result.error || "삭제에 실패했습니다");
       }
     });
   };
@@ -238,6 +241,8 @@ export function ConsultationDetailClient({ consultation, journey }: Props) {
       </div>
 
       <ConsultationJourneyPanel consultation={consultation} journey={journey} />
+
+      {recordingPanel && <RecordingPanel {...recordingPanel} />}
 
       {/* Quick Actions */}
       <div

@@ -28,6 +28,8 @@ import {
 } from "@/lib/validations/registration";
 import type { Class, Teacher } from "@/types";
 import { GRADES, LOCATIONS, SUBJECTS, getTuitionWithDiscount } from "@/types";
+import { pickTestScoreDefaults, type EntranceExam } from "@/lib/class-placement";
+import { ClassPlacementPanel } from "@/components/registrations/class-placement-panel";
 
 const WEEKDAYS: string[] = ["월", "화", "수", "목", "금", "토"];
 
@@ -144,6 +146,17 @@ interface Props {
   classes: Class[];
   teachers: Teacher[];
   consultationData?: Record<string, string | null> | null;
+  /** 상담에 연결된 최신 입학테스트(서버에서 조회해 넘김). 점수·요약은 빈칸일 때만 채운다. */
+  entranceExam?: EntranceExam | null;
+}
+
+/** 입학테스트에서 채운 칸 표시 — 사용자가 고치면(dirty) 숨긴다. */
+function FromExamBadge() {
+  return (
+    <span className="rounded bg-nk-progress-soft px-1.5 py-0.5 text-[10px] font-bold text-nk-progress">
+      입학테스트에서 불러옴
+    </span>
+  );
 }
 
 function TimeRangeSelect({
@@ -238,6 +251,7 @@ export function RegistrationForm({
   classes,
   teachers,
   consultationData,
+  entranceExam,
 }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualFee, setManualFee] = useState(false);
@@ -269,6 +283,9 @@ export function RegistrationForm({
     consultationData?.parent_consult_note ? `[학부모] ${consultationData.parent_consult_note}` : "",
   ].filter(Boolean).join("\n");
 
+  // 상담 test_score 가 우선, 비었을 때만 입학테스트 점수·요약(D8)
+  const testDefaults = pickTestScoreDefaults(consultationData?.test_score, entranceExam);
+
   const form = useForm<RegistrationAdminFormData>({
     resolver: zodResolver(registrationAdminSchema) as never,
     defaultValues: {
@@ -298,8 +315,8 @@ export function RegistrationForm({
       eng_test_days: "",
       eng_test_time: "",
       use_vehicle: "미사용",
-      test_score: consultationData?.test_score || "",
-      test_note: "",
+      test_score: testDefaults.testScore,
+      test_note: testDefaults.testNote,
       school_score: consultationData?.school_score || "",
       location: "",
       location_math2: "",
@@ -728,6 +745,12 @@ export function RegistrationForm({
                     )}
                   />
                 </div>
+                <ClassPlacementPanel
+                  grade={classBaseGrade}
+                  exam={entranceExam}
+                  selectedClass={form.watch("assigned_class") || ""}
+                  onPick={handleClassChange}
+                />
                 <FormField
                   control={form.control}
                   name="math_class_days"
@@ -1195,7 +1218,10 @@ export function RegistrationForm({
                 name="test_score"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>테스트 점수</FormLabel>
+                    <FormLabel className="flex items-center gap-1.5">
+                      테스트 점수
+                      {testDefaults.fromExam.testScore && !form.formState.dirtyFields.test_score && <FromExamBadge />}
+                    </FormLabel>
                     <FormControl>
                       <Input placeholder="예: 85점" {...field} />
                     </FormControl>
@@ -1236,7 +1262,10 @@ export function RegistrationForm({
               name="test_note"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>테스트 특이사항</FormLabel>
+                  <FormLabel className="flex items-center gap-1.5">
+                    테스트 특이사항
+                    {testDefaults.fromExam.testNote && !form.formState.dirtyFields.test_note && <FromExamBadge />}
+                  </FormLabel>
                   <FormControl>
                     <Textarea rows={2} placeholder="테스트 관련 특이사항..." {...field} />
                   </FormControl>

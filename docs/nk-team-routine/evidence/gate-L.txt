@@ -1,0 +1,51 @@
+== tsc
+tsc exit=0
+== vitest
+
+ Test Files  53 passed (53)
+      Tests  744 passed (744)
+   Start at  17:53:22
+   Duration  11.63s (transform 32.49s, setup 0ms, import 47.08s, tests 1.30s, environment 5ms)
+
+== build
+├ ƒ /api/recordings/[id]/playback
+├ ƒ /api/recordings/[id]/segments/[seq]
+├ ƒ /api/recordings/[id]/segments/[seq]/transcribe
+├ ƒ /api/recordings/[id]/upload-url
+├ ƒ /api/recordings/purge-expired
+├ ƒ /api/sso/consume
+├ ○ /booking
+├ ƒ /bookings
+├ ƒ /consultations
+├ ƒ /consultations/[id]
+├ ƒ /drip-responses
+├ ƒ /exams
+├ ƒ /exams/[id]
+├ ƒ /exams/new
+├ ƒ /feedback/[token]
+├ ○ /login
+├ ƒ /onboarding
+├ ƒ /progress
+├ ƒ /registrations
+├ ƒ /registrations/[id]
+├ ƒ /report/[token]
+├ ƒ /settings
+├ ƒ /settings/classes
+├ ƒ /settings/permissions
+├ ƒ /settings/students
+├ ƒ /settings/teachers
+├ ○ /survey
+├ ƒ /surveys
+├ ƒ /surveys/[id]
+├ ƒ /withdrawals
+├ ƒ /withdrawals/dashboard
+├ ƒ /withdrawals/review
+└ ƒ /withdrawals/teachers
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+build exit=0

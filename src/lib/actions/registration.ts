@@ -587,6 +587,20 @@ export async function generateRegistration(
     warning = warning ? `${warning} / ${consultWarning}` : consultWarning;
   }
 
+  // 9-1. 이 상담의 입학테스트(exam_analyses)에 학생 연결 — 비어 있는 행만. 실패해도 등록은 막지 않는다(로그만).
+  if (consultationSelection.kind === "existing" && syncedStudentId) {
+    try {
+      const { error: examLinkError } = await supabase
+        .from("exam_analyses")
+        .update({ student_id: syncedStudentId })
+        .eq("consultation_id", consultationSelection.record.id)
+        .is("student_id", null);
+      if (examLinkError) console.error("[ExamLink] 입학테스트 학생 연결 실패:", examLinkError.message);
+    } catch (e) {
+      console.error("[ExamLink] 입학테스트 학생 연결 예외:", e instanceof Error ? e.message : e);
+    }
+  }
+
   revalidatePath("/registrations");
   revalidatePath("/analyses");
   revalidatePath("/surveys");

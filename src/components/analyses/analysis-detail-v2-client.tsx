@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, ClipboardList, ExternalLink, FileCheck, MessageSquareText, Printer, Trash2, UserCog } from "lucide-react";
+import { ArrowLeft, ClipboardList, ExternalLink, FileCheck, FileText, MessageSquareText, Printer, Trash2, Upload, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +26,7 @@ import type { CounselorBackground } from "@/components/analysis-report-v2/counse
 import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import type { Analysis, Class, Teacher } from "@/types";
 import type { RegistrationAdminFormData } from "@/lib/validations/registration";
+import { examReportTarget, type EntranceExam } from "@/lib/class-placement";
 
 interface Props {
   analysis: Analysis;
@@ -43,6 +44,10 @@ interface Props {
   consultationId?: string | null;
   /** 온보딩 목록에서 ?view=teacher로 들어오면 강사 시트로 시작한다. */
   initialTeacherView?: boolean;
+  /** 상담에 연결된 최신 입학테스트(서버 조회). 등록 폼 자동 입력·평가서 버튼에 쓴다. */
+  entranceExam?: EntranceExam | null;
+  /** 입학테스트 조회·올리기에 쓴 상담 id(연결 상담 또는 이름+연락처로 찾은 상담) */
+  examConsultationId?: string | null;
 }
 
 export function AnalysisDetailV2Client({
@@ -58,6 +63,8 @@ export function AnalysisDetailV2Client({
   existingRegistrationId,
   consultationId,
   initialTeacherView = false,
+  entranceExam = null,
+  examConsultationId = null,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -67,6 +74,7 @@ export function AnalysisDetailV2Client({
   const [teacherView, setTeacherView] = useState(initialTeacherView);
 
   const schoolGrade = [analysis.school, analysis.grade].filter(Boolean).join(" ");
+  const examTarget = examReportTarget(entranceExam, examConsultationId);
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -132,6 +140,25 @@ export function AnalysisDetailV2Client({
             <Link href={`/consultations/${consultationId}`}>
               <MessageSquareText className="mr-1 h-3.5 w-3.5" /> 상담 보기
             </Link>
+          </Button>
+        )}
+        {examTarget && (
+          <Button variant="outline" size="sm" asChild className="rounded-xl text-xs">
+            {examTarget.newTab ? (
+              <a href={examTarget.href} target="_blank" rel="noopener noreferrer">
+                <FileText className="mr-1 h-3.5 w-3.5" /> {examTarget.label}
+                <ExternalLink className="ml-1 h-3 w-3" />
+              </a>
+            ) : (
+              <Link href={examTarget.href}>
+                {examTarget.kind === "upload" ? (
+                  <Upload className="mr-1 h-3.5 w-3.5" />
+                ) : (
+                  <FileText className="mr-1 h-3.5 w-3.5" />
+                )}{" "}
+                {examTarget.label}
+              </Link>
+            )}
           </Button>
         )}
         <Button
@@ -211,6 +238,7 @@ export function AnalysisDetailV2Client({
         classes={classes}
         teachers={teachers}
         consultationData={consultationData}
+        entranceExam={entranceExam}
       />
 
       <Dialog open={showDelete} onOpenChange={setShowDelete}>

@@ -5,6 +5,7 @@ import { SurveyDetailClient } from "@/components/surveys/survey-detail-client";
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
 import { getConsultationByLink } from "@/lib/actions/consultation";
+import { getLatestExamForConsultation } from "@/lib/actions/exam-lookup";
 
 export default async function SurveyDetailPage({
   params,
@@ -49,12 +50,18 @@ export default async function SurveyDetailPage({
     ? await getConsultationByLink({ analysisId })
     : null;
 
+  // 입학테스트 평가서 버튼용 — 연결된 상담이 있을 때만 조회
+  const entranceExam = linkedConsultation?.id
+    ? await getLatestExamForConsultation(linkedConsultation.id)
+    : null;
+
   return (
     <SurveyDetailClient
       survey={survey}
       analysisReportHtml={analysisReportHtml}
       analysisId={analysisId}
       consultationId={linkedConsultation?.id ?? null}
+      entranceExam={entranceExam}
     />
   );
 }

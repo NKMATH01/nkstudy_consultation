@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { parseExamReportV1, type ExamReportV1 } from "./types";
 
 /**
- * 입학테스트 답안 분석지 — 학부모 공개 화면(서버 컴포넌트).
+ * 수학 정밀 진단 리포트(입학테스트 답안 분석) — 학부모 공개 화면(서버 컴포넌트).
  * 승인 디자인: nk-entrance-test-analysis.html 을 그대로 옮김.
  *
  * ★ 보안: 데이터는 학생 시험지 사진에서 읽어낸 것이라 신뢰할 수 없다.
@@ -22,6 +22,8 @@ const EXAM_REPORT_CSS = `
   --brass:#9a7326; --brass-lite:#f5efe1;
   --teal:#20655a; --teal-lite:#e2efeb;
   --coral:#b04c42; --coral-lite:#faeae7;
+  --shadow:0 1px 2px rgba(21,32,51,.06),0 10px 28px rgba(21,32,51,.07);
+  counter-reset:xr-sec;
   background:var(--paper);color:var(--body);
   font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   font-size:14.5px;line-height:1.78;word-break:keep-all;overflow-wrap:anywhere;
@@ -33,29 +35,49 @@ const EXAM_REPORT_CSS = `
 .xr h1,.xr h2,.xr h3{margin:0;font-family:"Gothic A1","Noto Sans KR",sans-serif;font-weight:800;letter-spacing:-.022em;color:var(--ink)}
 .xr p{margin:0}
 
-.xr .xr-cover{background:var(--surface);border-top:3px solid var(--navy);padding:28px 26px 26px}
-.xr .xr-cover__rule{display:flex;align-items:center;justify-content:space-between;gap:12px;
+.xr .xr-cover{position:relative;overflow:hidden;background:var(--surface);margin:12px 12px 0;
+  border-radius:12px;box-shadow:var(--shadow);padding:22px 20px 20px}
+.xr .xr-cover::before{content:"";position:absolute;inset:8px;border:1px solid var(--rule);border-radius:8px;
+  pointer-events:none}
+.xr .xr-cover__rule{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;
   padding-bottom:14px;border-bottom:1px solid var(--rule)}
 .xr .xr-cover__brand{display:flex;align-items:center;gap:9px}
 .xr .xr-cover__nk{width:27px;height:27px;display:grid;place-items:center;border-radius:7px;
   background:var(--navy);color:#fff;font-size:11px;font-weight:800}
 .xr .xr-kicker{font-size:10px;font-weight:600;letter-spacing:.16em;color:var(--brass)}
-.xr .xr-cover h1{margin-top:20px;font-size:27px;font-weight:900;line-height:1.26}
+.xr .xr-stamp{position:absolute;right:20px;top:64px;width:68px;height:68px;border-radius:50%;
+  border:1.5px solid var(--brass);transform:rotate(-12deg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:var(--brass);
+  font-family:"Gothic A1","Noto Sans KR",sans-serif;font-weight:800;font-size:9.5px;line-height:1.3;
+  text-align:center;letter-spacing:.02em;pointer-events:none}
+.xr .xr-stamp::before{content:"";position:absolute;inset:4px;border:1px dashed var(--brass);border-radius:50%}
+.xr .xr-cover__title{padding-right:76px;margin-top:18px}
+.xr .xr-cover__who{color:var(--sub);font-size:15px;font-weight:700;line-height:1.4}
+.xr .xr-cover h1{margin-top:4px;font-size:28px;font-weight:900;line-height:1.22}
 .xr .xr-cover__meta{margin-top:9px;color:var(--sub);font-size:12.5px;line-height:1.7}
 
-.xr .xr-nums{margin-top:22px;padding-top:18px;border-top:1px solid var(--rule);
-  display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap}
-.xr .xr-num b{display:block;font-size:9.5px;font-weight:600;letter-spacing:.14em;color:var(--brass)}
-.xr .xr-num span{color:var(--navy);font-size:42px;font-weight:500;line-height:1;letter-spacing:-.03em}
-.xr .xr-num i{font-style:normal;color:var(--faint);font-size:13px}
-.xr .xr-nums__side{flex:1;min-width:158px;padding-left:22px;border-left:1px solid var(--rule)}
-.xr .xr-nums__side p{color:var(--sub);font-size:12px;line-height:1.9}
-.xr .xr-nums__side em{font-style:normal;color:var(--navy);font-weight:700}
+.xr .xr-score{margin-top:20px;padding-top:18px;border-top:1px solid var(--rule);
+  display:flex;align-items:center;gap:18px}
+.xr .xr-gauge{flex:none;width:88px;height:88px;display:block}
+.xr .xr-gauge__track{fill:none;stroke:var(--navy-soft);stroke-width:7}
+.xr .xr-gauge__val{fill:none;stroke:var(--navy);stroke-width:7;stroke-linecap:round}
+.xr .xr-gauge__raw{fill:var(--navy);font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:600}
+.xr .xr-gauge__max{fill:var(--sub);font-family:"IBM Plex Mono",monospace;font-size:9.5px}
+.xr .xr-score__side{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.xr .xr-grade{display:flex;align-items:baseline;gap:8px}
+.xr .xr-grade b{font-size:10px;font-weight:600;color:var(--sub)}
+.xr .xr-grade span{color:var(--navy);font-size:26px;font-weight:500;line-height:1}
+.xr .xr-tally{display:flex;flex-wrap:wrap;gap:6px}
+.xr .xr-chip{background:var(--sunken);border:1px solid var(--rule);border-radius:99px;padding:3px 10px;
+  font-size:11.5px;line-height:1.5;color:var(--body);white-space:nowrap}
+.xr .xr-chip em{font-style:normal;color:var(--navy);font-weight:600}
 
-.xr .xr-sec{background:var(--surface);padding:26px 26px 28px;margin-top:10px;
-  display:flex;flex-direction:column;gap:17px}
+.xr .xr-sec{background:var(--surface);margin:12px 12px 0;border-radius:12px;box-shadow:var(--shadow);
+  padding:22px 20px;display:flex;flex-direction:column;gap:17px;counter-increment:xr-sec}
 .xr .xr-eyebrow{display:flex;align-items:center;gap:9px;font-size:10px;font-weight:600;
-  letter-spacing:.15em;color:var(--brass)}
+  letter-spacing:.15em;color:var(--sub)}
+.xr .xr-eyebrow::before{content:counter(xr-sec,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;
+  font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--navy)}
 .xr .xr-eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
 .xr h2{font-size:19px;line-height:1.38}
 .xr h3{font-size:14.5px}
@@ -101,6 +123,7 @@ const EXAM_REPORT_CSS = `
 .xr .xr-u__p s{display:block;font-size:10.5px;color:var(--faint);text-decoration:none}
 .xr .xr-u__head{display:grid;grid-template-columns:112px minmax(0,1fr) 76px;gap:12px;
   font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--faint);padding-bottom:3px}
+.xr .xr-u__head span{white-space:nowrap}
 .xr .xr-u__head span:last-child{text-align:right}
 
 .xr .xr-picks{display:flex;flex-direction:column;gap:11px}
@@ -146,14 +169,30 @@ const EXAM_REPORT_CSS = `
 .xr .xr-foot p{color:var(--sub);font-size:11.5px;line-height:1.8}
 .xr .xr-foot .xr-sig{color:var(--faint);font-size:10.5px;letter-spacing:.04em}
 
-.xr .xr-fail{background:var(--surface);border-top:3px solid var(--navy);padding:40px 26px;text-align:center}
+.xr .xr-fail{background:var(--surface);margin:12px 12px 0;border-radius:12px;box-shadow:var(--shadow);
+  padding:40px 26px;text-align:center}
 .xr .xr-fail h1{font-size:19px}
 .xr .xr-fail p{margin-top:10px;color:var(--sub);font-size:13px}
 
+@media (min-width:521px){
+  .xr .xr-cover{margin:16px 16px 0;padding:28px 26px 24px}
+  .xr .xr-sec{margin:16px 16px 0;padding:26px 26px 28px}
+  .xr .xr-fail{margin:16px 16px 0}
+}
+/* 휴대폰: 차트(viewBox 폭 620)는 화면에서 약 0.41~0.74배로 줄어든다.
+   글자를 viewBox 단위로 키워 실제 화면 10.5px 이상이 되게 한다(360px 폭에서 약 11px). */
 @media (max-width:520px){
-  .xr .xr-u,.xr .xr-u__head{grid-template-columns:96px minmax(0,1fr) 46px;gap:9px}
-  .xr .xr-nums{gap:20px}
-  .xr .xr-num span{font-size:36px}
+  .xr .xr-u,.xr .xr-u__head{grid-template-columns:96px minmax(0,1fr) 54px;gap:9px}
+  .xr .xr-u__head{letter-spacing:.02em}
+  .xr .xr-chart .xr-axisnum{display:none} /* 각 점에 값 라벨이 있어 y축 숫자는 숨김(첫 점 라벨과 겹침 방지) */
+  .xr .xr-chart .xr-axis{font-size:23px}
+  .xr .xr-chart .xr-val{font-size:24px}
+  .xr .xr-chart .xr-lvl{transform:translateY(8px)}
+}
+@media (max-width:380px){
+  .xr .xr-chart .xr-axis{font-size:26px}
+  .xr .xr-chart .xr-val{font-size:27px}
+  .xr .xr-chart .xr-lvl{transform:translateY(11px)}
 }
 `;
 
@@ -286,7 +325,7 @@ function DifficultyChart({ rows }: { rows: ExamReportV1["difficulty"] }) {
       ))}
 
       {rows.map((r, i) => (
-        <text key={`l${i}`} className="xr-axis" x={isLast(i) ? xs[i] - 8 : xs[i]} y={212} textAnchor="middle">
+        <text key={`l${i}`} className="xr-axis xr-lvl" x={isLast(i) ? xs[i] - 8 : xs[i]} y={212} textAnchor="middle">
           {r.level}
         </text>
       ))}
@@ -312,7 +351,14 @@ function Report({ r }: { r: ExamReportV1 }) {
   const meta = [who, r.exam.title, r.exam.totalQuestions ? `${r.exam.totalQuestions}문항` : undefined]
     .filter(Boolean)
     .join(" · ");
-  const sig = ["NK EDUCATION", "입학테스트 답안 분석", r.exam.subject, date].filter(Boolean).join(" · ");
+  const subject = r.exam.subject?.trim() || "수학";
+  const year = r.exam.date.match(/\d{4}/)?.[0];
+  const sig = ["NK EDUCATION", `${subject} 정밀 진단 리포트`, date].filter(Boolean).join(" · ");
+
+  // 점수 게이지: 반지름 36 원 둘레 중 raw/max 만큼 칠한다(0~1 로 제한).
+  const GAUGE_R = 36;
+  const circ = 2 * Math.PI * GAUGE_R;
+  const ratio = r.score.max > 0 ? Math.max(0, Math.min(1, r.score.raw / r.score.max)) : 0;
 
   return (
     <>
@@ -321,39 +367,74 @@ function Report({ r }: { r: ExamReportV1 }) {
         <div className="xr-cover__rule">
           <div className="xr-cover__brand">
             <span className="xr-cover__nk">NK</span>
-            <span className="xr-kicker">ENTRANCE TEST · ANALYSIS</span>
+            <span className="xr-kicker">DIAGNOSTIC REPORT</span>
           </div>
           <span className="xr-kicker xr-m" style={{ color: "var(--faint)" }}>
             {date}
           </span>
         </div>
 
-        <h1>
-          {r.student.name} 학생
-          <br />
-          입학테스트 답안 분석
-        </h1>
-        {meta && <p className="xr-cover__meta">{meta}</p>}
+        <div className="xr-stamp" aria-hidden="true">
+          <span>NK</span>
+          <span>정밀진단</span>
+          {year && <span>{year}</span>}
+        </div>
 
-        <div className="xr-nums">
-          <div className="xr-num">
-            <b>점수</b>
-            <span className="xr-m">{r.score.raw}</span>
-            <i className="xr-m"> /{r.score.max}</i>
-          </div>
-          {r.score.grade != null && (
-            <div className="xr-num">
-              <b>등급</b>
-              <span className="xr-m">{r.score.grade}</span>
+        <div className="xr-cover__title">
+          <p className="xr-cover__who">{r.student.name} 학생</p>
+          <h1>
+            {subject} 정밀
+            <br />
+            진단 리포트
+          </h1>
+          {meta && <p className="xr-cover__meta">{meta}</p>}
+        </div>
+
+        <div className="xr-score">
+          <svg
+            className="xr-gauge"
+            viewBox="0 0 88 88"
+            width={88}
+            height={88}
+            role="img"
+            aria-label={`점수 ${r.score.raw}점 / ${r.score.max}점`}
+          >
+            <circle className="xr-gauge__track" cx={44} cy={44} r={GAUGE_R} />
+            {ratio > 0 && (
+              <circle
+                className="xr-gauge__val"
+                cx={44}
+                cy={44}
+                r={GAUGE_R}
+                strokeDasharray={`${(ratio * circ).toFixed(2)} ${circ.toFixed(2)}`}
+                transform="rotate(-90 44 44)"
+              />
+            )}
+            <text className="xr-gauge__raw" x={44} y={50} textAnchor="middle">
+              {r.score.raw}
+            </text>
+            <text className="xr-gauge__max" x={44} y={64} textAnchor="middle">
+              / {r.score.max}
+            </text>
+          </svg>
+          <div className="xr-score__side">
+            {r.score.grade != null && (
+              <div className="xr-grade">
+                <b>등급</b>
+                <span className="xr-m">{r.score.grade}</span>
+              </div>
+            )}
+            <div className="xr-tally">
+              <span className="xr-chip">
+                정답 <em className="xr-m">{r.tally.correct}</em>
+              </span>
+              <span className="xr-chip">
+                풀이 쓰고 오답 <em className="xr-m">{r.tally.wrongWithWork}</em>
+              </span>
+              <span className="xr-chip">
+                답만 쓰거나 손 놓음 <em className="xr-m">{r.tally.blank}</em>
+              </span>
             </div>
-          )}
-          <div className="xr-nums__side">
-            <p>
-              정답 <em className="xr-m">{r.tally.correct}</em> · 풀이 쓰고 오답{" "}
-              <em className="xr-m">{r.tally.wrongWithWork}</em>
-              <br />
-              답만 쓰거나 손 놓음 <em className="xr-m">{r.tally.blank}</em>
-            </p>
           </div>
         </div>
       </div>

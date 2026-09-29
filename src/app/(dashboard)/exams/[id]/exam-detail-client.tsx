@@ -110,8 +110,8 @@ export function ExamDetailClient({
     setSharing(true);
     try {
       await shareViaKakao({
-        title: `${analysis.student_name} 입학테스트 분석`,
-        description: "NK학원 입학테스트 답안 분석 결과입니다.",
+        title: `${analysis.student_name} 학생 ${analysis.subject?.trim() || "수학"} 정밀 진단 리포트`,
+        description: "NK학원 입학테스트 답안을 한 문항씩 분석한 결과입니다.",
         pageUrl: `/report/${reportToken}`,
       });
     } catch {

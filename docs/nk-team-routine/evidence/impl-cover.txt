@@ -1,0 +1,32 @@
+== tsc
+tsc exit 0
+== eslint
+eslint exit 0
+== vitest
+
+ RUN  v4.1.10 C:/Users/nk_ma/OneDrive/01. 클로드 코워크/26. 수파베이스 통합/24.NK 신입생상담관리/nk-consultation
+
+
+ Test Files  1 passed (1)
+      Tests  32 passed (32)
+   Start at  15:05:35
+   Duration  10.41s (transform 97ms, setup 0ms, import 6.51s, tests 45ms, environment 0ms)
+
+vitest exit 0
+
+===== 재작업 1회차
+== tsc
+tsc exit 0
+== eslint
+eslint exit 0
+== vitest
+
+ RUN  v4.1.10 C:/Users/nk_ma/OneDrive/01. 클로드 코워크/26. 수파베이스 통합/24.NK 신입생상담관리/nk-consultation
+
+
+ Test Files  1 passed (1)
+      Tests  32 passed (32)
+   Start at  15:36:19
+   Duration  3.86s (transform 78ms, setup 0ms, import 1.37s, tests 22ms, environment 0ms)
+
+vitest exit 0

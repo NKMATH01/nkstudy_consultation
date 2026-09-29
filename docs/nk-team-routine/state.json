@@ -1,62 +1,54 @@
 {
-  "run": "2026-09-29-exam-analysis-apply",
-  "size": "L",
-  "goal": "입학테스트 답안 분석 기능 — 사진 업로드 → 로컬 분석 → 분석지 → 학부모 발송",
-  "restorePoint": "6d9a868",
+  "run": "2026-09-29-exam-report-cover",
+  "size": "M",
+  "goal": "입학테스트 분석지(exam_v1) 제목 → '수학 정밀 진단 리포트', 표지 A 진단서형, 본문 카드 다듬기. 내용·데이터 불변",
+  "userPicks": {
+    "title": "① 수학 정밀 진단 리포트",
+    "cover": "A 진단서형"
+  },
+  "mockup": "https://claude.ai/artifact/DmWd9pkN2hs7uYZjrDegXv",
+  "restorePoint": "74313d4",
   "uncommittedAtStart": 15,
+  "overlap": "없음 (미커밋 15건은 SSO·nbrain, 이번 대상 exam-report.tsx · exam-detail-client.tsx 와 무관)",
   "nodes": [
     {
-      "id": "impl-consult",
+      "id": "impl",
       "role": "구현",
-      "task": "학생 선택 출처 students → consultations",
+      "agent": "nk-rt-implementer",
       "status": "done",
-      "retries": 0,
-      "tokens": 100107
+      "retries": 1,
+      "tokens": 61439
     },
     {
       "id": "review",
-      "role": "검토(Fable)",
-      "task": "4파일 diff 재검토",
+      "role": "새 눈 검토",
+      "agent": "nk-rt-reviewer",
+      "status": "done",
+      "retries": 1,
+      "tokens": 37465
+    },
+    {
+      "id": "check",
+      "role": "입장 점검(학부모·원장)",
+      "agent": "nk-rt-checker",
       "status": "done",
       "retries": 0,
-      "tokens": 88265
+      "tokens": 41323
+    },
+    {
+      "id": "screen",
+      "role": "팀장 화면 확인 390px",
+      "status": "done"
     },
     {
       "id": "gate",
-      "role": "팀장",
-      "task": "tsc·lint·test·build + 🟡 2건 직접 수리",
-      "status": "done",
-      "retries": 0,
-      "tokens": null
-    },
-    {
-      "id": "sql",
-      "role": "팀장",
-      "task": "supabase db query --linked -f 로 운영 적용 + 적용 후 확인 6항목",
-      "status": "done",
-      "retries": 0,
-      "tokens": null
-    },
-    {
-      "id": "e2e",
-      "role": "팀장",
-      "task": "박서진 실제 화면 업로드→pull→push→상세·분석지 확인 + 익명 차단 재확인",
-      "status": "done",
-      "retries": 0,
-      "tokens": null
+      "role": "팀장 게이트 tsc·lint·test·build",
+      "status": "done"
     }
   ],
-  "findings": [
-    "알림톡: 기존 analysis_result 템플릿은 변수(이름·학교·검사일·토큰)가 그대로 맞지만 제목이 'NK EDUCATION 학습성향 검사 결과'로 특정됨 → 시험 분석지용 새 템플릿 신청 필요(카카오 승인 대기 발생). 5단계 발송은 승인 후.",
-    "메뉴 단일 출처는 src/lib/menu-sectors.ts 의 analysisItems(60~64행). sidebar.tsx 는 건드리지 않는다.",
-    "미커밋 15건(SSO v2·nbrain)과 겹치는 파일 없음 — sidebar.tsx 변경은 md:flex→lg:flex 한 줄뿐.",
-    "설계 변경: 분석지를 HTML 대신 JSON 저장 + React 렌더로 바꿈 — report-viewer-client.tsx:26 innerHTML 주입 경로 때문(학생 시험지 사진에서 읽은 내용은 신뢰 불가). 덤으로 학생마다 디자인이 통일된다.",
-    "제가 실측해 기우로 판명: 익명 전체조회(막혀 있음·353행 중 0행 반환) · innerHTML 2건(주석) · storage DELETE 정책(있음) · students 테이블(457명)."
-  ],
-  "result": "운영 적용·E2E 완료. 배포 전 학부모 링크 발송 금지(렌더 코드 미배포).",
-  "prodData": {
-    "examId": "6c1123c8-431c-4a2e-9358-2da37cf82300",
-    "reportToken": "392f1ec6-6295-48b1-95d2-33cb6db90ce1",
-    "student": "박서진"
-  }
+  "tokensTotal": 140227,
+  "evidence": [
+    "evidence/impl-cover.txt",
+    "evidence/gate-cover.txt"
+  ]
 }

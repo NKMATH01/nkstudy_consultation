@@ -1,0 +1,16 @@
+== tsc
+tsc exit=0
+== vitest
+ Test Files  55 passed (55)
+      Tests  767 passed (767)
+   Start at  18:23:17
+   Duration  7.90s (transform 6.37s, setup 0ms, import 17.45s, tests 1.11s, environment 14ms)
+
+== eslint
+eslint exit=0
+== build
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+build exit=0

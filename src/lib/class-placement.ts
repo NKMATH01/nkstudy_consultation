@@ -5,9 +5,20 @@
  *  2) pickTestScoreDefaults       — 등록 폼 test_score·test_note 기본값(D8: 상담 값 우선, 빈칸일 때만 시험값)
  *  3) examReportTarget            — 분석·설문 화면의 "입학테스트 평가서" 버튼 목적지(R5)
  *  4) rankClassesForStudent       — 반 배정 도우미 순위(D11: 신호 3개만)
+ *     약점 단원 대조는 단원 순서표(src/lib/curriculum)로 반의 과목·현재 위치를 찾아
+ *     지나감/배우는 중/앞으로 를 판단한다(verified 과목·위치를 찾았을 때만, 아니면 "확인 필요").
  */
 
 import { pickWeakUnits } from "../../scripts/lib/exam-score-summary.mjs";
+import {
+  detectSubject,
+  detectSubjectCandidates,
+  locateInSubject,
+  locateNameInTrack,
+  locateRecord,
+  type UnitLocation,
+} from "./curriculum/locate";
+import { CURRICULUM_CATALOG, type CatalogSubject } from "./curriculum/catalog";
 
 // ───────────────────────────── 1) 공유 계약 ─────────────────────────────
 
@@ -228,7 +239,7 @@ export interface PlacementClass {
 }
 
 export type LevelFit = "일치" | "근접" | "차이" | "확인 필요";
-export type WeakUnitStatus = "지나감" | "배우는 중" | "확인 필요";
+export type WeakUnitStatus = "지나감" | "배우는 중" | "앞으로" | "확인 필요";
 
 export interface WeakUnitCheck {
   unit: string;
@@ -236,10 +247,23 @@ export interface WeakUnitCheck {
   status: WeakUnitStatus;
   /** 매칭된 반 단원 이름(확인 필요면 null) */
   matchedWith: string | null;
+  /** 확인 필요인 이유(예: "다른 과정 — 확인 필요") */
+  reason?: string;
+}
+
+/** 순서표에서 찾은 반의 과목(못 찾으면 null) */
+export interface PlacementSubject {
+  id: string;
+  label: string;
+  /** false 면 순서표 확인 전 — 지나감/앞으로 판단에 쓰지 않는다 */
+  verified: boolean;
+  /** 반의 현재 위치를 소단원까지 찾았는지 */
+  located: boolean;
 }
 
 export interface RankedClass extends PlacementClass {
   score: number;
+  subject: PlacementSubject | null;
   studentLevel: "상" | "중" | "하" | null;
   levelFit: LevelFit;
   weakChecks: WeakUnitCheck[];
@@ -254,6 +278,34 @@ export interface PlacementStudent {
 export interface PlacementExam {
   score: { raw: number; max: number } | null;
   units: { name: string; me: number }[] | null;
+  /** 시험 과목 판별용(D9 EntranceExam.examTitle·subject) */
+  examTitle?: string | null;
+  subject?: string | null;
+}
+
+/**
+ * 시험의 과정(track). 수학Ⅱ≡미적분Ⅰ·수학Ⅰ≡대수·미적분≡미적분Ⅱ 는 같은 값.
+ *  1) 시험 제목·과목 이름 → 과목(후보가 모두 같은 과정일 때만)
+ *  2) 없으면 단원 이름들이 가장 많이 들어맞는 verified 과정(동점이면 모름)
+ */
+export function examTrack(exam: PlacementExam | null | undefined): string | null {
+  if (!exam) return null;
+  for (const name of [exam.examTitle, exam.subject]) {
+    const tracks = new Set(detectSubjectCandidates(name).map((s) => s.track));
+    if (tracks.size === 1) return [...tracks][0];
+  }
+  const names = (exam.units ?? []).map((u) => u.name).filter(Boolean);
+  if (names.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const subject of CURRICULUM_CATALOG) {
+    if (!subject.verified) continue;
+    const n = names.filter((name) => locateInSubject(subject, { minor: name })?.minorIndex != null).length;
+    counts.set(subject.track, Math.max(counts.get(subject.track) ?? 0, n));
+  }
+  const top = Math.max(0, ...counts.values());
+  if (top === 0) return null;
+  const best = [...counts.entries()].filter(([, n]) => n === top);
+  return best.length === 1 ? best[0][0] : null;
 }
 
 function normalizeGrade(grade: string | null | undefined): string | null {
@@ -269,13 +321,62 @@ function levelFit(student: string | null, cls: string | null): { fit: LevelFit; 
   return { fit: "차이", points: 0 };
 }
 
-function checkWeakUnit(unit: { name: string; me: number }, cls: PlacementClass): WeakUnitCheck {
-  const passed = cls.passedUnits.find((p) => unitNamesMatch(unit.name, p));
-  if (passed) return { unit: unit.name, me: unit.me, status: "지나감", matchedWith: passed };
-  const current = [cls.currentMajorUnit, cls.currentMinorUnit, ...cls.ongoingUnits]
-    .filter((u): u is string => Boolean(u))
-    .find((u) => unitNamesMatch(unit.name, u));
-  if (current) return { unit: unit.name, me: unit.me, status: "배우는 중", matchedWith: current };
+interface ClassPosition {
+  subject: CatalogSubject;
+  /** 소단원까지 찾았을 때만 */
+  location: UnitLocation | null;
+}
+
+/** 반의 과목·현재 위치 — 교재 이름 → 진행 중 과정 이름 → 대단원 칸 → 단원 이름 순서로 찾는다. */
+function classPosition(cls: PlacementClass): ClassPosition | null {
+  const found = locateRecord({
+    textbook: cls.mainTextbook,
+    courses: cls.ongoingUnits,
+    major: cls.currentMajorUnit,
+    minor: cls.currentMinorUnit,
+  });
+  if (!found) return null;
+  return { subject: found.subject, location: found.location?.order != null ? found.location : null };
+}
+
+function checkWeakUnit(
+  unit: { name: string; me: number },
+  cls: PlacementClass,
+  pos: ClassPosition | null,
+  track: string | null
+): WeakUnitCheck {
+  // 1) class_curriculum_progress '완료' 과정 — 시험과 같은 과정(verified)의 단원이면 전부 지나감
+  for (const course of cls.passedUnits) {
+    const subject = detectSubject(course);
+    if (subject?.verified && subject.track === track && locateNameInTrack(subject, unit.name)) {
+      return { unit: unit.name, me: unit.me, status: "지나감", matchedWith: course };
+    }
+  }
+
+  // 2) 순서표 — 과목이 verified 이고 반 위치를 소단원까지 찾았고, 시험과 같은 과정일 때만 앞/뒤를 판단
+  if (pos?.subject.verified && pos.location?.order != null) {
+    if (pos.subject.track !== track) {
+      return {
+        unit: unit.name,
+        me: unit.me,
+        status: "확인 필요",
+        matchedWith: null,
+        reason: track ? "다른 과정 — 확인 필요" : "시험 과목을 몰라 확인 필요",
+      };
+    }
+    const weak = locateNameInTrack(pos.subject, unit.name);
+    if (weak?.order != null) {
+      const status: WeakUnitStatus =
+        weak.order < pos.location.order ? "지나감" : weak.order === pos.location.order ? "배우는 중" : "앞으로";
+      return { unit: unit.name, me: unit.me, status, matchedWith: `${pos.subject.label} ${weak.major} › ${weak.minor}` };
+    }
+  }
+
+  // 3) 순서표 확인 전·위치 모름 — 현재 소단원과 이름이 정확히 같을 때만 "배우는 중"(사실이라서). 순서 추측 없음.
+  const currentMinor = cls.currentMinorUnit?.trim();
+  if (currentMinor && normalizeUnitName(currentMinor) === normalizeUnitName(unit.name)) {
+    return { unit: unit.name, me: unit.me, status: "배우는 중", matchedWith: currentMinor };
+  }
   return { unit: unit.name, me: unit.me, status: "확인 필요", matchedWith: null };
 }
 
@@ -284,6 +385,7 @@ function checkWeakUnit(unit: { name: string; me: number }, cls: PlacementClass):
  *  ① 학년 — 반 이름 학년이 학생 학년과 다르면 제외(학생 학년이 없으면 빈 목록)
  *  ② 점수대 ↔ class_progress.ability_level — 일치 +3, 한 단계 차이 +1
  *  ③ 이미 지나간 단원 ∩ 학생 약점 — 1개당 −1
+ *     지나감 = 시험과 같은 과정에서 '완료' 과정 단원 또는 순서표(verified)상 반 현재 위치 앞 단원
  * 요일·학생 수·담당·진도 % 는 표시만 하고 순위에 쓰지 않는다. 동점이면 반 이름 순.
  */
 export function rankClassesForStudent(
@@ -298,16 +400,26 @@ export function rankClassesForStudent(
     exam?.score && exam.score.max > 0 ? (exam.score.raw / exam.score.max) * 100 : null;
   const studentLevel = percent == null ? null : testScoreLevel(percent);
   const weak = pickWeakUnits(exam?.units ?? []);
+  const track = examTrack(exam);
 
   return classes
     .filter((c) => gradeFromClassName(c.className) === grade)
     .map((c) => {
       const { fit, points } = levelFit(studentLevel, c.abilityLevel);
-      const weakChecks = weak.map((u) => checkWeakUnit(u, c));
+      const pos = classPosition(c);
+      const weakChecks = weak.map((u) => checkWeakUnit(u, c, pos, track));
       const passedWeakCount = weakChecks.filter((w) => w.status === "지나감").length;
       return {
         ...c,
         score: points - passedWeakCount,
+        subject: pos
+          ? {
+              id: pos.subject.id,
+              label: pos.subject.label,
+              verified: pos.subject.verified,
+              located: pos.location != null,
+            }
+          : null,
         studentLevel,
         levelFit: fit,
         weakChecks,

@@ -83,8 +83,8 @@ describe("rankClassesForStudent", () => {
       { grade: "고2" },
       { score: { raw: 35, max: 100 }, units: [{ name: "접선의 방정식", me: 12 }, { name: "도함수", me: 100 }] },
       [
-        cls({ className: "고2 A", abilityLevel: "하", passedUnits: ["미적분1"] }),
-        cls({ className: "고2 B", abilityLevel: "하", passedUnits: ["접선의 방정식 (기본)"] }),
+        cls({ className: "고2 A", abilityLevel: "하", passedUnits: ["공수1"] }),
+        cls({ className: "고2 B", abilityLevel: "하", passedUnits: ["미적분1"] }),
       ]
     );
     const a = ranked.find((r) => r.className === "고2 A")!;
@@ -93,23 +93,118 @@ describe("rankClassesForStudent", () => {
       { unit: "접선의 방정식", me: 12, status: "확인 필요", matchedWith: null },
     ]);
     expect(a.passedWeakCount).toBe(0);
-    expect(b.weakChecks[0].status).toBe("지나감");
+    expect(b.weakChecks[0]).toMatchObject({ status: "지나감", matchedWith: "미적분1" });
     expect(b.passedWeakCount).toBe(1);
     // 수준은 같고(하=하), 지나간 약점이 있는 B 가 뒤로
     expect(ranked.map((r) => r.className)).toEqual(["고2 A", "고2 B"]);
     expect(a.levelFit).toBe("일치");
   });
 
-  it("rank_currentMinorUnit_marksLearning — 지금 배우는 소단원과 맞으면 '배우는 중'(감점 없음)", () => {
+  it("rank_unverified_exactCurrentOnly — 순서표 확인 전 과목은 현재 소단원과 이름이 정확히 같을 때만 '배우는 중'", () => {
     const [c] = rankClassesForStudent(
-      { grade: "고2" },
-      { score: { raw: 35, max: 100 }, units: [{ name: "함수의 극한", me: 20 }] },
-      [cls({ className: "고2 A", currentMajorUnit: "미분", currentMinorUnit: "함수의 극한과 연속" })]
+      { grade: "중2" },
+      {
+        score: { raw: 35, max: 100 },
+        units: [
+          { name: "일차함수와 그래프", me: 20 },
+          { name: "일차함수", me: 30 },
+        ],
+      },
+      [cls({ className: "중2 A", mainTextbook: "쎈 중2-1", currentMajorUnit: "함수", currentMinorUnit: "일차함수와 그래프" })]
     );
-    expect(c.weakChecks).toEqual([
-      { unit: "함수의 극한", me: 20, status: "배우는 중", matchedWith: "함수의 극한과 연속" },
+    expect(c.weakChecks.map((w) => [w.unit, w.status])).toEqual([
+      ["일차함수와 그래프", "배우는 중"],
+      ["일차함수", "확인 필요"],
     ]);
     expect(c.passedWeakCount).toBe(0);
+  });
+
+  it("rank_prefixNameNoLongerPassed — 앞부분만 같은 이름('접선의 방정식 (기본)' 완료)은 지나감으로 새지 않는다", () => {
+    const [c] = rankClassesForStudent(
+      { grade: "고2" },
+      { score: null, units: [{ name: "접선의 방정식", me: 12 }] },
+      [cls({ className: "고2 C", passedUnits: ["접선의 방정식 (기본)"] })]
+    );
+    expect(c.weakChecks[0].status).toBe("확인 필요");
+    expect(c.passedWeakCount).toBe(0);
+  });
+
+  it("rank_crossCourse_noClassify — 미적분Ⅰ 시험 약점 '도함수의 활용' × 미적분(2015) 반 → 다른 과정, 분류 안 함", () => {
+    const [c] = rankClassesForStudent(
+      { grade: "고3" },
+      { score: null, examTitle: "미적분1 입학테스트", subject: "수학", units: [{ name: "도함수의 활용", me: 20 }] },
+      [cls({ className: "고3 A", mainTextbook: "쎈 미적분", currentMajorUnit: "적분법", currentMinorUnit: "여러 가지 적분법" })]
+    );
+    expect(c.subject).toMatchObject({ label: "미적분", verified: true, located: true });
+    expect(c.weakChecks[0]).toMatchObject({ status: "확인 필요", reason: "다른 과정 — 확인 필요" });
+    expect(c.passedWeakCount).toBe(0);
+  });
+
+  it("rank_catalog_passedWeak — 약점 '함수의 극한', 반 현재 '미분법 › 접선의 방정식' → 지나간 약점(감점)", () => {
+    const units = [{ name: "함수의 극한", me: 25 }];
+    const [withBook] = rankClassesForStudent(
+      { grade: "고2" },
+      { score: { raw: 35, max: 100 }, units },
+      [cls({ className: "고2 A", mainTextbook: "쎈 미적분1", currentMajorUnit: "미분법", currentMinorUnit: "접선의 방정식" })]
+    );
+    expect(withBook.weakChecks[0]).toMatchObject({ unit: "함수의 극한", status: "지나감" });
+    expect(withBook.passedWeakCount).toBe(1);
+    expect(withBook.score).toBe(-1);
+    expect(withBook.subject).toMatchObject({ label: "미적분Ⅰ", verified: true });
+
+    // 교재 이름이 없어도 진행 중 과정(미적분1)으로 과목을 찾는다
+    const [byCourse] = rankClassesForStudent({ grade: "고2" }, { score: null, units }, [
+      cls({ className: "고2 B", ongoingUnits: ["미적분1"], currentMajorUnit: "미분법", currentMinorUnit: "접선의 방정식" }),
+    ]);
+    expect(byCourse.weakChecks[0].status).toBe("지나감");
+  });
+
+  it("rank_catalog_learningAndUpcoming — 같은 소단원은 배우는 중, 뒤 단원은 앞으로(감점 없음)", () => {
+    const [c] = rankClassesForStudent(
+      { grade: "고2" },
+      {
+        score: { raw: 35, max: 100 },
+        units: [
+          { name: "평균값 정리", me: 10 },
+          { name: "부정적분", me: 20 },
+        ],
+      },
+      [cls({ className: "고2 A", mainTextbook: "개념원리 미적분1", currentMajorUnit: "미분법", currentMinorUnit: "도함수의 활용(1)" })]
+    );
+    expect(c.weakChecks.map((w) => [w.unit, w.status])).toEqual([
+      ["평균값 정리", "배우는 중"],
+      ["부정적분", "앞으로"],
+    ]);
+    expect(c.passedWeakCount).toBe(0);
+  });
+
+  it("rank_completedCourse_allPassed — '완료' 과정의 단원은 전부 지나감", () => {
+    const [c] = rankClassesForStudent(
+      { grade: "고2" },
+      { score: null, units: [{ name: "도함수", me: 30 }] },
+      [cls({ className: "고2 A", mainTextbook: "쎈 미적분2", passedUnits: ["미적분1"], currentMinorUnit: "급수" })]
+    );
+    expect(c.weakChecks[0]).toMatchObject({ status: "지나감", matchedWith: "미적분1" });
+  });
+
+  it("rank_unverifiedSubject_noClassify — 순서표 확인 전 과목(중학교)은 앞 단원이어도 분류하지 않는다", () => {
+    const [c] = rankClassesForStudent(
+      { grade: "중2" },
+      { score: null, units: [{ name: "유리수와 순환소수", me: 20 }] },
+      [cls({ className: "중2 A", mainTextbook: "쎈 중2-1", currentMajorUnit: "함수", currentMinorUnit: "일차함수와 그래프" })]
+    );
+    expect(c.weakChecks[0].status).toBe("확인 필요");
+    expect(c.passedWeakCount).toBe(0);
+    expect(c.subject).toMatchObject({ label: "중2-1", verified: false });
+  });
+
+  it("rank_catalog_unknownWeak_flagsNotGuess — 반 과목 순서표에 없는 약점은 확인 필요", () => {
+    const [c] = rankClassesForStudent(
+      { grade: "고2" },
+      { score: null, units: [{ name: "이차곡선", me: 20 }] },
+      [cls({ className: "고2 A", mainTextbook: "쎈 미적분1", currentMajorUnit: "미분법", currentMinorUnit: "접선의 방정식" })]
+    );
+    expect(c.weakChecks[0].status).toBe("확인 필요");
   });
 
   it("rank_emptyClasses_returnsEmpty — 반이 없으면 빈 목록", () => {

@@ -32,8 +32,17 @@ const FIT_TONE: Record<LevelFit, string> = {
 const WEAK_TONE: Record<WeakUnitStatus, string> = {
   지나감: "bg-nk-late-soft text-nk-late",
   "배우는 중": "bg-nk-progress-soft text-nk-progress",
+  앞으로: "bg-nk-done-soft text-nk-done",
   "확인 필요": "bg-nk-sunken text-nk-ink-sub",
 };
+
+/** 약점 묶음 — 표시 순서대로 */
+const WEAK_GROUPS: { status: WeakUnitStatus; label: string }[] = [
+  { status: "지나감", label: "지나간 약점(따라잡기 필요)" },
+  { status: "배우는 중", label: "배우는 중" },
+  { status: "앞으로", label: "앞으로 배울 약점" },
+  { status: "확인 필요", label: "확인 필요" },
+];
 
 const PREVIEW = 3;
 
@@ -72,7 +81,7 @@ export function ClassPlacementPanel({ grade, exam, selectedClass, onPick }: Prop
     () =>
       rankClassesForStudent(
         { grade },
-        exam ? { score: exam.score, units: exam.units } : null,
+        exam ? { score: exam.score, units: exam.units, examTitle: exam.examTitle, subject: exam.subject } : null,
         classes
       ),
     [grade, exam, classes]
@@ -159,21 +168,40 @@ export function ClassPlacementPanel({ grade, exam, selectedClass, onPick }: Prop
                       지금 배우는 단원: {unit || <span className="text-nk-ink-hint">미입력</span>}
                       {c.mainTextbook && <span className="text-nk-ink-hint"> ({c.mainTextbook})</span>}
                     </p>
+                    {c.subject && (
+                      <p className="mt-0.5 text-[11px] text-nk-ink-hint">
+                        과목 {c.subject.label}
+                        {!c.subject.verified && <span className="ml-1 text-[10px]">(순서표 확인 전)</span>}
+                        {c.subject.verified && !c.subject.located && <span className="ml-1 text-[10px]">(현재 단원 위치 확인 필요)</span>}
+                      </p>
+                    )}
 
                     {c.weakChecks.length > 0 && (
                       <div className="mt-1.5">
                         <p className="text-[11px] font-semibold text-nk-ink-sub">약점 단원 대조</p>
-                        <div className="mt-0.5 flex flex-wrap gap-1">
-                          {c.weakChecks.map((w) => (
-                            <span
-                              key={w.unit}
-                              className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold ${WEAK_TONE[w.status]}`}
-                              title={w.matchedWith ? `반 단원: ${w.matchedWith}` : "반 진도와 단원 이름이 맞지 않아 직접 확인이 필요합니다"}
-                            >
-                              {w.unit} {Math.round(w.me)}% · {w.status}
-                            </span>
-                          ))}
-                        </div>
+                        {WEAK_GROUPS.map(({ status, label }) => {
+                          const items = c.weakChecks.filter((w) => w.status === status);
+                          if (items.length === 0) return null;
+                          return (
+                            <div key={status} className="mt-0.5 flex flex-wrap items-center gap-1">
+                              <span className="text-[10.5px] text-nk-ink-hint">{label}</span>
+                              {items.map((w) => (
+                                <span
+                                  key={w.unit}
+                                  className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold ${WEAK_TONE[w.status]}`}
+                                  title={
+                                    w.matchedWith
+                                      ? `반 단원: ${w.matchedWith}`
+                                      : w.reason ?? "반 진도에서 이 단원의 위치를 찾지 못해 직접 확인이 필요합니다"
+                                  }
+                                >
+                                  {w.unit} {Math.round(w.me)}%
+                                  {w.reason && <span className="font-normal"> · {w.reason}</span>}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

@@ -62,3 +62,19 @@ describe("퇴원 분석 경로 role 게이트", () => {
     expect(sector?.items.map((item) => item.href)).toEqual(["/withdrawals"]);
   });
 });
+
+describe("입학테스트 분석 메뉴는 모든 강사에게 보인다", () => {
+  it("allowed_menus 에 /exams 가 없어도 학생 분석 카테고리에 나온다", () => {
+    const sector = getVisibleSectors(teacher({ allowed_menus: ["/surveys"] })).find(
+      (s) => s.name === "학생 분석",
+    );
+    expect(sector?.items.map((item) => item.href)).toContain("/exams");
+  });
+
+  it("학생 분석 메뉴를 하나도 허용받지 않은 강사에게도 나온다", () => {
+    const sector = getVisibleSectors(teacher({ role: "clinic", allowed_menus: ["/"] })).find(
+      (s) => s.name === "학생 분석",
+    );
+    expect(sector?.items.map((item) => item.href)).toContain("/exams");
+  });
+});

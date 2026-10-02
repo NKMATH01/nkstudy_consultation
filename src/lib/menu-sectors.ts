@@ -82,8 +82,9 @@ export const adminOnlyItems: MenuItem[] = [
   { href: "/settings/permissions", label: "선생님 권한", icon: Shield },
 ];
 
-// 권한 설정과 무관하게 모든 강사에게 항상 표시되는 메뉴 (진도현황)
-export const ALWAYS_VISIBLE_MENUS = new Set(["/progress", "/drip-responses"]);
+// 권한 설정과 무관하게 모든 강사에게 항상 표시되는 메뉴 (진도현황·설문 피드백·입학테스트 분석)
+// 페이지 접근도 함께 열어야 하면 check-permission.ts 의 ALWAYS_ALLOWED_PATHS 에도 넣는다.
+export const ALWAYS_VISIBLE_MENUS = new Set(["/progress", "/drip-responses", "/exams"]);
 
 export function filterMenuItems(
   items: MenuItem[],

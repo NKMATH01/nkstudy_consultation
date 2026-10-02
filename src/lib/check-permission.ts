@@ -5,8 +5,8 @@ import {
   RESTRICTED_ANALYTICS_PATHS,
 } from "@/lib/menu-sectors";
 
-/** 권한 설정(allowed_menus)과 무관하게 모든 로그인 사용자에게 열린 페이지 */
-const ALWAYS_ALLOWED_PATHS = new Set(["/progress"]);
+/** 권한 설정(allowed_menus)과 무관하게 모든 로그인 사용자에게 열린 페이지 (입학테스트 분석: 원장 지시 2026-10-02) */
+const ALWAYS_ALLOWED_PATHS = new Set(["/progress", "/exams"]);
 
 /** 서버 컴포넌트에서 페이지 접근 권한 확인. admin은 항상 통과. */
 export async function checkPagePermission(pathname: string) {

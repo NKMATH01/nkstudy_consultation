@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ACADEMY_PHONE } from "@/lib/academy";
 import { parseExamReportV1, type ExamReportV1 } from "./types";
 
 /**
@@ -93,8 +94,11 @@ const EXAM_REPORT_CSS = `
 .xr .xr-chart .xr-gridline{stroke:var(--rule);stroke-width:1}
 .xr .xr-chart .xr-axis{fill:var(--faint);font-size:11px;font-family:"Noto Sans KR",sans-serif}
 .xr .xr-chart .xr-axisnum{font-family:"IBM Plex Mono",monospace}
-.xr .xr-chart .xr-val{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600}
-.xr .xr-chart .xr-nat{fill:none;stroke:#b6bcc4;stroke-width:1.6;stroke-dasharray:4 3}
+.xr .xr-chart .xr-val{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;
+  paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round} /* 흰 테두리: 선 위에서도 숫자가 읽히게 */
+.xr .xr-chart .xr-val--nat{fill:var(--sub);font-size:10.5px;font-weight:500}
+.xr .xr-chart .xr-nat{fill:none;stroke:var(--sub);stroke-width:2;stroke-dasharray:6 4}
+.xr .xr-chart .xr-natdot{fill:var(--sub)}
 .xr .xr-chart .xr-me{fill:none;stroke:var(--coral);stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
 .xr .xr-chart .xr-dot{fill:#fff;stroke:var(--coral);stroke-width:2.4}
 .xr .xr-chart .xr-dot--up{stroke:var(--teal)}
@@ -103,7 +107,7 @@ const EXAM_REPORT_CSS = `
 .xr .xr-keys{display:flex;flex-wrap:wrap;gap:16px;font-size:11.5px;color:var(--sub)}
 .xr .xr-keys span{display:flex;align-items:center;gap:6px}
 .xr .xr-keys hr{width:17px;height:0;margin:0;border:0;border-top:2.6px solid var(--coral)}
-.xr .xr-keys hr.xr-d{border-top:1.6px dashed #b6bcc4}
+.xr .xr-keys hr.xr-d{border-top:2px dashed var(--sub)}
 
 .xr .xr-note{background:var(--sunken);border-radius:4px;padding:13px 15px;font-size:13px;
   line-height:1.75;color:var(--sub);white-space:pre-line}
@@ -168,6 +172,8 @@ const EXAM_REPORT_CSS = `
 .xr .xr-foot{padding:22px 26px 0;display:flex;flex-direction:column;gap:8px}
 .xr .xr-foot p{color:var(--sub);font-size:11.5px;line-height:1.8}
 .xr .xr-foot .xr-sig{color:var(--faint);font-size:10.5px;letter-spacing:.04em}
+.xr .xr-foot .xr-tel{color:var(--navy);font-weight:700;text-decoration:underline;text-underline-offset:2px;
+  white-space:nowrap}
 
 .xr .xr-fail{background:var(--surface);margin:12px 12px 0;border-radius:12px;box-shadow:var(--shadow);
   padding:40px 26px;text-align:center}
@@ -187,11 +193,13 @@ const EXAM_REPORT_CSS = `
   .xr .xr-chart .xr-axisnum{display:none} /* 각 점에 값 라벨이 있어 y축 숫자는 숨김(첫 점 라벨과 겹침 방지) */
   .xr .xr-chart .xr-axis{font-size:23px}
   .xr .xr-chart .xr-val{font-size:24px}
+  .xr .xr-chart .xr-val--nat{font-size:21px}
   .xr .xr-chart .xr-lvl{transform:translateY(8px)}
 }
 @media (max-width:380px){
   .xr .xr-chart .xr-axis{font-size:26px}
   .xr .xr-chart .xr-val{font-size:27px}
+  .xr .xr-chart .xr-val--nat{font-size:23px}
   .xr .xr-chart .xr-lvl{transform:translateY(11px)}
 }
 `;
@@ -279,8 +287,13 @@ function DifficultyChart({ rows }: { rows: ExamReportV1["difficulty"] }) {
   // 마지막 칸 글자는 오른쪽 끝에서 잘리지 않게 안쪽으로(원본 디자인과 같은 보정).
   const isLast = (i: number) => n > 1 && i === n - 1;
 
+  // 값 라벨: 한 칸에서 위쪽 점의 숫자는 점 위, 아래쪽 점의 숫자는 점 아래(같으면 학생이 위).
+  // 학생·전국 숫자가 서로 반대쪽으로 벌어지므로 두 값이 붙어 있어도 겹치지 않는다.
+  // 0% 근처 점의 아래 숫자가 들어갈 자리를 위해 차트 높이를 250 으로 두고 단계 이름을 236 에 놓는다.
+  const labelAt = (y: number, above: boolean) => (above ? { y: y - 9 } : { y: y + 7, dy: "0.8em" });
+
   return (
-    <svg className="xr-chart" viewBox="0 0 620 226" role="img" aria-label="난이도별 정답률 — 학생과 전국 평균 비교">
+    <svg className="xr-chart" viewBox="0 0 620 250" role="img" aria-label="난이도별 정답률 — 학생과 전국 평균 비교">
       {[30, 70, 110, 150, 190].map((y) => (
         <line key={y} className="xr-gridline" x1={44} y1={y} x2={604} y2={y} />
       ))}
@@ -301,6 +314,10 @@ function DifficultyChart({ rows }: { rows: ExamReportV1["difficulty"] }) {
       {n > 1 && <path className="xr-nat" d={linePath(nat)} />}
       {n > 1 && <path className="xr-me" d={linePath(me)} />}
 
+      {rows.map((_, i) => (
+        <circle key={`n${i}`} className="xr-natdot" cx={nat[i].x} cy={nat[i].y} r={3} />
+      ))}
+
       {rows.map((r, i) => (
         <circle
           key={`d${i}`}
@@ -311,21 +328,29 @@ function DifficultyChart({ rows }: { rows: ExamReportV1["difficulty"] }) {
         />
       ))}
 
-      {rows.map((r, i) => (
-        <text
-          key={`v${i}`}
-          className="xr-val"
-          x={isLast(i) ? me[i].x - 12 : me[i].x}
-          y={me[i].y - 9}
-          textAnchor="middle"
-          fill={r.me >= r.national ? TEAL : CORAL}
-        >
-          {pct(r.me)}
-        </text>
-      ))}
+      {rows.map((r, i) => {
+        const meAbove = r.me >= r.national;
+        const x = isLast(i) ? xs[i] - 12 : xs[i];
+        return (
+          <g key={`v${i}`}>
+            <text className="xr-val xr-val--nat" x={x} textAnchor="middle" {...labelAt(nat[i].y, !meAbove)}>
+              {pct(r.national)}
+            </text>
+            <text
+              className="xr-val"
+              x={x}
+              textAnchor="middle"
+              fill={meAbove ? TEAL : CORAL}
+              {...labelAt(me[i].y, meAbove)}
+            >
+              {pct(r.me)}
+            </text>
+          </g>
+        );
+      })}
 
       {rows.map((r, i) => (
-        <text key={`l${i}`} className="xr-axis xr-lvl" x={isLast(i) ? xs[i] - 8 : xs[i]} y={212} textAnchor="middle">
+        <text key={`l${i}`} className="xr-axis xr-lvl" x={isLast(i) ? xs[i] - 8 : xs[i]} y={236} textAnchor="middle">
           {r.level}
         </text>
       ))}
@@ -432,7 +457,7 @@ function Report({ r }: { r: ExamReportV1 }) {
                 풀이 쓰고 오답 <em className="xr-m">{r.tally.wrongWithWork}</em>
               </span>
               <span className="xr-chip">
-                답만 쓰거나 손 놓음 <em className="xr-m">{r.tally.blank}</em>
+                답만 씀·빈칸 <em className="xr-m">{r.tally.blank}</em>
               </span>
             </div>
           </div>
@@ -471,7 +496,7 @@ function Report({ r }: { r: ExamReportV1 }) {
             </span>
             <span>
               <hr className="xr-d" />
-              전국 평균
+              전국 평균(회색 숫자)
             </span>
           </div>
           {r.difficultyNote?.trim() && <div className="xr-note">{inline(r.difficultyNote)}</div>}
@@ -511,7 +536,7 @@ function Report({ r }: { r: ExamReportV1 }) {
           </div>
           {r.unitsNote?.trim() && <div className="xr-note">{inline(r.unitsNote)}</div>}
           <p className="xr-lede" style={{ fontSize: 12 }}>
-            전국 수치는 매스플렉 결과지의 문항별 전체 평균 정답률을 단원별로 묶어 계산한 값입니다.
+            전국 수치는 매쓰플랫 결과지의 문항별 전체 평균 정답률을 단원별로 묶어 계산한 값입니다.
           </p>
         </section>
       )}
@@ -522,7 +547,7 @@ function Report({ r }: { r: ExamReportV1 }) {
           <span className="xr-eyebrow">손풀이 · 중요 {r.picks.length}문항</span>
           <h2>결과지가 못 보는 것</h2>
           <p className="xr-lede">
-            매스플렉은 맞았는지 틀렸는지를 알려줍니다. 여기서는 <strong>어디까지 갔다가 어디서 멈췄는지</strong>를
+            매쓰플랫은 맞았는지 틀렸는지를 알려줍니다. 여기서는 <strong>어디까지 갔다가 어디서 멈췄는지</strong>를
             봅니다. {r.exam.totalQuestions ? `${r.exam.totalQuestions}문항 중 ` : ""}판단에 결정적인{" "}
             {r.picks.length}문항을 골랐습니다.
           </p>
@@ -536,7 +561,7 @@ function Report({ r }: { r: ExamReportV1 }) {
                   <span className={p.verdict === "o" ? "xr-pill xr-pill-o" : "xr-pill xr-pill-x"}>
                     {p.verdict === "o" ? "정답" : "오답"}
                   </span>
-                  {p.nationalAvg != null && <span className="xr-pick__avg">전체 {pct(p.nationalAvg)}</span>}
+                  {p.nationalAvg != null && <span className="xr-pick__avg">전국 {pct(p.nationalAvg)}</span>}
                 </div>
                 <div className="xr-pick__b">
                   {p.hand && <div className="xr-hand">{handInline(p.hand)}</div>}
@@ -593,11 +618,17 @@ function Report({ r }: { r: ExamReportV1 }) {
 
       <div className="xr-foot">
         <p>
-          <b style={{ color: "var(--sub)" }}>이 분석지에 대하여</b> — 매스플렉 진단 결과(점수·등급·단원별
+          <b style={{ color: "var(--sub)" }}>이 분석지에 대하여</b> — 매쓰플랫 진단 결과(점수·등급·단원별
           정답률·문항별 채점)에, 실제 답안지의 풀이 흔적·중단 지점·계산 습관을 더해 정리한 것입니다. 한 번의
           시험이므로 당일 컨디션의 영향이 있을 수 있으며, 등원 후 실제 수업에서 다시 확인합니다.
         </p>
         <p className="xr-sig xr-m">{sig}</p>
+        <p>
+          문의{" "}
+          <a className="xr-tel" href={`tel:${ACADEMY_PHONE.replace(/-/g, "")}`}>
+            NK학원 {ACADEMY_PHONE}
+          </a>
+        </p>
       </div>
     </>
   );

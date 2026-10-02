@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { checkPagePermission } from "@/lib/check-permission";
 import { getExamAnalysis, getExamPaperSignedUrls } from "@/lib/actions/exam-analysis";
+import { canDeleteExam } from "@/lib/exam-alimtalk";
 import { ExamDetailClient } from "./exam-detail-client";
 
 interface ExamDetailPageProps {
@@ -8,7 +9,7 @@ interface ExamDetailPageProps {
 }
 
 export default async function ExamDetailPage({ params }: ExamDetailPageProps) {
-  await checkPagePermission("/exams");
+  const currentTeacher = await checkPagePermission("/exams");
   const { id } = await params;
 
   const analysis = await getExamAnalysis(id);
@@ -20,6 +21,11 @@ export default async function ExamDetailPage({ params }: ExamDetailPageProps) {
   ]);
 
   return (
-    <ExamDetailClient analysis={analysis} paperUrls={paperUrls} mathflexUrls={mathflexUrls} />
+    <ExamDetailClient
+      analysis={analysis}
+      paperUrls={paperUrls}
+      mathflexUrls={mathflexUrls}
+      canDelete={canDeleteExam(currentTeacher?.role)}
+    />
   );
 }

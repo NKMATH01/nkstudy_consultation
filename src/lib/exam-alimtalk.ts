@@ -1,4 +1,4 @@
-// 입학테스트 정밀 진단 리포트 알림톡 + 시험지 업로드 경로 규칙(순수 함수, 서버·클라이언트 공용).
+// 입학테스트 정밀 진단 리포트 알림톡 + 시험지 업로드 경로 규칙 + 삭제 권한(순수 함수, 서버·클라이언트 공용).
 // 템플릿 행은 20260929110000_exam_pdf_and_alimtalk.sql 에서 draft 로 들어간다.
 
 export const EXAM_REPORT_TEMPLATE_CODE = "exam_report";
@@ -81,4 +81,16 @@ export function isValidExamUploadPath(examId: string, path: string, kind: ExamUp
   if (escapedId !== examId) return false;
   const pattern = new RegExp(`^${escapedId}/[0-9a-f-]{36}\\.(${exts.join("|")})$`, "i");
   return pattern.test(path);
+}
+
+// ─── 삭제 권한 ───────────────────────────────────────────────
+/**
+ * 입학테스트 분석 삭제는 원장(principal)·관리자(admin)만. 화면은 모든 강사에게 열려 있으므로
+ * (check-permission ALWAYS_ALLOWED_PATHS) 지우기만 막는다. teachers.role 실측값 기준.
+ * 역할을 모르면(null·빈 값·다른 값) 거부한다(fail-closed).
+ */
+export const EXAM_DELETE_ROLES = new Set(["principal", "admin"]);
+
+export function canDeleteExam(role: string | null | undefined): boolean {
+  return EXAM_DELETE_ROLES.has(role ?? "");
 }

@@ -99,10 +99,13 @@ export function ExamDetailClient({
   analysis,
   paperUrls,
   mathflexUrls,
+  canDelete,
 }: {
   analysis: ExamAnalysis;
   paperUrls: (string | null)[];
   mathflexUrls: (string | null)[];
+  /** 삭제 버튼 표시 여부(원장·관리자만). 실제 차단은 deleteExamAnalysis 서버 쪽에서 한다. */
+  canDelete: boolean;
 }) {
   const router = useRouter();
   const [zoom, setZoom] = useState<{ url: string; label: string } | null>(null);
@@ -221,17 +224,19 @@ export function ExamDetailClient({
               </Button>
             </>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="border-nk-late text-nk-late hover:bg-nk-late-soft"
-          >
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            삭제
-          </Button>
+          {canDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="border-nk-late text-nk-late hover:bg-nk-late-soft"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              삭제
+            </Button>
+          )}
         </div>
       </div>
 
@@ -251,10 +256,14 @@ export function ExamDetailClient({
           <Clock className="mt-0.5 h-4 w-4 shrink-0 text-nk-ink-sub" />
           <div className="space-y-1 text-sm leading-relaxed">
             <p className="font-bold text-nk-ink">
-              {analysis.status === "pending" ? "사진이 올라갔습니다. 분석을 기다리는 중입니다." : "지금 분석하고 있습니다."}
+              {analysis.status === "pending"
+                ? "사진이 올라갔습니다. 분석을 기다리는 중입니다."
+                : "원장님 컴퓨터에서 분석하고 있습니다."}
             </p>
+            {/* 분석은 자동이 아니다 — 원장님 PC 에서 exam-pull → 분석 → exam-push 로 올린다. */}
             <p className="text-nk-ink-sub">
-              분석이 끝나면 이 화면에 보고서 보기·카카오톡·링크 복사 버튼이 나타납니다. 따로 하실 일은 없습니다.
+              {analysis.status === "pending" && "분석은 원장님 컴퓨터에서 진행합니다. "}
+              끝나면 이 화면에 보고서 보기·카카오톡·링크 복사 버튼이 나타납니다. 급하면 원장님께 말씀해 주세요.
             </p>
           </div>
         </div>

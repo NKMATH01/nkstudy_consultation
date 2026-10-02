@@ -4,10 +4,12 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { revokeReportToken } from "@/lib/actions/report-token";
+import { getCurrentTeacher } from "@/lib/actions/settings";
 import { escapeLikePattern } from "@/lib/student-identity";
 import {
   EXAM_REPORT_TEMPLATE_CODE,
   buildExamReportVars,
+  canDeleteExam,
   extendReportExpiry,
   isExamTemplatePending,
   isValidExamUploadPath,
@@ -296,6 +298,11 @@ export async function deleteExamAnalysis(
   try {
     const auth = await requireAuthenticated();
     if (!auth.ok) return { success: false, error: auth.error };
+    // 화면은 모든 강사에게 열려 있다. 지우기는 원장·관리자만(역할을 못 읽으면 거부).
+    const teacher = await getCurrentTeacher();
+    if (!canDeleteExam(teacher?.role)) {
+      return { success: false, error: "삭제는 원장·관리자만 할 수 있습니다" };
+    }
     if (!z.uuid().safeParse(id).success) return { success: false, error: "잘못된 요청입니다" };
 
     const supabase = await createClient();

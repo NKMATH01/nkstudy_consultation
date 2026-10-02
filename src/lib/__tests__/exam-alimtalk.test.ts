@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EXAM_REPORT_TEMPLATE_CODE,
   buildExamReportVars,
+  canDeleteExam,
   extendReportExpiry,
   isValidExamUploadPath,
   reportTokenSendBlock,
@@ -73,5 +74,23 @@ describe("isValidExamUploadPath", () => {
     expect(isValidExamUploadPath(EXAM_ID, `${FILE_ID}/${FILE_ID}.jpg`, "paper")).toBe(false);
     expect(isValidExamUploadPath(EXAM_ID, `${EXAM_ID}/../x.jpg`, "paper")).toBe(false);
     expect(isValidExamUploadPath(EXAM_ID, `${EXAM_ID}/${FILE_ID}.exe`, "mathflex")).toBe(false);
+  });
+});
+
+describe("canDeleteExam", () => {
+  it("원장(principal)·관리자(admin)만 지울 수 있다", () => {
+    expect(canDeleteExam("principal")).toBe(true);
+    expect(canDeleteExam("admin")).toBe(true);
+  });
+  it("다른 역할은 막는다", () => {
+    for (const role of ["teacher", "clinic", "director", "manager", "staff"]) {
+      expect(canDeleteExam(role), role).toBe(false);
+    }
+  });
+  it("역할을 모르면 막는다(fail-closed)", () => {
+    expect(canDeleteExam(null)).toBe(false);
+    expect(canDeleteExam(undefined)).toBe(false);
+    expect(canDeleteExam("")).toBe(false);
+    expect(canDeleteExam("Principal")).toBe(false);
   });
 });

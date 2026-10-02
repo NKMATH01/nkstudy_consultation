@@ -19,7 +19,7 @@
 - 재사용 도구: `docs/nk-team-routine/tools/` — `prod-verify.mjs`(운영 6곳 비로그인 점검, 인자: 저장소 경로·출력 폴더·exam_v1 토큰·기존 보고서 토큰 JSON), `wait-deploy.mjs`, `recording-e2e.mjs`/`recording-view.mjs`/`recording-delete.mjs`(가짜 마이크로 녹음→전사→분석→삭제; Chromium `--use-file-for-fake-audio-capture=<wav>`).
 
 ## 3. 지금 상태
-- **origin/master = `f1b04bb`(2026-10-02 19:02 운영 반영)** — 반 배정 끝낸 단원(`d442f8f`, 중학교·초등은 verified:false)·입학테스트 메뉴 전 강사 개방 포함. 카카오 `exam_report` 심사 중(Template ID `KA01TP261002091931402ZKsfUcAy7LA`).
+- **origin/master = `1d060ea`(2026-10-02 20:19 운영 반영)** — 분석지 오타·연락처·차트·삭제 권한(원장·관리자) 포함, 반 배정 끝낸 단원(`d442f8f`, 중학교·초등은 verified:false)·입학테스트 메뉴 전 강사 개방 포함. 카카오 `exam_report` 심사 중(Template ID `KA01TP261002091931402ZKsfUcAy7LA`).
 - 운영에 있는 것(2026-09-28~30):
   - 입학테스트 분석: 한 화면 업로드(`/exams/new?consultation=<id>`, 시험지 사진 + 매쓰플랫 PDF/사진) → 로컬 분석(`npm run exam:pull` → Claude 분석 → `npm run exam:push -- --id <id> --file report.json`) → 학부모 분석지 `/report/<token>`(제목 "수학 정밀 진단 리포트", 진단서형 표지). 고아 파일 정리 `npm run exam:orphans [--delete]`.
   - 등록 폼: 입학테스트 점수·요약 자동 입력(상담 값 우선), 반 배정 도우미(학년·수준·진도·현재 단원).

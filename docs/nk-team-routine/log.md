@@ -230,3 +230,8 @@ Claude: 리서치 37,104 · 코드 지도 210,042 · 자문 49,007 · T1 127,414
 - 게이트: tsc 0 · vitest 55 files / 767 · eslint 0 · build 성공 · 로컬 화면(등록 폼 패널, 과목 판별 대수·미적분Ⅰ·공통수학2) 정상.
 - 원장 확인용 표: https://claude.ai/artifact/7njDJZX6e1mKg7z3qUdfhz (중1·중2 새 과정, 중3 옛 과정, 초3~6).
 - 토큰: 리서치 21,846 · 구현 136,385 · 검토 86,110 · 코덱스 34,120(+중단분).
+
+## 2026-10-02 15:20 KST · 인수인계 정리
+- surveys 잠금 뒤 첫 실제 제출 **10-02 15:14 KST 정상 저장**(잠금 09-29 05:37 UTC 이후 1건, Vercel `설문 저장 실패` 로그 72시간 0건) → 보안 P0 마무리.
+- `docs/HANDOFF.md`(다음 Claude 시작점) + `docs/nk-team-routine/tools/`(prod-verify·wait-deploy·녹음 E2E 스크립트) 추가.
+- 상태: origin/master=67ef771, 로컬 b2170f2·d442f8f(반 배정 끝낸 단원 — 원장 순서표 확인 대기), exam_report 템플릿 draft, 녹음 0건.

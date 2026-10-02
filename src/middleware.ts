@@ -6,6 +6,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
 export async function middleware(request: NextRequest) {
+  // Exact integration endpoint authenticates its own server-to-server token.
+  if (request.nextUrl.pathname === "/api/integrations/nbrain/consultations") {
+    return NextResponse.next({ request });
+  }
   let supabaseResponse = NextResponse.next({
     request,
   });

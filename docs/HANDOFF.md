@@ -19,7 +19,7 @@
 - 재사용 도구: `docs/nk-team-routine/tools/` — `prod-verify.mjs`(운영 6곳 비로그인 점검, 인자: 저장소 경로·출력 폴더·exam_v1 토큰·기존 보고서 토큰 JSON), `wait-deploy.mjs`, `recording-e2e.mjs`/`recording-view.mjs`/`recording-delete.mjs`(가짜 마이크로 녹음→전사→분석→삭제; Chromium `--use-file-for-fake-audio-capture=<wav>`).
 
 ## 3. 지금 상태
-- **origin/master = `67ef771`(운영 반영됨)**. 로컬만: `b2170f2`(문서) · **`d442f8f`(반 배정 '끝낸 단원' 비교 — 미배포)**.
+- **origin/master = `f1b04bb`(2026-10-02 19:02 운영 반영)** — 반 배정 끝낸 단원(`d442f8f`, 중학교·초등은 verified:false)·입학테스트 메뉴 전 강사 개방 포함. 카카오 `exam_report` 심사 중(Template ID `KA01TP261002091931402ZKsfUcAy7LA`).
 - 운영에 있는 것(2026-09-28~30):
   - 입학테스트 분석: 한 화면 업로드(`/exams/new?consultation=<id>`, 시험지 사진 + 매쓰플랫 PDF/사진) → 로컬 분석(`npm run exam:pull` → Claude 분석 → `npm run exam:push -- --id <id> --file report.json`) → 학부모 분석지 `/report/<token>`(제목 "수학 정밀 진단 리포트", 진단서형 표지). 고아 파일 정리 `npm run exam:orphans [--delete]`.
   - 등록 폼: 입학테스트 점수·요약 자동 입력(상담 값 우선), 반 배정 도우미(학년·수준·진도·현재 단원).
@@ -31,8 +31,8 @@
 - 운영 DB 적용 완료 마이그레이션: `20260928100000_exam_analyses` · `20260929100000_exam_analyses_scores` · `20260929110000_exam_pdf_and_alimtalk` · `20260929120000_consultation_recordings` · `20260905100000_surveys_rls_lockdown`.
 
 ## 4. 남은 일 (위에서부터)
-1. **원장 순서표 확인 대기** — https://claude.ai/artifact/7njDJZX6e1mKg7z3qUdfhz (중1·중2 새 과정, 중3 옛 과정, 초3~6). 원장이 "순서표 맞아" 또는 수정 지시 → `src/lib/curriculum/catalog.ts` 해당 과목 수정·`verified: true` → `npx vitest run` → 배포(d442f8f 포함). 고등 14과목은 이미 verified. "고등만 먼저 올려"라고 하면 그대로 배포 가능.
-2. **카카오 알림톡 `exam_report` 심사** — 원장이 Solapi 에 등록(본문은 `supabase/migrations/20260929110000_exam_pdf_and_alimtalk.sql`). 승인 후 원장이 템플릿 번호를 주면 `nkc_alimtalk_templates` 에서 `kakao_template_id` 입력 + `kakao_status='approved'`(운영 DB 변경 → 승인 받고).
+1. **원장 순서표 확인 대기** — https://claude.ai/artifact/7njDJZX6e1mKg7z3qUdfhz (중1·중2 새 과정, 중3 옛 과정, 초3~6). 원장이 "순서표 맞아" 또는 수정 지시 → `src/lib/curriculum/catalog.ts` 해당 과목 수정·`verified: true` → `npx vitest run` → 배포. 고등 14과목은 이미 verified. (d442f8f 자체는 10-02 19:02 운영 반영 — 중학교·초등은 "확인 필요"로만 표시 중.)
+2. **카카오 알림톡 `exam_report` 심사 중**(10-02 17:19 요청, 1~3 영업일). 승인되면 원장 승인 받고 `UPDATE nkc_alimtalk_templates SET kakao_template_id='KA01TP261002091931402ZKsfUcAy7LA', kakao_status='approved' WHERE template_code='exam_report'`(운영 DB). 버튼은 모바일+PC 링크로 등록해 DB button 과 같다.
 3. 원장 몫: 아이폰 실기기 녹음 시험(녹음 중 화면 켜 두기) · 박서진 학부모께 분석지 발송(`/exams/6c1123c8-431c-4a2e-9358-2da37cf82300` 카카오톡/링크 복사).
 4. 별도 세션 진행 중: `nk-exam-report` 스킬 고등 단원 목록 오류 수정(task_63ff447a).
 5. 후속 후보: 설문 목록 '빠른 등록'에도 입학테스트 점수 자동 입력 · "초" 없이 쓴 3-1/3-2 초등 교재가 중3 으로 판정되는 한계 · 학습성향 점검 보고서 v2.3 기준 재게시 · `package-lock.json` 재동기화 · SSO v2/nbrain 미커밋 작업은 원장에게 진행 여부 확인.

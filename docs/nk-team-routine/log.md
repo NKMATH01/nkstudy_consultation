@@ -235,3 +235,9 @@ Claude: 리서치 37,104 · 코드 지도 210,042 · 자문 49,007 · T1 127,414
 - surveys 잠금 뒤 첫 실제 제출 **10-02 15:14 KST 정상 저장**(잠금 09-29 05:37 UTC 이후 1건, Vercel `설문 저장 실패` 로그 72시간 0건) → 보안 P0 마무리.
 - `docs/HANDOFF.md`(다음 Claude 시작점) + `docs/nk-team-routine/tools/`(prod-verify·wait-deploy·녹음 E2E 스크립트) 추가.
 - 상태: origin/master=67ef771, 로컬 b2170f2·d442f8f(반 배정 끝낸 단원 — 원장 순서표 확인 대기), exam_report 템플릿 draft, 녹음 0건.
+
+## 2026-10-02 17:20~19:10 KST · S · 알림톡 심사 요청 + 입학테스트 메뉴 전 강사 개방 + 운영 배포 (`67ef771..f1b04bb`)
+- 카카오 `exam_report` **심사 요청**(원장 지시로 인앱 브라우저에서 등록, 로그인은 원장). Solapi Template ID `KA01TP261002091931402ZKsfUcAy7LA` · 카카오 코드 `9GFejsrmpD` · PFID 기존과 같음 · 분류 리포팅/피드백(005001) · 본문 DB 와 글자 동일 · 버튼 "리포트 보기" 모바일+PC(DB button 과 일치) · 대체발송 안 함. 승인 나면 원장 승인 받고 `kakao_template_id` 입력 + `kakao_status='approved'`.
+- 입학테스트 메뉴가 `allowed_menus` 를 정해 둔 15명(노윤희·박현미·강사 13)에게 안 보이던 문제 → ① 운영 DB: 연습 실행 후 15행에 `'/exams'` 추가(되돌리기 `allowed_menus - '/exams'`) ② 코드 `f1b04bb`: `/exams` 를 `ALWAYS_VISIBLE_MENUS`·`ALWAYS_ALLOWED_PATHS` 에 추가(앞으로 새 선생님도 자동). 권한 확대라 자동 안전장치가 한 번 막음 → 원장 "권한 넓히는 거 허락해" 후 진행. 비로그인은 여전히 로그인으로 이동.
+- 게이트: 깨끗한 사본(긴 경로는 Turbopack 경로 길이 오류 → `C:\Users\nk_ma\nkv` 로 옮겨 빌드) tsc 0 · vitest 54 files / 760(미추적 nbrain 테스트 제외) · build OK · eslint 0.
+- 배포 시점: 17시 예약 학생 설문 미제출 + 18:19 단독 `/survey` 접속 → 19:00 까지 대기(새 설문 0, 이후 `/survey` 는 직원 화면 미리 불러오기뿐) → 19:01 push → GitHub 상태 `nkstudy-consultation` 19:02 성공(`nk-consultation` 실패는 예전부터 매번 — 안 쓰는 프로젝트) → prod-verify 6/6 · 배포 후 오류 응답 0. `d442f8f`(반 배정 끝낸 단원, 중학교·초등 verified:false) 함께 배포 — 원장 "같이 올려".

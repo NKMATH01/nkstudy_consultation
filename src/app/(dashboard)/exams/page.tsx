@@ -1,7 +1,7 @@
 import { checkPagePermission } from "@/lib/check-permission";
 import { listExamAnalyses } from "@/lib/actions/exam-analysis";
 import { createClient } from "@/lib/supabase/server";
-import { arrangeExamList, canDeleteExam, unregisteredExamConsultations } from "@/lib/exam-alimtalk";
+import { arrangeExamList, unregisteredExamConsultations } from "@/lib/exam-alimtalk";
 import { ExamsListClient, type ExamListRow } from "./exams-list-client";
 
 /** 오늘 날짜(한국 시간, YYYY-MM-DD). */
@@ -11,7 +11,7 @@ function todayKst(): string {
 
 export default async function ExamsPage() {
   // checkPagePermission 은 getCurrentTeacher 결과를 돌려준다(상세 화면과 같은 방식으로 역할 확인).
-  const currentTeacher = await checkPagePermission("/exams");
+  await checkPagePermission("/exams");
   const supabase = await createClient();
   const [analyses, { data: consultations, error }] = await Promise.all([
     listExamAnalyses(),
@@ -73,13 +73,12 @@ export default async function ExamsPage() {
   });
 
   // 진행 중 → 최근 30일 미등록 → [이전 미등록 N명 보기] → 완료·보냄.
-  // 삭제 아이콘은 원장·관리자에게만. 실제 차단은 deleteExamAnalysis 서버 쪽에서 한다.
+  // 줄 끝은 시험지 보기·결과지 보기만. 삭제는 상세 화면에서(원장·관리자).
   return (
     <ExamsListClient
       headRows={[...active.map(toExamRow), ...recent.map(toUnregisteredRow)]}
       olderRows={older.map(toUnregisteredRow)}
       tailRows={finished.map(toExamRow)}
-      canDelete={canDeleteExam(currentTeacher?.role)}
     />
   );
 }

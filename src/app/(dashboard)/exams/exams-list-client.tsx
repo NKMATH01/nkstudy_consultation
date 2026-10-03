@@ -5,23 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  ExternalLink,
   FileChartColumn,
   FileCheck,
   FileImage,
   FileSearch,
-  Link2,
   Loader2,
-  MessageCircle,
   ScanSearch,
-  Send,
-  Trash2,
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlimtalkSendDialog } from "@/components/alimtalk/alimtalk-send-dialog";
 import {
-  deleteExamAnalysis,
   markExamReportSent,
   prepareExamReportAlimtalk,
   requestExamAnalysis,
@@ -322,104 +316,41 @@ export type ExamListRow =
   | { kind: "exam"; analysis: ExamAnalysis }
   | { kind: "unregistered"; row: UnregisteredExamRow };
 
-const ACTION_CLASS = "p-1 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-30";
+const VIEW_BUTTON_CLASS =
+  "inline-flex items-center rounded-md border px-2 py-1 text-xs font-bold whitespace-nowrap transition-colors";
 
-function ExamReportIcons({ analysis, canDelete }: { analysis: ExamAnalysis; canDelete: boolean }) {
-  const router = useRouter();
-  const sharing = useExamReportSharing(analysis, { toastWhenTemplatePending: true });
-  const [deleting, setDeleting] = useState(false);
-  const noReport = sharing.hasReport ? undefined : "분석이 끝나면 쓸 수 있습니다";
+/** 분석이 끝난 시험(결과지가 있는 상태). */
+function isFinishedExam(status: ExamAnalysis["status"]): boolean {
+  return status === "done" || status === "sent";
+}
 
-  const handleDelete = async () => {
-    if (!confirm(`${analysis.student_name} 학생의 시험지와 올린 사진을 모두 삭제할까요? 되돌릴 수 없습니다.`)) return;
-    setDeleting(true);
-    try {
-      const result = await deleteExamAnalysis(analysis.id);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("삭제했습니다");
-      router.refresh();
-    } finally {
-      setDeleting(false);
-    }
-  };
-
+/**
+ * 목록 줄 끝 버튼: 시험지 보기(상세 화면 — 카카오톡·링크 복사·알림톡·삭제는 거기서) + 결과지 보기(학부모 분석지, 새 탭).
+ * 결과지는 분석이 끝나 링크가 있을 때만 보인다.
+ */
+function ExamViewButtons({ analysis }: { analysis: ExamAnalysis }) {
+  const reportToken = analysis.report_token;
+  const hasReport = !!reportToken && isFinishedExam(analysis.status);
   return (
     <>
-      {sharing.hasReport ? (
+      <Link
+        href={`/exams/${analysis.id}`}
+        onClick={stop}
+        className={`${VIEW_BUTTON_CLASS} border-nk-line text-nk-ink-sub hover:bg-nk-sunken`}
+      >
+        시험지 보기
+      </Link>
+      {hasReport && (
         <a
-          href={`/report/${sharing.reportToken}`}
+          href={`/report/${reportToken}`}
           target="_blank"
           rel="noopener noreferrer"
           onClick={stop}
-          className={`${ACTION_CLASS} text-nk-navy hover:bg-nk-navy-soft`}
-          title="보고서 보기"
-          aria-label="보고서 보기"
+          className={`${VIEW_BUTTON_CLASS} border-nk-navy bg-nk-navy text-nk-navy-ink hover:bg-nk-navy-strong`}
         >
-          <ExternalLink className="h-4 w-4" />
+          결과지 보기
         </a>
-      ) : (
-        <button type="button" disabled className={`${ACTION_CLASS} text-nk-ink-hint`} title={noReport} aria-label="보고서 보기">
-          <ExternalLink className="h-4 w-4" />
-        </button>
       )}
-      <button
-        type="button"
-        disabled={!sharing.hasReport || sharing.sharing}
-        onClick={(e) => {
-          stop(e);
-          void sharing.handleShare();
-        }}
-        className={`${ACTION_CLASS} text-nk-warn hover:bg-nk-warn-soft`}
-        title={noReport ?? "카카오톡"}
-        aria-label="카카오톡"
-      >
-        <MessageCircle className={`h-4 w-4 ${sharing.sharing ? "animate-pulse" : ""}`} />
-      </button>
-      <button
-        type="button"
-        disabled={!sharing.hasReport}
-        onClick={(e) => {
-          stop(e);
-          void sharing.handleCopy();
-        }}
-        className={`${ACTION_CLASS} text-nk-ink-sub hover:bg-nk-sunken`}
-        title={noReport ?? "링크 복사"}
-        aria-label="링크 복사"
-      >
-        <Link2 className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        disabled={!sharing.hasReport}
-        onClick={(e) => {
-          stop(e);
-          sharing.openAlimtalk();
-        }}
-        className={`${ACTION_CLASS} text-nk-progress hover:bg-nk-progress-soft`}
-        title={noReport ?? "알림톡 보내기"}
-        aria-label="알림톡 보내기"
-      >
-        <Send className="h-4 w-4" />
-      </button>
-      {canDelete && (
-        <button
-          type="button"
-          disabled={deleting}
-          onClick={(e) => {
-            stop(e);
-            void handleDelete();
-          }}
-          className={`${ACTION_CLASS} text-nk-late hover:bg-nk-late-soft`}
-          title="삭제"
-          aria-label="삭제"
-        >
-          {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-        </button>
-      )}
-      {sharing.alimtalkDialog}
     </>
   );
 }
@@ -432,12 +363,10 @@ export function ExamsListClient({
   headRows,
   olderRows = [],
   tailRows,
-  canDelete,
 }: {
   headRows: ExamListRow[];
   olderRows?: ExamListRow[];
   tailRows: ExamListRow[];
-  canDelete: boolean;
 }) {
   const router = useRouter();
   const [showOlder, setShowOlder] = useState(false);
@@ -497,18 +426,21 @@ export function ExamsListClient({
                     <td className="px-4 py-3">{row.exam_title}</td>
                     <td className="hidden px-4 py-3 text-nk-ink-sub sm:table-cell">{row.subject ?? "-"}</td>
                     <td className="px-4 py-3 text-nk-ink-sub">{formatExamDate(row.exam_date)}</td>
-                    {/* 아이콘 칸 클릭(알림톡 다이얼로그 포함)은 행 이동으로 번지지 않게 막는다. */}
+                    {/* 버튼 칸 클릭은 행 이동으로 번지지 않게 막는다. */}
                     <td className="px-4 py-2" onClick={stop}>
-                      <div className="flex items-center justify-end gap-0.5">
-                        <ExamFlowIcons
-                          consultationId={row.consultation_id}
-                          consultationCount={row.consultation_id ? 1 : 0}
-                          exam={toExamFlowSnapshot(row)}
-                          from="exams"
-                          size="md"
-                        />
-                        <span className="mx-1 h-4 w-px bg-nk-line" aria-hidden />
-                        <ExamReportIcons analysis={row} canDelete={canDelete} />
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* 분석 전(작성 중·요청됨·분석 중)에만 올리기·분석 요청 아이콘. 완료 뒤에는 셋 다 같은
+                            상세 화면으로 가서 헷갈린다(원장 지적 2026-10-03) — 시험지 보기·결과지 보기 두 개만. */}
+                        {!isFinishedExam(row.status) && (
+                          <ExamFlowIcons
+                            consultationId={row.consultation_id}
+                            consultationCount={row.consultation_id ? 1 : 0}
+                            exam={toExamFlowSnapshot(row)}
+                            from="exams"
+                            size="md"
+                          />
+                        )}
+                        <ExamViewButtons analysis={row} />
                       </div>
                     </td>
                   </tr>

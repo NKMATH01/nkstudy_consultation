@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EXAM_FINISHED_MESSAGE,
+  EXAM_LIST_START_DATE,
   EXAM_STATUS_LABEL,
   decideExamAddFiles,
   decideExamDraft,
@@ -10,6 +11,8 @@ import {
   latestExamByConsultation,
   pickExamTarget,
   arrangeExamList,
+  surveyBasedUnregistered,
+  mergeUnregisteredCandidates,
   unregisteredExamConsultations,
   type ExamFlowStatus,
 } from "../exam-alimtalk";
@@ -245,10 +248,129 @@ describe("arrangeExamList", () => {
         u("none", null, null),
       ],
       "2026-10-03",
+      30,
+      "2000-01-01", // 시작일 제한 없이 30일 규칙만 본다
     );
     expect(result.active.map((x) => x.id)).toEqual(["pending", "analyzing", "draft"]);
     expect(result.recent.map((x) => x.id)).toEqual(["future", "by-survey", "edge"]);
-    expect(result.older.map((x) => x.id)).toEqual(["old", "none"]);
+    expect(result.older.map((x) => x.id)).toEqual(["old"]); // 날짜 없는 학생은 뺀다
     expect(result.finished.map((x) => x.id)).toEqual(["sent-new", "done-old"]);
+  });
+
+  it("기본값: 박서진 시험일(2026-09-28) 전 미등록 학생은 목록에 나오지 않는다", () => {
+    expect(EXAM_LIST_START_DATE).toBe("2026-09-28");
+    const result = arrangeExamList(
+      [],
+      [
+        u("before", "2026-09-19", null),
+        u("start-day", "2026-09-28", null),
+        u("survey-after", "2026-09-10", "2026-10-01T03:00:00Z"),
+        u("after", "2026-10-02", null),
+        u("none", null, null),
+      ],
+      "2026-10-03",
+    );
+    expect(result.recent.map((x) => x.id)).toEqual(["after", "survey-after", "start-day"]);
+    expect(result.older).toEqual([]);
+  });
+});
+
+describe("surveyBasedUnregistered — 설문하면 입학테스트 목록에 자동으로", () => {
+  const consult = (id: string, name: string, phone: string | null, consult_date: string | null, analysis_id: string | null = null) => ({
+    id,
+    name,
+    school: "NK중",
+    grade: "중1",
+    subject: "수학",
+    parent_phone: phone,
+    analysis_id,
+    consult_date,
+  });
+  const survey = (id: string, name: string, phone: string | null, created_at: string, analysis_id: string | null = "a-" + id) => ({
+    id,
+    name,
+    school: "NK중",
+    grade: "중1",
+    parent_phone: phone,
+    analysis_id,
+    created_at,
+    ambiguousName: false,
+  });
+
+  it("분석 링크 없는 상담 2건 + 학부모 번호 강매칭(지유찬형) → 최신 상담으로 1행", () => {
+    // 상담은 최신순으로 들어온다(10/6 → 10/2), 둘 다 analysis_id 비어 있음
+    const consultations = [consult("c-1006", "지유찬", "010-5336-2546", "2026-10-06"), consult("c-1002", "지유찬", "010-5336-2546", "2026-10-02")];
+    const { rows } = surveyBasedUnregistered(
+      [survey("s-1", "지유찬", "010-5336-2546", "2026-10-02T03:00:00Z")],
+      consultations,
+      new Set(),
+    );
+    expect(rows).toEqual([
+      expect.objectContaining({
+        key: "s-1",
+        consultation_id: "c-1006",
+        name: "지유찬",
+        consult_date: "2026-10-06",
+        survey_date: "2026-10-02T03:00:00Z",
+      }),
+    ]);
+  });
+
+  it("매칭 상담 중 하나라도 시험이 있으면 미등록이 아니다", () => {
+    const consultations = [consult("c-new", "박서진", "010-1", "2026-10-01"), consult("c-old", "박서진", "010-1", "2026-09-20")];
+    const { rows, coveredConsultationIds } = surveyBasedUnregistered(
+      [survey("s-1", "박서진", "010-1", "2026-09-28T00:00:00Z")],
+      consultations,
+      new Set(["c-old"]),
+    );
+    expect(rows).toEqual([]);
+    expect([...coveredConsultationIds].sort()).toEqual(["c-new", "c-old"]);
+  });
+
+  it("이름만으로 잡히면 상담 없이(아이콘 비활성) 행만 보여 준다", () => {
+    const { rows } = surveyBasedUnregistered(
+      [survey("s-1", "김도은", null, "2026-10-01T00:00:00Z", null)],
+      [consult("c-1", "김도은", "010-9", "2026-10-01")],
+      new Set(),
+      // 분석 id·번호가 모두 없는 설문(분석은 analyses.survey_id 로만 찾은 경우를 흉내)
+      () => true,
+    );
+    expect(rows).toEqual([expect.objectContaining({ key: "s-1", consultation_id: null, consult_date: null })]);
+  });
+
+  it("시작일 전 설문·분석 없는 설문은 뺀다", () => {
+    const { rows } = surveyBasedUnregistered(
+      [
+        survey("s-old", "옛학생", "010-2", "2026-09-27T14:00:00Z"),
+        survey("s-noanalysis", "새학생", "010-3", "2026-10-01T00:00:00Z", null),
+      ],
+      [consult("c-2", "옛학생", "010-2", "2026-09-27"), consult("c-3", "새학생", "010-3", "2026-10-01")],
+      new Set(),
+      (s) => s.analysis_id !== null,
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("같은 상담에 설문이 여러 장이면 1행(최신 설문)", () => {
+    const { rows } = surveyBasedUnregistered(
+      [survey("s-new", "정다은", "010-4", "2026-10-02T00:00:00Z"), survey("s-old", "정다은", "010-4", "2026-09-29T00:00:00Z")],
+      [consult("c-1", "정다은", "010-4", "2026-10-02")],
+      new Set(),
+    );
+    expect(rows.map((r) => r.key)).toEqual(["s-new"]);
+  });
+});
+
+describe("mergeUnregisteredCandidates", () => {
+  it("설문 기반 우선, 같은 상담·같은 분석 학생은 analysis_id 기반에서 뺀다", () => {
+    const surveyRows = [{ key: "s-1", consultation_id: "c-1", analysis_id: "a-1" }];
+    const analysisRows = [
+      { key: "c-1", consultation_id: "c-1", analysis_id: "a-1" },
+      { key: "c-2", consultation_id: "c-2", analysis_id: "a-1" },
+      { key: "c-3", consultation_id: "c-3", analysis_id: "a-3" },
+      { key: "c-4", consultation_id: "c-4", analysis_id: "a-4" },
+    ];
+    const merged = mergeUnregisteredCandidates(surveyRows, analysisRows, new Set(["c-4"]));
+    expect(merged.map((r) => r.key)).toEqual(["s-1", "c-3"]);
   });
 });

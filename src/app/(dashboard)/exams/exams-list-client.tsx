@@ -305,7 +305,10 @@ export function toExamFlowSnapshot(
 
 /** 미등록 파생 행(설문 분석은 있는데 시험 행이 없는 학생). DB 행이 아니다. */
 export interface UnregisteredExamRow {
-  consultation_id: string;
+  /** 행 key(설문 id 또는 상담 id). */
+  key: string;
+  /** 강한 매칭 상담이 없으면 null — 아이콘 비활성("상담을 먼저 연결하세요"). */
+  consultation_id: string | null;
   student_name: string;
   school: string | null;
   grade: string | null;
@@ -376,7 +379,7 @@ export function ExamsListClient({
                 if (item.kind === "unregistered") {
                   const r = item.row;
                   return (
-                    <tr key={`u-${r.consultation_id}`} className="border-t border-nk-line-soft text-nk-ink-sub">
+                    <tr key={`u-${r.key}`} className="border-t border-nk-line-soft text-nk-ink-sub">
                       <td className="px-4 py-3">
                         <ExamStatusBadge status="unregistered" />
                       </td>
@@ -395,7 +398,7 @@ export function ExamsListClient({
                         <div className="flex items-center justify-end gap-0.5">
                           <ExamFlowIcons
                             consultationId={r.consultation_id}
-                            consultationCount={1}
+                            consultationCount={r.consultation_id ? 1 : 0}
                             exam={null}
                             from="exams"
                             size="md"

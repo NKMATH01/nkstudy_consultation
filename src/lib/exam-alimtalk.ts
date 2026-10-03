@@ -1,6 +1,8 @@
 // 입학테스트 정밀 진단 리포트 알림톡 + 시험지 업로드 경로 규칙 + 삭제 권한(순수 함수, 서버·클라이언트 공용).
 // 템플릿 행은 20260929110000_exam_pdf_and_alimtalk.sql 에서 draft 로 들어간다.
 
+import { selectSurveyConsultations, surveyConsultationMatchKind } from "@/lib/student-identity";
+
 export const EXAM_REPORT_TEMPLATE_CODE = "exam_report";
 
 /** 알림톡 발송 시 학부모 링크가 최소 이만큼은 열려 있도록 만료를 늘린다(본문 "14일간 열립니다"). */
@@ -320,8 +322,16 @@ function daysBefore(today: string, days: number): string {
 }
 
 /**
+ * 미등록 학생을 보여 주기 시작하는 날 — 입학테스트 분석을 처음 쓴 박서진 학생 시험일.
+ * 그 전 학생은 시험지를 올린 적이 없는 시절이라 "미등록"으로 띄우면 목록만 길어진다(원장 지시 2026-10-03).
+ */
+export const EXAM_LIST_START_DATE = "2026-09-28";
+
+/**
  * 입학테스트 목록 순서: 진행 중(작성 중·분석 요청됨·분석 중) → 최근 미등록 → 완료·보냄. 묶음마다 날짜 내림차순.
- * 미등록은 상담일·설문일 중 늦은 날이 today - EXAM_RECENT_DAYS 이후(미래 포함)면 recent, 아니면 older(접어 둔다).
+ * 미등록은 상담일·설문일 중 늦은 날 기준으로
+ *  - startDate(박서진 시험일) 전이거나 날짜가 없으면 아예 빼고,
+ *  - today - EXAM_RECENT_DAYS 이후(미래 포함)면 recent, 그보다 오래됐으면 older(접어 둔다).
  */
 export function arrangeExamList<
   E extends { status: ExamFlowStatus; created_at: string },
@@ -331,6 +341,7 @@ export function arrangeExamList<
   unregistered: U[],
   today: string,
   days: number = EXAM_RECENT_DAYS,
+  startDate: string = EXAM_LIST_START_DATE,
 ): { active: E[]; recent: U[]; older: U[]; finished: E[] } {
   const byCreated = (a: E, b: E) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   const lastDate = (x: U): string => {
@@ -342,7 +353,11 @@ export function arrangeExamList<
 
   const recent: U[] = [];
   const older: U[] = [];
-  for (const u of unregistered) (lastDate(u) && lastDate(u) >= cutoff ? recent : older).push(u);
+  for (const u of unregistered) {
+    const last = lastDate(u);
+    if (!last || last < startDate) continue;
+    (last >= cutoff ? recent : older).push(u);
+  }
 
   return {
     active: exams.filter((e) => e.status === "draft" || isRequested(e.status)).sort(byCreated),
@@ -350,4 +365,133 @@ export function arrangeExamList<
     older: older.sort(byLast),
     finished: exams.filter((e) => isFinished(e.status)).sort(byCreated),
   };
+}
+
+// ─── 설문 기준 미등록 후보(설문하면 입학테스트 목록에 자동으로 이름이 나온다) ─────────────
+
+export interface ExamSurveyCandidate {
+  id: string;
+  name: string;
+  school: string | null;
+  grade: string | null;
+  parent_phone: string | null;
+  /** 설문의 분석 id(surveys.analysis_id 또는 analyses.survey_id 로 찾은 것). 없으면 null. */
+  analysis_id: string | null;
+  created_at: string;
+  /** 같은 이름 설문이 여러 장이면 true — /surveys 와 같이 이름만으로는 짝짓지 않는다. */
+  ambiguousName: boolean;
+}
+
+export interface ExamMatchConsultation extends ExamCandidateConsultation {
+  parent_phone: string | null;
+}
+
+export interface UnregisteredExamCandidate {
+  /** 행 key. 설문 기반은 설문 id, 상담 기반은 상담 id. */
+  key: string;
+  /** 아이콘이 붙을 상담. 강한 매칭이 아니면 null(아이콘 비활성 "상담을 먼저 연결하세요"). */
+  consultation_id: string | null;
+  analysis_id: string | null;
+  name: string;
+  school: string | null;
+  grade: string | null;
+  subject: string | null;
+  consult_date: string | null;
+  survey_date: string | null;
+}
+
+/** 시각(ISO)·날짜 문자열을 한국 날짜 YYYY-MM-DD 로. 날짜만 있으면 그대로. */
+function kstDate(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const t = new Date(value).getTime();
+  if (Number.isNaN(t)) return value.slice(0, 10);
+  return new Date(t + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * 설문(분석 있음, 시작일 이후)마다 /surveys 와 같은 규칙으로 상담을 짝짓는다.
+ * - 강한 매칭(분석 id·학부모 번호): 매칭 상담 중 시험이 하나라도 있으면 뺀다(그 시험 행이 목록에 있다).
+ *   없으면 최신 상담(consultations 는 consult_date 최신순으로 넘긴다)을 붙인다.
+ * - 이름만·없음: 상담 없이 행만(아이콘 비활성).
+ * 같은 상담(또는 같은 설문 분석)에 설문이 여러 장이면 최신 설문 1행.
+ * coveredConsultationIds·coveredAnalysisIds 는 상담 기반 후보에서 같은 학생을 빼는 데 쓴다.
+ */
+export function surveyBasedUnregistered<S extends ExamSurveyCandidate, C extends ExamMatchConsultation>(
+  surveys: S[],
+  consultations: C[],
+  examConsultationIds: Set<string>,
+  hasAnalysis: (survey: S) => boolean = (survey) => !!survey.analysis_id,
+  startDate: string = EXAM_LIST_START_DATE,
+): { rows: UnregisteredExamCandidate[]; coveredConsultationIds: Set<string>; coveredAnalysisIds: Set<string> } {
+  const coveredConsultationIds = new Set<string>();
+  const coveredAnalysisIds = new Set<string>();
+  const seen = new Set<string>();
+  const rows: UnregisteredExamCandidate[] = [];
+  const ordered = [...surveys].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  for (const survey of ordered) {
+    if (!hasAnalysis(survey) || kstDate(survey.created_at) < startDate) continue;
+    const identity = { name: survey.name, parentPhone: survey.parent_phone, analysisId: survey.analysis_id };
+    const options = { allowNameFallback: !survey.ambiguousName };
+    const matched = selectSurveyConsultations(consultations, identity, options);
+    const strong = matched.length > 0 && surveyConsultationMatchKind(consultations, identity, options) === "strong";
+    if (survey.analysis_id) coveredAnalysisIds.add(survey.analysis_id);
+
+    if (strong) {
+      for (const c of matched) coveredConsultationIds.add(c.id);
+      if (matched.some((c) => examConsultationIds.has(c.id))) continue;
+      const latest = matched[0];
+      if (seen.has(`c:${latest.id}`)) continue;
+      seen.add(`c:${latest.id}`);
+      rows.push({
+        key: survey.id,
+        consultation_id: latest.id,
+        analysis_id: survey.analysis_id,
+        name: survey.name || latest.name,
+        school: survey.school ?? latest.school,
+        grade: survey.grade ?? latest.grade,
+        subject: latest.subject,
+        consult_date: latest.consult_date,
+        survey_date: survey.created_at,
+      });
+      continue;
+    }
+
+    const dedupeKey = survey.analysis_id ? `a:${survey.analysis_id}` : `s:${survey.id}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    rows.push({
+      key: survey.id,
+      consultation_id: null,
+      analysis_id: survey.analysis_id,
+      name: survey.name,
+      school: survey.school,
+      grade: survey.grade,
+      subject: null,
+      consult_date: null,
+      survey_date: survey.created_at,
+    });
+  }
+  return { rows, coveredConsultationIds, coveredAnalysisIds };
+}
+
+/**
+ * 설문 기반 후보를 먼저, 그다음 consultations.analysis_id 기반 후보 중 같은 상담·같은 분석(같은 학생)이 아닌 것만.
+ */
+export function mergeUnregisteredCandidates<
+  A extends { consultation_id: string | null; analysis_id: string | null },
+  B extends { consultation_id: string | null; analysis_id: string | null },
+>(surveyRows: A[], analysisRows: B[], coveredConsultationIds: Set<string>, coveredAnalysisIds: Set<string> = new Set()): (A | B)[] {
+  const consultationIds = new Set(coveredConsultationIds);
+  const analysisIds = new Set(coveredAnalysisIds);
+  for (const r of surveyRows) {
+    if (r.consultation_id) consultationIds.add(r.consultation_id);
+    if (r.analysis_id) analysisIds.add(r.analysis_id);
+  }
+  const rest = analysisRows.filter(
+    (r) =>
+      !(r.consultation_id && consultationIds.has(r.consultation_id)) &&
+      !(r.analysis_id && analysisIds.has(r.analysis_id)),
+  );
+  return [...surveyRows, ...rest];
 }

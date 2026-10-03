@@ -260,3 +260,9 @@ Claude: 리서치 37,104 · 코드 지도 210,042 · 자문 49,007 · T1 127,414
 - 게이트(팀장 재실행): tsc 0 · vitest 66 files / 890 · lint error 0(경고 30 기존) · build OK.
 - 남은 것: 배포(원장 승인) · v3 카카오 심사 신청(배포 뒤, 원장 솔라피 로그인) → 승인되면 kakao_template_id·approved · 헤더 제목이 /exams 에서 "대시보드"(header.tsx 는 원장 미커밋 파일과 겹쳐 보류) · 표 폭 여유 1440px 에서 약 9px · addExamFiles 동시 추가 경합(드묾).
 - 토큰: 자문 90,554 · A 77,700 · B 231,306 · C 266,714 · 검토 A·B 76,724 · 검토 C 83,376 · 입장 점검 73,798 · 코덱스 89,751 · 합계 약 989,923(팀장 사용량은 /usage 참고).
+
+## 2026-10-03 18:40~19:10 KST · S · 보안 — 비로그인으로 직원 화면 /surveys·/bookings 가 열리던 문제(2월부터) 수정
+- 배포 확인 중 팀장 발견: 미들웨어 공개 규칙이 `startsWith("/survey")`·`startsWith("/booking")` 라 직원 화면 /surveys·/bookings 도 비로그인 통과. /surveys 는 페이지가 `getTeachers()` 결과를 실어 보내 **선생님 40명 이름·전화·역할**이 노출(비밀번호 칸은 비어 있음, 학생·상담·예약 데이터는 RLS 로 0건). checkPagePermission 은 선생님 기록이 없으면 통과(레거시)라 두 번째 문도 없었음.
+- 원장 승인("지금 고쳐서 올려") → `src/lib/public-paths.ts`(공개 = 그 경로 자체 또는 "경로/…", API 는 /api/sso/·/api/cron/) + middleware 사용 + checkPagePermission 에서 로그인 없으면 /login. 테스트 `public-paths.test.ts`.
+- 확인: tsc 0 · vitest 67/892 · eslint 0 · build OK · 로컬 next start 비로그인: /surveys·/bookings·/exams·/ → 307 /login, /survey·/booking·/report/<t>·/survey/parent/<t>·/feedback/x·/login → 200, /api/cron → 라우트 도달.
+- 남은 것: teachers 표 RLS 에 `{public}` 역할 정책(다른 NK 프로그램의 custom session 용)이 있어 DB 차원 점검은 공유 DB 영향 때문에 별도 과제로 남김.

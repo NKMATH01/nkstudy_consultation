@@ -4,6 +4,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
+import { isPublicPath } from "@/lib/public-paths";
 
 export async function middleware(request: NextRequest) {
   // Exact integration endpoint authenticates its own server-to-server token.
@@ -41,20 +42,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth") &&
-    !request.nextUrl.pathname.startsWith("/survey") &&
-    !request.nextUrl.pathname.startsWith("/booking") &&
-    !request.nextUrl.pathname.startsWith("/report") &&
-    !request.nextUrl.pathname.startsWith("/feedback") &&
-    // SSO 소비측 — 아직 로그인 전인 사람이 들어오는 문이다. 여기를 막으면 업무보고에서
-    // 넘어온 사람이 세션을 세우기도 전에 /login 으로 튕겨, 연동이 통째로 죽는다.
-    // 대신 인가는 그 라우트가 직접 한다(서명·만료·app 키·직원 계정 유일 매칭).
-    !request.nextUrl.pathname.startsWith("/api/sso/")
-    && !request.nextUrl.pathname.startsWith("/api/cron/")
-  ) {
+  // 공개 경로 규칙은 src/lib/public-paths.ts 한 곳(앞부분만 같은 /surveys·/bookings 는 막는다).
+  if (!user && !isPublicPath(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

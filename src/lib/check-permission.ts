@@ -1,4 +1,5 @@
 import { getCurrentTeacher } from "@/lib/actions/settings";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import {
   canViewRestrictedAnalytics,
@@ -20,8 +21,16 @@ export async function checkPagePermission(pathname: string) {
     return currentTeacher;
   }
 
-  // 선생님 레코드 없으면 허용 (레거시 호환)
-  if (!currentTeacher) return currentTeacher;
+  // 선생님 레코드 없으면 허용 (레거시 호환) — 단, 로그인 자체가 없으면 로그인 화면으로.
+  // 미들웨어가 놓친 경우의 두 번째 문(2026-10-03: /surveys 가 비로그인으로 열려 선생님 명단이 실려 간 일).
+  if (!currentTeacher) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
+    return currentTeacher;
+  }
 
   // admin은 항상 접근 가능
   if (currentTeacher.role === "admin") return currentTeacher;

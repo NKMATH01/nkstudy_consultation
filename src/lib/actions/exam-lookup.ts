@@ -7,7 +7,7 @@ import type { EntranceExam, EntranceExamStatus } from "@/lib/class-placement";
 import { buildExamScoreSummary } from "../../../scripts/lib/exam-score-summary.mjs";
 
 /**
- * 상담에 연결된 입학테스트 중 가장 최근 1건(상태 무관) — 공유 계약 D9.
+ * 상담에 연결된 입학테스트 중 가장 최근 1건(작성 중 draft 제외) — 공유 계약 D9.
  *
  * - 점수는 exam_analyses.score_* 칸을 먼저 쓰고, 비었으면 분석지 JSON(report_tokens, zod 검증)에서 읽는다.
  * - scoreSummary 칸이 비었으면 units 로 즉석 계산한다(scripts/lib/exam-score-summary.mjs 공유 규칙).
@@ -43,6 +43,8 @@ export async function getLatestExamForConsultation(
         "id, status, exam_title, exam_date, subject, report_token, score_raw, score_max, score_grade, score_summary"
       )
       .eq("consultation_id", consultationId)
+      // 작성 중(draft)은 아직 분석 요청 전이라 뺀다 — 재시험 draft 가 이전 완료 점수를 가리지 않게.
+      .in("status", STATUSES)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

@@ -8,6 +8,7 @@ import {
   selectSurveyConsultations,
   selectUniqueSurveyConsultation,
   selectStudentIdentity,
+  surveyConsultationMatchKind,
   type ConsultationIdentityRecord,
   type StudentIdentityRecord,
 } from "../student-identity";
@@ -323,6 +324,27 @@ describe("survey consultation matching (복수 반환)", () => {
         { allowNameFallback: false },
       ),
     ).toEqual([]);
+  });
+});
+
+describe("surveyConsultationMatchKind", () => {
+  const rows = [
+    { id: "recent", name: "박서준", parent_phone: "010-2222-3333", analysis_id: null },
+    { id: "old", name: "박서준", parent_phone: "010-2222-3333", analysis_id: "analysis-1" },
+  ];
+
+  it("분석 id·학부모 번호로 잡히면 여러 건이어도 strong", () => {
+    expect(surveyConsultationMatchKind(rows, { name: "박서준", parentPhone: "010-2222-3333" })).toBe("strong");
+    expect(surveyConsultationMatchKind(rows, { name: "박서준", analysisId: "analysis-1" })).toBe("strong");
+  });
+
+  it("이름만으로 잡히면 name", () => {
+    expect(surveyConsultationMatchKind(rows, { name: "박서준" })).toBe("name");
+  });
+
+  it("없으면 none", () => {
+    expect(surveyConsultationMatchKind(rows, { name: "박서준", parentPhone: "010-0000-0000" })).toBe("none");
+    expect(surveyConsultationMatchKind(rows, { name: "박서준" }, { allowNameFallback: false })).toBe("none");
   });
 });
 

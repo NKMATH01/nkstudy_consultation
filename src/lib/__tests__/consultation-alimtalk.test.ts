@@ -94,3 +94,20 @@ describe("buildConsultConfirmVars", () => {
     );
   });
 });
+
+describe("selectConsultConfirmTemplate", () => {
+  it("v3 가 approved 일 때만 v3 를 고른다", async () => {
+    const { selectConsultConfirmTemplate } = await import("../consultation-alimtalk");
+    expect(selectConsultConfirmTemplate("approved")).toBe("consult_confirm_v3");
+  });
+
+  it("v3 가 없거나 승인 전이면 지금처럼 v2", async () => {
+    const { selectConsultConfirmTemplate, CONSULT_CONFIRM_TEMPLATE_CODE } = await import(
+      "../consultation-alimtalk"
+    );
+    expect(CONSULT_CONFIRM_TEMPLATE_CODE).toBe("consult_confirm_v2");
+    for (const status of [null, undefined, "draft", "pending", "rejected", "APPROVED"]) {
+      expect(selectConsultConfirmTemplate(status)).toBe("consult_confirm_v2");
+    }
+  });
+});

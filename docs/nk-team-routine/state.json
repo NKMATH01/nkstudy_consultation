@@ -1,50 +1,120 @@
 {
-  "run": "2026-09-30-placement-unit-order",
-  "size": "M",
-  "goal": "반 배정 도우미: 단원 순서표(2022·2015 개정, 초3~고3)로 반의 '끝낸 단원'을 판단해 학생 약점과 대조",
+  "run": "2026-10-03-survey-exam-parent-quadrant",
+  "size": "L",
+  "goal": "① 설문 목록 줄마다 시험지·매쓰플랫 업로드·분석 요청 아이콘, 설문한 학생이 입학테스트 목록에 자동 표시 ② 입학테스트 목록에도 아이콘 묶음 ③ 학부모 질문지 분리 — 테스트 예약 안내문(새 알림톡, 버튼 2개)으로 보내고 학생 성향 분석에 합침 ④ 결과지 지도 방식 사분면 다시 그리기",
   "userDecisions": {
-    "scope": "초등 포함",
+    "analyzeButton": "원장님께 분석 요청(분석은 원장 PC 로컬, API 비용 없음)",
+    "icons": "둘 다(설문 목록 새 아이콘 3개 + 입학테스트 목록 아이콘 묶음)",
+    "parentQuestionnaire": "새 알림톡 심사(버튼 2개: 학원 안내 보기 + 학부모 질문지, 학생별 토큰 링크). 승인 전엔 consult_confirm_v2 그대로",
+    "quadrant": "네 칸 새로 그리기(글자 칸 안 두 줄·학생 칸 색칠·한 줄 요약, 휴대폰·데스크톱)",
+    "codex": "교차 점검 포함",
     "approved": true
   },
-  "restorePoint": "b2170f2",
-  "uncommittedAtStart": 15,
-  "evidence": [
-    "evidence/class-unit-strings-2026-09-30.json"
-  ],
+  "workspace": "C:\\Users\\nk_ma\\nkw (git worktree, branch feat/routine-1003, base origin/master d190954) — 본 작업폴더(미커밋 15건·origin 보다 1 뒤)는 건드리지 않음",
+  "restorePoint": "d190954",
   "nodes": [
     {
-      "id": "research",
-      "role": "리서치(교육과정 단원 순서)",
-      "agent": "nk-rt-researcher",
-      "status": "done"
+      "id": "advisor",
+      "role": "자문·설계(B·C 데이터 흐름)",
+      "agent": "nk-rt-advisor",
+      "status": "통과",
+      "tries": 1,
+      "tokens": 90554,
+      "result": "B: status 'draft' 추가(exam-pull pending 보호)+requested_at/by, 파생 '미등록' 행, 유일 매칭 아니면 비활성. C: parent_questionnaires(128bit 토큰·30일·1상담 1활성·RLS authenticated), /survey/parent/[token](미들웨어 무변경), v3 draft·승인 시에만 토큰, 분석은 v2 serializer allowlist·자동 재분석 금지. 순서: 마이그레이션 적용 → 배포."
     },
     {
-      "id": "impl",
-      "role": "구현(순서표·매칭·패널)",
+      "id": "impl-A",
+      "role": "구현 A 사분면·글자 끊김",
       "agent": "nk-rt-implementer",
-      "status": "done"
+      "status": "통과",
+      "tries": 2,
+      "tokens": 72662,
+      "files": [
+        "src/components/analysis-report-v2/parent-report.tsx",
+        "src/components/analysis-report-v2/report-premium-css.ts"
+      ],
+      "evidence": "docs/nk-team-routine/evidence/impl-A.txt",
+      "findings": [
+        "🔴 모서리 점이 칸 이름 가림 → 이름 반대쪽으로 + 순수 함수 테스트(팀장 스크린샷 확인)"
+      ]
+    },
+    {
+      "id": "impl-B",
+      "role": "구현 B 설문↔입학테스트 아이콘·자동 표시·분석 요청",
+      "agent": "nk-rt-implementer",
+      "status": "통과",
+      "tries": 3,
+      "tokens": 194575,
+      "evidence": "docs/nk-team-routine/evidence/impl-B.txt",
+      "findings": [
+        "🔴 재상담(상담 여러 건) 아이콘 비활성 → 강매칭이면 최신/선택 상담",
+        "🔴 exam-lookup draft 제외",
+        "🔴 재시험 storage.move 제거, done/sent 는 상세로",
+        "🟡 빈 draft 방지"
+      ]
+    },
+    {
+      "id": "impl-C",
+      "role": "구현 C1 질문지 표·공개 화면·알림톡 v3 → C2 분석 반영·결과지 10번(A 뒤)",
+      "agent": "nk-rt-implementer",
+      "status": "통과",
+      "tries": 3,
+      "tokens": 202353,
+      "c1": "마이그레이션 2개(parent_questionnaires, consult_confirm_v3 draft) · questions.ts · actions/parent-questionnaire.ts(prepareConsultConfirmAlimtalk: v3 approved 아니면 v2) · /survey/parent/[token] · consultation-list-client·consultations/page v3 · vitest 818 통과 · 스크린샷 nkw-shots/impl-C1"
     },
     {
       "id": "review",
-      "role": "새 눈 검토",
-      "agent": "nk-rt-reviewer",
-      "status": "done"
+      "role": "새 눈 검토 — C 부분 Fable(nk-rt-advisor) + A·B 부분 Opus(nk-rt-reviewer)",
+      "status": "통과",
+      "tries": 1,
+      "tokens_c_fable": 83376,
+      "result_c": "요구 8개 중 8개, 🔴 없음, 🟡 300자 경계 탈락·전역 rate cap·미사용 엔드포인트·답한 토큰 재사용(의도) → C 에게(코덱스 🔴 유선번호와 함께)",
+      "gate_before": "팀장 재실행: tsc 0 · vitest 64 files/854 · eslint(바꾼 파일) error 0 · package-lock 자동 변경 되돌림"
     },
     {
       "id": "codex",
-      "role": "코덱스 교차 점검(순서표 정확도)",
-      "status": "done"
+      "role": "코덱스 교차 점검(개인정보·공개 화면)",
+      "status": "반영 완료",
+      "out": "C:\\Users\\nk_ma\\nkw-codex.txt",
+      "tokens": 89751,
+      "findings": [
+        "🔴 확인됨: serializer PHONE_RE 가 010 휴대폰만 — 02-·031- 유선·대표번호 미마스킹(자유서술→Gemini·결과지)",
+        "🟡 addExamFiles 동시 추가 덮어쓰기(드묾, 보류)",
+        "🟡 rate limit 인메모리(기존 public-survey 와 같은 패턴, 보류)",
+        "🟡 62.5 점 좌표계 불일치 → A 에게(검토자와 공통)"
+      ]
+    },
+    {
+      "id": "review-AB",
+      "role": "새 눈 검토 A·B(Opus)",
+      "status": "통과",
+      "tokens": 76724,
+      "result": "요구 11개 중 11개, 🔴 없음, 🟡 addExamFiles 상담 일치 확인·네트워크 예외 시 파일 삭제 → B 에게"
+    },
+    {
+      "id": "checker",
+      "role": "입장 점검(원장·강사·학부모)",
+      "agent": "nk-rt-checker",
+      "status": "통과"
     },
     {
       "id": "screen",
-      "role": "화면 확인(팀장)",
-      "status": "done"
+      "role": "화면 실검증(팀장)",
+      "status": "통과"
     },
     {
       "id": "gate",
       "role": "게이트(팀장)",
-      "status": "done"
+      "status": "통과"
     }
   ],
-  "pending": "원장 순서표 확인(중·초) → verified 전환 · 배포 승인"
+  "tokens_total": 989923,
+  "pending": "배포 승인 → v3 카카오 심사(원장 솔라피 로그인) → 승인 시 kakao_template_id·approved",
+  "testData": {
+    "consultationId": "a500a546-7700-41d0-b969-54448d676b7b",
+    "survey": "김테스트 0972a871",
+    "note": "화면 검증 후 exam_analyses·storage·parent_questionnaires(cascade)·상담 삭제 필수",
+    "cleaned": true
+  },
+  "dbApplied": "2026-10-03 원장 승인 후 3개 마이그레이션 운영 적용(100000·110000·120000), 확인: CHECK draft·칼럼2·정책4·anon 차단·v3 draft 버튼2"
 }

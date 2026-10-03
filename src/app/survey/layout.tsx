@@ -33,7 +33,8 @@ export default function SurveyPublicLayout({
             NK Academy
           </span>
           <span className="text-[10px]" style={{ color: "#94A3B8" }}>
-            입학 학습성향 프로필
+            {/* 학생 설문(/survey)·학부모 질문지(/survey/parent) 공용 머리글 */}
+            입학 상담
           </span>
         </div>
       </header>

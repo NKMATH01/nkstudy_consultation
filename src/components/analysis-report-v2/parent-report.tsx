@@ -6,7 +6,7 @@
 // 설계 원본: docs/prototypes/2026-09-04-parent-report-v3/Main.dc.html
 
 import type { ParentSafeProfile, StudentAnswersSafe } from "@/lib/assessment/v2/parent-safe";
-import { toEntranceReportWording } from "@/lib/assessment/v2/parent-safe";
+import { buildParentAnswerRows, toEntranceReportWording } from "@/lib/assessment/v2/parent-safe";
 import { studentLabel } from "@/lib/assessment/v2/name-substitution";
 import type { CommonConstruct, Score } from "@/lib/assessment/v2/types";
 import { GRADE_LABEL, gradeOf, type GradeKey } from "@/lib/assessment/v2/scoring";
@@ -132,33 +132,56 @@ function Radar({ axes }: { axes: { label: string; score: Score }[] }) {
   );
 }
 
-/** 지도 방식 사분면. 가로 = 세게 말해도 따라옴(지도 방식 반응), 세로 = 힘들어도 다시 시작(단기 회복력). */
+/** 지도 방식 사분면. 가로 = 세게 말해도 따라옴(지도 방식 반응), 세로 = 힘들어도 다시 시작(단기 회복력).
+ *  HTML 격자 위에 점을 얹는다(글자가 화면 폭에 따라 커지거나 작아지지 않게). 경계는 가로·세로 모두 62.5. */
+const QUAD_EDGE = 62.5;
+const QUAD_CELLS = [
+  { key: "tl", label: "다시 시작은 하나 세게 하면 힘듦", right: false, top: true },
+  { key: "tr", label: "세게 해도 되고 다시 시작함", right: true, top: true },
+  { key: "bl", label: "차분히 다독이며 회복도 도움", right: false, top: false },
+  { key: "br", label: "세게 해도 되나 회복이 느림", right: true, top: false },
+] as const;
+
+type QuadCellKey = (typeof QUAD_CELLS)[number]["key"];
+
+/** 점이 놓인 칸과 그 칸 이름을 둘 가장자리. 위쪽 칸 이름은 위, 아래쪽 칸 이름은 아래가 기본이고,
+ *  점이 이름 쪽 절반(위 칸 ≥81.25, 아래 칸 <31.25)에 있으면 이름을 반대쪽으로 옮긴다. */
+export function quadrantPlacement(x: Score, y: Score): { cell: QuadCellKey; labelAt: "top" | "bottom" } | null {
+  if (!isNum(x) || !isNum(y)) return null;
+  const right = x >= QUAD_EDGE;
+  const top = y >= QUAD_EDGE;
+  const cell: QuadCellKey = top ? (right ? "tr" : "tl") : right ? "br" : "bl";
+  const mid = top ? (QUAD_EDGE + 100) / 2 : QUAD_EDGE / 2;
+  const flip = top ? y >= mid : y < mid;
+  const home = top ? "top" : "bottom";
+  return { cell, labelAt: flip ? (home === "top" ? "bottom" : "top") : home };
+}
+
+/** 점 위치. 격자 선(62.5%)과 같은 좌표계(점수 0~100 → 0~100%)를 쓰고, 0·100 근처에서 점이 테두리 밖으로 나가는 것만 막는다. */
+export function quadDotStyle(x: number, y: number): { left: string; bottom: string } {
+  const at = (v: number) => `clamp(6px, ${pct(v)}%, calc(100% - 6px))`;
+  return { left: at(x), bottom: at(y) };
+}
+
 function GuidanceQuadrant({ x, y }: { x: Score; y: Score }) {
-  const left = 46;
-  const top = 20;
-  const w = 280;
-  const h = 180;
-  const px = (v: number) => left + (w * v) / 100;
-  const py = (v: number) => top + h - (h * v) / 100;
   const hasPoint = isNum(x) && isNum(y);
+  const place = quadrantPlacement(x, y);
+  const active = place ? QUAD_CELLS.find((c) => c.key === place.cell) ?? null : null;
+  const flipped = place !== null && place.labelAt !== (active?.top ? "top" : "bottom");
   return (
-    <svg className="pr3-svg" viewBox="0 0 340 236" role="img" aria-label="지도 방식에 대한 반응의 자리">
-      <rect x={left} y={top} width={w} height={h} fill={C.panel} stroke={C.line} />
-      <line x1={px(62.5)} y1={top} x2={px(62.5)} y2={top + h} stroke={C.brass} strokeDasharray="4 3" />
-      <line x1={left} y1={py(62.5)} x2={left + w} y2={py(62.5)} stroke={C.brass} strokeDasharray="4 3" />
-      <text x={left + w - 6} y={top + 14} textAnchor="end" fontSize={9.5} fill={C.sub} fontWeight={700}>세게 해도 되고 다시 시작함</text>
-      <text x={left + 6} y={top + 14} fontSize={9.5} fill={C.sub} fontWeight={700}>다시 시작은 하나 세게 하면 힘듦</text>
-      <text x={left + w - 6} y={top + h - 6} textAnchor="end" fontSize={9.5} fill={C.sub} fontWeight={700}>세게 해도 되나 회복이 느림</text>
-      <text x={left + 6} y={top + h - 6} fontSize={9.5} fill={C.sub} fontWeight={700}>차분히 다독이며 회복도 도움</text>
-      {hasPoint && (
-        <>
-          <circle cx={px(x)} cy={py(y)} r={9} fill="rgba(168,67,61,0.18)" />
-          <circle cx={px(x)} cy={py(y)} r={4.5} fill={C.coral} stroke="#fff" strokeWidth={1.5} />
-        </>
-      )}
-      <text x={left + w / 2} y={top + h + 16} textAnchor="middle" fontSize={10} fill={C.sub}>가로 · 세게 말해도 따라옴 →</text>
-      <text x={14} y={top + h / 2} textAnchor="middle" fontSize={10} fill={C.sub} transform={`rotate(-90 14 ${top + h / 2})`}>세로 · 힘들어도 다시 시작 →</text>
-    </svg>
+    <figure className="pr3-quad">
+      <p className="pr3-quad__yaxis">세로 · 힘들어도 다시 시작 ↑</p>
+      <div className="pr3-quad__plot" role="img" aria-label="지도 방식에 대한 반응의 자리">
+        {QUAD_CELLS.map((c) => (
+          <div key={c.key} className={`pr3-quad__cell is-${c.key}${active?.key === c.key ? " is-active" : ""}${active?.key === c.key && flipped ? " is-flipped" : ""}`}>
+            <span>{c.label}</span>
+          </div>
+        ))}
+        {hasPoint && <i className="pr3-quad__dot" style={quadDotStyle(x, y)} />}
+      </div>
+      <p className="pr3-quad__xaxis">가로 · 세게 말해도 따라옴 →</p>
+      {active && <figcaption className="pr3-quad__summary">이 학생은 &lsquo;{active.label}&rsquo; 칸입니다.</figcaption>}
+    </figure>
   );
 }
 
@@ -311,6 +334,7 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
   const answers = data.studentAnswers ?? (data.entryPriority ? { entryPriority: data.entryPriority } : {});
   const answerEntries = STUDENT_ANSWER_ORDER.filter((k) => answers[k]).map((k) => ({ key: k, label: STUDENT_ANSWER_LABEL[k], value: answers[k] as string }));
   const tags = data.difficultyTags ?? {};
+  const parentAnswerRows = data.parentAnswers ? buildParentAnswerRows(data.parentAnswers) : [];
   const grade = (k: CommonConstruct) => gradeOf(s.common[k]);
 
   // 08 NK 지도 방향 — 판정과 등급에서 결정론적으로 만든다.
@@ -616,7 +640,20 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         <p className="pr3-note">등록 후 입학 상담에서 합의해 확정합니다. 학생 일정에 맞춰 조정합니다.</p>
       </ReportSection>
 
-      {/* 10 */}
+      {/* 10 — 학부모 질문지 답이 스냅샷에 있으면 답을, 없으면 예전처럼 질문 목록을 보여 준다. */}
+      {parentAnswerRows.length > 0 ? (
+      <ReportSection id="sec-parent" index="10" title="학부모님 답변" caption="상담 전에 학부모 질문지에 적어 주신 답입니다.">
+        <dl className="pr3-answers">
+          {parentAnswerRows.map((r) => (
+            <div key={r.no}>
+              <dt>{r.no}. {r.question}</dt>
+              <dd>{r.answer}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="pr3-note">답하신 내용은 입학 상담에서 함께 봅니다.</p>
+      </ReportSection>
+      ) : (
       <ReportSection id="sec-parent" index="10" title="학부모님께 여쭙니다" caption="상담 전에 표시해 주시면 상담이 빨라집니다.">
         <ol className="pr3-parent">
           {PARENT_QUESTIONS.map((pq, idx) => (
@@ -639,6 +676,7 @@ export function ParentReport({ data }: { data: ParentSafeProfile }) {
         </ol>
         <p className="pr3-note">표시해 주신 답은 입학 상담에서 함께 봅니다.</p>
       </ReportSection>
+      )}
 
       {/* 꼬리말 */}
       <footer className="report-v2-caution">

@@ -1,6 +1,23 @@
 import type { Consultation } from "@/types";
 
 export const CONSULT_CONFIRM_TEMPLATE_CODE = "consult_confirm_v2";
+/** v2 + 학부모 질문지 버튼. 카카오 승인(kakao_status='approved') 전에는 쓰지 않는다. */
+export const CONSULT_CONFIRM_V3_TEMPLATE_CODE = "consult_confirm_v3";
+/** v3 버튼 링크 변수 이름 — 마이그레이션 20261003120000 의 variables·button 과 같아야 한다. */
+export const QUESTIONNAIRE_TOKEN_VAR = "질문지토큰";
+
+export type ConsultConfirmTemplateCode =
+  | typeof CONSULT_CONFIRM_TEMPLATE_CODE
+  | typeof CONSULT_CONFIRM_V3_TEMPLATE_CODE;
+
+/** v3 가 승인됐을 때만 v3, 그 밖(행 없음·draft·pending·rejected)은 지금처럼 v2. */
+export function selectConsultConfirmTemplate(
+  v3KakaoStatus: string | null | undefined,
+): ConsultConfirmTemplateCode {
+  return v3KakaoStatus === "approved"
+    ? CONSULT_CONFIRM_V3_TEMPLATE_CODE
+    : CONSULT_CONFIRM_TEMPLATE_CODE;
+}
 
 export type AlimtalkSendStatus = "pending" | "sent" | "failed";
 

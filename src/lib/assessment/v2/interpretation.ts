@@ -259,6 +259,11 @@ export interface ResultProfileV2 {
   scores: ScoreProfile;
   /** 해석(AI 또는 fallback, 동일 shape). */
   interpretation: AiInterpretation;
+  /**
+   * 상담 전 학부모 질문지 답(표시용 스냅샷, 연락처 없음). 분석할 때 답이 있을 때만 존재한다.
+   * 모양은 parent-safe.ts buildParentAnswersSafe 가 다시 검증한다(저장 jsonb 라 unknown 으로 둔다).
+   */
+  parentAnswers?: unknown;
 }
 
 /**

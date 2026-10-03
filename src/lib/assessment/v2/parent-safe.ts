@@ -22,6 +22,11 @@ import { getItemsForSubject, isLikert } from "./definition";
 import { applyStudentNameToInterpretation } from "./name-substitution";
 import { redactNarrative } from "./serializer";
 import {
+  PARENT_QUESTIONNAIRE_QUESTIONS,
+  parentQuestionnaireAnswersSchema,
+  type ParentQuestionnaireAnswers,
+} from "@/lib/parent-questionnaire/questions";
+import {
   buildTransitionPlan,
   type TransitionPlanInput,
   type TransitionPlanItem,
@@ -150,6 +155,72 @@ export interface ParentSafeProfile {
   mbti?: MbtiSafe;
   /** 학원명·서술 원문 없이 고정 문구로 만든 입학 상담용 운영 원칙. */
   transitionPlan?: TransitionPlanItem[];
+  /**
+   * 상담 전 학부모 질문지 답(표시용, 연락처 없음). 분석할 때 result_profile_v2.parentAnswers 에 담긴
+   * 스냅샷에서만 온다. 없으면 결과지 10번은 예전처럼 질문 목록을 보여 준다.
+   */
+  parentAnswers?: ParentAnswersSafe;
+}
+
+/** 학부모 질문지 답(q1~q8). 선택지는 enum 값, 자유서술은 연락처·링크를 지운 것. */
+export type ParentAnswersSafe = Omit<ParentQuestionnaireAnswers, "q5_other"> & { q5_other?: string };
+
+/**
+ * 저장된 질문지 답(unknown) → 표시용. 스키마에 맞지 않으면 undefined.
+ * 학부모 본인이 쓴 글이라 학생 이름은 지우지 않고, 연락처·이메일·링크만 지운다.
+ */
+export function buildParentAnswersSafe(raw: unknown): ParentAnswersSafe | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const parsed = parentQuestionnaireAnswersSchema.safeParse(raw);
+  if (!parsed.success) return undefined;
+  const a = parsed.data;
+  const text = (v: string | undefined) => {
+    const cleaned = redactNarrative(v);
+    return cleaned.length > 0 ? cleaned : undefined;
+  };
+  const q2 = text(a.q2);
+  const q5Other = text(a.q5_other);
+  const q8 = text(a.q8);
+  return {
+    q1: a.q1,
+    ...(q2 ? { q2 } : {}),
+    q3: a.q3,
+    q4: a.q4,
+    q5: a.q5,
+    ...(q5Other ? { q5_other: q5Other } : {}),
+    ...(a.q6_math !== undefined ? { q6_math: a.q6_math } : {}),
+    ...(a.q6_english !== undefined ? { q6_english: a.q6_english } : {}),
+    q7: a.q7,
+    ...(q8 ? { q8 } : {}),
+  };
+}
+
+export interface ParentAnswerRow {
+  no: number;
+  question: string;
+  answer: string;
+}
+
+/** 결과지 10번 표시용 행. 질문 문구는 질문지(questions.ts) 그대로, 답하지 않은 선택 문항은 뺀다. */
+export function buildParentAnswerRows(a: ParentAnswersSafe): ParentAnswerRow[] {
+  const rows: ParentAnswerRow[] = [];
+  for (const q of PARENT_QUESTIONNAIRE_QUESTIONS) {
+    let answer: string | undefined;
+    if (q.kind === "choice") {
+      const value = a[q.key];
+      const other = q.other && value === q.other.when ? a[q.other.key] : undefined;
+      answer = other ? `${value} — ${other}` : value;
+    } else if (q.kind === "text") {
+      answer = a[q.key];
+    } else {
+      answer = q.fields
+        .map((f) => (a[f.key] !== undefined ? `${f.label} ${a[f.key]}점` : null))
+        .filter(Boolean)
+        .join(" · ");
+    }
+    if (answer) rows.push({ no: q.no, question: q.q, answer });
+  }
+  return rows;
 }
 
 export interface ParentReportContextInput extends TransitionPlanInput {
@@ -234,6 +305,8 @@ export function buildParentSafeProfile(
   const transitionPlan = buildTransitionPlan(context);
   const name = display.name;
   const responseDistribution = buildResponseDistribution(responses, full.subjectSelection);
+  // analysis-v2 가 질문지 답이 있을 때만 넣는 선택 필드. 저장 jsonb 라 여기서 다시 검증한다.
+  const parentAnswers = buildParentAnswersSafe(full.parentAnswers);
 
   const studentAnswers: StudentAnswersSafe = {};
   const entryPriority = safeText(context?.entryPriority ?? context?.commitment14, name);
@@ -333,6 +406,7 @@ export function buildParentSafeProfile(
     ...(entryPriority ? { entryPriority } : {}),
     ...(mbti ? { mbti } : {}),
     ...(transitionPlan.length > 0 ? { transitionPlan } : {}),
+    ...(parentAnswers ? { parentAnswers } : {}),
   };
 }
 

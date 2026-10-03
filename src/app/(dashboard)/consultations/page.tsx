@@ -14,9 +14,9 @@ export default async function ConsultationsPage() {
     supabase
       .from("nkc_scheduled_messages")
       .select("consultation_id, status, send_at")
-      // 과거 발송 이력 조회이므로 발송용 상수와 분리해 v1/v2 코드를 명시한다.
+      // 과거 발송 이력 조회이므로 발송용 상수와 분리해 v1/v2/v3 코드를 명시한다.
       // 상수를 쓰면 v1로 발송된 기존 이력의 배지가 사라진다.
-      .in("template_code", ["consult_confirm", "consult_confirm_v2"])
+      .in("template_code", ["consult_confirm", "consult_confirm_v2", "consult_confirm_v3"])
       .not("consultation_id", "is", null)
       .order("send_at", { ascending: false }),
   ]);

@@ -10,16 +10,22 @@ import {
   EXAM_REPORT_TEMPLATE_CODE,
   buildExamReportVars,
   canDeleteExam,
+  decideExamAddFiles,
+  decideExamDraft,
+  examFileLimitBlock,
+  examRequestBlock,
   extendReportExpiry,
   isExamTemplatePending,
   isValidExamUploadPath,
   reportTokenSendBlock,
+  type ExamFlowStatus,
 } from "@/lib/exam-alimtalk";
 
 /** 시험지·매쓰플랫 사진이 올라가는 비공개 Storage 버킷. */
 const EXAM_PAPERS_BUCKET = "exam-papers";
 
-export type ExamAnalysisStatus = "pending" | "analyzing" | "done" | "sent";
+/** draft(작성 중)는 20261003100000 마이그레이션 적용 후부터 DB 에 들어간다. */
+export type ExamAnalysisStatus = ExamFlowStatus;
 
 export interface ExamAnalysis {
   id: string;
@@ -40,9 +46,10 @@ export interface ExamAnalysis {
   analyzed_at: string | null;
   sent_at: string | null;
   retain_until: string | null;
+  requested_at: string | null;
 }
 
-const STATUSES: ExamAnalysisStatus[] = ["pending", "analyzing", "done", "sent"];
+const STATUSES: ExamAnalysisStatus[] = ["draft", "pending", "analyzing", "done", "sent"];
 
 function toStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map((v) => String(v)) : [];
@@ -70,17 +77,18 @@ function mapRow(row: Record<string, unknown>): ExamAnalysis {
     analyzed_at: str(row.analyzed_at),
     sent_at: str(row.sent_at),
     retain_until: str(row.retain_until),
+    requested_at: str(row.requested_at),
   };
 }
 
 /** 로그인 사용자 확인. RLS와 별개로 서버 게이트를 둔다(withdrawal.ts 관례). */
 async function requireAuthenticated(): Promise<
-  { ok: true } | { ok: false; error: string }
+  { ok: true; userId: string } | { ok: false; error: string }
 > {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return { ok: false, error: "인증이 필요합니다" };
-  return { ok: true };
+  return { ok: true, userId: data.user.id };
 }
 
 export async function listExamAnalyses(): Promise<ExamAnalysis[]> {
@@ -264,6 +272,7 @@ export async function createExamAnalysis(
     }
 
     revalidatePath("/exams");
+    revalidatePath("/surveys");
     return { success: true, id: String(data.id) };
   } catch (e) {
     console.error("[ExamAnalysis]", {
@@ -353,6 +362,7 @@ export async function deleteExamAnalysis(
     }
 
     revalidatePath("/exams");
+    revalidatePath("/surveys");
     return { success: true };
   } catch (e) {
     console.error("[ExamAnalysis]", {
@@ -364,7 +374,289 @@ export async function deleteExamAnalysis(
   }
 }
 
-// ─── R6 입학테스트 리포트 알림톡 ─────────────────────────────────
+// ─── 설문 목록·입학테스트 목록에서 따로 올리기 + 분석 요청 ──────────────
+// 흐름: 작성 중(draft) 시험에 시험지·매쓰플랫을 따로 덧붙이고, "분석 요청" 을 눌러야 pending 이 된다.
+// exam-pull 은 pending 만 가져가므로 작성 중 시험은 원장님 PC 로 넘어가지 않는다.
+// 상태 규칙은 src/lib/exam-alimtalk.ts 의 순수 함수(decideExamDraft·decideExamAddFiles·examRequestBlock).
+
+type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
+
+/** 오늘 날짜(한국 시간, YYYY-MM-DD). */
+function todayKst(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+}
+
+function revalidateExamPaths(examId?: string) {
+  revalidatePath("/surveys");
+  revalidatePath("/exams");
+  if (examId) revalidatePath(`/exams/${examId}`);
+}
+
+type ConsultationForExam = {
+  id: string;
+  name: string;
+  school: string | null;
+  grade: string | null;
+  subject: string | null;
+  consult_date: string | null;
+};
+
+async function readConsultationForExam(
+  supabase: ServerSupabase,
+  consultationId: string,
+): Promise<ConsultationForExam | null> {
+  const { data, error } = await supabase
+    .from("consultations")
+    .select("id, name, school, grade, subject, consult_date")
+    .eq("id", consultationId)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error("[ExamAnalysis]", { action: "draft.consultation", consultationId, error: error.message });
+    return null;
+  }
+  return {
+    id: String(data.id),
+    name: String(data.name ?? ""),
+    school: (data.school as string | null) ?? null,
+    grade: (data.grade as string | null) ?? null,
+    subject: (data.subject as string | null) ?? null,
+    consult_date: (data.consult_date as string | null) ?? null,
+  };
+}
+
+async function readConsultationExams(supabase: ServerSupabase, consultationId: string) {
+  const { data, error } = await supabase
+    .from("exam_analyses")
+    .select("id, status, paper_paths, mathflex_paths")
+    .eq("consultation_id", consultationId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[ExamAnalysis]", { action: "draft.exams", consultationId, error: error.message });
+    return null;
+  }
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    status: String(row.status) as ExamFlowStatus,
+    paperCount: toStringArray(row.paper_paths).length,
+    mathflexCount: toStringArray(row.mathflex_paths).length,
+  }));
+}
+
+export interface ExamUploadContext {
+  student: ExamConsultationOption;
+  /** 이미 있는 작성 중 시험(없으면 처음 올릴 때 addExamFiles 가 만든다). */
+  draft: { id: string; paperCount: number; mathflexCount: number } | null;
+  /** 지금 올릴 수 없는 사유(분석 요청됨 등). */
+  blocked: string | null;
+}
+
+/** `/exams/new?consultation=&kind=` 화면용 읽기 전용 조회. 행을 만들지 않는다. */
+export async function getExamUploadContext(consultationId: string): Promise<ExamUploadContext | null> {
+  if (!z.uuid().safeParse(consultationId).success) return null;
+  const auth = await requireAuthenticated();
+  if (!auth.ok) return null;
+
+  const supabase = await createClient();
+  const consultation = await readConsultationForExam(supabase, consultationId);
+  if (!consultation) return null;
+  const exams = await readConsultationExams(supabase, consultationId);
+  const student: ExamConsultationOption = {
+    id: consultation.id,
+    name: consultation.name,
+    school: consultation.school,
+    grade: consultation.grade,
+    consult_date: consultation.consult_date,
+  };
+  if (!exams) return { student, draft: null, blocked: "시험 기록을 불러오지 못했습니다" };
+  const decision = decideExamDraft(exams);
+  if (decision.kind === "blocked") return { student, draft: null, blocked: decision.error };
+  if (decision.kind === "reuse") {
+    const found = exams.find((e) => e.id === decision.id)!;
+    return {
+      student,
+      draft: { id: found.id, paperCount: found.paperCount, mathflexCount: found.mathflexCount },
+      blocked: null,
+    };
+  }
+  return { student, draft: null, blocked: null };
+}
+
+const addExamFilesSchema = z
+  .object({
+    examId: z.uuid("잘못된 요청입니다"),
+    kind: z.enum(["paper", "mathflex"]),
+    paths: z.array(z.string()).min(1, "올릴 파일이 없습니다").max(40),
+    consultationId: z.uuid("잘못된 요청입니다").optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.paths.every((p) => isValidExamUploadPath(value.examId, p, value.kind))) {
+      ctx.addIssue({ code: "custom", message: "업로드 경로가 올바르지 않습니다" });
+    }
+  });
+
+/**
+ * 시험지(paper) 또는 매쓰플랫(mathflex) 파일을 작성 중(draft) 시험에 기록한다.
+ * - examId 행이 있으면: draft 일 때만 덧붙인다(분석 요청됨·분석 중·완료·보냄은 거부).
+ * - examId 행이 없으면: consultationId 의 작성 중 시험을 그 id 로 만들면서 파일을 함께 기록한다
+ *   (화면을 열기만 해서는 행이 생기지 않게 — 기존 한 화면 올리기와 같은 방식. 클라이언트가 만든 id = Storage 폴더).
+ */
+export async function addExamFiles(
+  examId: string,
+  kind: "paper" | "mathflex",
+  paths: string[],
+  consultationId?: string,
+): Promise<{ success: true; examId: string } | { success: false; error: string }> {
+  try {
+    const auth = await requireAuthenticated();
+    if (!auth.ok) return { success: false, error: auth.error };
+    const parsed = addExamFilesSchema.safeParse({ examId, kind, paths, consultationId });
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
+    const value = parsed.data;
+    const unique = [...new Set(value.paths)];
+    const column = value.kind === "paper" ? "paper_paths" : "mathflex_paths";
+
+    const supabase = await createClient();
+    const { data: row, error: readError } = await supabase
+      .from("exam_analyses")
+      .select("id, status, consultation_id, paper_paths, mathflex_paths")
+      .eq("id", value.examId)
+      .maybeSingle();
+    if (readError) {
+      console.error("[ExamAnalysis]", { action: "addFiles.read", examId: value.examId, error: readError.message });
+      return { success: false, error: "시험 기록을 불러오지 못했습니다" };
+    }
+
+    if (!row) {
+      // 처음 올리기: 작성 중 시험을 만들면서 파일을 함께 기록한다.
+      if (!value.consultationId) return { success: false, error: "시험 기록을 찾을 수 없습니다" };
+      const limit = examFileLimitBlock(value.kind, 0, unique.length);
+      if (limit) return { success: false, error: limit };
+      const consultation = await readConsultationForExam(supabase, value.consultationId);
+      if (!consultation) return { success: false, error: "상담 학생 정보를 찾을 수 없습니다" };
+      const exams = await readConsultationExams(supabase, consultation.id);
+      if (!exams) return { success: false, error: "시험 기록을 불러오지 못했습니다" };
+      const decision = decideExamDraft(exams);
+      if (decision.kind === "blocked") return { success: false, error: decision.error };
+      if (decision.kind === "reuse") {
+        // 그 사이 다른 화면에서 작성 중 시험이 생겼다. 폴더가 달라 붙일 수 없으니 새로 고치게 한다.
+        return { success: false, error: "다른 화면에서 작성 중인 시험이 있습니다. 화면을 새로 고쳐 주세요" };
+      }
+
+      const { error: insertError } = await supabase.from("exam_analyses").insert({
+        id: value.examId,
+        student_id: null,
+        consultation_id: consultation.id,
+        student_name: consultation.name,
+        school: consultation.school,
+        grade: consultation.grade,
+        exam_title: `${consultation.name} 입학테스트`,
+        exam_date: todayKst(),
+        subject: consultation.subject?.trim() || "수학",
+        status: "draft",
+        paper_paths: value.kind === "paper" ? unique : [],
+        mathflex_paths: value.kind === "mathflex" ? unique : [],
+      });
+      if (insertError) {
+        // 부분 유니크(상담당 작성 중 1건) — 동시에 두 화면에서 처음 올린 경우.
+        if (insertError.code === "23505") {
+          return { success: false, error: "다른 화면에서 작성 중인 시험이 있습니다. 화면을 새로 고쳐 주세요" };
+        }
+        console.error("[ExamAnalysis]", { action: "addFiles.create", examId: value.examId, error: insertError.message });
+        return { success: false, error: "작성 중 시험을 만들지 못했습니다" };
+      }
+      revalidateExamPaths(value.examId);
+      return { success: true, examId: value.examId };
+    }
+
+    // 화면이 고른 학생과 시험 행의 학생이 다르면 붙이지 않는다(잘못된 id·오래된 화면).
+    if (value.consultationId && row.consultation_id && String(row.consultation_id) !== value.consultationId) {
+      return { success: false, error: "다른 학생의 시험지입니다" };
+    }
+
+    const decision = decideExamAddFiles(String(row.status) as ExamFlowStatus);
+    if (decision.kind === "blocked") return { success: false, error: decision.error };
+
+    const existing = toStringArray(row[column]);
+    // 이미 기록된 경로는 다시 붙이지 않는다(응답을 못 받고 다시 누른 경우 같은 사진이 두 번 기록되지 않게).
+    const fresh = unique.filter((p) => !existing.includes(p));
+    if (fresh.length === 0) return { success: true, examId: value.examId };
+    const limit = examFileLimitBlock(value.kind, existing.length, fresh.length);
+    if (limit) return { success: false, error: limit };
+
+    const merged = [...existing, ...fresh];
+    const { data: updated, error } = await supabase
+      .from("exam_analyses")
+      .update({ [column]: merged })
+      .eq("id", value.examId)
+      .eq("status", "draft")
+      .select("id");
+    if (error) {
+      console.error("[ExamAnalysis]", { action: "addFiles", examId: value.examId, error: error.message });
+      return { success: false, error: "파일 저장에 실패했습니다" };
+    }
+    if ((updated ?? []).length === 0) {
+      return { success: false, error: "그 사이 분석이 요청되었습니다. 화면을 새로 고쳐 주세요" };
+    }
+
+    revalidateExamPaths(value.examId);
+    return { success: true, examId: value.examId };
+  } catch (e) {
+    console.error("[ExamAnalysis]", {
+      action: "addFiles",
+      examId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return { success: false, error: "파일 저장 중 오류가 발생했습니다" };
+  }
+}
+
+/** 작성 중 + 시험지 1장 이상이면 분석 요청됨(pending)으로 넘긴다. exam-pull 이 이때부터 가져간다. */
+export async function requestExamAnalysis(
+  examId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const auth = await requireAuthenticated();
+    if (!auth.ok) return { success: false, error: auth.error };
+    if (!z.uuid().safeParse(examId).success) return { success: false, error: "잘못된 요청입니다" };
+
+    const supabase = await createClient();
+    const { data: row, error: readError } = await supabase
+      .from("exam_analyses")
+      .select("id, status, paper_paths")
+      .eq("id", examId)
+      .maybeSingle();
+    if (readError || !row) {
+      console.error("[ExamAnalysis]", { action: "request.read", examId, error: readError?.message });
+      return { success: false, error: "시험 기록을 찾을 수 없습니다" };
+    }
+    const block = examRequestBlock(String(row.status) as ExamFlowStatus, toStringArray(row.paper_paths).length);
+    if (block) return { success: false, error: block };
+
+    const { data: updated, error } = await supabase
+      .from("exam_analyses")
+      .update({ status: "pending", requested_at: new Date().toISOString(), requested_by: auth.userId })
+      .eq("id", examId)
+      .eq("status", "draft")
+      .select("id");
+    if (error) {
+      console.error("[ExamAnalysis]", { action: "request", examId, error: error.message });
+      return { success: false, error: "분석 요청에 실패했습니다" };
+    }
+    if ((updated ?? []).length === 0) return { success: false, error: "이미 분석 요청됨" };
+
+    revalidateExamPaths(examId);
+    return { success: true };
+  } catch (e) {
+    console.error("[ExamAnalysis]", {
+      action: "request",
+      examId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return { success: false, error: "분석 요청 중 오류가 발생했습니다" };
+  }
+}
+
+// ─── R6 입학테스트 리포트 알림톡─────────────────────────────────
 
 export interface ExamReportAlimtalkArgs {
   templateCode: string;

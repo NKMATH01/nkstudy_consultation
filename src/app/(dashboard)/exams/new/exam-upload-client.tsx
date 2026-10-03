@@ -22,9 +22,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import {
+  addExamFiles,
   createExamAnalysis,
   searchExamConsultations,
   type ExamConsultationOption,
+  type ExamUploadContext,
 } from "@/lib/actions/exam-analysis";
 import type { ExamUploadKind } from "@/lib/exam-alimtalk";
 
@@ -708,6 +710,262 @@ export function ExamUploadClient({
           올리기
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ─── 한 종류만 따로 올리기(설문 목록·입학테스트 목록 아이콘) ───────────────
+// /exams/new?consultation=<id>&kind=paper|mathflex
+// 작성 중(draft) 시험이 있으면 그 id 를, 없으면 이 화면에서 만든 id 를 Storage 폴더로 쓴다.
+// 다 올린 뒤 addExamFiles 가 덧붙이거나(기존 draft) 그 id 로 draft 를 만들며 함께 기록한다 — 화면을 열기만 해서는 행이 생기지 않는다.
+// 분석 요청은 여기서 하지 않는다(목록의 "분석 요청" 아이콘).
+
+function toUploadItems(
+  kind: ExamUploadKind,
+  list: FileList | File[],
+  current: number,
+  max: number,
+): UploadItem[] {
+  const accepted: UploadItem[] = [];
+  for (const file of Array.from(list)) {
+    const isPdf = file.type === PDF_TYPE;
+    if (isPdf && kind !== "mathflex") {
+      toast.error(`${file.name}: 시험지는 사진만 올릴 수 있습니다`);
+      continue;
+    }
+    if (!isPdf && !IMAGE_EXT[file.type]) {
+      toast.error(`${file.name}: ${kind === "mathflex" ? "PDF 또는 " : ""}JPG·PNG·WEBP·HEIC 사진만 올릴 수 있습니다`);
+      continue;
+    }
+    const limit = isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
+    if (file.size > limit) {
+      toast.error(`${file.name}: ${isPdf ? "PDF 는 20MB" : "사진은 10MB"} 이하만 올릴 수 있습니다`);
+      continue;
+    }
+    if (current + accepted.length >= max) {
+      toast.error(`더 올릴 수 없습니다(최대 ${max}개)`);
+      break;
+    }
+    accepted.push({
+      key: crypto.randomUUID(),
+      kind,
+      file,
+      previewUrl: isPdf ? null : URL.createObjectURL(file),
+      status: "ready",
+      progress: 0,
+      path: null,
+      error: null,
+    });
+  }
+  return accepted;
+}
+
+export function ExamKindUploadClient({
+  kind,
+  context,
+  from,
+}: {
+  kind: ExamUploadKind;
+  context: ExamUploadContext | null;
+  from: "surveys" | "exams";
+}) {
+  const router = useRouter();
+  const backHref = from === "surveys" ? "/surveys" : "/exams";
+  const label = kind === "paper" ? "시험지 사진" : "매쓰플랫 결과지";
+  const existing = kind === "paper" ? (context?.draft?.paperCount ?? 0) : (context?.draft?.mathflexCount ?? 0);
+  const max = Math.max(0, (kind === "paper" ? MAX_PAPER_FILES : MAX_MATHFLEX_FILES) - existing);
+
+  // 이 화면 동안 같은 id(=Storage 폴더)를 유지해, 실패한 파일만 다시 올릴 수 있게 한다.
+  const [examId] = useState<string>(() => context?.draft?.id ?? crypto.randomUUID());
+  const [items, setItems] = useState<UploadItem[]>([]);
+  const itemsRef = useRef<UploadItem[]>([]);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+  useEffect(() => {
+    return () => {
+      for (const it of itemsRef.current) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+    };
+  }, []);
+  const [submitting, setSubmitting] = useState(false);
+  const [stage, setStage] = useState("");
+
+  const patchItem = (key: string, patch: Partial<UploadItem>) =>
+    setItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+
+  const addFiles = (k: ExamUploadKind, list: FileList | File[]) => {
+    const accepted = toUploadItems(k, list, items.length, max);
+    if (accepted.length > 0) setItems((prev) => [...prev, ...accepted]);
+  };
+
+  const removeItem = (key: string) => {
+    setItems((prev) => {
+      const target = prev.find((it) => it.key === key);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((it) => it.key !== key);
+    });
+  };
+
+  const failedCount = items.filter((it) => it.status === "error").length;
+
+  const handleSubmit = async () => {
+    if (!context || context.blocked) return;
+    if (items.length === 0) return toast.error(`${label}을(를) 1개 이상 골라 주세요`);
+
+    setSubmitting(true);
+    try {
+      const folder = examId;
+
+      const supabase = createClient();
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session.session?.access_token;
+      if (!accessToken) throw new Error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+
+      // 이미 올라간 파일은 건너뛰고, 대기·실패 파일만 올린다(한 번에 2개씩).
+      const snapshot = items;
+      const queue = snapshot.filter((it) => it.status !== "done");
+      setStage(`${queue.length}개 올리는 중`);
+      const uploadedPaths = new Map<string, string>();
+      let failed = 0;
+      const worker = async () => {
+        for (let it = queue.shift(); it; it = queue.shift()) {
+          const ext = extensionFor(it.file);
+          if (!ext) {
+            failed++;
+            patchItem(it.key, { status: "error", error: "형식 오류" });
+            continue;
+          }
+          const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+          const key = it.key;
+          patchItem(key, { status: "uploading", progress: 0, error: null });
+          try {
+            await uploadWithProgress(accessToken, path, it.file, (p) => patchItem(key, { progress: p }));
+            uploadedPaths.set(key, path);
+            patchItem(key, { status: "done", progress: 100, path });
+          } catch (err) {
+            failed++;
+            const message = err instanceof Error ? err.message : String(err);
+            console.error("[ExamAnalysis]", { action: "upload.kind", path, error: message });
+            patchItem(key, { status: "error", error: message });
+          }
+        }
+      };
+      await Promise.all([worker(), worker()]);
+
+      if (failed > 0) {
+        toast.error(`${failed}개 파일을 올리지 못했습니다. "올리기"를 다시 누르면 실패한 파일만 다시 올립니다.`);
+        return;
+      }
+
+      setStage("저장하는 중");
+      const paths = snapshot.map((it) => it.path ?? uploadedPaths.get(it.key) ?? "").filter(Boolean);
+      let result: Awaited<ReturnType<typeof addExamFiles>>;
+      try {
+        result = await addExamFiles(folder, kind, paths, context.student.id);
+      } catch (err) {
+        // 응답을 못 받았다(저장됐는지 모름). 이미 행에 기록됐을 수 있으니 파일을 지우지 않는다.
+        // 기록되지 않았다면 남은 파일은 scripts/exam-orphans.mjs 가 정리한다.
+        console.error("[ExamAnalysis]", {
+          action: "upload.kind.save",
+          examId: folder,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw new Error("저장 여부를 확인하지 못했습니다. 목록에서 확인해 주세요");
+      }
+      if (!result.success) {
+        // 서버가 거부했으니(행에 붙지 않음) 올려 둔 파일은 치운다. 다음 "올리기" 는 처음부터 다시 올린다.
+        const { error } = await supabase.storage.from(EXAM_PAPERS_BUCKET).remove(paths);
+        if (error) {
+          console.error("[ExamAnalysis]", { action: "upload.kind.cleanup", examId: folder, error: error.message });
+        }
+        setItems((prev) => prev.map((it) => ({ ...it, status: "ready", progress: 0, path: null, error: null })));
+        throw new Error(result.error);
+      }
+
+      toast.success(`${label}을(를) 올렸습니다. 다 올렸으면 목록에서 "분석 요청" 을 눌러 주세요.`);
+      router.push(backHref);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "올리기에 실패했습니다");
+    } finally {
+      setSubmitting(false);
+      setStage("");
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost" size="sm">
+          <Link href={backHref}>
+            <ArrowLeft className="h-4 w-4" />
+            목록
+          </Link>
+        </Button>
+        <h1 className="text-xl font-extrabold text-nk-ink">{label} 올리기</h1>
+      </div>
+
+      {!context ? (
+        <div className="rounded-2xl border border-nk-line bg-nk-surface p-4 text-sm text-nk-ink-sub">
+          상담 학생 정보를 찾을 수 없습니다. 목록에서 다시 눌러 주세요.
+        </div>
+      ) : (
+        <>
+          <section className="space-y-1 rounded-2xl border border-nk-line bg-nk-navy-soft px-4 py-3 text-sm">
+            <p className="font-bold text-nk-ink">{consultationLine(context.student)}</p>
+            <p className="text-xs text-nk-ink-sub">
+              {context.draft
+                ? `작성 중 · 시험지 ${context.draft.paperCount}장 · 매쓰플랫 ${context.draft.mathflexCount}개 올림`
+                : "아직 올린 파일이 없습니다. 올리면 작성 중 시험이 만들어집니다."}
+            </p>
+          </section>
+
+          {context.blocked ? (
+            <div className="rounded-xl border border-nk-warn bg-nk-warn-soft px-4 py-3 text-sm">
+              <p className="font-bold text-nk-warn">{context.blocked}</p>
+              <p className="mt-0.5 text-nk-ink-sub">분석이 끝난 뒤에 재시험으로 다시 올릴 수 있습니다.</p>
+            </div>
+          ) : (
+            <>
+              {kind === "paper" && (
+                <div className="rounded-xl bg-nk-warn-soft px-3 py-2 text-xs text-nk-ink">
+                  <span className="font-bold">촬영 요령</span>
+                  <span className="text-nk-ink-sub"> · 밝은 곳에서 그림자 없이 · 정면에서 기울지 않게 · 한 면 전체가 다 나오게</span>
+                </div>
+              )}
+              <DropZone
+                kind={kind}
+                title={label}
+                hint={
+                  kind === "paper"
+                    ? "한 면당 한 장씩, 순서대로 올려 주세요. (사진 10MB 이하)"
+                    : "PDF 그대로(20MB 이하) 또는 사진(10MB 이하)."
+                }
+                accept={kind === "paper" ? "image/*" : `${PDF_TYPE},image/*`}
+                max={max}
+                items={items}
+                busy={submitting}
+                onAdd={addFiles}
+                onRemove={removeItem}
+              />
+              <div className="flex items-center justify-end gap-3">
+                {stage ? (
+                  <span className="text-xs text-nk-ink-sub">{stage}</span>
+                ) : failedCount > 0 ? (
+                  <span className="text-xs font-bold text-nk-late">실패 {failedCount}개 — 다시 누르면 실패한 파일만 올립니다</span>
+                ) : null}
+                <Button type="button" onClick={handleSubmit} disabled={submitting || max === 0}>
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : failedCount > 0 ? (
+                    <RotateCw className="h-4 w-4" />
+                  ) : null}
+                  올리기
+                </Button>
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }

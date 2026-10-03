@@ -727,8 +727,33 @@ export const REPORT_PREMIUM_CSS = `
 .rptv2-doc .pr3-verdict__direct span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); }
 .rptv2-doc .pr3-verdict__direct b { color: #152033; }
 .rptv2-doc .pr3-verdict__basis { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 11.5px; color: var(--muted); }
-.rptv2-doc .pr3-verdict__basis span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; width: 100%; }
-.rptv2-doc .pr3-verdict__basis b { display: inline-flex; align-items: center; gap: 6px; color: #152033; font-weight: 700; }
+.rptv2-doc .pr3-verdict__basis span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; width: 100%; white-space: nowrap; word-break: keep-all; }
+.rptv2-doc .pr3-verdict__basis b { display: inline-flex; flex: none; align-items: center; gap: 6px; color: #152033; font-weight: 700; white-space: nowrap; word-break: keep-all; }
+.rptv2-doc .pr3-quad { margin: 4px 0 0; display: flex; flex-direction: column; gap: 6px; break-inside: avoid; page-break-inside: avoid; }
+.rptv2-doc .pr3-quad__yaxis, .rptv2-doc .pr3-quad__xaxis { margin: 0; font-size: 12px; font-weight: 700; color: var(--muted); word-break: keep-all; }
+.rptv2-doc .pr3-quad__xaxis { text-align: right; }
+.rptv2-doc .pr3-quad__plot { position: relative; display: grid; grid-template-columns: 62.5fr 37.5fr; grid-template-rows: 37.5fr 62.5fr; height: 240px; background: #f4f6f6; border: 1px solid var(--line-strong); }
+.rptv2-doc .pr3-quad__cell { display: flex; padding: 8px 9px; min-width: 0; min-height: 0; overflow: hidden; }
+.rptv2-doc .pr3-quad__cell span { font-size: 12px; line-height: 1.35; font-weight: 700; color: var(--muted); word-break: keep-all; overflow-wrap: break-word; }
+.rptv2-doc .pr3-quad__cell.is-tl { border-right: 1px dashed #b88a32; border-bottom: 1px dashed #b88a32; align-items: flex-start; }
+.rptv2-doc .pr3-quad__cell.is-tr { border-bottom: 1px dashed #b88a32; align-items: flex-start; justify-content: flex-end; text-align: right; }
+.rptv2-doc .pr3-quad__cell.is-bl { border-right: 1px dashed #b88a32; align-items: flex-end; }
+.rptv2-doc .pr3-quad__cell.is-br { align-items: flex-end; justify-content: flex-end; text-align: right; }
+.rptv2-doc .pr3-quad__cell.is-active { background: var(--navy-soft); }
+.rptv2-doc .pr3-quad__cell.is-tl.is-flipped, .rptv2-doc .pr3-quad__cell.is-tr.is-flipped { align-items: flex-end; }
+.rptv2-doc .pr3-quad__cell.is-bl.is-flipped, .rptv2-doc .pr3-quad__cell.is-br.is-flipped { align-items: flex-start; }
+.rptv2-doc .pr3-quad__cell.is-active span { color: #152033; }
+.rptv2-doc .pr3-quad__dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--coral); border: 1.5px solid #fff; box-shadow: 0 0 0 5px rgba(168,67,61,0.18); transform: translate(-50%, 50%); z-index: 1; }
+.rptv2-doc .pr3-quad__summary { margin: 2px 0 0; font-size: 13px; font-weight: 800; color: #152033; line-height: 1.55; word-break: keep-all; }
+@media (min-width: 761px) {
+  .rptv2-doc .pr3-quad__plot { height: 280px; }
+  .rptv2-doc .pr3-quad__cell { padding: 10px 12px; }
+  .rptv2-doc .pr3-quad__cell span, .rptv2-doc .pr3-quad__yaxis, .rptv2-doc .pr3-quad__xaxis { font-size: 13px; }
+}
+@media print {
+  .rptv2-doc .pr3-quad__plot { height: 62mm; }
+  .rptv2-doc .pr3-quad__cell span, .rptv2-doc .pr3-quad__yaxis, .rptv2-doc .pr3-quad__xaxis { font-size: 9.5pt; }
+}
 .rptv2-doc .pr3-qs { display: flex; flex-direction: column; gap: 18px; }
 .rptv2-doc .pr3-q { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .rptv2-doc .pr3-q:last-child { border-bottom: 0; }

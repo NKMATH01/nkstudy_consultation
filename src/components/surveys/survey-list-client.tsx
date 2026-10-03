@@ -38,7 +38,9 @@ import {
   SUBJECT_LABEL_V2,
   type SurveyManagementFactorScore,
 } from "@/lib/assessment/v2/display";
-import { selectSurveyConsultations } from "@/lib/student-identity";
+import { selectSurveyConsultations, surveyConsultationMatchKind } from "@/lib/student-identity";
+import { pickExamTarget, type ExamFlowSnapshot } from "@/lib/exam-alimtalk";
+import { ExamFlowIcons } from "@/app/(dashboard)/exams/exams-list-client";
 
 interface Props {
   initialData: Survey[];
@@ -48,12 +50,53 @@ interface Props {
     total: number;
     totalPages: number;
   };
-  analyses: { id: string; survey_id: string | null; has_report: boolean }[];
+  analyses: { id: string; survey_id: string | null; has_report: boolean; generated_at?: string | null }[];
   registrations: { id: string; analysis_id: string | null }[];
   consultations: { id: string; name: string; parent_phone: string | null; analysis_id: string | null; result_status: string; test_score: string | null; subject: string | null; consult_date: string | null }[];
   ambiguousSurveyNames: string[];
+  /** 상담 id → 가장 최근 입학테스트(시험지·매쓰플랫·분석 요청 아이콘용). */
+  examByConsultation?: Record<string, ExamFlowSnapshot & { created_at: string }>;
+  /** 상담 id → 학부모 질문지 상태(강한 매칭 상담만 서버가 조회해 넘긴다). */
+  questionnaireByConsultation?: Record<string, QuestionnaireStatusLite>;
   classes: Class[];
   teachers: Teacher[];
+}
+
+export type QuestionnaireStatusLite = { issued: boolean; answeredAt: string | null };
+
+export type ParentQuestionnaireChip = { kind: "answered" | "issued"; label: string; title: string };
+
+/**
+ * 행에 붙일 학부모 질문지 칩. 강한 매칭 상담들(재상담이면 여러 건)을 모아 본다.
+ * 답이 있으면 "학부모 답변"(가장 최근 답 기준), 링크만 있으면 "질문지 보냄", 둘 다 없으면 null.
+ * analyzedAt(V2 분석 생성 시각)이 답보다 먼저면 아직 분석에 반영되지 않은 것이다.
+ */
+export function getParentQuestionnaireChip(
+  consultationIds: readonly string[],
+  statusByConsultation: Record<string, QuestionnaireStatusLite>,
+  analyzedAt: string | null | undefined,
+): ParentQuestionnaireChip | null {
+  let issued = false;
+  let answeredAt: string | null = null;
+  for (const id of consultationIds) {
+    const st = statusByConsultation[id];
+    if (!st) continue;
+    if (st.issued) issued = true;
+    if (st.answeredAt && (!answeredAt || st.answeredAt > answeredAt)) answeredAt = st.answeredAt;
+  }
+  if (answeredAt) {
+    const analyzedMs = analyzedAt ? new Date(analyzedAt).getTime() : NaN;
+    const title = Number.isNaN(analyzedMs)
+      ? "학부모 질문지 답변이 도착했습니다"
+      : analyzedMs < new Date(answeredAt).getTime()
+        ? "분석 뒤에 도착한 답변입니다 — 다시 분석하면 반영됩니다"
+        : "학부모 질문지 답변이 분석에 반영되었습니다";
+    return { kind: "answered", label: "학부모 답변", title };
+  }
+  if (issued) {
+    return { kind: "issued", label: "질문지 보냄", title: "학부모 질문지 링크를 보냈습니다(아직 답 없음)" };
+  }
+  return null;
 }
 
 const FACTOR_KEYS = ["attitude", "self_directed", "assignment", "willingness", "social", "management"] as const;
@@ -131,7 +174,7 @@ function getSubjectBadgeClass(subject?: string): string {
   return "border-nk-line-soft bg-nk-sunken text-nk-ink-sub";
 }
 
-export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations, ambiguousSurveyNames, classes, teachers }: Props) {
+export function SurveyListClient({ initialData, initialPagination, analyses, registrations, consultations, ambiguousSurveyNames, examByConsultation = {}, questionnaireByConsultation = {}, classes, teachers }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -262,10 +305,10 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
 
   // 분석 데이터 맵 생성
   const analysisMap = useMemo(() => {
-    const map = new Map<string, { id: string; has_report: boolean }>();
+    const map = new Map<string, { id: string; has_report: boolean; generated_at?: string | null }>();
     for (const a of analyses) {
       if (a.survey_id) {
-        map.set(a.survey_id, { id: a.id, has_report: a.has_report });
+        map.set(a.survey_id, { id: a.id, has_report: a.has_report, generated_at: a.generated_at ?? null });
       }
     }
     return map;
@@ -537,7 +580,7 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
         <>
           <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgb(var(--wr-navy-ink)_/_0.8)_inset,0_18px_48px_rgb(var(--wr-navy)_/_0.08)]">
             <div className="overflow-x-auto">
-              <table data-testid="survey-management-table" className="w-full text-sm" style={{ minWidth: "1250px" }}>
+              <table data-testid="survey-management-table" className="w-full text-sm" style={{ minWidth: "1150px" }}>
                 <thead>
                   <tr className="border-y border-nk-line-soft bg-gradient-to-b from-nk-sunken to-nk-sunken">
                     <th className="w-1 p-0" />
@@ -581,6 +624,32 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                       ? SUBJECT_LABEL_V2[getSurveyV2Subject(item)]
                       : matchedConsultation?.subject || "";
                     const factorScores = getSurveyManagementFactorScores(item);
+                    // 입학테스트 아이콘: 분석 id·학부모 번호로 잡힌 상담이면 재상담으로 여러 건이어도 연다
+                    // (붙일 상담 = 행에서 고른 날짜, 없으면 최신). 이름만으로 잡혔거나 없으면 막는다.
+                    const examLinked =
+                      !!matchedConsultation &&
+                      surveyConsultationMatchKind(
+                        consultations,
+                        { name: item.name, parentPhone: item.parent_phone, analysisId },
+                        { allowNameFallback: !ambiguousSurveyNameSet.has(item.name.trim()) },
+                      ) === "strong";
+                    // 진행 중 시험이 있으면 그 시험의 상담, 없으면 고른 날짜(또는 최신) 상담.
+                    const examTarget =
+                      examLinked && matchedConsultation
+                        ? pickExamTarget(
+                            matchedConsultations.map((c) => c.id),
+                            examByConsultation,
+                            matchedConsultation.id,
+                          )
+                        : null;
+                    // 학부모 질문지 칩: 입학테스트와 같은 강한 매칭 상담들 기준.
+                    const pqChip = examLinked
+                      ? getParentQuestionnaireChip(
+                          matchedConsultations.map((c) => c.id),
+                          questionnaireByConsultation,
+                          analysis?.generated_at,
+                        )
+                      : null;
                     const vb = "border-r border-nk-line-soft";
 
                     return (
@@ -599,6 +668,19 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                             <Link href={nameHref} className="text-[12px] font-black text-nk-ink hover:text-primary hover:underline">{item.name}</Link>
                             {item.instrument_version === "v2" && (
                               <span className="rounded border border-nk-cat-3 bg-nk-cat-3-soft px-1 py-0.5 text-[8px] font-black text-nk-cat-3" title="V2 학습 프로필 설문">V2</span>
+                            )}
+                            {pqChip && (
+                              <span
+                                data-testid={`survey-pq-${item.id}`}
+                                className={
+                                  pqChip.kind === "answered"
+                                    ? "rounded border border-nk-done bg-nk-done-soft px-1 py-0.5 text-[8px] font-black text-nk-done"
+                                    : "rounded border border-nk-line-soft bg-nk-sunken px-1 py-0.5 text-[8px] font-bold text-nk-ink-hint"
+                                }
+                                title={pqChip.title}
+                              >
+                                {pqChip.label}
+                              </span>
                             )}
                             {fallbackIds.has(item.id) && (
                               <span
@@ -624,8 +706,23 @@ export function SurveyListClient({ initialData, initialPagination, analyses, reg
                         <td className={`px-2 py-2.5 text-[10px] font-black text-nk-ink whitespace-nowrap ${vb}`}>
                           {formatPhone(item.parent_phone) || <span className="text-nk-line">-</span>}
                         </td>
-                        <td className={`px-2 py-2.5 text-center text-[10px] font-bold text-nk-ink-sub whitespace-nowrap ${vb}`}>
-                          {matchedConsultation?.test_score || <span className="text-nk-line">-</span>}
+                        <td className={`px-1 py-2.5 text-center text-[10px] font-bold text-nk-ink-sub whitespace-nowrap ${vb}`}>
+                          {/* 테스트 칸: 점수(있으면) + 입학테스트 아이콘(시험지·매쓰플랫·분석 요청) 한 줄. */}
+                          <div className="flex items-center justify-center gap-0.5">
+                            {matchedConsultation?.test_score && (
+                              // 긴 점수 메모는 줄여 보이고 전체는 title 로(표가 가로로 넘치지 않게).
+                              <span className="mr-0.5 max-w-[44px] truncate" title={matchedConsultation.test_score}>
+                                {matchedConsultation.test_score}
+                              </span>
+                            )}
+                            <ExamFlowIcons
+                              consultationId={examTarget?.consultationId ?? null}
+                              consultationCount={examTarget ? 1 : 0}
+                              exam={examTarget?.exam ?? null}
+                              from="surveys"
+                              testIdPrefix={`survey-exam-${item.id}`}
+                            />
+                          </div>
                         </td>
                         {factorScores.map((score) => (
                           <td

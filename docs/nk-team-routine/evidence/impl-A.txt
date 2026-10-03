@@ -1,0 +1,11 @@
+tsc exit=0
+
+ RUN  v4.1.10 C:/Users/nk_ma/nkw
+
+
+ Test Files  4 passed (4)
+      Tests  31 passed (31)
+   Start at  17:43:41
+   Duration  901ms (transform 559ms, setup 0ms, import 1.75s, tests 110ms, environment 1ms)
+
+vitest exit=0

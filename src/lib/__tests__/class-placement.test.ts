@@ -11,15 +11,20 @@ import {
 import { buildExamScoreSummary } from "../../../scripts/lib/exam-score-summary.mjs";
 
 // getLatestExamForConsultation 용 supabase 목 — 이 파일의 다른 테스트는 supabase 를 쓰지 않는다.
-const { queryResult, getReportByTokenMock } = vi.hoisted(() => ({
+const { queryResult, getReportByTokenMock, inCalls } = vi.hoisted(() => ({
   queryResult: { current: { data: null as unknown, error: null as unknown } },
   getReportByTokenMock: vi.fn(),
+  inCalls: [] as [string, unknown][],
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => {
     const chain: Record<string, unknown> = {};
     for (const k of ["select", "eq", "order", "limit"]) chain[k] = () => chain;
+    chain.in = (column: string, values: unknown) => {
+      inCalls.push([column, values]);
+      return chain;
+    };
     chain.maybeSingle = () => Promise.resolve(queryResult.current);
     return { from: () => chain };
   }),
@@ -271,6 +276,13 @@ describe("examReportTarget", () => {
 describe("getLatestExamForConsultation", () => {
   beforeEach(() => {
     getReportByTokenMock.mockReset();
+  });
+
+  it("작성 중(draft) 시험은 빼고 최신 1건을 고른다(재시험 draft 가 완료 점수를 가리지 않게)", async () => {
+    inCalls.length = 0;
+    queryResult.current = { data: null, error: null };
+    await expect(getLatestExamForConsultation("c-1")).resolves.toBeNull();
+    expect(inCalls).toEqual([["status", ["pending", "analyzing", "done", "sent"]]]);
   });
 
   it("lookup_missingColumns_returnsNull — score_* 칸이 없으면(마이그레이션 전) null + 로그", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -18,15 +18,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { AlimtalkSendDialog } from "@/components/alimtalk/alimtalk-send-dialog";
-import {
-  deleteExamAnalysis,
-  markExamReportSent,
-  prepareExamReportAlimtalk,
-  type ExamAnalysis,
-} from "@/lib/actions/exam-analysis";
-import { shareViaKakao, KAKAO_BASE_URL } from "@/lib/kakao";
-import { ExamStatusBadge, formatExamDate } from "../exams-list-client";
+import { deleteExamAnalysis, type ExamAnalysis } from "@/lib/actions/exam-analysis";
+import { ExamStatusBadge, formatExamDate, useExamReportSharing } from "../exams-list-client";
 
 function PhotoGrid({
   title,
@@ -134,59 +127,17 @@ export function ExamDetailClient({
   ];
   if (analysis.note) info.push(["메모", analysis.note]);
 
-  // 분석지 링크는 exam-push 가 올릴 때 이미 만들어 둔다. 여기서는 그 토큰을 그대로 쓴다.
-  const reportToken = analysis.report_token;
-  const hasReport = !!reportToken && (analysis.status === "done" || analysis.status === "sent");
-  const reportUrl = reportToken ? `${KAKAO_BASE_URL}/report/${reportToken}` : "";
-  const [sharing, setSharing] = useState(false);
-
-  const handleShare = async () => {
-    if (!reportToken) return;
-    setSharing(true);
-    try {
-      await shareViaKakao({
-        title: `${analysis.student_name} 학생 ${analysis.subject?.trim() || "수학"} 정밀 진단 리포트`,
-        description: "NK학원 입학테스트 답안을 한 문항씩 분석한 결과입니다.",
-        pageUrl: `/report/${reportToken}`,
-      });
-    } catch {
-      toast.error("카카오톡 공유에 실패했습니다");
-    } finally {
-      setSharing(false);
-    }
-  };
-
-  // 알림톡: 발송 인자는 서버가 만든다(학부모 번호·회수 확인·링크 기간 연장).
-  // 다이얼로그는 성공 콜백이 없으므로, 닫힐 때 서버가 실제 발송 기록을 확인한 경우에만 'sent' 로 바꾼다.
-  const [alimtalkOpen, setAlimtalkOpen] = useState(false);
-  const [kakaoPending, setKakaoPending] = useState(false);
-  const prepareAlimtalk = useCallback(async () => {
-    const result = await prepareExamReportAlimtalk(analysis.id);
-    if (!result.success) {
-      toast.error(result.error);
-      return null;
-    }
-    setKakaoPending(result.templatePending);
-    return result.data;
-  }, [analysis.id]);
-
-  const handleAlimtalkOpenChange = (open: boolean) => {
-    setAlimtalkOpen(open);
-    if (open) return;
-    void markExamReportSent(analysis.id).then((result) => {
-      if (result.success && result.marked) router.refresh();
-    });
-  };
-
-  const handleCopy = async () => {
-    if (!reportUrl) return;
-    try {
-      await navigator.clipboard.writeText(reportUrl);
-      toast.success("링크를 복사했습니다. 학부모님께 붙여넣어 보내세요.");
-    } catch {
-      toast.error("링크 복사에 실패했습니다. 보고서 보기를 눌러 주소창에서 복사해 주세요.");
-    }
-  };
+  // 카카오톡·링크 복사·알림톡은 목록 화면과 같은 로직(exams-list-client.tsx useExamReportSharing).
+  const {
+    reportToken,
+    hasReport,
+    sharing,
+    kakaoPending,
+    handleShare,
+    handleCopy,
+    openAlimtalk,
+    alimtalkDialog,
+  } = useExamReportSharing(analysis);
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
@@ -218,7 +169,7 @@ export function ExamDetailClient({
                 <Link2 className="h-4 w-4" />
                 링크 복사
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setAlimtalkOpen(true)}>
+              <Button type="button" variant="outline" size="sm" onClick={openAlimtalk}>
                 <Send className="h-4 w-4" />
                 알림톡 보내기
               </Button>
@@ -288,13 +239,7 @@ export function ExamDetailClient({
         onOpen={(url, label) => setZoom({ url, label })}
       />
 
-      <AlimtalkSendDialog
-        open={alimtalkOpen}
-        onOpenChange={handleAlimtalkOpenChange}
-        prepare={prepareAlimtalk}
-        targetLabel={analysis.student_name}
-        title="입학테스트 리포트 알림톡 발송"
-      />
+      {alimtalkDialog}
 
       <Dialog open={zoom !== null} onOpenChange={(open) => !open && setZoom(null)}>
         <DialogContent className="max-h-[95vh] overflow-auto bg-nk-surface sm:max-w-4xl">

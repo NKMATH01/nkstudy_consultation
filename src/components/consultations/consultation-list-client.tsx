@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition, useCallback, useEffect, Fragment } from "react";
+import { useState, useMemo, useTransition, useCallback, useEffect, useRef, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -31,9 +31,11 @@ import {
 } from "@/lib/actions/consultation";
 import { previewAlimtalk, sendAlimtalk } from "@/lib/actions/alimtalk";
 import { createDripInvitation } from "@/lib/actions/drip-survey";
+import { prepareConsultConfirmAlimtalk } from "@/lib/actions/parent-questionnaire";
 import {
   CONSULT_CONFIRM_TEMPLATE_CODE,
   buildConsultConfirmVars,
+  type ConsultConfirmTemplateCode,
   type AlimtalkSendEntry,
   type AlimtalkSendMap,
 } from "@/lib/consultation-alimtalk";
@@ -214,6 +216,12 @@ export function ConsultationListClient({
     error: null,
   });
   const [sendingAlimtalk, setSendingAlimtalk] = useState(false);
+  // 미리보기 때 정한 템플릿(v2/v3)·추가 변수를 발송에 그대로 쓴다(미리보기와 발송이 어긋나지 않도록).
+  const alimtalkPlanRef = useRef<{
+    consultationId: string;
+    templateCode: ConsultConfirmTemplateCode;
+    extraVars: Record<string, string>;
+  } | null>(null);
 
   useEffect(() => {
     setLocalData(initialData);
@@ -382,10 +390,16 @@ export function ConsultationListClient({
     setAlimtalkTarget(c);
     setAlimtalkPreview({ loading: true, data: null, error: null });
 
-    const vars = buildConsultConfirmVars(c);
+    // v3(학부모 질문지) 승인 전이거나 준비가 실패하면 지금처럼 v2, 추가 변수 없음.
+    const plan = await prepareConsultConfirmAlimtalk(c.id).catch(() => null);
+    const templateCode = plan?.templateCode ?? CONSULT_CONFIRM_TEMPLATE_CODE;
+    const extraVars = plan?.extraVars ?? {};
+    alimtalkPlanRef.current = { consultationId: c.id, templateCode, extraVars };
+
+    const vars = { ...buildConsultConfirmVars(c), ...extraVars };
     const result = await previewAlimtalk({
       consultationId: c.id,
-      templateCode: CONSULT_CONFIRM_TEMPLATE_CODE,
+      templateCode,
       vars,
     });
 
@@ -424,18 +438,23 @@ export function ConsultationListClient({
     if (open || sendingAlimtalk) return;
     setAlimtalkTarget(null);
     setAlimtalkPreview({ loading: false, data: null, error: null });
+    alimtalkPlanRef.current = null;
   }, [sendingAlimtalk]);
 
   const handleSendAlimtalk = useCallback(async () => {
     if (!alimtalkTarget) return;
 
-    const vars = buildConsultConfirmVars(alimtalkTarget);
+    const plan =
+      alimtalkPlanRef.current?.consultationId === alimtalkTarget.id
+        ? alimtalkPlanRef.current
+        : null;
+    const vars = { ...buildConsultConfirmVars(alimtalkTarget), ...(plan?.extraVars ?? {}) };
     setSendingAlimtalk(true);
 
     try {
       const result = await sendAlimtalk({
         consultationId: alimtalkTarget.id,
-        templateCode: CONSULT_CONFIRM_TEMPLATE_CODE,
+        templateCode: plan?.templateCode ?? CONSULT_CONFIRM_TEMPLATE_CODE,
         vars,
         allowSmsFallback: true,
       });

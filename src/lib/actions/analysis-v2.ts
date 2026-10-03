@@ -4,6 +4,12 @@
 // 흐름: 서버 점수(score_profile_v2)는 이미 계산됨 → AI-safe serialize → Gemini 해석 호출
 //       → Zod 검증 → 실패/거부 시 규칙 기반 fallback → result_profile_v2 저장 → surveys 연결.
 // AI는 숫자를 만들지 않는다. 순수 함수(직렬화·검증·fallback)는 __tests__에서 단위 검증한다.
+//
+// 학부모 질문지(parent_questionnaires): AI 호출 전에 설문↔상담을 강한 식별자(분석 ID 또는 학부모 번호)로
+//   맞춘 상담들(재상담이면 여러 건 — 정상 흐름)의 질문지 중 답했고 회수되지 않은 것 가운데 가장 최근 답 1건을
+//   참고 자료로 넣고, 표시용 사본을 result_profile_v2.parentAnswers 에 담는다.
+//   이름만 맞거나 못 찾았거나 답이 없으면 넣지 않는다(예전과 똑같다). 답이 나중에 와도 자동 재분석하지 않는다 —
+//   직원이 다시 분석을 눌러야 반영된다. v1 분석(analysis.ts)에는 반영하지 않는다.
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -21,7 +27,15 @@ import {
 import { applyStudentNameToInterpretation } from "@/lib/assessment/v2/name-substitution";
 import { INSTRUMENT_REVISION } from "@/lib/assessment/v2/definition";
 import { stampConsultationAnalysis } from "@/lib/actions/consultation-analysis";
+import {
+  escapeLikePattern,
+  selectSurveyConsultations,
+  surveyConsultationMatchKind,
+  type SurveyConsultationIdentityRecord,
+} from "@/lib/student-identity";
+import { buildParentAnswersSafe, type ParentAnswersSafe } from "@/lib/assessment/v2/parent-safe";
 import type { AiInterpretation } from "@/lib/assessment/v2/ai-contract";
+import type { ResultProfileV2 } from "@/lib/assessment/v2/interpretation";
 import type { ScoreProfile } from "@/lib/assessment/v2/types";
 
 interface SurveyV2Row {
@@ -30,12 +44,63 @@ interface SurveyV2Row {
   school: string | null;
   grade: string | null;
   parent_phone: string | null;
+  /** 재분석이면 이전 분석 ID. 상담 강한 매칭(analysis_id)에만 쓴다. */
+  analysis_id: string | null;
   instrument_version: string | null;
   subject_selection: string | null;
   /** 저장 원본(snake_case JSONB). AI 입력으로 넘기기 전에 intakeFromStored로 옮긴다. */
   intake_v2: Record<string, unknown> | null;
   responses_v2: Record<string, unknown> | null;
   score_profile_v2: ScoreProfile | null;
+}
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * 설문과 강하게 맞는 상담들의 학부모 질문지 답(답함·미회수 중 최신 1건). 없거나 조회가 실패하면 null —
+ * 질문지는 참고 자료라 분석 자체를 막지 않는다. 답 원문은 로그에 남기지 않는다.
+ */
+async function loadParentAnswersForSurvey(
+  supabase: SupabaseServerClient,
+  survey: { id: string; name: string | null; parent_phone: string | null; analysis_id: string | null },
+): Promise<ParentAnswersSafe | null> {
+  const name = survey.name?.trim() ?? "";
+  if (!name || (!survey.parent_phone && !survey.analysis_id)) return null;
+
+  try {
+    const { data: candidates, error: findError } = await supabase
+      .from("consultations")
+      .select("id, name, parent_phone, analysis_id")
+      .ilike("name", `${escapeLikePattern(name)}%`)
+      .limit(100);
+    if (findError) throw new Error(findError.message);
+
+    const records = (candidates ?? []) as SurveyConsultationIdentityRecord[];
+    const identity = { name, parentPhone: survey.parent_phone, analysisId: survey.analysis_id };
+    // 이름만으로 찾은 상담(동명이인 위험)은 쓰지 않는다.
+    if (surveyConsultationMatchKind(records, identity) !== "strong") return null;
+    const consultationIds = selectSurveyConsultations(records, identity).map((c) => c.id);
+    if (consultationIds.length === 0) return null;
+
+    const { data: row, error: pqError } = await supabase
+      .from("parent_questionnaires")
+      .select("answers")
+      .in("consultation_id", consultationIds)
+      .is("revoked_at", null)
+      .not("answered_at", "is", null)
+      .order("answered_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pqError) throw new Error(pqError.message);
+
+    return buildParentAnswersSafe(row?.answers) ?? null;
+  } catch (e) {
+    console.warn("[V2 분석] 학부모 질문지 조회 실패 → 질문지 없이 진행:", {
+      surveyId: survey.id,
+      error: e instanceof Error ? e.message : "unknown",
+    });
+    return null;
+  }
 }
 
 /**
@@ -50,12 +115,15 @@ async function interpretWithAiOrFallback(
   responses: Record<string, unknown> | null,
   surveyId: string,
   /** studentType 실명 혼입 검사에만 쓴다. AI에는 전송하지 않는다. */
-  studentName: string | null
+  studentName: string | null,
+  /** 학부모 질문지 답(있을 때만). serializer 가 allowlist·redaction 을 다시 거친다. */
+  parentAnswers: ParentAnswersSafe | null = null,
 ): Promise<{ interpretation: AiInterpretation; source: "ai" | "fallback" }> {
   const aiInput = buildAiSafeInput({
     scoreProfile,
     intake: intakeFromStored(storedIntake, identity),
     responses,
+    parentAnswers,
   });
   const prompt = buildV2AnalysisPrompt(aiInput);
 
@@ -98,7 +166,7 @@ export async function analyzeSurveyV2(surveyId: string) {
   const { data: survey, error: surveyError } = await supabase
     .from("surveys")
     .select(
-      "id, name, school, grade, parent_phone, instrument_version, subject_selection, intake_v2, responses_v2, score_profile_v2"
+      "id, name, school, grade, parent_phone, analysis_id, instrument_version, subject_selection, intake_v2, responses_v2, score_profile_v2"
     )
     .eq("id", surveyId)
     .single();
@@ -140,24 +208,31 @@ export async function analyzeSurveyV2(surveyId: string) {
   // 아래 검증에서 studentType에 실명이 섞였는지 확인하는 용도로만 넘긴다.
   const name = row.name ?? "(이름 미상)";
 
+  const parentAnswers = await loadParentAnswersForSurvey(supabase, row);
+
   const { interpretation: rawInterpretation, source } = await interpretWithAiOrFallback(
     scoreProfile,
     row.intake_v2,
     { name: row.name, school: row.school, grade: row.grade },
     row.responses_v2,
     surveyId,
-    name
+    name,
+    parentAnswers,
   );
 
   // AI/fallback 해석의 "{{학생}}" 토큰을 실제 이름(예: 강현찬 학생)으로 치환하고,
   // AI가 지시를 어겨 쓴 따님/아드님/아이/자녀도 교정한다. 저장 전에 수행해 화면·PDF·공유 모두 일관.
   const interpretation = applyStudentNameToInterpretation(rawInterpretation, name);
 
-  const resultProfile = buildResultProfileV2({
+  const builtProfile = buildResultProfileV2({
     scoreProfile,
     interpretation,
     source,
   });
+  // 결과지 10번 표시용 스냅샷. 답이 없으면 키 자체를 넣지 않는다(예전 저장 모양 그대로).
+  const resultProfile: ResultProfileV2 = parentAnswers
+    ? { ...builtProfile, parentAnswers }
+    : builtProfile;
 
   const insertData = {
     survey_id: surveyId,

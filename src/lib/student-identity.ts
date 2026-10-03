@@ -183,6 +183,29 @@ export function selectSurveyConsultations<
 }
 
 /**
+ * selectSurveyConsultations 가 무엇으로 상담을 찾았는지.
+ * strong: 분석 ID 또는 학부모 연락처로 찾음(재상담으로 여러 건이어도 같은 학생).
+ * name: 강한 식별자가 없어 이름만으로 찾음. none: 못 찾음.
+ */
+export function surveyConsultationMatchKind<
+  T extends SurveyConsultationIdentityRecord,
+>(
+  candidates: T[],
+  identity: {
+    name: string;
+    parentPhone?: string | null;
+    analysisId?: string | null;
+  },
+  options: { allowNameFallback?: boolean } = {},
+): "strong" | "name" | "none" {
+  if (selectSurveyConsultations(candidates, identity, options).length === 0) return "none";
+  // 강한 식별자가 있으면 selectSurveyConsultations 는 강한 매칭만 돌려준다(없으면 빈 배열).
+  const hasStrongId =
+    Boolean(identity.analysisId?.trim()) || Boolean(normalizeIdentityPhone(identity.parentPhone));
+  return hasStrongId ? "strong" : "name";
+}
+
+/**
  * FK stamping처럼 오연결을 허용할 수 없는 경로에서 사용할 유일 매칭이다.
  * 분석 ID와 학부모 연락처 중 하나라도 일치하는 후보가 정확히 한 건일 때만 반환한다.
  * 강한 식별자가 없거나 복수 후보가 잡히면 이름만으로 추정하지 않는다.
